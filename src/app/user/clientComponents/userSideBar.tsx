@@ -171,10 +171,10 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               selected={selected === menu.key}
               onClick={() => {
                 if (selected !== menu.key) {
-                  setSelected(menu.key as Selected);
                   if (mobileOpen) {
                     handleDrawerToggle();
                   }
+                  setSelected(menu.key as Selected);
                 }
               }}
               component={Link}
