@@ -109,6 +109,39 @@ const EditEmployeeForm: React.FC<{
           };
         }
 
+        const overrides = data.employees[0]?.overrides || {};
+        if (
+          !overrides.shifts ||
+          !overrides.workingDays ||
+          !overrides.paymentStructure ||
+          !overrides.probabilities
+        ) {
+          const companyResponse = await fetch(
+            `/api/companies?companyId=${companyId}`
+          );
+          if (!companyResponse.ok) {
+            throw new Error("Failed to fetch company");
+          }
+          const companyData = await companyResponse.json();
+          setCompany(companyData.companies[0]);
+
+          const companyDefaults = companyData.companies[0];
+          const employee = data.employees[0];
+
+          employee.shifts = overrides.shifts
+            ? employee.shifts
+            : companyDefaults.shifts;
+          employee.workingDays = overrides.workingDays
+            ? employee.workingDays
+            : companyDefaults.workingDays;
+          employee.paymentStructure = overrides.paymentStructure
+            ? employee.paymentStructure
+            : companyDefaults.paymentStructure;
+          employee.probabilities = overrides.probabilities
+            ? employee.probabilities
+            : companyDefaults.probabilities;
+        }
+
         setFormFields(data.employees[0]);
       } catch (error) {
         setSnackbarMessage(
@@ -121,29 +154,7 @@ const EditEmployeeForm: React.FC<{
       }
     };
 
-    const fetchCompany = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/companies?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch company");
-        }
-        const data = await response.json();
-        setCompany(data.companies[0]);
-        // Set default payment structure to payments from company
-      } catch (error) {
-        setSnackbarMessage(
-          error instanceof Error ? error.message : "Error fetching company."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (companyId?.length === 24) {
-      fetchCompany();
       fetchEmployee();
     } else {
       setSnackbarMessage("Invalid Company ID");
@@ -151,33 +162,6 @@ const EditEmployeeForm: React.FC<{
       setSnackbarOpen(true);
     }
   }, [companyId, user]);
-
-  useEffect(() => {
-    if (employee && company) {
-      // Set default values for payment structure, shifts, working days, and probabilities
-      setFormFields((prev) => ({
-        ...prev,
-        paymentStructure:
-          employee.paymentStructure &&
-          Object.keys(employee.paymentStructure).length > 0
-            ? employee.paymentStructure
-            : company?.paymentStructure,
-        shifts:
-          employee.shifts && employee.shifts.length > 0
-            ? employee.shifts
-            : company?.shifts,
-        workingDays:
-          employee.workingDays && Object.keys(employee.workingDays).length > 0
-            ? employee.workingDays
-            : company?.workingDays,
-        probabilities:
-          employee.probabilities &&
-          Object.keys(employee.probabilities).length > 0
-            ? employee.probabilities
-            : company?.probabilities,
-      }));
-    }
-  }, [employee, company]);
 
   // Unified handle change for all fields
   const handleChange = (

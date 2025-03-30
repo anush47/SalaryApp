@@ -566,14 +566,28 @@ export async function PUT(req: NextRequest) {
         );
       }
     }
+    const updateData = { ...parsedBody };
+    const unsetFields: Record<string, number> = {};
+    // Handle field updates and unsetting
+    if (!parsedBody.overrides?.shifts) unsetFields.shifts = 1;
+    if (!parsedBody.overrides?.workingDays) unsetFields.workingDays = 1;
+    if (!parsedBody.overrides?.probabilities) unsetFields.probabilities = 1;
+    if (!parsedBody.overrides?.paymentStructure)
+      unsetFields.paymentStructure = 1;
+
+    console.log("Unset fields:", unsetFields);
+
+    // Remove fields from updateData if they are to be unset
+    Object.keys(unsetFields).forEach((field) => {
+      delete (updateData as Record<string, unknown>)[field];
+    });
 
     // Update the employee in the database
     const updatedEmployee = await Employee.findByIdAndUpdate(
       parsedBody._id,
       {
-        ...parsedBody,
-        paymentStructure:
-          parsedBody.paymentStructure || existingEmployee.paymentStructure,
+        ...updateData,
+        ...(Object.keys(unsetFields).length > 0 && { $unset: unsetFields }), // Add $unset only if needed
       },
       {
         new: true,
