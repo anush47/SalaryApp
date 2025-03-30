@@ -201,8 +201,9 @@ export const getAttendanceDoc = (
   //format date and time using ISO format
   const formatDateTime = (dateTime: string) => {
     const dateObj = new Date(dateTime);
-    const date = dateObj.toISOString().split("T")[0].slice(5).replace("-", "/"); // MM/DD
-    const time = dateObj.toISOString().split("T")[1].slice(0, 5); // HH:MM
+    const dateTimeStringArray = dateObj.toISOString().split("T");
+    const date = dateTimeStringArray[0].slice(5).replace("-", "/"); // MM/DD
+    const time = dateTimeStringArray[1].slice(0, 5); // HH:MM
     return { date, time };
   };
 
@@ -259,7 +260,7 @@ export const getAttendanceDoc = (
       day = formatDateTime(row.in).date;
     }
     if (row.in) {
-      const dateObj = new Date(row.in);
+      const dateObj = new Date(row.in.split("T")[0]);
       const dayOfWeek = dateObj.toLocaleString("default", { weekday: "short" });
       day = `${day}(${dayOfWeek})`;
     }
@@ -283,7 +284,7 @@ export const getAttendanceDoc = (
       returnArray.push(
         row.noPay == 0
           ? "-"
-          : salary[noPayIndex].toLocaleString("en-US", {
+          : row.noPay.toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })

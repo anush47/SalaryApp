@@ -1,9 +1,4 @@
-import {
-  Add,
-  Autorenew,
-  DeleteOutline,
-  SaveOutlined,
-} from "@mui/icons-material";
+import { Add, Autorenew, DeleteOutline } from "@mui/icons-material";
 import {
   Button,
   Chip,
@@ -210,7 +205,7 @@ export const InOutTable = ({
       headerName: "Day",
       flex: 1,
       renderCell(params) {
-        return dayjs(params.row.in).format("ddd");
+        return dayjs(params.row.in.split("T")[0]).format("ddd");
       },
     },
     {
