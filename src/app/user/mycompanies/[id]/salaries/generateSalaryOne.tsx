@@ -34,7 +34,6 @@ const GenerateSalaryOne = ({
   period: string;
   employeeId: string;
 }) => {
-  const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
   const [employee, setEmployee] = useState<Employee>();
   const [loading, setLoading] = useState(false);
   const [inOut, setInOut] = useState("");
@@ -116,7 +115,7 @@ const GenerateSalaryOne = ({
     }
   }, [employeeId]);
 
-  //when period changed
+  //when period or employee changed
   useEffect(() => {
     setFormFields({
       id: "",
@@ -143,7 +142,7 @@ const GenerateSalaryOne = ({
       remark: "",
     });
     setGenerated(false);
-  }, [period]);
+  }, [period, employeeId]);
 
   const generateSalary = async (update = false) => {
     try {
@@ -267,19 +266,18 @@ const GenerateSalaryOne = ({
       0
     );
 
-    const noPayAmount = Number(formFields.noPay.amount);
-    const holidayPay = Number(formFields.holidayPay);
+    const noPayAmount = Number(formFields.noPay.amount) || 0;
+    const holidayPay = Number(formFields.holidayPay) || 0;
 
     //set epf
     const epfAmount =
-      (basic +
-        holidayPay +
-        additionsForEarnings -
-        deductionsForEarnings -
-        noPayAmount) *
+      ((isNaN(basic) ? 0 : basic) +
+        (isNaN(holidayPay) ? 0 : holidayPay) +
+        (isNaN(additionsForEarnings) ? 0 : additionsForEarnings) -
+        (isNaN(deductionsForEarnings) ? 0 : deductionsForEarnings) -
+        (isNaN(noPayAmount) ? 0 : noPayAmount)) *
       0.08;
 
-    console.log("EPF Amount:", epfAmount);
     const epfDeduction = formFields.paymentStructure.deductions.find(
       (deduction) => deduction.name === "EPF 8%"
     );
@@ -383,6 +381,31 @@ const GenerateSalaryOne = ({
         // setFormFields({
         // });
         setErrors({});
+        setFormFields({
+          id: "",
+          _id: "",
+          employee: "",
+          period,
+          basic: 0,
+          holidayPay: 0,
+          inOut: [],
+          noPay: {
+            amount: 0,
+            reason: "",
+          },
+          ot: {
+            amount: 0,
+            reason: "",
+          },
+          paymentStructure: {
+            additions: [],
+            deductions: [],
+          },
+          advanceAmount: 0,
+          finalSalary: 0,
+          remark: "",
+        });
+        setGenerated(false);
       } else {
         // Handle validation or other errors returned by the API
         setSnackbarMessage(

@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Box,
-  CircularProgress,
   TextField,
   Grid,
   Tooltip,
@@ -14,24 +13,11 @@ import {
   useMediaQuery,
   useTheme,
   FormControl,
-  FormHelperText,
   Snackbar,
   Alert,
-  Slide,
-  InputAdornment,
-  Select,
-  InputLabel,
-  MenuItem,
   Autocomplete,
 } from "@mui/material";
-import {
-  ArrowBack,
-  Cancel,
-  Save,
-  Search,
-  ShoppingBag,
-} from "@mui/icons-material";
-import { LoadingButton } from "@mui/lab";
+import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -42,7 +28,6 @@ import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
-const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
 export interface Salary {
   employee: string;
   period: string;
@@ -97,7 +82,6 @@ const AddSalaryForm: React.FC<{
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
   );
-  const [nameLoading, setNameLoading] = useState<boolean>(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>("");
   const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
