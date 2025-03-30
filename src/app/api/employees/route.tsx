@@ -575,8 +575,6 @@ export async function PUT(req: NextRequest) {
     if (!parsedBody.overrides?.paymentStructure)
       unsetFields.paymentStructure = 1;
 
-    console.log("Unset fields:", unsetFields);
-
     // Remove fields from updateData if they are to be unset
     Object.keys(unsetFields).forEach((field) => {
       delete (updateData as Record<string, unknown>)[field];
