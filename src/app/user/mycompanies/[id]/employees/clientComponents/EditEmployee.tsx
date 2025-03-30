@@ -45,15 +45,12 @@ import {
   defaultEmployee,
   Employee,
 } from "./employeesDataGrid";
-import { LoadingButton } from "@mui/lab";
 import "dayjs/locale/en-gb";
 import {
   PaymentStructure,
   validateAmountNumberString,
 } from "../../companyDetails/paymentStructure";
 import { companyId } from "../../clientComponents/companySideBar";
-import { Company } from "../../../clientComponents/companiesDataGrid";
-import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 //import { Company } from "./companiesDataGrid";
 //import { CompanyValidation } from "./companyValidation";
@@ -62,7 +59,6 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import { TransitionProps } from "@mui/material/transitions";
 import { categories, otMethods } from "./AddEmployee";
 import { Shifts } from "../../companyDetails/shifts";
 import { WorkingDays } from "../../companyDetails/workingDays";
@@ -732,7 +728,7 @@ const EditEmployeeForm: React.FC<{
           </Accordion>
         </Grid>
 
-        {formFields.overrides.paymentStructure && (
+        {formFields.overrides?.paymentStructure && (
           <>
             <div className="my-5" />
             <Grid item xs={12}>
@@ -752,7 +748,7 @@ const EditEmployeeForm: React.FC<{
           </>
         )}
 
-        {formFields.overrides.shifts && (
+        {formFields.overrides?.shifts && (
           <>
             <div className="my-5" />
             <Grid item xs={12}>
@@ -772,7 +768,7 @@ const EditEmployeeForm: React.FC<{
           </>
         )}
 
-        {formFields.overrides.workingDays && (
+        {formFields.overrides?.workingDays && (
           <>
             <div className="my-5" />
 
@@ -795,7 +791,7 @@ const EditEmployeeForm: React.FC<{
         {
           //if admin
           user.role === "admin" &&
-            formFields.overrides.probabilities &&
+            formFields.overrides?.probabilities &&
             (formFields.otMethod === "random" ||
               formFields.otMethod === "noOt") && (
               <>

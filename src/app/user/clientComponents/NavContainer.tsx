@@ -15,7 +15,7 @@ export type Selected =
   | "salaries"
   | "payments";
 
-const NavContainer = async ({
+const NavContainer = ({
   user,
 }: {
   user: {
@@ -31,7 +31,6 @@ const NavContainer = async ({
   const searchParams = useSearchParams();
   useEffect(() => {
     const selectedParam = searchParams?.get("userPageSelect");
-
     if (
       selectedParam &&
       [

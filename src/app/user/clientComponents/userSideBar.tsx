@@ -170,15 +170,13 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
             <ListItemButton
               selected={selected === menu.key}
               onClick={() => {
+                mobileOpen && handleDrawerToggle();
                 if (selected !== menu.key) {
-                  if (mobileOpen) {
-                    handleDrawerToggle();
-                  }
                   setSelected(menu.key as Selected);
                 }
               }}
               component={Link}
-              href={`/user/?userPageSelect=${menu.key}`}
+              href={``}
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: theme.palette.action.selected,
