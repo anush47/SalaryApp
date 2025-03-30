@@ -308,6 +308,9 @@ const PurchasesDataGrid: React.FC<{
       {!loading && !error && (
         <DataGrid
           editMode="row"
+          sx={{
+            height: "calc(100vh - 230px)",
+          }}
           rows={purchases}
           columns={columns}
           initialState={{

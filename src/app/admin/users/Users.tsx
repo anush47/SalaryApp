@@ -278,7 +278,7 @@ const Users = ({
     <Box>
       <Card
         sx={{
-          minHeight: "91vh",
+          minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
           overflowY: "auto",
         }}
       >
@@ -309,6 +309,9 @@ const Users = ({
               rows={users}
               columns={columns}
               editMode="row"
+              sx={{
+                height: "calc(100vh - 230px)",
+              }}
               initialState={{
                 pagination: { paginationModel: { pageSize: 20 } },
                 filter: {

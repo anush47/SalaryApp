@@ -22,7 +22,7 @@ const Settings = ({
     <Box>
       <Card
         sx={{
-          minHeight: "91vh",
+          minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
           overflowY: "auto",
         }}
       >

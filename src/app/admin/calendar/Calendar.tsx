@@ -322,7 +322,7 @@ const Users = ({
     <Box>
       <Card
         sx={{
-          minHeight: "91vh",
+          minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
           overflowY: "auto",
         }}
       >
@@ -352,6 +352,9 @@ const Users = ({
             <DataGrid
               rows={holidays}
               columns={columns}
+              sx={{
+                height: "calc(100vh - 230px)",
+              }}
               editMode="row"
               initialState={{
                 pagination: { paginationModel: { pageSize: 20 } },

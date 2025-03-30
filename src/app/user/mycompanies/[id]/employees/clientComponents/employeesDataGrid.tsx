@@ -548,7 +548,7 @@ const EmployeesDataGrid: React.FC<{
     <Box
       sx={{
         width: "100%",
-        height: 400,
+        height: "calc(100vh - 230px)",
         justifyContent: "center",
         alignItems: "center",
       }}

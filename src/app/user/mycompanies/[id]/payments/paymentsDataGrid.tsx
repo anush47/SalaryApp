@@ -470,7 +470,7 @@ const PaymentsDataGrid: React.FC<{
     <Box
       sx={{
         width: "100%",
-        height: period ? 250 : 400,
+        height: period ? 250 : "calc(100vh - 230px)",
         justifyContent: "center",
         alignItems: "center",
       }}

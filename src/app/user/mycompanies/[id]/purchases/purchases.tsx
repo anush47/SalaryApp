@@ -55,7 +55,7 @@ const Purchases = ({
       {isAdding ? (
         <Card
           sx={{
-            height: "91vh",
+            minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
             overflowY: "auto",
           }}
         >
@@ -64,7 +64,7 @@ const Purchases = ({
       ) : (
         <Card
           sx={{
-            minHeight: "91vh",
+            minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
             overflowY: "auto",
           }}
         >

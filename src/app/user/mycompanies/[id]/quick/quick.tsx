@@ -451,7 +451,12 @@ const QuickTools = ({
   };
 
   return (
-    <Card sx={{ minHeight: "91vh", overflowY: "auto" }}>
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
       <CardHeader
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>

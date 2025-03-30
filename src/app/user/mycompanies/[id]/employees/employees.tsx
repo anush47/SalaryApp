@@ -94,13 +94,23 @@ const Employees = ({
   );
 
   const AddEmployeeCard = () => (
-    <Card sx={{ height: "91vh", overflowY: "auto" }}>
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
       <AddEmployeeForm user={user} handleBackClick={handleBackClick} />
     </Card>
   );
 
   const EditEmployeeCard = () => (
-    <Card sx={{ height: "87vh", overflowY: "auto" }}>
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
       <EditEmployeeForm
         user={user}
         handleBackClick={handleBackClick}
@@ -110,7 +120,12 @@ const Employees = ({
   );
 
   const ABHCard = () => (
-    <Card sx={{ height: "91vh", overflowY: "auto" }}>
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
       <ABH
         user={user}
         handleBackClick={handleBackClick}
@@ -120,7 +135,12 @@ const Employees = ({
   );
 
   const EmployeesCard = () => (
-    <Card sx={{ minHeight: "91vh", overflowY: "auto" }}>
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
       <Header />
       <CardContent
         sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}

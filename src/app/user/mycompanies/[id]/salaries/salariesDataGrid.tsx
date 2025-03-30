@@ -567,7 +567,7 @@ const SalariesDataGrid: React.FC<{
             rows={salaries}
             columns={columns}
             sx={{
-              height: 400,
+              height: period ? 400 : "calc(100vh - 230px)",
             }}
             //autoPageSize
             editMode="row"
