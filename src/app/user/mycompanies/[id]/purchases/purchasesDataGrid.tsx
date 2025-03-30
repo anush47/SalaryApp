@@ -5,22 +5,10 @@ import {
   GridColumnVisibilityModel,
   GridToolbar,
 } from "@mui/x-data-grid";
-import {
-  Box,
-  Alert,
-  CircularProgress,
-  Button,
-  Snackbar,
-  Slide,
-  Chip,
-} from "@mui/material";
-import { companyId } from "../clientComponents/companySideBar";
-import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { Box, Alert, CircularProgress, Snackbar, Chip } from "@mui/material";
+import { companyId } from "../clientComponents/NavContainer";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import Link from "next/link";
-import { request } from "http";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");

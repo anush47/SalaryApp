@@ -18,7 +18,7 @@ import { Add, ArrowBack } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import NewPurchaseForm from "./newPurchaseForm";
 import Link from "next/link";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 
 // Lazily load PurchasesDataGrid
 const PurchasesDataGrid = lazy(() => import("./purchasesDataGrid"));

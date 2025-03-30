@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DataGrid,
   GridColDef,
@@ -12,7 +12,6 @@ import {
   CircularProgress,
   Chip,
   Snackbar,
-  Slide,
   Button,
   Dialog,
   DialogContent,
@@ -20,7 +19,7 @@ import {
   DialogTitle,
   DialogActions,
 } from "@mui/material";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
 import { DeleteOutline } from "@mui/icons-material";

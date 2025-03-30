@@ -19,7 +19,7 @@ import {
 import { Add, Check, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 
 // Lazily load SalariesDataGrid and AddSalaryForm
 const SalariesDataGrid = lazy(() => import("./salariesDataGrid"));

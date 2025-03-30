@@ -46,7 +46,7 @@ import {
   PaymentStructure,
   validateAmountNumberString,
 } from "../../companyDetails/paymentStructure";
-import { companyId } from "../../clientComponents/companySideBar";
+import { companyId } from "../../clientComponents/NavContainer";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { Shifts } from "../../companyDetails/shifts";
 import { WorkingDays } from "../../companyDetails/workingDays";

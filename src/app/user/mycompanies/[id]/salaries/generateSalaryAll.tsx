@@ -18,7 +18,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { Salary } from "./salariesDataGrid";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import EmployeesInclude from "./employeesInclude";
 import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";

@@ -28,8 +28,7 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { Employee } from "../employees/clientComponents/employeesDataGrid";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import { Salary } from "./salariesDataGrid";
 import { ArrowBack, Edit, ExpandMore, Save } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
@@ -241,19 +240,18 @@ const EditSalaryForm: React.FC<{
       0
     );
 
-    const noPayAmount = Number(formFields.noPay.amount);
-    const holidayPay = Number(formFields.holidayPay);
+    const noPayAmount = Number(formFields.noPay.amount) || 0;
+    const holidayPay = Number(formFields.holidayPay) || 0;
 
     //set epf
     const epfAmount =
-      (basic +
-        holidayPay +
-        additionsForEarnings -
-        deductionsForEarnings -
-        noPayAmount) *
+      ((isNaN(basic) ? 0 : basic) +
+        (isNaN(holidayPay) ? 0 : holidayPay) +
+        (isNaN(additionsForEarnings) ? 0 : additionsForEarnings) -
+        (isNaN(deductionsForEarnings) ? 0 : deductionsForEarnings) -
+        (isNaN(noPayAmount) ? 0 : noPayAmount)) *
       0.08;
 
-    console.log("EPF Amount:", epfAmount);
     const epfDeduction = formFields.paymentStructure.deductions.find(
       (deduction) => deduction.name === "EPF 8%"
     );
@@ -270,7 +268,7 @@ const EditSalaryForm: React.FC<{
       0
     );
 
-    const advanceAmount = Number(formFields.advanceAmount);
+    const advanceAmount = Number(formFields.advanceAmount) || 0;
 
     const finalSalary =
       basic + holidayPay + otAmount + additions - deductions - noPayAmount;

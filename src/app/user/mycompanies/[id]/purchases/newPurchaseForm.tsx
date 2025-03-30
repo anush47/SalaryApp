@@ -21,7 +21,7 @@ import {
 import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
 import Slide from "@mui/material/Slide";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import { useSearchParams } from "next/navigation";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";

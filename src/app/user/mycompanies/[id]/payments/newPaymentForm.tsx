@@ -24,7 +24,7 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { Payment } from "./paymentsDataGrid";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import {
   ArrowBack,
   ExpandMore,

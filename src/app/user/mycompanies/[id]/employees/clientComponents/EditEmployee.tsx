@@ -50,7 +50,7 @@ import {
   PaymentStructure,
   validateAmountNumberString,
 } from "../../companyDetails/paymentStructure";
-import { companyId } from "../../clientComponents/companySideBar";
+import { companyId } from "../../clientComponents/NavContainer";
 import dayjs from "dayjs";
 //import { Company } from "./companiesDataGrid";
 //import { CompanyValidation } from "./companyValidation";

@@ -20,7 +20,7 @@ import EditEmployeeForm from "./clientComponents/EditEmployee";
 import ABH from "./clientComponents/ABH";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 
 const EmployeesDataGrid = lazy(
   () => import("./clientComponents/employeesDataGrid")

@@ -176,7 +176,7 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
                 }
               }}
               component={Link}
-              href={``}
+              href={`/user?userPageSelect=${menu.key}`}
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: theme.palette.action.selected,

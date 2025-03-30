@@ -1,9 +1,8 @@
 "use client";
-import React, { Suspense, lazy, useState, useEffect } from "react";
+import React, { Suspense, lazy } from "react";
 import { Box, Toolbar, CircularProgress } from "@mui/material";
 import "@fontsource/roboto/400.css";
-import { selected } from "./companySideBar";
-import { companyId } from "./companySideBar";
+import { Selected } from "./NavContainer";
 
 // Lazy load the components
 const CompanyDetails = lazy(() => import("../companyDetails/companyDetails"));
@@ -16,6 +15,7 @@ const Documents = lazy(() => import("../documents/documents"));
 
 const CompanyMainBox = ({
   user,
+  selected,
 }: {
   user: {
     name: string;
@@ -24,13 +24,8 @@ const CompanyMainBox = ({
     role: string;
     image: string;
   };
+  selected: Selected;
 }) => {
-  const [currentSelected, setCurrentSelected] = useState(selected);
-
-  useEffect(() => {
-    setCurrentSelected(selected);
-  }, [selected]);
-
   const fallback = (
     <Box
       display="flex"
@@ -46,7 +41,7 @@ const CompanyMainBox = ({
     return (
       <Suspense fallback={fallback}>
         {(() => {
-          switch (currentSelected) {
+          switch (selected) {
             case "quick":
               return <QuickTools user={user} />;
             case "details":

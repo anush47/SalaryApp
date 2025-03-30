@@ -18,9 +18,7 @@ import {
   GridColumnVisibilityModel,
   GridToolbar,
 } from "@mui/x-data-grid";
-import Link from "next/link";
 import React, { useState } from "react";
-import { companyId } from "../clientComponents/companySideBar";
 import { LoadingButton } from "@mui/lab";
 import { Salary } from "./salariesDataGrid";
 

@@ -14,7 +14,7 @@ import {
 } from "@mui/x-data-grid";
 import Link from "next/link";
 import React from "react";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
 
 interface Props {

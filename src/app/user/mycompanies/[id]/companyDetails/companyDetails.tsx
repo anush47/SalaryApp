@@ -41,7 +41,7 @@ import {
   ExpandMore,
 } from "@mui/icons-material";
 import { Company } from "../../clientComponents/companiesDataGrid";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import { CompanyValidation } from "../../clientComponents/companyValidation";
 import { PaymentStructure } from "./paymentStructure";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -50,11 +50,9 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { ddmmyyyy_to_mmddyyyy } from "../employees/clientComponents/employeesDataGrid";
 import dayjs from "dayjs";
 import { Shifts } from "./shifts";
-import { start } from "repl";
 import { WorkingDays } from "./workingDays";
 import { LoadingButton } from "@mui/lab";
 const ChangeUser = React.lazy(() => import("./ChangeUser"));
-const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
 
 const CompanyDetails = ({
   user,

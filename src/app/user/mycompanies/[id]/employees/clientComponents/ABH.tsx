@@ -22,7 +22,7 @@ import {
   AccordionDetails,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { companyId } from "../../clientComponents/companySideBar";
+import { companyId } from "../../clientComponents/NavContainer";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";

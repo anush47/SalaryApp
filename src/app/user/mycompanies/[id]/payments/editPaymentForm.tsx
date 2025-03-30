@@ -32,7 +32,7 @@ import {
   ddmmyyyy_to_mmddyyyy,
   Employee,
 } from "../employees/clientComponents/employeesDataGrid";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import {
   ArrowBack,
   Edit,

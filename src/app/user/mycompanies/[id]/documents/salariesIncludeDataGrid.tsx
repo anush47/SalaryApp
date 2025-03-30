@@ -7,7 +7,7 @@ import {
   GridToolbar,
 } from "@mui/x-data-grid";
 import { Box, Alert, CircularProgress, Chip, Button } from "@mui/material";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import Link from "next/link";
 import { Salary } from "../salaries/salariesDataGrid";
 

@@ -38,62 +38,24 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { Link as LinkM } from "@mui/material";
-import { useSearchParams, useParams } from "next/navigation";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import { ThemeSwitch } from "@/app/theme-provider";
+import { companyId, Selected } from "./NavContainer";
 
 const drawerWidth = 300;
 
-//export selected type
-export type Selected =
-  | "quick"
-  | "details"
-  | "employees"
-  | "payments"
-  | "salaries"
-  | "purchases"
-  | "documents";
-
 interface Props {
-  window?: Window | undefined;
   user: { name: string; email: string; role: string; image: string };
+  selected: Selected;
+  setSelected: (selected: Selected) => void;
 }
-export let selected: Selected = "details";
-export let companyId: string;
 
-const CompanySideBar: React.FC<Props> = ({ window, user }) => {
+const CompanySideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [company, setCompany] = React.useState<Company | null>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme();
-
-  //get id from params of url
-  const params = useParams();
-  if (params && params.id) {
-    companyId = params.id.toString();
-  }
-
-  //search params to get selected
-  const searchParams = useSearchParams();
-  const selectedParam = searchParams?.get("companyPageSelect");
-  if (selectedParam) {
-    selected = selectedParam as Selected;
-  }
-  //if wrong params default to dashboard
-  if (
-    ![
-      "quick",
-      "details",
-      "employees",
-      "payments",
-      "salaries",
-      "purchases",
-      "documents",
-    ].includes(selected)
-  ) {
-    selected = "quick";
-  }
 
   const handleDrawerToggle = () => {
     setMobileOpen((prevState) => !prevState);
@@ -248,8 +210,9 @@ const CompanySideBar: React.FC<Props> = ({ window, user }) => {
             <ListItemButton
               selected={selected === menu.key}
               onClick={() => {
+                mobileOpen && handleDrawerToggle();
                 if (selected !== menu.key) {
-                  selected = menu.key as Selected;
+                  setSelected(menu.key as Selected);
                 }
               }}
               component={Link}

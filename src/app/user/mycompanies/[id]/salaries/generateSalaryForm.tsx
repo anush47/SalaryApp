@@ -36,7 +36,7 @@ import dayjs from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import "dayjs/locale/en-gb";
-import { companyId } from "../clientComponents/companySideBar";
+import { companyId } from "../clientComponents/NavContainer";
 import GenerateSalaryAll from "./generateSalaryAll";
 import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
