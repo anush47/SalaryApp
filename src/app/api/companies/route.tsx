@@ -251,7 +251,10 @@ const companyUpdateSchema = z.object({
       z.object({
         start: z.string().optional(),
         end: z.string().optional(),
-        break: z.number().optional(),
+        break: z
+          .number()
+          .min(0, "Break time must be a positive number")
+          .optional(),
       })
     )
     .optional(),

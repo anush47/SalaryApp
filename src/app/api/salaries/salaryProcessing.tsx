@@ -85,7 +85,7 @@ export const processSalaryWithInOut = async (
     const halfDayTreshold = 6;
     // manage break
     if (workingHours > halfDayTreshold) {
-      workingHours -= shift.break || 1; // subtract break time if working hours exceed half day threshold
+      workingHours -= shift.break || 0; // subtract break time if working hours exceed half day threshold
     }
 
     const { ot, otHours } = calculateOT(

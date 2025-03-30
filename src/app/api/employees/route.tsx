@@ -167,7 +167,11 @@ const employeeCreateSchema = z.object({
     z.object({
       start: z.string().min(1, "Start time is required"),
       end: z.string().min(1, "End time is required"),
-      break: z.number().default(0),
+      break: z
+        .number()
+        .min(0, "Break time must be a positive number")
+        .optional()
+        .default(0),
     })
   ),
   probabilities: z
@@ -417,7 +421,10 @@ const employeeUpdateSchema = z.object({
       z.object({
         start: z.string(),
         end: z.string(),
-        break: z.number().optional(),
+        break: z
+          .number()
+          .min(0, "Break time must be a positive number")
+          .optional(),
       })
     )
     .optional(),

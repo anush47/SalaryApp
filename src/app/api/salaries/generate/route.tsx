@@ -118,6 +118,24 @@ export async function POST(req: NextRequest) {
       if (openHours) {
         employee.openHours = openHours;
       }
+
+      // Set individual properties if no overrides, otherwise use overrides
+      if (!employee.overrides?.shifts) {
+        employee.shifts = company.shifts;
+      }
+
+      if (!employee.overrides?.probabilities) {
+        employee.probabilities = company.probabilities;
+      }
+
+      if (!employee.overrides?.workingDays) {
+        employee.workingDays = company.workingDays;
+      }
+
+      if (!employee.overrides?.paymentStructure) {
+        employee.paymentStructure = company.paymentStructure;
+      }
+
       const existingSalary = await Salary.findOne({
         employee: employee._id,
         period: period,
