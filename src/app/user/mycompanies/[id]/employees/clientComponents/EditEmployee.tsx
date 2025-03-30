@@ -75,7 +75,6 @@ const EditEmployeeForm: React.FC<{
 }> = ({ user, handleBackClick, employeeId }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
-  const [memberNoLoading, setNameLoading] = useState<boolean>(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>("");
   const [snackbarSeverity, setSnackbarSeverity] = useState<
