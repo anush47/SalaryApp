@@ -63,6 +63,7 @@ import { categories, otMethods } from "./AddEmployee";
 import { Shifts } from "../../companyDetails/shifts";
 import { WorkingDays } from "../../companyDetails/workingDays";
 import Link from "next/link";
+import { Company } from "../../../clientComponents/companiesDataGrid";
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -78,6 +79,7 @@ const EditEmployeeForm: React.FC<{
   >("success");
   const [errors, setErrors] = useState<Record<string, string | any>>({});
   const [employee, setEmployee] = useState<Employee | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -119,7 +121,29 @@ const EditEmployeeForm: React.FC<{
       }
     };
 
+    const fetchCompany = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/companies?companyId=${companyId}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch company");
+        }
+        const data = await response.json();
+        setCompany(data.companies[0]);
+        // Set default payment structure to payments from company
+      } catch (error) {
+        setSnackbarMessage(
+          error instanceof Error ? error.message : "Error fetching company."
+        );
+        setSnackbarSeverity("error");
+        setSnackbarOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (companyId?.length === 24) {
+      fetchCompany();
       fetchEmployee();
     } else {
       setSnackbarMessage("Invalid Company ID");
@@ -127,6 +151,33 @@ const EditEmployeeForm: React.FC<{
       setSnackbarOpen(true);
     }
   }, [companyId, user]);
+
+  useEffect(() => {
+    if (employee && company) {
+      // Set default values for payment structure, shifts, working days, and probabilities
+      setFormFields((prev) => ({
+        ...prev,
+        paymentStructure:
+          employee.paymentStructure &&
+          Object.keys(employee.paymentStructure).length > 0
+            ? employee.paymentStructure
+            : company?.paymentStructure,
+        shifts:
+          employee.shifts && employee.shifts.length > 0
+            ? employee.shifts
+            : company?.shifts,
+        workingDays:
+          employee.workingDays && Object.keys(employee.workingDays).length > 0
+            ? employee.workingDays
+            : company?.workingDays,
+        probabilities:
+          employee.probabilities &&
+          Object.keys(employee.probabilities).length > 0
+            ? employee.probabilities
+            : company?.probabilities,
+      }));
+    }
+  }, [employee, company]);
 
   // Unified handle change for all fields
   const handleChange = (
