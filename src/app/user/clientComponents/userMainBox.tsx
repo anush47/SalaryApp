@@ -1,8 +1,8 @@
 "use client";
 import React, { Suspense, lazy } from "react";
-import { Box, Toolbar, LinearProgress, CircularProgress } from "@mui/material";
+import { Box, Toolbar, CircularProgress } from "@mui/material";
 import "@fontsource/roboto/400.css";
-import { selected } from "./userSideBar";
+import { Selected } from "./NavContainer";
 
 // Lazy load the components
 const QuickTools = lazy(() => import("../quick/quick"));
@@ -15,6 +15,7 @@ const Salaries = lazy(() => import("../salaries/salaries"));
 
 const UserMainBox = ({
   user,
+  selected,
 }: {
   user: {
     name: string;
@@ -23,6 +24,7 @@ const UserMainBox = ({
     role: string;
     image: string;
   };
+  selected: Selected;
 }) => {
   const fallback = (
     <Box

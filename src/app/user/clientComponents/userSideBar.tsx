@@ -19,7 +19,6 @@ import {
   Menu,
   MenuItem,
   Breadcrumbs,
-  AvatarGroup,
   useTheme,
 } from "@mui/material";
 import {
@@ -36,53 +35,22 @@ import {
 import Link from "next/link";
 import { Link as LinkM } from "@mui/material";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import { ThemeSwitch } from "@/app/theme-provider";
+import { Selected } from "./NavContainer";
 
 const drawerWidth = 300;
 
-//export selected type
-export type Selected =
-  | "quick"
-  | "mycompanies"
-  | "settings"
-  | "purchases"
-  | "employees"
-  | "salaries"
-  | "payments";
-
 interface Props {
-  window?: Window | undefined;
   user: { name: string; email: string; role: string; image: string };
+  selected: Selected;
+  setSelected: (selected: Selected) => void;
 }
-export let selected: Selected = "mycompanies";
 
-const UserSideBar: React.FC<Props> = ({ window, user }) => {
+const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme();
-
-  //search params to get selected
-  const searchParams = useSearchParams();
-  const selectedParam = searchParams?.get("userPageSelect");
-  if (selectedParam) {
-    selected = selectedParam as Selected;
-  }
-  //if wrong params default to mycompanies
-  if (
-    ![
-      "quick",
-      "mycompanies",
-      "settings",
-      "purchases",
-      "employees",
-      "salaries",
-      "payments",
-    ].includes(selected)
-  ) {
-    selected = "mycompanies";
-  }
 
   const handleDrawerToggle = () => {
     setMobileOpen((prevState) => !prevState);
@@ -203,7 +171,7 @@ const UserSideBar: React.FC<Props> = ({ window, user }) => {
               selected={selected === menu.key}
               onClick={() => {
                 if (selected !== menu.key) {
-                  selected = menu.key as Selected;
+                  setSelected(menu.key as Selected);
                 }
               }}
               component={Link}
