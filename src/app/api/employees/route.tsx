@@ -202,6 +202,19 @@ const employeeCreateSchema = z.object({
     .optional(),
   email: z.string().email("Email must be a valid email").optional(),
   address: z.string().optional(), // Add this line
+  overrides: z
+    .object({
+      shifts: z.boolean(),
+      workingDays: z.boolean(),
+      probabilities: z.boolean(),
+      paymentStructure: z.boolean(),
+    })
+    .default({
+      shifts: false,
+      workingDays: false,
+      probabilities: false,
+      paymentStructure: false,
+    }),
 });
 
 export async function POST(req: NextRequest) {
@@ -371,6 +384,14 @@ const employeeUpdateSchema = z.object({
   designation: z.string().optional(),
   remark: z.string().optional(),
   otMethod: z.string(),
+  overrides: z
+    .object({
+      shifts: z.boolean().optional(),
+      workingDays: z.boolean().optional(),
+      probabilities: z.boolean().optional(),
+      paymentStructure: z.boolean().optional(),
+    })
+    .optional(),
   probabilities: z
     .object({
       workOnOff: z.number().optional(),

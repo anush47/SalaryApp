@@ -15,12 +15,18 @@ interface IEmployee extends Document {
   phoneNumber: string;
   email: string;
   address: string; // Add this line
-  workingDays: {
-    [key: string]: "full" | "half" | "off";
-  };
   divideBy: 240 | 200;
   active: boolean;
   otMethod: "random" | "noOt" | "calc";
+  overrides: {
+    shifts: boolean;
+    workingDays: boolean;
+    probabilities: boolean;
+    paymentStructure: boolean;
+  };
+  workingDays: {
+    [key: string]: "full" | "half" | "off";
+  };
   shifts: {
     start: string;
     end: string;
@@ -80,6 +86,26 @@ const employeeSchema = new Schema<IEmployee>(
     remark: {
       type: String,
     },
+    overrides: {
+      type: {
+        shifts: {
+          type: Boolean,
+          default: false,
+        },
+        workingDays: {
+          type: Boolean,
+          default: false,
+        },
+        probabilities: {
+          type: Boolean,
+          default: false,
+        },
+        paymentStructure: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    },
     shifts: {
       type: [
         {
@@ -93,10 +119,10 @@ const employeeSchema = new Schema<IEmployee>(
           },
           break: {
             type: Number,
+            required: true,
           },
         },
       ],
-      required: true,
     },
     startedAt: {
       type: String,
@@ -149,6 +175,7 @@ const employeeSchema = new Schema<IEmployee>(
           required: true,
         },
       },
+      required: false,
     },
     divideBy: {
       type: Number,
@@ -171,7 +198,7 @@ const employeeSchema = new Schema<IEmployee>(
       type: String,
     },
     address: {
-      type: String, // Add this block
+      type: String,
     },
     probabilities: {
       type: {

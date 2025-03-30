@@ -39,7 +39,7 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { Employee } from "./employeesDataGrid";
+import { defaultEmployee, Employee } from "./employeesDataGrid";
 import { LoadingButton } from "@mui/lab";
 import "dayjs/locale/en-gb";
 import {
@@ -59,38 +59,7 @@ const AddEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
 }> = ({ user, handleBackClick }) => {
-  const [formFields, setFormFields] = useState<Employee>({
-    id: "",
-    name: "",
-    memberNo: 0,
-    nic: "",
-    active: true,
-    basic: 21000,
-    totalSalary: "",
-    remark: "",
-    divideBy: 240,
-    designation: "",
-    otMethod: user.role === "admin" ? "random" : "calc",
-    startedAt: "",
-    resignedAt: "",
-    workingDays: {},
-    shifts: [],
-    paymentStructure: {
-      additions: [],
-      deductions: [],
-    },
-    probabilities: {
-      workOnOff: 0,
-      workOnHoliday: 0,
-      absent: 0,
-      late: 0,
-      ot: 0,
-    },
-    company: companyId || "",
-    phoneNumber: "",
-    email: "",
-    address: "", // Add this line
-  });
+  const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
   const [memberNoLoading, setNameLoading] = useState<boolean>(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
@@ -99,16 +68,7 @@ const AddEmployeeForm: React.FC<{
     "success"
   );
   const [errors, setErrors] = useState<{
-    name?: string;
-    memberNo?: string;
-    remark?: string;
-    basic?: string;
-    totalSalary?: string;
-    nic?: string;
-    divideBy?: string;
-    designation?: string;
-    startedAt?: string;
-    resignedAt?: string;
+    [key: string]: string;
   }>({});
   const [company, setCompany] = useState<Company | null>(null);
 
@@ -128,10 +88,11 @@ const AddEmployeeForm: React.FC<{
         // Set default payment structure to payments from company
         setFormFields((prev) => ({
           ...prev,
+          otMethod: user.role === "admin" ? "random" : "noOt",
           shifts:
             data.companies[0].shifts && data.companies[0].shifts.length > 0
               ? data.companies[0].shifts
-              : [{ start: "08:00", end: "17:00" }],
+              : [{ start: "08:00", end: "17:00", break: 1 }],
           workingDays: data.companies[0].workingDays
             ? data.companies[0].workingDays
             : {
@@ -257,38 +218,7 @@ const AddEmployeeForm: React.FC<{
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Clear the form after successful save
-        setFormFields({
-          id: "",
-          name: "",
-          memberNo: 0,
-          basic: 21000,
-          totalSalary: "",
-          designation: "",
-          divideBy: 240,
-          active: true,
-          workingDays: {},
-          nic: "",
-          remark: "",
-          startedAt: "",
-          resignedAt: "",
-          otMethod: "",
-          shifts: [],
-          probabilities: {
-            workOnOff: 0,
-            workOnHoliday: 0,
-            absent: 0,
-            late: 0,
-            ot: 0,
-          },
-          paymentStructure: {
-            additions: [],
-            deductions: [],
-          },
-          company: companyId,
-          phoneNumber: "",
-          email: "",
-          address: "", // Add this line
-        });
+        setFormFields(defaultEmployee);
         setErrors({});
         handleBackClick();
       } else {

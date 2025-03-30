@@ -38,6 +38,12 @@ export interface Employee {
   remark: string;
   active: boolean;
   otMethod: string;
+  overrides: {
+    shifts: boolean;
+    workingDays: boolean;
+    probabilities: boolean;
+    paymentStructure: boolean;
+  };
   shifts: {
     start: string;
     end: string;
@@ -67,8 +73,56 @@ export interface Employee {
   company: string;
   phoneNumber: string;
   email: string;
-  address: string; // Add this line
+  address: string;
 }
+
+// Default values for Employee
+export const defaultEmployee: Employee = {
+  totalSalary: "",
+  id: "",
+  designation: "",
+  name: "",
+  memberNo: 0,
+  nic: "",
+  basic: 21000,
+  workingDays: {
+    mon: "full",
+    tue: "full",
+    wed: "full",
+    thu: "full",
+    fri: "full",
+    sat: "half",
+    sun: "off",
+  },
+  divideBy: 240,
+  remark: "",
+  active: false,
+  otMethod: "",
+  overrides: {
+    shifts: false,
+    workingDays: false,
+    probabilities: false,
+    paymentStructure: false,
+  },
+  shifts: [{ start: "08:00", end: "17:00", break: 1 }],
+  probabilities: {
+    workOnOff: 1,
+    workOnHoliday: 1,
+    absent: 5,
+    late: 2,
+    ot: 75,
+  },
+  paymentStructure: {
+    additions: [],
+    deductions: [],
+  },
+  startedAt: "",
+  resignedAt: "",
+  company: "",
+  phoneNumber: "",
+  email: "",
+  address: "",
+};
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   //if null return ""
