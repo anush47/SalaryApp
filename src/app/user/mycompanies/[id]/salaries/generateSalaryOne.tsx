@@ -27,17 +27,11 @@ import React, { useEffect, useState } from "react";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
 import { companyId } from "../clientComponents/companySideBar";
 import { Salary } from "./salariesDataGrid";
-import {
-  Autorenew,
-  CheckCircle,
-  DoneAllRounded,
-  Save,
-  Upload,
-} from "@mui/icons-material";
+import { Autorenew, CheckCircle, Save, Upload } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
-import { handleCsvUpload, inOutCalc } from "./csvUpload";
+import { handleCsvUpload } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
-import { InOutTable, SimpleDialog } from "./inOutTable";
+import { InOutTable } from "./inOutTable";
 
 const GenerateSalaryOne = ({
   period,

@@ -68,19 +68,26 @@ export const processSalaryWithInOut = async (
             0
           );
 
-    const workingHours =
+    let workingHours = Math.max(
       (outDate.getTime() -
         (typeof actualInTime === "number"
           ? actualInTime
           : actualInTime.getTime())) /
-      1000 /
-      60 /
-      60;
+        1000 /
+        60 /
+        60,
+      // if outdate is before indate, set to 0
+      0
+    );
 
     //workingHoursTreshold
-    const workingHoursTreshold =
-      8 + (shift.break !== undefined ? shift.break : 1);
+    const workingHoursTreshold = 8;
     const halfDayTreshold = 6;
+    // manage break
+    if (workingHours > halfDayTreshold) {
+      workingHours -= shift.break || 1; // subtract break time if working hours exceed half day threshold
+    }
+
     const { ot, otHours } = calculateOT(
       workingHours,
       workingDayStatus,
@@ -88,8 +95,7 @@ export const processSalaryWithInOut = async (
       source.basic,
       source.divideBy,
       workingHoursTreshold,
-      halfDayTreshold,
-      shift.break
+      halfDayTreshold
     );
     const workingText = (() => {
       const texts = [];
@@ -682,10 +688,9 @@ const calculateOT = (
   divideBy: number,
   //workingHoursTreshold
   workingHoursTreshold: number = 9,
-  halfDayTreshold: number = 6,
-  breakHours: number = 1
+  halfDayTreshold: number = 6
 ) => {
-  if (workingHours === 0) {
+  if (workingHours <= 0) {
     return {
       ot: 0,
       otHours: 0,
@@ -709,14 +714,6 @@ const calculateOT = (
     multiplier = 2;
   }
 
-  if (
-    (holiday.categories.public ||
-      holiday.categories.mercantile ||
-      workingDayStatus === "off") &&
-    otHours > halfDayTreshold
-  ) {
-    otHours -= breakHours; //reduce break hour
-  }
   let ot = 0;
   if (otHours > 0) {
     if (holiday.categories.mercantile && otHours > workingHoursTreshold) {

@@ -35,8 +35,7 @@ import { ArrowBack, Edit, ExpandMore, Save } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { salaryId } from "./salaries";
 import { LoadingButton } from "@mui/lab";
-import { InOutTable, SimpleDialog } from "./inOutTable";
-import { inOutCalc } from "./csvUpload";
+import { InOutTable } from "./inOutTable";
 
 const EditSalaryForm: React.FC<{
   user: { id: string; name: string; email: string };
