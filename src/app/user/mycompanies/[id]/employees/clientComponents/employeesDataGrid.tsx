@@ -12,6 +12,9 @@ import {
   Button,
   Snackbar,
   Slide,
+  FormControlLabel,
+  Checkbox,
+  Chip,
 } from "@mui/material";
 import { companyId } from "../../clientComponents/companySideBar";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
@@ -96,7 +99,7 @@ export const defaultEmployee: Employee = {
   },
   divideBy: 240,
   remark: "",
-  active: false,
+  active: true,
   otMethod: "",
   overrides: {
     shifts: false,
@@ -221,6 +224,7 @@ const EmployeesDataGrid: React.FC<{
       flex: 1,
       editable: isEditingEmployeeInHome,
     },
+
     {
       field: "workingDays",
       headerName: "Working Days",
@@ -262,6 +266,34 @@ const EmployeesDataGrid: React.FC<{
             .map((shift) => `${shift.start} - ${shift.end}`)
             .join(", ");
         }
+        return value;
+      },
+    },
+    {
+      field: "overrides",
+      headerName: "Overrides",
+      flex: 1,
+      renderCell: (params) => {
+        const value = params.value;
+        if (typeof value === "object") {
+          return (
+            <div style={{ display: "flex" }}>
+              {Object.entries(value).map(([key, val]) => {
+                if (key !== "_id" && val === true)
+                  return (
+                    <Chip
+                      label={key}
+                      key={key}
+                      variant="outlined"
+                      color="primary"
+                      sx={{ margin: "2px" }}
+                    />
+                  );
+              })}
+            </div>
+          );
+        }
+
         return value;
       },
     },
@@ -581,6 +613,7 @@ const EmployeesDataGrid: React.FC<{
       _id: false,
       company: false,
       id: false,
+      overrides: false,
       startedAt: false,
       resignedAt: false,
       nic: false,

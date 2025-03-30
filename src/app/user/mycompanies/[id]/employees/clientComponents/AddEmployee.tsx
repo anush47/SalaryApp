@@ -50,10 +50,6 @@ import { companyId } from "../../clientComponents/companySideBar";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { Shifts } from "../../companyDetails/shifts";
 import { WorkingDays } from "../../companyDetails/workingDays";
-//import { Company } from "./companiesDataGrid";
-//import { CompanyValidation } from "./companyValidation";
-
-const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
 
 const AddEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -88,6 +84,7 @@ const AddEmployeeForm: React.FC<{
         // Set default payment structure to payments from company
         setFormFields((prev) => ({
           ...prev,
+          company: data.companies[0]._id,
           otMethod: user.role === "admin" ? "random" : "noOt",
           shifts:
             data.companies[0].shifts && data.companies[0].shifts.length > 0
@@ -152,15 +149,13 @@ const AddEmployeeForm: React.FC<{
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any
   ) => {
     let { name, value } = event.target;
-    //capitalize for name,nic
-    if (name === "name" || name === "nic") {
-      value = value.toUpperCase();
-    }
-    // handle boolean
-    if (name === "active") {
+    if (name === "active" || name.startsWith("overrides")) {
+      // Handle checkbox state changes
       value = event.target.checked;
-    }
-    if (name === "totalSalary") {
+    } else if (name.startsWith("probabilities")) {
+      // Handle probability changes
+      value = parseInt(value);
+    } else if (name === "totalSalary") {
       // Validate
       if (!validateAmountNumberString(value)) {
         setErrors((prevErrors) => ({
@@ -174,16 +169,21 @@ const AddEmployeeForm: React.FC<{
         }));
       }
     }
-    if (name.startsWith("probabilities")) {
+
+    if (name.includes(".")) {
+      const parts = name.split("."); // Split the name by '.' to get the field name and
+      const field = parts[0]; // the subfield name
+      const subField = parts[1]; // the subfield name
       setFormFields((prevFields) => ({
         ...prevFields,
-        probabilities: {
-          ...prevFields.probabilities,
-          [name.split(".")[1]]: parseInt(value),
+        [field]: {
+          ...(prevFields[field as keyof Employee] as Record<string, any>),
+          [subField]: value,
         },
       }));
       return;
     }
+
     setFormFields((prevFields) => ({ ...prevFields, [name]: value }));
   };
 
@@ -192,19 +192,33 @@ const AddEmployeeForm: React.FC<{
       // Placeholder for validation logic
       return;
     }
-
     setLoading(true);
     try {
       // Perform POST request to add a new employee
+
+      const body = { ...formFields, userId: user.id }; // Include user ID
+      const fieldsToCheck = [
+        "shifts",
+        "workingDays",
+        "paymentStructure",
+        "probabilities",
+      ];
+
+      fieldsToCheck.forEach((field) => {
+        if (
+          !formFields.overrides?.[field as keyof typeof formFields.overrides]
+        ) {
+          delete body[field as keyof typeof body]; // Explicitly cast field to match the object keys
+        }
+      });
+
+      console.log(body);
       const response = await fetch("/api/employees", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formFields,
-          userId: user.id, // Include user ID
-        }),
+        body: JSON.stringify(body),
       });
 
       const result = await response.json();
@@ -218,7 +232,6 @@ const AddEmployeeForm: React.FC<{
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Clear the form after successful save
-        setFormFields(defaultEmployee);
         setErrors({});
         handleBackClick();
       } else {
@@ -532,6 +545,7 @@ const AddEmployeeForm: React.FC<{
               />
             </FormControl>
           </Grid>
+          <div className="my-5" />
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <TextField
@@ -545,55 +559,134 @@ const AddEmployeeForm: React.FC<{
             </FormControl>
           </Grid>
         </Grid>
-        <Grid mt={3} item xs={12}>
-          <PaymentStructure
-            isEditing={true}
-            handleChange={handleChange}
-            paymentStructure={formFields.paymentStructure}
-            setPaymentStructure={(paymentStructure) => {
-              //console.log("Setting payment structure:", paymentStructure); // Debugging
-              setFormFields((prev) => ({
-                ...prev,
-                paymentStructure,
-              }));
-            }}
-          />
-        </Grid>
         <div className="my-5" />
-
         <Grid item xs={12}>
-          <WorkingDays
-            isEditing={true}
-            workingDays={formFields.workingDays}
-            setWorkingDays={(workingDays) => {
-              setFormFields((prev) => ({
-                ...prev,
-                workingDays,
-              }));
-              //console.log("Setting working days:", formFields); // Debugging
-            }}
-          />
+          <Accordion>
+            <AccordionSummary
+              expandIcon={<ExpandMore />}
+              aria-controls="panel1-content"
+              id="panel1-header"
+            >
+              <Typography variant="h5">Overrides</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={
+                          formFields.overrides?.paymentStructure || false
+                        }
+                        name="overrides.paymentStructure"
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                    }
+                    label="Payment Structure"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formFields.overrides?.shifts || false}
+                        name="overrides.shifts"
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                    }
+                    label="Shifts"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formFields.overrides?.workingDays || false}
+                        name="overrides.workingDays"
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                    }
+                    label="Working Days"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formFields.overrides?.probabilities || false}
+                        name="overrides.probabilities"
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                    }
+                    label="Probabilities"
+                  />
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
         </Grid>
-        <div className="my-5" />
 
-        <Grid item xs={12}>
-          <Shifts
-            isEditing={true}
-            handleChange={handleChange}
-            shifts={formFields.shifts}
-            setShifts={(shifts) => {
-              //console.log("Setting shifts:", shifts); // Debugging
-              setFormFields((prev) => ({
-                ...prev,
-                shifts,
-              }));
-            }}
-          />
-        </Grid>
+        {formFields.overrides?.paymentStructure && (
+          <>
+            <div className="my-5" />
+            <Grid item xs={12}>
+              <PaymentStructure
+                isEditing={true}
+                handleChange={handleChange}
+                paymentStructure={formFields.paymentStructure}
+                setPaymentStructure={(paymentStructure) => {
+                  //console.log("Setting payment structure:", paymentStructure); // Debugging
+                  setFormFields((prev) => ({
+                    ...prev,
+                    paymentStructure,
+                  }));
+                }}
+              />
+            </Grid>
+          </>
+        )}
+
+        {formFields.overrides?.shifts && (
+          <>
+            <div className="my-5" />
+            <Grid item xs={12}>
+              <Shifts
+                isEditing={true}
+                handleChange={handleChange}
+                shifts={formFields.shifts}
+                setShifts={(shifts) => {
+                  //console.log("Setting shifts:", shifts); // Debugging
+                  setFormFields((prev) => ({
+                    ...prev,
+                    shifts,
+                  }));
+                }}
+              />
+            </Grid>
+          </>
+        )}
+
+        {formFields.overrides?.workingDays && (
+          <>
+            <div className="my-5" />
+            <Grid item xs={12}>
+              <WorkingDays
+                isEditing={true}
+                workingDays={formFields.workingDays}
+                setWorkingDays={(workingDays) => {
+                  setFormFields((prev) => ({
+                    ...prev,
+                    workingDays,
+                  }));
+                  //console.log("Setting working days:", formFields); // Debugging
+                }}
+              />
+            </Grid>
+          </>
+        )}
 
         {
           //if admin
           user.role === "admin" &&
+            formFields.overrides.probabilities &&
             (formFields.otMethod === "random" ||
               formFields.otMethod === "noOt") && (
               <>

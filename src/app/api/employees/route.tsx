@@ -154,26 +154,26 @@ const employeeCreateSchema = z.object({
   otMethod: z.string(),
   startedAt: z.string().optional(),
   active: z.boolean().default(true),
-  workingDays: z.object({
-    mon: z.string().optional(),
-    tue: z.string().optional(),
-    wed: z.string().optional(),
-    thu: z.string().optional(),
-    fri: z.string().optional(),
-    sat: z.string().optional(),
-    sun: z.string().optional(),
-  }),
-  shifts: z.array(
-    z.object({
-      start: z.string().min(1, "Start time is required"),
-      end: z.string().min(1, "End time is required"),
-      break: z
-        .number()
-        .min(0, "Break time must be a positive number")
-        .optional()
-        .default(0),
+  workingDays: z
+    .object({
+      mon: z.string().optional(),
+      tue: z.string().optional(),
+      wed: z.string().optional(),
+      thu: z.string().optional(),
+      fri: z.string().optional(),
+      sat: z.string().optional(),
+      sun: z.string().optional(),
     })
-  ),
+    .optional(),
+  shifts: z
+    .array(
+      z.object({
+        start: z.string().min(1, "Start time is required"),
+        end: z.string().min(1, "End time is required"),
+        break: z.number().optional().default(0),
+      })
+    )
+    .optional(),
   probabilities: z
     .object({
       workOnOff: z.number().optional(),
@@ -183,22 +183,24 @@ const employeeCreateSchema = z.object({
       ot: z.number().optional(),
     })
     .optional(),
-  paymentStructure: z.object({
-    additions: z.array(
-      z.object({
-        name: z.string(),
-        amount: z.union([z.string(), z.number(), z.null()]),
-        affectTotalEarnings: z.boolean().optional(),
-      })
-    ),
-    deductions: z.array(
-      z.object({
-        name: z.string(),
-        amount: z.union([z.string(), z.number(), z.null()]),
-        affectTotalEarnings: z.boolean().optional(),
-      })
-    ),
-  }),
+  paymentStructure: z
+    .object({
+      additions: z.array(
+        z.object({
+          name: z.string(),
+          amount: z.union([z.string(), z.number(), z.null()]),
+          affectTotalEarnings: z.boolean().optional(),
+        })
+      ),
+      deductions: z.array(
+        z.object({
+          name: z.string(),
+          amount: z.union([z.string(), z.number(), z.null()]),
+          affectTotalEarnings: z.boolean().optional(),
+        })
+      ),
+    })
+    .optional(),
   company: z.string().length(24, "Company ID must be a valid ObjectId"),
   phoneNumber: z
     .string()
@@ -346,6 +348,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Employee added successfully" });
   } catch (error) {
     // Handle Zod validation errors
+    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: error.errors[0].message },
