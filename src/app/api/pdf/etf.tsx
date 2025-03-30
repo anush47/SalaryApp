@@ -169,23 +169,23 @@ export const getETFDoc = (
   y += 7;
   const etfColumns = [
     {
-      dataKey: "memberNo",
-      header: "MEMBER NO.",
-    },
-    {
       dataKey: "name",
       header: "EMPLOYEE'S NAME",
     },
     { dataKey: "nic", header: "N. I. C." },
+    {
+      dataKey: "memberNo",
+      header: "MEMBER NO.",
+    },
     { dataKey: "etf3", header: "CONTRIBUTION" },
     { dataKey: "totalEarnings", header: "TOTAL EARNINGS" },
   ];
 
   const etfData = data.reduce((acc: (string | number)[][], item: any) => {
     acc.push([
-      item[memberNoIndex],
       item[nameIndex],
       item[nicIndex],
+      item[memberNoIndex],
       item[etf3Index],
       item[totalEarningsIndex],
     ]);

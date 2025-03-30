@@ -186,14 +186,14 @@ export const getEPFDoc = (
   y += 7;
   const epfColumns = [
     {
-      dataKey: "memberNo",
-      header: "MEMBER NO.",
-    },
-    {
       dataKey: "name",
       header: "EMPLOYEE'S NAME",
     },
     { dataKey: "nic", header: "N. I. C." },
+    {
+      dataKey: "memberNo",
+      header: "MEMBER NO.",
+    },
     { dataKey: "total", header: "TOTAL" },
 
     { dataKey: "epf12", header: "EMPLOYER (12%)" },
@@ -203,9 +203,9 @@ export const getEPFDoc = (
 
   const epfData = data.reduce((acc: (string | number)[][], item: any) => {
     acc.push([
-      item[memberNoIndex],
       item[nameIndex],
       item[nicIndex],
+      item[memberNoIndex],
       item[epf8Index] + item[epf12Index],
       item[epf12Index],
       item[epf8Index],
