@@ -245,7 +245,7 @@ export const processSalaryWithInOut = async (
         });
 
         if (!shift) {
-          console.log("No shift found for the given time:", inDate);
+          //console.log("No shift found for the given time:", inDate);
           inOutIndex++;
           continue; // Move to the next inOut record
         }
@@ -572,9 +572,17 @@ export const generateSalaryWithInOut = async (
       )
     ) {
       const generatedRecord = generateRandomRecord(day);
-      if (generatedRecord) inOutProcessed.push(generatedRecord);
+      if (generatedRecord) {
+        inOutProcessed.push(generatedRecord);
+        day = new Date(generatedRecord.out);
+        day.setUTCHours(0, 0, 0, 0); // Reset to the start of the next day
+        day.setUTCDate(day.getUTCDate() + 1); // Move to the next day
+      } else {
+        day.setUTCDate(day.getUTCDate() + 1);
+      }
+    } else {
+      day.setUTCDate(day.getUTCDate() + 1);
     }
-    day.setUTCDate(day.getUTCDate() + 1);
   }
 
   //sort correctly

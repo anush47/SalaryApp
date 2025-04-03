@@ -374,8 +374,6 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    console.log(companyData);
-
     // Update the company in the database
     const updatedCompany = await company.updateOne(companyData);
 

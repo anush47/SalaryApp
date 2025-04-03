@@ -248,19 +248,18 @@ function calculateSalaryDetails(
       // Generate values for adjustment
       const baseValue = adjustmentRequired / totalNullToAdjust;
       const generateCenteredSequence = (total: number) =>
-        Array.from({ length: total }, (_, i) =>
-          Math.max(
-            0,
+        Array.from(
+          { length: total },
+          (_, i) =>
             i -
-              Math.floor(total / 2) +
-              (total % 2 === 0 && i >= total / 2 ? 1 : 0)
-          )
+            Math.floor(total / 2) +
+            (total % 2 === 0 && i >= total / 2 ? 1 : 0)
         );
 
       const valuesToAdjust = generateCenteredSequence(totalNullToAdjust).map(
         (i) => {
           const variation = i * (baseValue * 0.1); // 10% variation
-          return Math.round((baseValue + variation) / 100) * 100;
+          return Math.max(Math.round((baseValue + variation) / 100) * 100, 0);
         }
       );
 
