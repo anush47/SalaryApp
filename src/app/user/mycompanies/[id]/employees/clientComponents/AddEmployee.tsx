@@ -46,15 +46,15 @@ import {
   PaymentStructure,
   validateAmountNumberString,
 } from "../../companyDetails/paymentStructure";
-import { companyId } from "../../clientComponents/NavContainer";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { Shifts } from "../../companyDetails/shifts";
 import { WorkingDays } from "../../companyDetails/workingDays";
 
 const AddEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
+  companyId: string;
   handleBackClick: () => void;
-}> = ({ user, handleBackClick }) => {
+}> = ({ user, companyId, handleBackClick }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
   const [memberNoLoading, setNameLoading] = useState<boolean>(false);

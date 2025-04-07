@@ -9,16 +9,13 @@ import {
   Button,
   Box,
   CircularProgress,
-  IconButton,
   useTheme,
   useMediaQuery,
-  Slide,
 } from "@mui/material";
 import { Add, ArrowBack } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import NewPurchaseForm from "./newPurchaseForm";
 import Link from "next/link";
-import { companyId } from "../clientComponents/NavContainer";
 
 // Lazily load PurchasesDataGrid
 const PurchasesDataGrid = lazy(() => import("./purchasesDataGrid"));
@@ -28,8 +25,10 @@ export let newPurchase: string | null;
 
 const Purchases = ({
   user,
+  companyId,
 }: {
   user: { name: string; email: string; id: string };
+  companyId: string;
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const theme = useTheme();
@@ -59,7 +58,10 @@ const Purchases = ({
             overflowY: "auto",
           }}
         >
-          <NewPurchaseForm handleBackClick={handleBackClick} />
+          <NewPurchaseForm
+            handleBackClick={handleBackClick}
+            companyId={companyId}
+          />
         </Card>
       ) : (
         <Card
@@ -101,7 +103,7 @@ const Purchases = ({
             sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
           >
             <Suspense fallback={<CircularProgress />}>
-              <PurchasesDataGrid user={user} />
+              <PurchasesDataGrid companyId={companyId} user={user} />
             </Suspense>
           </CardContent>
         </Card>

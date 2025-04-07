@@ -13,26 +13,15 @@ import {
   FormControl,
   FormControlLabel,
   Grid,
-  InputAdornment,
-  Slide,
   Snackbar,
   Switch,
-  TextField,
   Typography,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { companyId } from "../clientComponents/NavContainer";
 import Link from "next/link";
-import {
-  AutoAwesome,
-  ExpandMore,
-  ShoppingBag,
-  Upload,
-} from "@mui/icons-material";
+import { ExpandMore, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { LoadingButton } from "@mui/lab";
-import { handleCsvUpload } from "../salaries/csvUpload";
-import { SimpleDialog } from "../salaries/inOutTable";
 import SalariesIncludeDataGrid from "./salariesIncludeDataGrid";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -42,8 +31,10 @@ import { Company } from "../../clientComponents/companiesDataGrid";
 
 const Documents = ({
   user,
+  companyId,
 }: {
   user: { name: string; email: string; id: string };
+  companyId: string;
 }) => {
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
@@ -379,6 +370,7 @@ const Documents = ({
                     <Grid item xs={12}>
                       <FormControl fullWidth>
                         <SalariesIncludeDataGrid
+                          companyId={companyId}
                           key={period}
                           user={user}
                           period={period}
@@ -414,6 +406,7 @@ const Documents = ({
                     <Grid item xs={12}>
                       <FormControl fullWidth>
                         <PaymentsDataGrid
+                          companyId={companyId}
                           key={period}
                           user={user}
                           period={period}

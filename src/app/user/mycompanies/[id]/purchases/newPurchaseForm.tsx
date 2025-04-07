@@ -13,15 +13,9 @@ import {
   IconButton,
   Tooltip,
   Card,
-  CardContent,
-  CardActions,
-  TextField,
-  FormControl,
 } from "@mui/material";
 import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
-import Slide from "@mui/material/Slide";
-import { companyId } from "../clientComponents/NavContainer";
 import { useSearchParams } from "next/navigation";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -48,8 +42,6 @@ const isValidMonthYear = (value: string) => {
   return year >= 1990 && year <= 2026 && month >= 1 && month <= 12;
 };
 
-const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
-
 const formatPeriod = (value: string) => {
   const [monthStr, yearStr] = value.split("-");
   const month = monthStr.padStart(2, "0"); // Add leading zero if necessary
@@ -64,9 +56,10 @@ const formatPrice = (price: number) => {
   });
 };
 
-const NewPurchaseForm: React.FC<{ handleBackClick: () => void }> = ({
-  handleBackClick,
-}) => {
+const NewPurchaseForm: React.FC<{
+  handleBackClick: () => void;
+  companyId: String;
+}> = ({ handleBackClick, companyId }) => {
   const [periods, setPeriods] = useState<ChipData[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
   const [price, setPrice] = useState<number | null>(null);

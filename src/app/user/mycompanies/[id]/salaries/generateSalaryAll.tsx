@@ -18,14 +18,19 @@ import {
 import React, { useEffect, useState } from "react";
 import { Salary } from "./salariesDataGrid";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
-import { companyId } from "../clientComponents/NavContainer";
 import EmployeesInclude from "./employeesInclude";
 import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";
 import { handleCsvUpload } from "./csvUpload";
 import { SimpleDialog } from "./inOutTable";
 
-const GenerateSalaryAll = ({ period }: { period: string }) => {
+const GenerateSalaryAll = ({
+  period,
+  companyId,
+}: {
+  period: string;
+  companyId: string;
+}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inOut, setInOut] = useState<string>("");
@@ -410,6 +415,7 @@ const GenerateSalaryAll = ({ period }: { period: string }) => {
           </Grid>
           <hr className="my-2" />
           <EmployeesInclude
+            companyId={companyId}
             employees={employees}
             employeeIds={employeeIds}
             handleIncludeChange={handleIncludeChange}

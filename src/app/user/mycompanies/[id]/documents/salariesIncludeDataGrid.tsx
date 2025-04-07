@@ -7,19 +7,26 @@ import {
   GridToolbar,
 } from "@mui/x-data-grid";
 import { Box, Alert, CircularProgress, Chip, Button } from "@mui/material";
-import { companyId } from "../clientComponents/NavContainer";
 import Link from "next/link";
 import { Salary } from "../salaries/salariesDataGrid";
 
 const SalariesIncludeDataGrid: React.FC<{
   user: { id: string; name: string; email: string };
   isEditing: boolean;
+  companyId: string;
   period?: string;
   rowSelectionModel: GridRowSelectionModel;
   setRowSelectionModel: React.Dispatch<
     React.SetStateAction<GridRowSelectionModel>
   >;
-}> = ({ user, isEditing, period, rowSelectionModel, setRowSelectionModel }) => {
+}> = ({
+  user,
+  isEditing,
+  period,
+  companyId,
+  rowSelectionModel,
+  setRowSelectionModel,
+}) => {
   const [salaries, setSalaries] = useState<Salary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

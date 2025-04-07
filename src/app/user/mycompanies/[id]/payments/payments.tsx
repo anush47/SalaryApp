@@ -12,14 +12,10 @@ import {
   IconButton,
   useTheme,
   useMediaQuery,
-  Slide,
-  Dialog,
-  DialogContent,
 } from "@mui/material";
 import { Add, Check, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { companyId } from "../clientComponents/NavContainer";
 
 // Lazily load SalariesDataGrid and AddSalaryForm
 const PaymentsDataGrid = lazy(() => import("./paymentsDataGrid"));
@@ -30,8 +26,10 @@ export let paymentId: string | null;
 
 const Payments = ({
   user,
+  companyId,
 }: {
   user: { name: string; email: string; id: string };
+  companyId: string;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -58,6 +56,7 @@ const Payments = ({
       >
         {paymentId ? (
           <EditPaymentForm
+            companyId={companyId}
             user={user}
             handleBackClick={() => {
               //go back in browser
@@ -67,6 +66,7 @@ const Payments = ({
         ) : showAddForm ? (
           <div>
             <NewPaymentForm
+              companyId={companyId}
               handleBackClick={() => {
                 //go back in browser
                 window.history.back();
@@ -135,7 +135,11 @@ const Payments = ({
               sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
             >
               <Suspense fallback={<CircularProgress />}>
-                <PaymentsDataGrid user={user} isEditing={isEditing} />
+                <PaymentsDataGrid
+                  companyId={companyId}
+                  user={user}
+                  isEditing={isEditing}
+                />
               </Suspense>
             </CardContent>
           </>

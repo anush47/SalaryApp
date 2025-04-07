@@ -28,7 +28,6 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { companyId } from "../clientComponents/NavContainer";
 import { Salary } from "./salariesDataGrid";
 import { ArrowBack, Edit, ExpandMore, Save } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
@@ -39,8 +38,8 @@ import { InOutTable } from "./inOutTable";
 const EditSalaryForm: React.FC<{
   user: { id: string; name: string; email: string };
   handleBackClick: () => void;
-}> = ({ user, handleBackClick }) => {
-  const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
+  companyId: string;
+}> = ({ user, handleBackClick, companyId }) => {
   const [employee, setEmployee] = useState<{
     memberNo: string;
     name: string;

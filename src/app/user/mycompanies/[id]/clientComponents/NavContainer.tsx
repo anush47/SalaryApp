@@ -5,8 +5,6 @@ import { Box } from "@mui/material";
 import CompanyMainBox from "./companyMainBox";
 import { useParams, useSearchParams } from "next/navigation";
 
-export let companyId = "";
-
 //export selected type
 export type Selected =
   | "quick"
@@ -29,12 +27,13 @@ const NavContainer = ({
   };
 }) => {
   const [selected, setSelected] = React.useState<Selected>("quick");
+  const [companyId, setCompanyId] = React.useState<string>("");
   const searchParams = useSearchParams();
   const params = useParams();
   useEffect(() => {
     const selectedParam = searchParams?.get("companyPageSelect");
     const companyIdParam = params.id.toString();
-    companyId = companyIdParam ? companyIdParam : "";
+    setCompanyId(companyIdParam ? companyIdParam : "");
     if (
       selectedParam &&
       [
@@ -51,12 +50,13 @@ const NavContainer = ({
     } else {
       setSelected("quick");
     }
-  }, [searchParams, params]);
+  }, [searchParams]);
   return (
     <Box sx={{ display: "flex" }}>
       <CompanySideBar
         selected={selected}
         setSelected={setSelected}
+        companyId={companyId}
         user={
           user
             ? {
@@ -70,6 +70,7 @@ const NavContainer = ({
       />
       <CompanyMainBox
         selected={selected}
+        companyId={companyId}
         user={
           user
             ? {

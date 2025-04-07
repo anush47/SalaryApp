@@ -12,15 +12,13 @@ import {
   IconButton,
   useTheme,
   useMediaQuery,
-  Slide,
 } from "@mui/material";
 import { Add, Check, Edit } from "@mui/icons-material";
 import AddEmployeeForm from "./clientComponents/AddEmployee";
 import EditEmployeeForm from "./clientComponents/EditEmployee";
-import ABH from "./clientComponents/ABH";
+import AH from "./clientComponents/AH";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { companyId } from "../clientComponents/NavContainer";
 
 const EmployeesDataGrid = lazy(
   () => import("./clientComponents/employeesDataGrid")
@@ -30,12 +28,14 @@ export let employeeId: string | null;
 
 const Employees = ({
   user,
+  companyId,
 }: {
   user: { name: string; email: string; id: string; role: string };
+  companyId: string;
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isAbh, setABH] = useState(false);
+  const [isAh, setAH] = useState(false);
   const [isEditingEmployeeInHome, setIsEditingEmployeeInHome] = useState(false);
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
@@ -43,15 +43,15 @@ const Employees = ({
   const searchParams = useSearchParams();
   employeeId = searchParams?.get("employeeId") || null;
   const add = searchParams?.get("add") || null;
-  const abh = searchParams?.get("abh") || null;
+  const ah = searchParams?.get("ah") || null;
 
   const handleBackClick = () => window.history.back();
 
   useEffect(() => {
     if (add) setIsAdding(true);
-    else if (abh) setABH(true);
+    else if (ah) setAH(true);
     else if (employeeId) setIsEditing(true);
-  }, [employeeId, add, abh]);
+  }, [employeeId, add, ah]);
 
   const Header = () => (
     <CardHeader
@@ -100,7 +100,11 @@ const Employees = ({
         overflowY: "auto",
       }}
     >
-      <AddEmployeeForm user={user} handleBackClick={handleBackClick} />
+      <AddEmployeeForm
+        companyId={companyId}
+        user={user}
+        handleBackClick={handleBackClick}
+      />
     </Card>
   );
 
@@ -115,18 +119,20 @@ const Employees = ({
         user={user}
         handleBackClick={handleBackClick}
         employeeId={employeeId}
+        companyId={companyId}
       />
     </Card>
   );
 
-  const ABHCard = () => (
+  const AHCard = () => (
     <Card
       sx={{
         minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
         overflowY: "auto",
       }}
     >
-      <ABH
+      <AH
+        companyId={companyId}
         user={user}
         handleBackClick={handleBackClick}
         employeeId={employeeId}
@@ -147,6 +153,7 @@ const Employees = ({
       >
         <Suspense fallback={<CircularProgress />}>
           <EmployeesDataGrid
+            companyId={companyId}
             user={user}
             isEditingEmployeeInHome={isEditingEmployeeInHome}
           />
@@ -159,8 +166,8 @@ const Employees = ({
     <Box>
       {isAdding ? (
         <AddEmployeeCard />
-      ) : isAbh ? (
-        <ABHCard />
+      ) : isAh ? (
+        <AHCard />
       ) : isEditing ? (
         <EditEmployeeCard />
       ) : (

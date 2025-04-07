@@ -9,7 +9,6 @@ import {
   CardContent,
   CardHeader,
   FormControl,
-  FormHelperText,
   Typography,
   Checkbox,
   FormControlLabel,
@@ -22,7 +21,6 @@ import {
   AccordionDetails,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { companyId } from "../../clientComponents/NavContainer";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -30,11 +28,12 @@ import dayjs from "dayjs";
 import { ArrowBack, ExpandMore, HorizontalRule } from "@mui/icons-material";
 import { LoadingButton } from "@mui/lab";
 
-const ABH: React.FC<{
+const AH: React.FC<{
   user: { id: string; name: string; email: string };
   handleBackClick: () => void;
+  companyId: string;
   employeeId: string | null;
-}> = ({ user, handleBackClick, employeeId }) => {
+}> = ({ user, handleBackClick, employeeId, companyId }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [formDetails, setFormDetails] = useState({
     companyId: companyId,
@@ -198,7 +197,7 @@ const ABH: React.FC<{
     }
   }, [employeeId, companyId]);
 
-  const handleGenerateABH = async () => {
+  const handleGenerateAH = async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/employees/formA`, {
@@ -210,7 +209,7 @@ const ABH: React.FC<{
       });
       if (!response.ok) {
         const data = await response.json();
-        setSnackbarMessage(data.message || "Error generating ABH");
+        setSnackbarMessage(data.message || "Error generating AH");
         setSnackbarSeverity("error");
         setSnackbarOpen(true);
         return;
@@ -224,12 +223,12 @@ const ABH: React.FC<{
       link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
-      setSnackbarMessage("ABH generated successfully");
+      setSnackbarMessage("AH generated successfully");
       setSnackbarSeverity("success");
       setSnackbarOpen(true);
     } catch (error) {
-      console.error("Error generating ABH:", error);
-      setSnackbarMessage("Error generating ABH");
+      console.error("Error generating AH:", error);
+      setSnackbarMessage("Error generating AH");
       setSnackbarSeverity("error");
       setSnackbarOpen(true);
     } finally {
@@ -318,6 +317,7 @@ const ABH: React.FC<{
                 name="nameWithInitials"
                 value={formDetails.nameWithInitials}
                 onChange={handleChange}
+                helperText="Only add . after initials (no spaces)"
                 variant="filled"
                 disabled={loading}
               />
@@ -455,6 +455,7 @@ const ABH: React.FC<{
                   name="spouseName"
                   value={formDetails.spouseName}
                   onChange={handleChange}
+                  helperText="Only add . after initials (no spaces)"
                   variant="filled"
                   disabled={loading || !formDetails.married}
                 />
@@ -467,6 +468,7 @@ const ABH: React.FC<{
                 label="Mother's Name"
                 name="motherName"
                 value={formDetails.motherName}
+                helperText="Only add . after initials (no spaces)"
                 onChange={handleChange}
                 variant="filled"
                 disabled={loading}
@@ -480,6 +482,7 @@ const ABH: React.FC<{
                 name="fatherName"
                 value={formDetails.fatherName}
                 onChange={handleChange}
+                helperText="Only add . after initials (no spaces)"
                 variant="filled"
                 disabled={loading}
               />
@@ -589,6 +592,7 @@ const ABH: React.FC<{
                               label="Name"
                               name={`nominees.${0}.name`}
                               value={formDetails.nominees[0].name}
+                              helperText="Add spaces after . in initials"
                               onChange={handleChange}
                               variant="filled"
                               disabled={loading}
@@ -629,6 +633,9 @@ const ABH: React.FC<{
                               type="number"
                               variant="filled"
                               disabled={loading}
+                              InputProps={{
+                                endAdornment: <>{"%"}</>,
+                              }}
                             />
                           </FormControl>
                         </Grid>
@@ -913,12 +920,12 @@ const ABH: React.FC<{
             <LoadingButton
               variant="contained"
               color="primary"
-              onClick={handleGenerateABH}
+              onClick={handleGenerateAH}
               disabled={loading}
               loading={loading}
               loadingPosition="center"
             >
-              <span>Generate ABH</span>
+              <span>Generate AH</span>
             </LoadingButton>
           </Grid>
         </Grid>
@@ -943,4 +950,4 @@ const ABH: React.FC<{
   );
 };
 
-export default ABH;
+export default AH;

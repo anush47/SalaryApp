@@ -14,7 +14,6 @@ import {
   Tooltip,
   Card,
   CardContent,
-  CardActions,
   FormControl,
   InputLabel,
   Select,
@@ -77,8 +76,6 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [employerNo, setEmployerNo] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
-
-  const theme = useTheme();
 
   useEffect(() => {
     const fetchPurchase = async () => {

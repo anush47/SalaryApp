@@ -40,7 +40,7 @@ import Image from "next/image";
 import { Link as LinkM } from "@mui/material";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import { ThemeSwitch } from "@/app/theme-provider";
-import { companyId, Selected } from "./NavContainer";
+import { Selected } from "./NavContainer";
 
 const drawerWidth = 300;
 
@@ -48,9 +48,15 @@ interface Props {
   user: { name: string; email: string; role: string; image: string };
   selected: Selected;
   setSelected: (selected: Selected) => void;
+  companyId: string;
 }
 
-const CompanySideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
+const CompanySideBar: React.FC<Props> = ({
+  user,
+  selected,
+  setSelected,
+  companyId,
+}) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [company, setCompany] = React.useState<Company | null>(null);

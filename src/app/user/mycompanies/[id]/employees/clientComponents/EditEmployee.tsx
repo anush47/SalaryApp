@@ -18,7 +18,6 @@ import {
   FormHelperText,
   Snackbar,
   Alert,
-  Slide,
   Select,
   InputLabel,
   FormControlLabel,
@@ -29,13 +28,11 @@ import {
 } from "@mui/material";
 import {
   ArrowBack,
-  Cancel,
   Delete,
   Edit,
   ExpandMore,
   FormatAlignJustify,
   Save,
-  Search,
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -50,7 +47,6 @@ import {
   PaymentStructure,
   validateAmountNumberString,
 } from "../../companyDetails/paymentStructure";
-import { companyId } from "../../clientComponents/NavContainer";
 import dayjs from "dayjs";
 //import { Company } from "./companiesDataGrid";
 //import { CompanyValidation } from "./companyValidation";
@@ -69,7 +65,8 @@ const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   employeeId: string | null;
-}> = ({ user, handleBackClick, employeeId }) => {
+  companyId: string | null;
+}> = ({ user, handleBackClick, employeeId, companyId }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
@@ -918,7 +915,7 @@ const EditEmployeeForm: React.FC<{
 
         <Grid mt={3} item xs={12}>
           <Link
-            href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${employeeId}&abh=true`}
+            href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${employeeId}&ah=true`}
           >
             <Button
               variant="outlined"
@@ -926,7 +923,7 @@ const EditEmployeeForm: React.FC<{
               startIcon={<FormatAlignJustify />}
               disabled={loading} // Disable button while loading
             >
-              {loading ? <CircularProgress size={24} /> : "Generate ABH"}
+              {loading ? <CircularProgress size={24} /> : "Generate AH"}
             </Button>
           </Link>
         </Grid>

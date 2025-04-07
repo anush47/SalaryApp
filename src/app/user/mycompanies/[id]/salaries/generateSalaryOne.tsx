@@ -19,7 +19,6 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
-import { companyId } from "../clientComponents/NavContainer";
 import { Salary } from "./salariesDataGrid";
 import { Autorenew, CheckCircle, Save, Upload } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
@@ -30,9 +29,11 @@ import { InOutTable } from "./inOutTable";
 const GenerateSalaryOne = ({
   period,
   employeeId,
+  companyId,
 }: {
   period: string;
   employeeId: string;
+  companyId: string;
 }) => {
   const [employee, setEmployee] = useState<Employee>();
   const [loading, setLoading] = useState(false);

@@ -16,7 +16,6 @@ import {
   TextField,
   Typography,
   Tooltip,
-  Slide,
   Dialog,
   DialogActions,
   DialogContent,
@@ -41,7 +40,6 @@ import {
   ExpandMore,
 } from "@mui/icons-material";
 import { Company } from "../../clientComponents/companiesDataGrid";
-import { companyId } from "../clientComponents/NavContainer";
 import { CompanyValidation } from "../../clientComponents/companyValidation";
 import { PaymentStructure } from "./paymentStructure";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -56,8 +54,10 @@ const ChangeUser = React.lazy(() => import("./ChangeUser"));
 
 const CompanyDetails = ({
   user,
+  companyId,
 }: {
   user: { name: string; email: string; id: string; role: string };
+  companyId: string;
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

@@ -7,8 +7,6 @@ import {
   CardHeader,
   FormControl,
   Grid,
-  InputAdornment,
-  TextField,
   Typography,
   CircularProgress,
   Accordion,
@@ -21,7 +19,6 @@ import {
   LinearProgress,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { companyId } from "../clientComponents/NavContainer";
 import Link from "next/link";
 import {
   AutoAwesome,
@@ -47,8 +44,10 @@ import { Employee } from "../employees/clientComponents/employeesDataGrid";
 
 const QuickTools = ({
   user,
+  companyId,
 }: {
   user: { name: string; email: string; id: string };
+  companyId: string;
 }) => {
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
@@ -129,7 +128,6 @@ const QuickTools = ({
       setLoading(false);
     };
 
-    if (!companyId || companyId === "") return;
     fetchData();
   }, [companyId]);
 
@@ -154,7 +152,6 @@ const QuickTools = ({
     };
 
     //clear generated salaries and payments
-    if (!companyId || companyId === "") return;
     checkPurchased();
     setGeneratedSalaries([]);
   }, [period]);
@@ -764,6 +761,7 @@ const QuickTools = ({
                   <CircularProgress />
                 ) : (
                   <SalariesDataGrid
+                    companyId={companyId}
                     user={user}
                     period={period}
                     isEditing={editable}
@@ -787,6 +785,7 @@ const QuickTools = ({
                   <CircularProgress />
                 ) : (
                   <PaymentsDataGrid
+                    companyId={companyId}
                     user={user}
                     period={period}
                     isEditing={editable}

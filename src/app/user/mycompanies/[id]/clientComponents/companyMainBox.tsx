@@ -16,6 +16,7 @@ const Documents = lazy(() => import("../documents/documents"));
 const CompanyMainBox = ({
   user,
   selected,
+  companyId,
 }: {
   user: {
     name: string;
@@ -25,6 +26,7 @@ const CompanyMainBox = ({
     image: string;
   };
   selected: Selected;
+  companyId: string;
 }) => {
   const fallback = (
     <Box
@@ -43,19 +45,19 @@ const CompanyMainBox = ({
         {(() => {
           switch (selected) {
             case "quick":
-              return <QuickTools user={user} />;
+              return <QuickTools user={user} companyId={companyId} />;
             case "details":
-              return <CompanyDetails user={user} />;
+              return <CompanyDetails user={user} companyId={companyId} />;
             case "employees":
-              return <Employees user={user} />;
+              return <Employees user={user} companyId={companyId} />;
             case "payments":
-              return <Payments user={user} />;
+              return <Payments user={user} companyId={companyId} />;
             case "salaries":
-              return <Salaries user={user} />;
+              return <Salaries user={user} companyId={companyId} />;
             case "purchases":
-              return <Purchases user={user} />;
+              return <Purchases user={user} companyId={companyId} />;
             case "documents":
-              return <Documents user={user} />;
+              return <Documents user={user} companyId={companyId} />;
             default:
               return <div>Component not found</div>;
           }

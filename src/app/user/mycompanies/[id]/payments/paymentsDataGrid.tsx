@@ -19,13 +19,11 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
-import { companyId } from "../clientComponents/NavContainer";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
-import { request } from "http";
 import { LoadingButton } from "@mui/lab";
 
 // Set dayjs format for consistency
@@ -65,7 +63,8 @@ const PaymentsDataGrid: React.FC<{
   user: { id: string; name: string; email: string };
   isEditing: boolean;
   period?: string;
-}> = ({ user, isEditing, period }) => {
+  companyId: string;
+}> = ({ user, isEditing, period, companyId }) => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

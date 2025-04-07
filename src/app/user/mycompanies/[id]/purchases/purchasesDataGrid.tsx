@@ -6,7 +6,6 @@ import {
   GridToolbar,
 } from "@mui/x-data-grid";
 import { Box, Alert, CircularProgress, Snackbar, Chip } from "@mui/material";
-import { companyId } from "../clientComponents/NavContainer";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 
@@ -21,7 +20,8 @@ export interface Purchase {
 
 const PurchasesDataGrid: React.FC<{
   user: { id: string; name: string; email: string };
-}> = ({ user }) => {
+  companyId: string;
+}> = ({ user, companyId }) => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

@@ -14,19 +14,20 @@ import {
 } from "@mui/x-data-grid";
 import Link from "next/link";
 import React from "react";
-import { companyId } from "../clientComponents/NavContainer";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
 
 interface Props {
   employees: Employee[];
   employeeIds: String[];
   handleIncludeChange: (id: string) => void;
+  companyId: string;
 }
 
 const EmployeesInclude: React.FC<Props> = ({
   employees,
   employeeIds,
   handleIncludeChange,
+  companyId,
 }) => {
   const columns: GridColDef[] = [
     {

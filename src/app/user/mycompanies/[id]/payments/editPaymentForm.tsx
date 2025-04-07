@@ -29,11 +29,6 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import {
-  ddmmyyyy_to_mmddyyyy,
-  Employee,
-} from "../employees/clientComponents/employeesDataGrid";
-import { companyId } from "../clientComponents/NavContainer";
-import {
   ArrowBack,
   Edit,
   ExpandMore,
@@ -42,7 +37,6 @@ import {
   Search,
   Sync,
 } from "@mui/icons-material";
-import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { paymentId } from "./payments";
 import { LoadingButton } from "@mui/lab";
 import { Payment } from "./paymentsDataGrid";
@@ -56,20 +50,11 @@ import "dayjs/locale/en-gb";
 const EditPaymentForm: React.FC<{
   user: { id: string; name: string; email: string };
   handleBackClick: () => void;
-}> = ({ user, handleBackClick }) => {
-  const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
-  const [employee, setEmployee] = useState<{
-    memberNo: string;
-    name: string;
-    nic: string;
-    companyName: string;
-    companyEmployerNo: string;
-    divideBy: number;
-  }>();
+  companyId: string;
+}> = ({ user, handleBackClick, companyId }) => {
   const [loading, setLoading] = useState(false);
   const [ReferenceLoading, setReferenceLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [openDialogInOut, setOpenDialogInOut] = useState<boolean>(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>("");
   const [snackbarSeverity, setSnackbarSeverity] = useState<
@@ -563,6 +548,7 @@ const EditPaymentForm: React.FC<{
                     <FormControl fullWidth>
                       {formFields.period && (
                         <SalariesDataGrid
+                          companyId={companyId}
                           user={user}
                           isEditing={false}
                           period={formFields.period}

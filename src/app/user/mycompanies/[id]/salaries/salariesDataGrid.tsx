@@ -19,7 +19,6 @@ import {
   DialogTitle,
   DialogActions,
 } from "@mui/material";
-import { companyId } from "../clientComponents/NavContainer";
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
 import { DeleteOutline } from "@mui/icons-material";
@@ -68,7 +67,8 @@ const SalariesDataGrid: React.FC<{
   user: { id: string; name: string; email: string };
   isEditing: boolean;
   period?: string;
-}> = ({ user, isEditing, period }) => {
+  companyId: string;
+}> = ({ user, isEditing, period, companyId }) => {
   const [salaries, setSalaries] = useState<Salary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

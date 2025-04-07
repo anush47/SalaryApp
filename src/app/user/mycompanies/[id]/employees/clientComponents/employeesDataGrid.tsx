@@ -16,7 +16,6 @@ import {
   Checkbox,
   Chip,
 } from "@mui/material";
-import { companyId } from "../../clientComponents/NavContainer";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
@@ -139,7 +138,8 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
 const EmployeesDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   isEditingEmployeeInHome: boolean;
-}> = ({ user, isEditingEmployeeInHome }) => {
+  companyId: string;
+}> = ({ user, isEditingEmployeeInHome, companyId }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

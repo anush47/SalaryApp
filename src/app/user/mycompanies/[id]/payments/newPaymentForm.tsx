@@ -23,8 +23,6 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { Payment } from "./paymentsDataGrid";
-import { companyId } from "../clientComponents/NavContainer";
 import {
   ArrowBack,
   ExpandMore,
@@ -34,7 +32,6 @@ import {
   ShoppingBag,
   Sync,
 } from "@mui/icons-material";
-import { LoadingButton } from "@mui/lab";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -46,9 +43,11 @@ import SalariesDataGrid from "../salaries/salariesDataGrid";
 const NewPaymentForm = ({
   handleBackClick,
   user,
+  companyId,
 }: {
   handleBackClick: () => void;
   user: { id: string; name: string; email: string };
+  companyId: string;
 }) => {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
@@ -492,6 +491,7 @@ const NewPaymentForm = ({
                     <FormControl fullWidth>
                       {period && (
                         <SalariesDataGrid
+                          companyId={companyId}
                           key={period} // Adding key to force re-render when period changes
                           user={user}
                           isEditing={false}

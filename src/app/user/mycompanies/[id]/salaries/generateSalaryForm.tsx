@@ -22,7 +22,6 @@ import dayjs from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import "dayjs/locale/en-gb";
-import { companyId } from "../clientComponents/NavContainer";
 import GenerateSalaryAll from "./generateSalaryAll";
 import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
@@ -57,7 +56,8 @@ export interface Salary {
 const AddSalaryForm: React.FC<{
   user: { id: string; name: string; email: string };
   handleBackClick: () => void;
-}> = ({ user, handleBackClick }) => {
+  companyId: string;
+}> = ({ user, handleBackClick, companyId }) => {
   const [formFields, setFormFields] = useState({
     id: "",
     employeeNo: "",
@@ -278,9 +278,10 @@ const AddSalaryForm: React.FC<{
           </Grid>
           <Grid item xs={12}>
             {employeeSelection === "all" ? (
-              <GenerateSalaryAll period={period} />
+              <GenerateSalaryAll companyId={companyId} period={period} />
             ) : (
               <GenerateSalaryOne
+                companyId={companyId}
                 employeeId={employeeSelection}
                 period={period}
               />
