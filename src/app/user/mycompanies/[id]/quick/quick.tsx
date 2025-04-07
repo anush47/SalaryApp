@@ -41,7 +41,7 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import SalariesDataGrid, { Salary } from "../salaries/salariesDataGrid";
-import PaymentsDataGrid, { Payment } from "../payments/paymentsDataGrid";
+import PaymentsDataGrid from "../payments/paymentsDataGrid";
 import GeneratedSalaries from "../salaries/generatedSalaries";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
 
@@ -129,6 +129,7 @@ const QuickTools = ({
       setLoading(false);
     };
 
+    if (!companyId || companyId === "") return;
     fetchData();
   }, [companyId]);
 
@@ -153,6 +154,7 @@ const QuickTools = ({
     };
 
     //clear generated salaries and payments
+    if (!companyId || companyId === "") return;
     checkPurchased();
     setGeneratedSalaries([]);
   }, [period]);
