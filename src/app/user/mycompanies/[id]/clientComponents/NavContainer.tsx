@@ -51,7 +51,7 @@ const NavContainer = ({
     } else {
       setSelected("quick");
     }
-  }, [searchParams]);
+  }, [searchParams, params]);
   return (
     <Box sx={{ display: "flex" }}>
       <CompanySideBar
