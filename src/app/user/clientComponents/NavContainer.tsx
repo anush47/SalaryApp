@@ -47,7 +47,7 @@ const NavContainer = ({
     } else {
       setSelected("mycompanies");
     }
-  }, []);
+  }, [searchParams]);
   return (
     <Box sx={{ display: "flex" }}>
       <UserSideBar
