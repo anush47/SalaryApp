@@ -508,7 +508,7 @@ export const generateSalaryWithInOut = async (
       //if employee.openHours is available then get the latest the employee can stay
       if (employee.openHours && !employee.openHours.allDay) {
         const maxOutTime = new Date(day);
-        const randomOutOffset = Math.random() * 30; // maximum late time in minutes after closed
+        const randomOutOffset = 60; // maximum late time in minutes after closed
         maxOutTime.setUTCHours(
           Number(employee.openHours.end.split(":")[0]),
           Number(employee.openHours.end.split(":")[1]) + randomOutOffset

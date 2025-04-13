@@ -88,7 +88,7 @@ const get_ref_no_name = async (employer_no: string, period: string) => {
         pragma: "no-cache",
         priority: "u=0, i",
         "sec-ch-ua":
-          '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
+          '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
         "sec-fetch-dest": "document",
@@ -99,7 +99,7 @@ const get_ref_no_name = async (employer_no: string, period: string) => {
         Referer: "https://www.cbsl.lk/EPFCRef/",
         "Referrer-Policy": "strict-origin-when-cross-origin",
       },
-      body: `__VIEWSTATE=bUhjJlxt5SXpQFP%2BSJMOmZOy36rqwCwtmpVckH%2FyTNH5TcusJuOzTLDTcs2EfBKgLFeXa5EK8El3O8TTwLn3831ju5sgl0lk2LpWGPlilsvNrAdpofcWCzngEl8kvJXEEjeT6%2BEeLCZBC0z%2BZ6wohUXJ0pw0LOLOYd8JqLNZO1CesJ%2B%2F922ljXMesNJ0fXgERm08RGdaTKxxVpi8T3J8%2F%2FAUooNahwTCbtjLcmoFGI8U7o7upuHzY%2BwRN2e%2BElVQtUYr6RcqawKb190JigdxTYlfm3kTHr7krdgLEu%2BAEo81Mo%2FVA%2BdBudzr3rlo9k8WBiK%2BzsA8y3D12p2O5kqLAVIpcDaYGZSdIIWHSB52feySnW0DgK1tM%2Fm%2BTVocFmosX3kbJq%2Bg%2F%2B5f7QktlqJ6wSpZypkX0uy97Hdu8Lb%2FGe2xQhS3cyHK2T2QMtCkIivifNjFmYVBfMTMU7F%2BdLF43%2FHYEqrd6djbMT8UfsXNXu1DU5uSescwD0kM1GNNhUKi&__VIEWSTATEGENERATOR=7BA8A1FC&__EVENTVALIDATION=FpFvDaJx2uK1rgjgBpbOyp9TTngy0%2FPgLHUvJ3xRH6Xb190Dv32U6naF9eyP%2FGHzOO2nHQn6ZLvnI5jjW9%2F2%2FZPsYxtPjznNoijTRvwKIeIf0x%2Bs5QguPywmsavok8QqrXiLS2u%2ByYu%2F9OBiWZ4jZtq6%2FjbZGaHD%2Bpp0R0lcVC3E2CkeYrrkRJ38TYLCwbvIpSPxOd5RoEgn7HvUFTAD0B9LaaVjPqP3qtlti7Mtq6BWdjQfoBYSO82MdkbLoeNoeasqwS91JqaUUcAJj0GD%2FBpwdUCvMycxsg06Bbk%2FS%2B%2FcNYh29kp92Nlt6aD%2F0etfHoXc0Dmwbk175iv5EF9wdIWNt3Ldc6L6CkW5DjulpZc%3D&zn=${employer_no_zn}&em=${employer_no_number}&mn=${formattedPeriod}&sb=1&checkb=Get+Reference`,
+      body: `__VIEWSTATE=GUmswFk27PcGVsZ8lPRHoMYhQTZ343yD0vHZB5RCY8fKZYQAIwpnL7sf7iZ51w6L3efg5eA4H1IycZNmbUGbZjyCGmNtXrb4%2FqZtpHUdyVHWAcsNijYjwKzlymNuUnx6wC%2BLq8021VJkqaZy6%2BAId4y5nThnxZTA%2FP4wt%2BWM5ONK3BNrZ%2Fkn0h%2FfpBiqEF9qcImIpvBTyKXd61%2BWou7JOKaGnml%2Bp3TuN2euB8O4JTWs7zHcT8Bjj9Q3wV0W2kQsDhF9rGukMrSVivXIoDtTiWlMummUDwtfTl%2BUbIBqJFRUeVdYnhNvgH80LyGisDzRH7zY4aEsZpgKlgIJUccm5ZhTmlDsucQ%2BMcD44KUBTs5TJf%2Bk8xczsrO3wGMHIUGd%2FRrwoOGCkY1d3VBOf%2BUVkdtfRMDkESSZEtEtZZp1AVyHgnuX6YdtmV83p0o3daDQfgqZ217Zjmkyc87Yi7CrmCak%2B7OhOK%2FGZDx6n9SExCUfgO2kXTjt6FMf1x8xXvuTpLQJr8kUWKEedWTOB3Fvsw%3D%3D&__VIEWSTATEGENERATOR=7BA8A1FC&__EVENTVALIDATION=Q%2BlfbKtyxBaXC2VftdYAxF3ZMYTj7CsYnCWeGetFVCRITa9nb61I8Mc0V8iRRxSHigYJKAu70SB8ZCaznKh4opu6BBvZVskKVMbHjg%2BJCntsxJBOZWCFecECHnpCwk3l2yqUJ76Bkl05hWHgqlruJl%2Bw9%2FZsmmnWeyHMqMhXBQT4NHYanwfrRnTzRE9q6QRIg4m5s0BOuznOwiLF%2FxwzphzUKWaf46QYL481H6jh7%2F07OGyKmlHszSZVF2Rs1JUXafJ5K9%2FdCzuvsWEwJCAAtx3cQrF8PYnO9wvbZO7Zt5tmaJL9gzuVB25cmJ4dP%2FZDWGBlbLRz6xXxieQbgSLwtobF5Qvmru%2BOQW5iFcG6%2FqJg9fCJ9EcohLijGVmqPp0W&zn=${employer_no_zn}&em=${employer_no_number}&mn=${formattedPeriod}&sb=1&checkb=Get+Reference`,
       method: "POST",
     });
 
