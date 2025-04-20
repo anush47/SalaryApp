@@ -439,6 +439,17 @@ export const generateSalaryWithInOut = async (
       return present;
     };
 
+    const calculateShiftTreshold = (start: string, end: string) => {
+      const startHour = parseInt(start.split(":")[0]);
+      const startMinutes = parseInt(start.split(":")[1]);
+      const endHour = parseInt(end.split(":")[0]);
+      const endMinutes = parseInt(end.split(":")[1]);
+      // calculate the time in hours between shift
+      const shiftDuration =
+        ((endHour - startHour) * 60 + endMinutes - startMinutes) / 60;
+      return shiftDuration >= 0 ? shiftDuration : shiftDuration + 24;
+    };
+
     const present = determinePresence(
       workingDayStatus,
       holidayStatus,
@@ -453,7 +464,8 @@ export const generateSalaryWithInOut = async (
     let outDate = new Date(day);
 
     const halfDayTreshold = 6;
-    const fullDayTreshold = 8 + (shift.break || 1);
+    // const fullDayTreshold = 8 + (shift.break || 1);
+    const shiftTreshold = calculateShiftTreshold(shift.start, shift.end);
 
     if (!present) {
       //absent
@@ -500,7 +512,7 @@ export const generateSalaryWithInOut = async (
       } else {
         //full day
         outDate.setUTCHours(
-          Number(shift.start.split(":")[0]) + fullDayTreshold,
+          Number(shift.start.split(":")[0]) + shiftTreshold,
           Number(shift.start.split(":")[1]) + randomOutOffset
         );
       }
