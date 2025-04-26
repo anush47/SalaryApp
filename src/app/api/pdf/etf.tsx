@@ -226,8 +226,6 @@ export const getETFDoc = (
         data.cell.styles.halign = "center";
         if (data.section === "head") {
           data.cell.styles.fontSize = 7;
-        } else if (data.row.index === etfData.length - 1) {
-          data.cell.colSpan = 3;
         }
       } else if (
         data.section === "body" &&
@@ -254,6 +252,9 @@ export const getETFDoc = (
         const width = doc.getTextWidth(data.cell.text.join(" "));
         if (width <= 100) data.cell.styles.cellWidth = "wrap";
         else data.cell.styles.cellWidth = "auto";
+        if (data.row.index === etfData.length - 1) {
+          data.cell.colSpan = 3;
+        }
       }
     },
     didDrawCell: function (data) {
