@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
-import { CompanySchema } from "./helpers";
+import {
+  budgetaryRemovePeriod,
+  CompanySchema,
+  isPeriodBefore,
+} from "./helpers";
 import autoTable from "jspdf-autotable";
 
 export const getPaySlipDoc = (
@@ -214,12 +218,16 @@ export const getPaySlipDoc = (
     (column) => column.dataKey === "totalEarnings"
   );
   const basicIndex = columns.findIndex(
-    (column) => column.dataKey === "basicWithBA"
+    (column) =>
+      column.dataKey ===
+      (isPeriodBefore(period, budgetaryRemovePeriod) ? "basicWithBA" : "basic")
   );
   const salaryHeaders = ["Description", "Amount (LKR)"];
   const salaryRows = [
     [
-      "Basic Salary (with budgetary)",
+      isPeriodBefore(period, budgetaryRemovePeriod)
+        ? "Basic Salary (with budgetary)"
+        : "Basic Salary",
       salary[basicIndex === -1 ? totalEarningsIndex : basicIndex],
     ],
   ];

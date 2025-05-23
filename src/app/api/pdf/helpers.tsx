@@ -10,6 +10,8 @@ import { getETFDoc } from "./etf";
 import { getPaySlipDoc } from "./payslip";
 import { getAttendanceDoc } from "./attendance";
 
+export const budgetaryRemovePeriod = "2025-04";
+
 //salary schema type
 export type SalarySchema = {
   _id: string;
@@ -69,6 +71,25 @@ export type PaymentSchema = {
   etfSurcharges: number;
   etfChequeNo: string;
   etfPayDay: string;
+};
+
+// Utility function to check if a period string (YYYY-MM) is before another period string
+export const isPeriodBefore = (period: string, compareTo: string): boolean => {
+  const [yearStr, monthStr] = period.split("-");
+  const [compareYearStr, compareMonthStr] = compareTo.split("-");
+
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const compareYear = parseInt(compareYearStr, 10);
+  const compareMonth = parseInt(compareMonthStr, 10);
+
+  if (year < compareYear) {
+    return true;
+  } else if (year === compareYear) {
+    return month < compareMonth;
+  } else {
+    return false;
+  }
 };
 
 export const getData = async (
@@ -167,11 +188,18 @@ export const setupData = (salaries: SalarySchema[]) => {
       dataKey: "basic",
       header: "BASIC",
     },
-    {
+  ];
+
+  // add budgetary from
+  if (
+    salaries.length > 0 &&
+    isPeriodBefore(salaries[0]?.period, budgetaryRemovePeriod)
+  ) {
+    columns.push({
       dataKey: "budgetaryAllowance",
       header: "BUDGETARY ALLOWANCE (+)",
-    },
-  ];
+    });
+  }
 
   const toPush = [];
   if (salaries.some((salary) => salary.holidayPay !== 0)) {
@@ -184,10 +212,12 @@ export const setupData = (salaries: SalarySchema[]) => {
 
   // if atleast one has nopay or holiday pay then add basic with BA column
   if (toPush.length > 0) {
-    columns.push({
-      dataKey: "basicWithBA",
-      header: "BASIC (WITH B.A.)",
-    });
+    if (isPeriodBefore(salaries[0]?.period, budgetaryRemovePeriod)) {
+      columns.push({
+        dataKey: "basicWithBA",
+        header: "BASIC (WITH B.A.)",
+      });
+    }
     columns.push(...toPush);
   }
 
@@ -217,7 +247,7 @@ export const setupData = (salaries: SalarySchema[]) => {
   // Iterate over salaries and build records
   salaries.forEach((salary) => {
     const basicWithBA = salary.basic;
-    const budgetaryAllowance = 3500; // Example static value
+    const budgetaryAllowance = 3500;
     let affectTotalEarnings = 0;
     //loop through additions and deductions
     salary.paymentStructure.additions.forEach((addition) => {
@@ -246,7 +276,9 @@ export const setupData = (salaries: SalarySchema[]) => {
       memberNo: salary.employee.memberNo,
       name: salary.employee.name,
       nic: salary.employee.nic,
-      basic: salary.basic - budgetaryAllowance,
+      basic: isPeriodBefore(salary.period, budgetaryRemovePeriod)
+        ? salary.basic - budgetaryAllowance
+        : salary.basic,
       budgetaryAllowance, // Example static value
       basicWithBA,
       holidayPay: salary.holidayPay,
