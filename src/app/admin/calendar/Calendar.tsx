@@ -117,6 +117,21 @@ const Users = ({
       ),
     },
     {
+      field: "calendar",
+      headerName: "Calendar",
+      flex: 1,
+      editable: false,
+      renderCell: (params) => {
+        return (
+          <Chip
+            label={params.value}
+            color={params.value === "default" ? "primary" : "secondary"}
+            variant="outlined"
+          />
+        );
+      },
+    },
+    {
       field: "summary",
       headerName: "Summary",
       flex: 1,
@@ -130,19 +145,22 @@ const Users = ({
           return null;
         }
         return (
-          <Box sx={{ display: "flex", overflowX: "auto" }}>
+          <Box sx={{ overflowX: "auto" }}>
             {Object.keys(params.value).map((category: string) => {
               if (category !== "_id" && params.value[category] === true) {
                 return (
-                  <Button
+                  <Chip
                     key={`${params.row.id}-${category}`}
                     color="primary"
                     variant="outlined"
                     size="small"
-                    sx={{ my: 0.5, mx: 0.1 }}
-                  >
-                    {category}
-                  </Button>
+                    label={category}
+                    sx={{
+                      marginRight: 0.5,
+                      marginBottom: 0.5,
+                      whiteSpace: "nowrap",
+                    }}
+                  />
                 );
               }
               return null;

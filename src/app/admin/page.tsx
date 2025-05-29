@@ -1,9 +1,7 @@
-import { getServerSession } from "next-auth";
-import AdminSideBar from "./clientComponents/adminSideBar";
 import React from "react";
+import { getServerSession } from "next-auth";
 import { options } from "@/app/api/auth/[...nextauth]/options";
-import { Box } from "@mui/material";
-import AdminMainBox from "./clientComponents/adminMainBox";
+import AdminNavContainer from "./clientComponents/AdminNavContainer";
 import UnAuthorize from "./unAuthorize/UnAuthorize";
 
 const AdminPage = async () => {
@@ -20,33 +18,19 @@ const AdminPage = async () => {
   }
 
   return (
-    <Box sx={{ display: "flex" }}>
-      <AdminSideBar
-        user={
-          user
-            ? {
-                name: user.name ?? "",
-                email: user.email ?? "",
-                role: user.role ?? "",
-                image: user.image ?? "",
-              }
-            : { name: "", email: "", role: "", image: "" }
-        }
-      />
-      <AdminMainBox
-        user={
-          user
-            ? {
-                name: user.name ?? "",
-                email: user.email ?? "",
-                id: user.id ?? "",
-                role: user.role ?? "",
-                image: user.image ?? "",
-              }
-            : { name: "", email: "", id: "", role: "", image: "" }
-        }
-      />
-    </Box>
+    <AdminNavContainer
+      user={
+        user
+          ? {
+              name: user.name ?? "",
+              email: user.email ?? "",
+              id: user.id ?? "",
+              role: user.role ?? "",
+              image: user.image ?? "",
+            }
+          : { name: "", email: "", id: "", role: "", image: "" }
+      }
+    />
   );
 };
 

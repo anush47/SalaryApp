@@ -2,7 +2,7 @@
 import React, { Suspense, lazy } from "react";
 import { Box, Toolbar, LinearProgress, CircularProgress } from "@mui/material";
 import "@fontsource/roboto/400.css";
-import { selected } from "./adminSideBar";
+import { Selected } from "./AdminNavContainer";
 
 // Lazy load the components
 const Users = lazy(() => import("../users/Users"));
@@ -13,9 +13,7 @@ const Calendar = lazy(() => import("../calendar/Calendar"));
 // const Purchases = lazy(() => import("../purchases/purchases"));
 // const Salaries = lazy(() => import("../salaries/salaries"));
 
-const AdminMainBox = ({
-  user,
-}: {
+interface Props {
   user: {
     name: string;
     email: string;
@@ -23,7 +21,10 @@ const AdminMainBox = ({
     role: string;
     image: string;
   };
-}) => {
+  selected: Selected;
+}
+
+const AdminMainBox = ({ user, selected }: Props) => {
   const fallback = (
     <Box
       display="flex"

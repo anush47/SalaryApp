@@ -50,25 +50,19 @@ export type Selected = "users" | "calendar";
 interface Props {
   window?: Window | undefined;
   user: { name: string; email: string; role: string; image: string };
+  selected: Selected;
+  setSelected: React.Dispatch<React.SetStateAction<Selected>>;
 }
-export let selected: Selected = "users";
-
-const AdminSideBar: React.FC<Props> = ({ window, user }) => {
+const AdminSideBar: React.FC<Props> = ({
+  window,
+  user,
+  selected,
+  setSelected,
+}) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme();
-
-  //search params to get selected
-  const searchParams = useSearchParams();
-  const selectedParam = searchParams?.get("adminPageSelect");
-  if (selectedParam) {
-    selected = selectedParam as Selected;
-  }
-  //if wrong params default to mycompanies
-  if (!["users", "calendar"].includes(selected)) {
-    selected = "users";
-  }
 
   const handleDrawerToggle = () => {
     setMobileOpen((prevState) => !prevState);
@@ -148,11 +142,7 @@ const AdminSideBar: React.FC<Props> = ({ window, user }) => {
           <ListItem key={menu.name} disablePadding>
             <ListItemButton
               selected={selected === menu.key}
-              onClick={() => {
-                if (selected !== menu.key) {
-                  selected = menu.key as Selected;
-                }
-              }}
+              onClick={() => setSelected(menu.key as Selected)}
               component={Link}
               href={`/admin/?adminPageSelect=${menu.key}`}
               sx={{

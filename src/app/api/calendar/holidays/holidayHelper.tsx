@@ -45,8 +45,6 @@ export const getHolidays: {
   // If neither startDate nor endDate is provided, return all holidays
   const holidays = await Holiday.find(query).lean();
 
-  console.log(calendar);
-
   return {
     holidays,
     messege: "Holidays fetched successfully",
