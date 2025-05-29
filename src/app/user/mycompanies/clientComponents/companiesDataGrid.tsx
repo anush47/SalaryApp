@@ -65,6 +65,7 @@ export interface Company {
       affectTotalEarnings: boolean;
     }[];
   };
+  calendar: "default" | "other";
 }
 
 const CompaniesDataGrid = ({

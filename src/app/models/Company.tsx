@@ -53,6 +53,7 @@ interface ICompany extends Document {
     late: number;
     ot: number;
   };
+  calendar: "default" | "other";
 }
 
 // Define the schema for the Company model
@@ -281,6 +282,11 @@ const companySchema = new Schema<ICompany>(
           default: true,
         },
       },
+    },
+    calendar: {
+      type: String,
+      enum: ["default", "other"],
+      default: "default",
     },
   },
   {

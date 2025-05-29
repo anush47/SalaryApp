@@ -5,7 +5,16 @@ import {
   GridColumnVisibilityModel,
   GridToolbar,
 } from "@mui/x-data-grid";
-import { Box, Alert, CircularProgress, Button, Snackbar } from "@mui/material";
+import {
+  Box,
+  Alert,
+  CircularProgress,
+  Button,
+  Snackbar,
+  FormControlLabel,
+  Checkbox,
+  Chip,
+} from "@mui/material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
@@ -161,6 +170,71 @@ const EmployeesDataGrid: React.FC<{
       headerName: "Remark",
       flex: 1,
       editable: isEditingEmployeeInHome,
+    },
+    {
+      field: "overrides",
+      headerName: "Overrides",
+      flex: 1,
+      renderCell: (params) => {
+        const value = params.value;
+        if (typeof value === "object") {
+          return (
+            <div style={{ display: "flex" }}>
+              {Object.entries(value).map(([key, val]) => {
+                if (key !== "_id" && val === true)
+                  return (
+                    <Chip
+                      label={key}
+                      key={key}
+                      variant="outlined"
+                      color="primary"
+                      sx={{ margin: "2px" }}
+                    />
+                  );
+              })}
+            </div>
+          );
+        }
+
+        return value;
+      },
+      editable: true,
+      renderEditCell(params) {
+        const value = params.value;
+        if (typeof value === "object") {
+          return (
+            <div style={{ display: "flex" }}>
+              {Object.entries(value).map(([key, val]) => {
+                if (key !== "_id") {
+                  return (
+                    <FormControlLabel
+                      key={key}
+                      control={
+                        <Checkbox
+                          checked={!!val}
+                          onChange={(event) => {
+                            params.api.setEditCellValue({
+                              id: params.id,
+                              field: params.field,
+                              value: {
+                                ...value,
+                                [key]: event.target.checked,
+                              },
+                            });
+                          }}
+                        />
+                      }
+                      label={key}
+                    />
+                  );
+                }
+                return null;
+              })}
+            </div>
+          );
+        }
+        return value;
+      },
     },
     {
       field: "workingDays",
@@ -525,6 +599,7 @@ const EmployeesDataGrid: React.FC<{
       totalSalary: false,
       remark: false,
       probabilities: false,
+      overrides: false,
     });
 
   return (

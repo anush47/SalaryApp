@@ -9,6 +9,8 @@ const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
   message: "Day must be in the format yyyy-mm-dd",
 });
 
+const calendarSchema = z.enum(["default", "other"]);
+
 export const dynamic = "force-dynamic";
 
 // GET: Holiday
@@ -27,6 +29,7 @@ export async function GET(req: NextRequest) {
     await dbConnect();
     const startDate = req.nextUrl.searchParams.get("startDate");
     const endDate = req.nextUrl.searchParams.get("endDate");
+    const calendar = req.nextUrl.searchParams.get("calendar") || "default";
 
     if (startDate) {
       daySchema.parse(startDate);
@@ -34,8 +37,9 @@ export async function GET(req: NextRequest) {
     if (endDate) {
       daySchema.parse(endDate);
     }
+    calendarSchema.parse(calendar);
 
-    const holidayResponse = await getHolidays(startDate, endDate);
+    const holidayResponse = await getHolidays(startDate, endDate, calendar);
     if (!holidayResponse.holidays && holidayResponse.messege) {
       return NextResponse.json(holidayResponse, { status: 400 });
     }

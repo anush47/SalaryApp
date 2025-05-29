@@ -214,13 +214,16 @@ const employeeCreateSchema = z.object({
       workingDays: z.boolean(),
       probabilities: z.boolean(),
       paymentStructure: z.boolean(),
+      calendar: z.boolean(),
     })
     .default({
       shifts: false,
       workingDays: false,
       probabilities: false,
       paymentStructure: false,
+      calendar: false,
     }),
+  calendar: z.enum(["default", "other"]).optional().default("default"),
 });
 
 export async function POST(req: NextRequest) {
@@ -397,6 +400,7 @@ const employeeUpdateSchema = z.object({
       workingDays: z.boolean().optional(),
       probabilities: z.boolean().optional(),
       paymentStructure: z.boolean().optional(),
+      calendar: z.boolean().optional(),
     })
     .optional(),
   probabilities: z
@@ -454,7 +458,8 @@ const employeeUpdateSchema = z.object({
     .regex(/^\d{10}$/, "Phone number must be a valid")
     .optional(),
   email: z.string().email("Email must be a valid email").optional(),
-  address: z.string().optional(), // Add this line
+  address: z.string().optional(),
+  calendar: z.enum(["default", "other"]).optional(),
 });
 
 export async function PUT(req: NextRequest) {
@@ -574,6 +579,7 @@ export async function PUT(req: NextRequest) {
     if (!parsedBody.overrides?.probabilities) unsetFields.probabilities = 1;
     if (!parsedBody.overrides?.paymentStructure)
       unsetFields.paymentStructure = 1;
+    if (!parsedBody.overrides?.calendar) unsetFields.calendar = 1;
 
     // Remove fields from updateData if they are to be unset
     Object.keys(unsetFields).forEach((field) => {

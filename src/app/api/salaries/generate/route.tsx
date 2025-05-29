@@ -136,6 +136,10 @@ export async function POST(req: NextRequest) {
         employee.paymentStructure = company.paymentStructure;
       }
 
+      if (!employee.overrides?.calendar) {
+        employee.calendar = company.calendar;
+      }
+
       const existingSalary = await Salary.findOne({
         employee: employee._id,
         period: period,

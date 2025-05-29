@@ -45,6 +45,7 @@ export interface Employee {
     workingDays: boolean;
     probabilities: boolean;
     paymentStructure: boolean;
+    calendar: boolean;
   };
   shifts: {
     start: string;
@@ -76,6 +77,7 @@ export interface Employee {
   phoneNumber: string;
   email: string;
   address: string;
+  calendar: "default" | "other";
 }
 
 // Default values for Employee
@@ -105,6 +107,7 @@ export const defaultEmployee: Employee = {
     workingDays: false,
     probabilities: false,
     paymentStructure: false,
+    calendar: false,
   },
   shifts: [{ start: "08:00", end: "17:00", break: 1 }],
   probabilities: {
@@ -124,6 +127,7 @@ export const defaultEmployee: Employee = {
   phoneNumber: "",
   email: "",
   address: "",
+  calendar: "default",
 };
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
@@ -294,6 +298,43 @@ const EmployeesDataGrid: React.FC<{
           );
         }
 
+        return value;
+      },
+      editable: true,
+      renderEditCell(params) {
+        const value = params.value;
+        if (typeof value === "object") {
+          return (
+            <div style={{ display: "flex" }}>
+              {Object.entries(value).map(([key, val]) => {
+                if (key !== "_id") {
+                  return (
+                    <FormControlLabel
+                      key={key}
+                      control={
+                        <Checkbox
+                          checked={!!val}
+                          onChange={(event) => {
+                            params.api.setEditCellValue({
+                              id: params.id,
+                              field: params.field,
+                              value: {
+                                ...value,
+                                [key]: event.target.checked,
+                              },
+                            });
+                          }}
+                        />
+                      }
+                      label={key}
+                    />
+                  );
+                }
+                return null;
+              })}
+            </div>
+          );
+        }
         return value;
       },
     },

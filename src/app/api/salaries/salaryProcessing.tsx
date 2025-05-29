@@ -186,7 +186,8 @@ export const processSalaryWithInOut = async (
     holidays = (
       await getHolidays(
         (inOut as any[])[0].in,
-        (inOut as any[])[inOut.length - 1].out
+        (inOut as any[])[inOut.length - 1].out,
+        employee.calendar
       )
     ).holidays;
     // Process the already processed records
@@ -213,7 +214,7 @@ export const processSalaryWithInOut = async (
       startDate,
       endDate,
       holidays: fetchedHolidays,
-    } = await startEndDates(period, inOut as Date[]);
+    } = await startEndDates(period, inOut as Date[], employee.calendar);
     holidays = fetchedHolidays;
 
     let day = new Date(startDate);
@@ -572,7 +573,8 @@ export const generateSalaryWithInOut = async (
   //get start end days
   const { startDate, endDate, holidays } = await startEndDates(
     period,
-    inOut as Date[]
+    inOut as Date[],
+    employee.calendar
   );
   let day = new Date(startDate);
 
@@ -617,7 +619,8 @@ export const generateSalaryWithInOut = async (
 // Helper functions
 const startEndDates = async (
   period: string | number | Date,
-  inOut: (string | number | Date)[]
+  inOut: (string | number | Date)[],
+  calendar: string = "default"
 ) => {
   const periodStartDate = new Date(period);
   const inOutStartDate = inOut ? new Date(inOut[0]) : undefined;
@@ -639,7 +642,11 @@ const startEndDates = async (
   //transform to yyyy-mm-dd for holidays
   const startDateHoliday = startDate.toISOString().split("T")[0];
   const endDateHoliday = endDate.toISOString().split("T")[0];
-  const holidayResponse = await getHolidays(startDateHoliday, endDateHoliday);
+  const holidayResponse = await getHolidays(
+    startDateHoliday,
+    endDateHoliday,
+    calendar
+  );
   if (!holidayResponse.holidays && holidayResponse.messege) {
     throw new Error(holidayResponse.messege);
   }

@@ -104,7 +104,8 @@ const CompanyDetails = ({
       additions: [],
       deductions: [],
     },
-    shifts: [], // Add the shifts property here
+    shifts: [],
+    calendar: "default",
   });
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
@@ -293,7 +294,8 @@ const CompanyDetails = ({
           additions: [],
           deductions: [],
         },
-        shifts: [], // Add the shifts property here
+        shifts: [],
+        calendar: "default",
       }
     );
   };
@@ -1030,6 +1032,35 @@ const CompanyDetails = ({
                               />
                             </FormControl>
                           </Grid>
+                        </Grid>
+                      </AccordionDetails>
+                    </Accordion>
+
+                    <div className="my-5" />
+
+                    <Accordion>
+                      <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography variant="h5">Calendar</Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <InputLabel id="calendar-label">
+                              Calendar
+                            </InputLabel>
+                            <Select
+                              labelId="calendar-label"
+                              label="Calendar"
+                              name="calendar"
+                              value={formFields.calendar || "default"}
+                              onChange={handleChange}
+                              variant="outlined"
+                              readOnly={!isEditing}
+                            >
+                              <MenuItem value="default">Default</MenuItem>
+                              <MenuItem value="other">Other</MenuItem>
+                            </Select>
+                          </FormControl>
                         </Grid>
                       </AccordionDetails>
                     </Accordion>

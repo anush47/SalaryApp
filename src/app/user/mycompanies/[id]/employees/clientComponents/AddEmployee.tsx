@@ -610,6 +610,17 @@ const AddEmployeeForm: React.FC<{
                   <FormControlLabel
                     control={
                       <Checkbox
+                        checked={formFields.overrides?.calendar || false}
+                        name="overrides.calendar"
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                    }
+                    label="Calendar"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
                         checked={formFields.overrides?.probabilities || false}
                         name="overrides.probabilities"
                         onChange={handleChange}
@@ -680,6 +691,35 @@ const AddEmployeeForm: React.FC<{
                 }}
               />
             </Grid>
+          </>
+        )}
+
+        {formFields.overrides?.calendar && (
+          <>
+            <div className="my-5" />
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h5">Calendar</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel id="calendar-label">Calendar</InputLabel>
+                    <Select
+                      labelId="calendar-label"
+                      label="Calendar"
+                      name="calendar"
+                      value={formFields.calendar || "default"}
+                      onChange={handleChange}
+                      variant="outlined"
+                    >
+                      <MenuItem value="default">Default</MenuItem>
+                      <MenuItem value="other">Other</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
           </>
         )}
 

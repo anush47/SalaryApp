@@ -23,7 +23,9 @@ interface IEmployee extends Document {
     workingDays: boolean;
     probabilities: boolean;
     paymentStructure: boolean;
+    calendar: boolean;
   };
+  calendar?: "default" | "other";
   workingDays: {
     [key: string]: "full" | "half" | "off";
   };
@@ -104,7 +106,16 @@ const employeeSchema = new Schema<IEmployee>(
           type: Boolean,
           default: false,
         },
+        calendar: {
+          type: Boolean,
+          default: false,
+        },
       },
+    },
+    calendar: {
+      type: String,
+      enum: ["default", "other"],
+      default: "default",
     },
     shifts: {
       type: [

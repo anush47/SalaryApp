@@ -2,6 +2,7 @@ import { Schema, model, models, Document } from "mongoose";
 
 interface IHoliday extends Document {
   date: string;
+  calendar: "default" | "other";
   categories: {
     public: boolean;
     mercantile: boolean;
@@ -14,7 +15,11 @@ const holidaySchema = new Schema<IHoliday>({
   date: {
     type: String,
     required: true,
-    unique: true,
+  },
+  calendar: {
+    type: String,
+    enum: ["default", "other"],
+    required: true,
   },
   categories: {
     type: {
@@ -37,6 +42,9 @@ const holidaySchema = new Schema<IHoliday>({
     type: String,
   },
 });
+
+// Compound unique index on date + calendar
+holidaySchema.index({ date: 1, calendar: 1 }, { unique: true });
 
 // Check if the model already exists
 const Holiday = models.Holiday || model<IHoliday>("Holiday", holidaySchema);

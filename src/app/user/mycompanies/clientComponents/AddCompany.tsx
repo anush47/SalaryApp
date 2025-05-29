@@ -75,6 +75,7 @@ const AddCompanyForm: React.FC<{
       ot: 75,
     },
     shifts: [],
+    calendar: "default",
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
@@ -201,6 +202,7 @@ const AddCompanyForm: React.FC<{
             salary: true,
             paySlip: true,
           },
+          calendar: "default",
         });
         setErrors({});
         handleBackClick();

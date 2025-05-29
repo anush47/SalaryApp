@@ -60,12 +60,13 @@ import { Shifts } from "../../companyDetails/shifts";
 import { WorkingDays } from "../../companyDetails/workingDays";
 import Link from "next/link";
 import { Company } from "../../../clientComponents/companiesDataGrid";
+import { MenuItem } from "@mui/material";
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
-  employeeId: string | null;
   companyId: string | null;
+  employeeId: string | null;
 }> = ({ user, handleBackClick, employeeId, companyId }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
@@ -746,6 +747,17 @@ const EditEmployeeForm: React.FC<{
                   <FormControlLabel
                     control={
                       <Checkbox
+                        checked={formFields.overrides?.calendar || false}
+                        name="overrides.calendar"
+                        onChange={handleChange}
+                        disabled={!isEditing || loading}
+                      />
+                    }
+                    label="Calendar"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
                         checked={formFields.overrides?.probabilities || false}
                         name="overrides.probabilities"
                         onChange={handleChange}
@@ -817,6 +829,36 @@ const EditEmployeeForm: React.FC<{
                 }}
               />
             </Grid>
+          </>
+        )}
+
+        {formFields.overrides?.calendar && (
+          <>
+            <div className="my-5" />
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h5">Calendar</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel id="calendar-label">Calendar</InputLabel>
+                    <Select
+                      labelId="calendar-label"
+                      label="Calendar"
+                      name="calendar"
+                      value={formFields.calendar || "default"}
+                      onChange={handleChange}
+                      variant="outlined"
+                      readOnly={!isEditing}
+                    >
+                      <MenuItem value="default">Default</MenuItem>
+                      <MenuItem value="other">Other</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
           </>
         )}
 
