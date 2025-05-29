@@ -38,6 +38,7 @@ import {
   Delete,
   Search,
   ExpandMore,
+  Done,
 } from "@mui/icons-material";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import { CompanyValidation } from "../../clientComponents/companyValidation";
@@ -482,38 +483,37 @@ const CompanyDetails = ({
           <Box
             sx={{
               display: "flex",
+              justifyContent: "space-between",
               alignItems: "center",
-              gap: 1,
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
             }}
           >
-            <Typography variant="h4">Company Details</Typography>
-            {isEditing && (
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Tooltip title="Cancel" arrow>
-                  <IconButton color="error" onClick={handleCancelClick}>
-                    <Cancel />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Save changes" arrow>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    startIcon={<Save />}
-                    onClick={handleSaveClick}
-                    disabled={loading}
-                  >
-                    {loading ? <CircularProgress size={24} /> : "Save"}
-                  </Button>
-                </Tooltip>
-              </Box>
-            )}
-            {!isEditing && (
-              <Tooltip title="Edit" arrow>
-                <IconButton color="primary" onClick={handleEditClick}>
-                  <Edit />
-                </IconButton>
-              </Tooltip>
-            )}
+            <Typography variant="h4" component="h1">
+              Quick Tools
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Edit Mode:
+              </Typography>
+              <IconButton onClick={() => setIsEditing(!isEditing)} size="small">
+                {isEditing ? (
+                  <Tooltip title="Save changes" arrow>
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={<Save />}
+                      onClick={handleSaveClick}
+                      disabled={loading}
+                    >
+                      {loading ? <CircularProgress size={24} /> : "Save"}
+                    </Button>
+                  </Tooltip>
+                ) : (
+                  <Edit color="action" fontSize="small" />
+                )}
+              </IconButton>
+            </Box>
           </Box>
         }
       />

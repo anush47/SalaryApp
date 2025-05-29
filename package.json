@@ -23,6 +23,7 @@
     "bcrypt": "^5.1.1",
     "dayjs": "^1.11.12",
     "dotenv": "^16.4.5",
+    "framer-motion": "^12.15.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.3",
     "mongoose": "^8.5.1",
