@@ -305,38 +305,37 @@ const AddEmployeeForm: React.FC<{
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              mb: 2,
+              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
             }}
           >
-            <Typography variant={isSmallScreen ? "h5" : "h4"}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Tooltip title="Discard and go back to my companies" arrow>
-                <IconButton
-                  sx={{
-                    mr: 2,
-                  }}
-                  onClick={handleBackClick}
-                >
+                <IconButton onClick={handleBackClick}>
                   <ArrowBack />
                 </IconButton>
               </Tooltip>
-              Add Employee
-              <Tooltip title="Save new company" arrow>
-                <span>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    startIcon={<Save />}
-                    sx={{
-                      ml: 2,
-                    }}
-                    onClick={onSaveClick}
-                    disabled={loading} // Disable button while loading
-                  >
-                    {loading ? <CircularProgress size={24} /> : "Save"}
-                  </Button>
-                </span>
+              <Typography variant="h4" component="h1">
+                Add New Employee
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Tooltip title="Add new employee" arrow>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<Save />}
+                  sx={{
+                    ml: 2,
+                  }}
+                  onClick={onSaveClick}
+                  disabled={loading}
+                >
+                  {loading ? <CircularProgress size={24} /> : "Save"}
+                </Button>
               </Tooltip>
-            </Typography>
+            </Box>
           </Box>
         }
       />

@@ -360,29 +360,27 @@ const EditEmployeeForm: React.FC<{
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              mb: 2,
+              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
             }}
           >
-            <Typography variant={isSmallScreen ? "h5" : "h4"}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Tooltip title="Discard and go back to my companies" arrow>
-                <IconButton
-                  sx={{
-                    mr: 2,
-                  }}
-                  onClick={handleBackClick}
-                >
+                <IconButton onClick={handleBackClick}>
                   <ArrowBack />
                 </IconButton>
               </Tooltip>
-              Edit Employee
+              <Typography variant="h4" component="h1">
+                Edit Employee
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {isEditing ? (
-                <Tooltip title="Save new company" arrow>
+                <Tooltip title="Save changes" arrow>
                   <span>
                     <Button
-                      variant="outlined"
-                      sx={{
-                        marginLeft: 1,
-                      }}
+                      variant="contained"
                       color="success"
                       startIcon={<Save />}
                       onClick={onSaveClick}
@@ -393,17 +391,16 @@ const EditEmployeeForm: React.FC<{
                   </span>
                 </Tooltip>
               ) : (
-                <IconButton
-                  sx={{
-                    marginLeft: 1,
-                  }}
-                  color="primary"
+                <Button
+                  variant="outlined"
+                  startIcon={<Edit />}
+                  sx={{ mx: 0.25 }}
                   onClick={() => setIsEditing(true)}
                 >
-                  {loading ? <CircularProgress size={24} /> : <Edit />}
-                </IconButton>
+                  Edit
+                </Button>
               )}
-            </Typography>
+            </Box>
           </Box>
         }
       />
