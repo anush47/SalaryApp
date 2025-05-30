@@ -638,7 +638,7 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
           >
-            <Typography variant="h3" sx={{ mb: 2, fontWeight: 700 }}>
+            <Typography variant="h4" sx={{ mb: 2, fontWeight: 700 }}>
               Connect With Us
             </Typography>
           </motion.div>
