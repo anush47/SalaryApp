@@ -244,7 +244,11 @@ export default function LandingPage() {
                       },
                       width: { xs: "100%", sm: "auto" },
                     }}
-                    onClick={() => alert("Watch Demo clicked!")}
+                    onClick={() =>
+                      alert(
+                        "Watch Demo clicked! We Are working on Providing the Demo in the near future! Stay tuned!"
+                      )
+                    }
                     startIcon={<PlayCircleOutline />}
                   >
                     Watch a Demo
@@ -308,7 +312,11 @@ export default function LandingPage() {
                       },
                       width: { xs: "100%", sm: "auto" },
                     }}
-                    onClick={() => alert("Watch Demo clicked!")}
+                    onClick={() =>
+                      alert(
+                        "Watch Demo clicked! We Are working on Providing the Demo in the near future! Stay tuned!"
+                      )
+                    }
                     startIcon={<PlayCircleOutline />}
                   >
                     Watch a Demo
