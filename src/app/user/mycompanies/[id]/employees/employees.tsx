@@ -37,8 +37,6 @@ const Employees = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isAh, setAH] = useState(false);
   const [isEditingEmployeeInHome, setIsEditingEmployeeInHome] = useState(false);
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   const searchParams = useSearchParams();
   employeeId = searchParams?.get("employeeId") || null;

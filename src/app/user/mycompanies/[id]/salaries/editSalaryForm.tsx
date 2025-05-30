@@ -50,14 +50,11 @@ const EditSalaryForm: React.FC<{
   }>();
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [openDialogInOut, setOpenDialogInOut] = useState<boolean>(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>("");
   const [snackbarSeverity, setSnackbarSeverity] = useState<
     "success" | "error" | "warning" | "info"
   >("success");
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [formFields, setFormFields] = useState<Salary>({
     _id: "",
@@ -493,30 +490,28 @@ const EditSalaryForm: React.FC<{
             <Box
               sx={{
                 display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
                 gap: 2,
-                mb: 2,
               }}
             >
-              <Typography variant={isSmallScreen ? "h5" : "h4"}>
-                <Tooltip title="Discard and go back" arrow>
-                  <IconButton
-                    sx={{
-                      mr: 2,
-                    }}
-                    onClick={handleBackClick}
-                  >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Tooltip title="Discard and go back to my companies" arrow>
+                  <IconButton onClick={handleBackClick}>
                     <ArrowBack />
                   </IconButton>
                 </Tooltip>
-                Salary Details
+                <Typography variant="h4" component="h1">
+                  Salary Details
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {isEditing ? (
-                  <Tooltip title="Save new Salary" arrow>
+                  <Tooltip title="Save changes" arrow>
                     <span>
                       <Button
-                        variant="outlined"
-                        sx={{
-                          marginLeft: 1,
-                        }}
+                        variant="contained"
                         color="success"
                         startIcon={<Save />}
                         onClick={onSaveClick}
@@ -527,17 +522,16 @@ const EditSalaryForm: React.FC<{
                     </span>
                   </Tooltip>
                 ) : (
-                  <IconButton
-                    sx={{
-                      marginLeft: 1,
-                    }}
-                    color="primary"
+                  <Button
+                    variant="outlined"
+                    startIcon={<Edit />}
+                    sx={{ mx: 0.25 }}
                     onClick={() => setIsEditing(true)}
                   >
-                    {loading ? <CircularProgress size={24} /> : <Edit />}
-                  </IconButton>
+                    Edit
+                  </Button>
                 )}
-              </Typography>
+              </Box>
             </Box>
           }
         />

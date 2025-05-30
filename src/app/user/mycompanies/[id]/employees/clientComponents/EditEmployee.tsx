@@ -81,9 +81,6 @@ const EditEmployeeForm: React.FC<{
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-
   useEffect(() => {
     const fetchEmployee = async () => {
       try {
@@ -372,7 +369,7 @@ const EditEmployeeForm: React.FC<{
                 </IconButton>
               </Tooltip>
               <Typography variant="h4" component="h1">
-                Edit Employee
+                Employee Details
               </Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

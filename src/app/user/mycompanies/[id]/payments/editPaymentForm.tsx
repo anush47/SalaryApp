@@ -60,8 +60,6 @@ const EditPaymentForm: React.FC<{
   const [snackbarSeverity, setSnackbarSeverity] = useState<
     "success" | "error" | "warning" | "info"
   >("success");
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [formFields, setFormFields] = useState<Payment>({
     _id: "",

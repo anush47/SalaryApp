@@ -28,9 +28,6 @@ const Purchases = ({
 }: {
   user: { name: string; email: string; id: string };
 }) => {
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-
   const searchParams = useSearchParams();
   purchaseId = searchParams ? searchParams.get("purchaseId") : null;
   const [isEditingPurchaseInHome, setIsEditingPurchaseInHome] = useState(false);

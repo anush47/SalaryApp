@@ -29,10 +29,7 @@ const MyCompanies = ({
 }: {
   user: { name: string; email: string; id: string; role: string };
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
   const [isEditingEmployeeInHome, setIsEditingEmployeeInHome] = useState(false);
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   const searchParams = useSearchParams();
   employeeId = searchParams.get("employeeId");

@@ -49,9 +49,6 @@ const NewPaymentForm = ({
   user: { id: string; name: string; email: string };
   companyId: string;
 }) => {
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
   const [company, setCompany] = useState<any>();
   const [purchased, setPurchased] = useState<boolean>(true);
   const [period, setPeriod] = useState<string>(

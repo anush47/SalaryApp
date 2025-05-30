@@ -336,6 +336,7 @@ const CompanyDetails = ({
         );
         setSnackbarSeverity("error");
         setSnackbarOpen(true);
+        setIsEditing(false);
       }
     } catch (error) {
       console.error("Error updating company:", error);
@@ -493,29 +494,28 @@ const CompanyDetails = ({
               Company Details
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <IconButton onClick={() => setIsEditing(!isEditing)} size="small">
-                {isEditing ? (
-                  <Tooltip title="Save changes" arrow>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<Save />}
-                      onClick={handleSaveClick}
-                      disabled={loading}
-                    >
-                      {loading ? <CircularProgress size={24} /> : "Save"}
-                    </Button>
-                  </Tooltip>
-                ) : (
+              {isEditing ? (
+                <Tooltip title="Save changes" arrow>
                   <Button
-                    variant="outlined"
-                    startIcon={<Edit />}
+                    variant="contained"
+                    color="success"
+                    startIcon={<Save />}
+                    onClick={handleSaveClick}
                     disabled={loading}
                   >
-                    {loading ? <CircularProgress size={24} /> : "Edit"}
+                    {loading ? <CircularProgress size={24} /> : "Save"}
                   </Button>
-                )}
-              </IconButton>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<Edit />}
+                  disabled={loading}
+                  onClick={() => setIsEditing(true)}
+                >
+                  {loading ? <CircularProgress size={24} /> : "Edit"}
+                </Button>
+              )}
             </Box>
           </Box>
         }

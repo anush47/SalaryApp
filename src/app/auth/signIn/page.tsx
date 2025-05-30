@@ -107,8 +107,8 @@ const SignInPage: React.FC = () => {
       style={{
         background:
           theme.palette.mode === "dark"
-            ? "linear-gradient(to right, #0f2c61, #1a237e, #283593, #303f9f)"
-            : "linear-gradient(to right, #e3f2fd, #bbdefb, #90caf9)",
+            ? "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)"
+            : "linear-gradient(135deg, #e0f2f7 0%, #c1e4ed 50%, #a2d7e3 100%)",
         color: theme.palette.text.primary,
       }}
     >

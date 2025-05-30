@@ -69,9 +69,6 @@ const AddEmployeeForm: React.FC<{
   }>({});
   const [company, setCompany] = useState<Company | null>(null);
 
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-
   useEffect(() => {
     const fetchCompany = async () => {
       try {

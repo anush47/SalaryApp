@@ -93,9 +93,6 @@ const AddSalaryForm: React.FC<{
   }>({});
   const [purchased, setPurchased] = useState<boolean>(true);
 
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-
   // Fetch employees from the API
   useEffect(() => {
     const fetchEmployees = async () => {

@@ -31,8 +31,6 @@ const Purchases = ({
   companyId: string;
 }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   const searchParams = useSearchParams();
   purchaseId = searchParams?.get("purchaseId") || null;

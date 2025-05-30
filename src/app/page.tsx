@@ -9,22 +9,32 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  useMediaQuery,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import EmailIcon from "@mui/icons-material/Email";
-import ContactMailIcon from "@mui/icons-material/ContactMail";
-import BusinessIcon from "@mui/icons-material/Business";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
-import GroupIcon from "@mui/icons-material/Group";
+import {
+  Email,
+  ContactMail,
+  CheckCircleOutline,
+  AccessTime,
+  Payments,
+  Description,
+  People,
+  PlayCircleOutline,
+  ArrowForward,
+  Logout,
+} from "@mui/icons-material";
 import { ThemeSwitch } from "./theme-provider";
-import { ArrowForward, Logout } from "@mui/icons-material";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 
 export default function LandingPage() {
   const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { data: session, status } = useSession();
+  const userName =
+    session?.user?.name || session?.user?.email?.split("@")[0] || "User";
 
   const gradientBackground =
     theme.palette.mode === "dark"
@@ -61,24 +71,36 @@ export default function LandingPage() {
       <Container maxWidth="lg" sx={{ p: { xs: 2, sm: 6 } }}>
         <Box
           sx={{
-            position: "absolute",
+            position: { sm: "absolute" },
             top: 16,
             right: 16,
             zIndex: 1000,
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: 2,
           }}
         >
           <ThemeSwitch />
           {session && (
-            <Tooltip title="Sign Out">
-              <Link href="/api/auth/signout">
-                <IconButton color="inherit">
+            <>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.9rem", sm: "1.1rem" },
+                  fontWeight: 600,
+                  color: theme.palette.text.primary,
+                  mr: 1,
+                }}
+              >
+                Hello, {userName}!
+              </Typography>
+              <Tooltip title="Sign Out">
+                <IconButton color="inherit" onClick={() => signOut()}>
                   <Logout />
                 </IconButton>
-              </Link>
-            </Tooltip>
+              </Tooltip>
+            </>
           )}
         </Box>
 
@@ -92,7 +114,8 @@ export default function LandingPage() {
             sx={{
               textAlign: "center",
               mb: 8,
-              pt: { xs: 8, sm: 5 }, // Add padding top for spacing
+              pt: { xs: 4, sm: 5 },
+              px: 2,
             }}
           >
             <div className="flex justify-center mb-4">
@@ -102,14 +125,13 @@ export default function LandingPage() {
                 transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
               >
                 <Image
+                  className="m-0 sm:mr-10"
                   src="/Logo_Withtext.png"
                   alt="SalaryApp Logo"
-                  width={400}
-                  height={400}
+                  width={isSmallScreen ? 300 : 400}
+                  height={isSmallScreen ? 300 : 400}
                   style={{
                     padding: 0,
-                    margin: 0,
-                    objectFit: "cover",
                   }}
                 />
               </motion.div>
@@ -122,27 +144,28 @@ export default function LandingPage() {
               <Typography
                 variant="h2"
                 sx={{
-                  fontSize: { xs: "2.5rem", md: "4rem" },
-                  fontWeight: 800,
+                  fontSize: { xs: "2rem", sm: "2.5rem", md: "3.5rem" },
+                  fontWeight: 700,
                   color: theme.palette.text.primary,
-                  mb: 2,
+                  mb: { xs: 1, sm: 2 },
                   lineHeight: 1.2,
                 }}
               >
-                Your Ultimate Solution for HR & Payroll
+                Effortless Payroll, EPF/ETF, Payslips & Staff Management
               </Typography>
               <Typography
                 variant="h5"
                 sx={{
-                  fontSize: { xs: "1.2rem", md: "1.8rem" },
+                  fontSize: { xs: "1rem", sm: "1.2rem", md: "1.6rem" },
                   color: theme.palette.text.secondary,
-                  mb: 4,
+                  mb: { xs: 3, sm: 4 },
                   maxWidth: 800,
                   mx: "auto",
+                  px: { xs: 2, sm: 0 }, // Add horizontal padding for mobile
                 }}
               >
-                Streamline salary processing, EPF/ETF, AH form management,
-                comprehensive employee operations with ease.
+                Simplify salary calculations, generate accurate EPF/ETF reports,
+                create instant payslips, and manage your team with ease.
               </Typography>
             </motion.div>
             {status === "loading" ? (
@@ -170,29 +193,63 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
               >
-                <Button
-                  variant="contained"
-                  size="large"
+                <Box
                   sx={{
-                    fontSize: "1.3rem",
-                    px: 5,
-                    py: 2,
-                    borderRadius: 10,
-                    background: theme.palette.primary.main,
-                    boxShadow: "0px 6px 20px rgba(0, 123, 255, 0.4)",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    ":hover": {
-                      transform: "scale(1.05)",
-                      background: theme.palette.primary.dark,
-                      boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.6)",
-                    },
-                    width: { xs: "100%", sm: "auto" },
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    gap: 2,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    mx: 3,
                   }}
-                  href={"/user?userPageSelect=mycompanies"}
-                  endIcon={<ArrowForward />}
                 >
-                  My Companies
-                </Button>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    sx={{
+                      fontSize: "1.1rem",
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 8,
+                      background: theme.palette.primary.main,
+                      boxShadow: "0px 6px 20px rgba(0, 123, 255, 0.4)",
+                      transition: "transform 0.3s, box-shadow 0.3s",
+                      ":hover": {
+                        transform: "scale(1.05)",
+                        background: theme.palette.primary.dark,
+                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.6)",
+                      },
+                      width: { xs: "100%", sm: "auto" },
+                    }}
+                    href={"/user?userPageSelect=mycompanies"}
+                    endIcon={<ArrowForward />}
+                  >
+                    My Companies
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    sx={{
+                      fontSize: "1.1rem",
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 8,
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.primary.main,
+                      transition: "transform 0.3s, box-shadow 0.3s",
+                      ":hover": {
+                        transform: "scale(1.05)",
+                        background: "rgba(0, 123, 255, 0.1)",
+                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.2)",
+                      },
+                      width: { xs: "100%", sm: "auto" },
+                    }}
+                    onClick={() => alert("Watch Demo clicked!")}
+                    startIcon={<PlayCircleOutline />}
+                  >
+                    Watch a Demo
+                  </Button>
+                </Box>
               </motion.div>
             ) : (
               <motion.div
@@ -200,31 +257,110 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
               >
-                <Button
-                  variant="contained"
-                  size="large"
+                <Box
                   sx={{
-                    fontSize: "1.3rem",
-                    px: 5,
-                    py: 2,
-                    borderRadius: 10,
-                    background: theme.palette.primary.main,
-                    boxShadow: "0px 6px 20px rgba(0, 123, 255, 0.4)",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    ":hover": {
-                      transform: "scale(1.05)",
-                      background: theme.palette.primary.dark,
-                      boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.6)",
-                    },
-                    width: { xs: "100%", sm: "auto" },
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    gap: 2,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    mx: 3,
                   }}
-                  href={"/api/auth/signin"}
-                  endIcon={<ArrowForward />}
                 >
-                  Get Started
-                </Button>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    sx={{
+                      fontSize: "1.1rem",
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 8,
+                      background: theme.palette.primary.main,
+                      boxShadow: "0px 6px 20px rgba(0, 123, 255, 0.4)",
+                      transition: "transform 0.3s, box-shadow 0.3s",
+                      ":hover": {
+                        transform: "scale(1.05)",
+                        background: theme.palette.primary.dark,
+                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.6)",
+                      },
+                      width: { xs: "100%", sm: "auto" },
+                    }}
+                    href={"/api/auth/signin"}
+                    endIcon={<ArrowForward />}
+                  >
+                    Get Started
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    sx={{
+                      fontSize: "1.1rem",
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 8,
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.primary.main,
+                      transition: "transform 0.3s, box-shadow 0.3s",
+                      ":hover": {
+                        transform: "scale(1.05)",
+                        background: "rgba(0, 123, 255, 0.1)",
+                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.2)",
+                      },
+                      width: { xs: "100%", sm: "auto" },
+                    }}
+                    onClick={() => alert("Watch Demo clicked!")}
+                    startIcon={<PlayCircleOutline />}
+                  >
+                    Watch a Demo
+                  </Button>
+                </Box>
               </motion.div>
             )}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mt: 4,
+                  gap: 1,
+                }}
+              >
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontSize: { xs: "1rem", md: "1.1rem" },
+                    color: theme.palette.text.secondary,
+                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <CheckCircleOutline sx={{ color: "success.main" }} />
+                  No setup fees.
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontSize: { xs: "1rem", md: "1.1rem" },
+                    color: theme.palette.text.secondary,
+                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <CheckCircleOutline sx={{ color: "success.main" }} />
+                  3-months free access!
+                </Typography>
+              </Box>
+            </motion.div>
           </Box>
         </motion.div>
 
@@ -249,7 +385,8 @@ export default function LandingPage() {
             </Typography>
           </motion.div>
           <Grid container spacing={4} justifyContent="center">
-            <Grid item xs={12} sm={6} md={6} lg={3}>
+            {/* Feature 1: Smart Attendance & OT */}
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <motion.div
                 initial="hidden"
                 whileInView="visible"
@@ -275,7 +412,7 @@ export default function LandingPage() {
                     },
                   }}
                 >
-                  <AttachMoneyIcon
+                  <AccessTime
                     sx={{
                       fontSize: 60,
                       color: theme.palette.primary.main,
@@ -283,19 +420,21 @@ export default function LandingPage() {
                     }}
                   />
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Seamless Salary Processing
+                    Smart Attendance & OT
                   </Typography>
                   <Typography
                     variant="body2"
                     sx={{ color: theme.palette.text.secondary }}
                   >
-                    Automate calculations, manage deductions, and generate
-                    precise payslips with unparalleled ease.
+                    Handles In/Out records, identifies working days, and
+                    calculates overtime, holiday pay, and special allowances.
                   </Typography>
                 </Box>
               </motion.div>
             </Grid>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
+
+            {/* Feature 2: Automated Payroll Generation */}
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <motion.div
                 initial="hidden"
                 whileInView="visible"
@@ -322,7 +461,7 @@ export default function LandingPage() {
                     },
                   }}
                 >
-                  <BusinessIcon
+                  <Payments
                     sx={{
                       fontSize: 60,
                       color: theme.palette.primary.main,
@@ -330,19 +469,21 @@ export default function LandingPage() {
                     }}
                   />
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Effortless EPF/ETF Compliance
+                    Automated Payroll
                   </Typography>
                   <Typography
                     variant="body2"
                     sx={{ color: theme.palette.text.secondary }}
                   >
-                    Simplify provident fund contributions and generate
-                    compliance-ready reports with confidence.
+                    Generates monthly payslips, handles EPF/ETF calculations,
+                    and accounts for basic salary, allowances, and deductions.
                   </Typography>
                 </Box>
               </motion.div>
             </Grid>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
+
+            {/* Feature 3: EPF/ETF & Compliance Reporting */}
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <motion.div
                 initial="hidden"
                 whileInView="visible"
@@ -369,7 +510,7 @@ export default function LandingPage() {
                     },
                   }}
                 >
-                  <GroupIcon
+                  <Description
                     sx={{
                       fontSize: 60,
                       color: theme.palette.primary.main,
@@ -377,19 +518,21 @@ export default function LandingPage() {
                     }}
                   />
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Intuitive Employee Management
+                    EPF/ETF & Compliance
                   </Typography>
                   <Typography
                     variant="body2"
                     sx={{ color: theme.palette.text.secondary }}
                   >
-                    Add, edit, and organize employee records efficiently, all
-                    within a centralized platform.
+                    Find EPF reference numbers, attendance, and payroll reports
+                    to ensure full regulatory compliance.
                   </Typography>
                 </Box>
               </motion.div>
             </Grid>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
+
+            {/* Feature 4: Simplified AH Form Handling */}
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <motion.div
                 initial="hidden"
                 whileInView="visible"
@@ -416,7 +559,7 @@ export default function LandingPage() {
                     },
                   }}
                 >
-                  <ContactMailIcon
+                  <ContactMail
                     sx={{
                       fontSize: 60,
                       color: theme.palette.primary.main,
@@ -424,14 +567,63 @@ export default function LandingPage() {
                     }}
                   />
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Simplified AH Form Handling
+                    Effortless AH Forms
                   </Typography>
                   <Typography
                     variant="body2"
                     sx={{ color: theme.palette.text.secondary }}
                   >
-                    Generate, manage, and download AH forms (successor to
-                    B-cards) effortlessly, ensuring compliance.
+                    Generate and manage AH forms (successor to B-cards)
+                    effortlessly, ensuring compliance.
+                  </Typography>
+                </Box>
+              </motion.div>
+            </Grid>
+
+            {/* Feature 5: Streamlined Employee Management */}
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.5 }}
+                variants={itemVariants}
+                transition={{ delay: 0.4 }}
+              >
+                <Box
+                  textAlign="center"
+                  sx={{
+                    p: 4,
+                    borderRadius: 4,
+                    backgroundColor: theme.palette.background.paper,
+                    boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "transform 0.3s, box-shadow 0.3s",
+                    "&:hover": {
+                      transform: "translateY(-5px)",
+                      boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.2)",
+                    },
+                  }}
+                >
+                  <People
+                    sx={{
+                      fontSize: 60,
+                      color: theme.palette.primary.main,
+                      mb: 2,
+                    }}
+                  />
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                    Streamlined Staff Records
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: theme.palette.text.secondary }}
+                  >
+                    Centralized management of all employee records, simplifying
+                    organizational oversight.
                   </Typography>
                 </Box>
               </motion.div>
@@ -477,29 +669,42 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
             >
-              <Link href="mailto:salaryapp2025@gmail.com" passHref>
-                <Button
-                  color="primary"
-                  variant="contained"
-                  size="large"
-                  sx={{
-                    fontSize: "1.2rem",
-                    px: 4,
-                    py: 2,
-                    borderRadius: 8,
-                    boxShadow: "0px 4px 15px rgba(0, 123, 255, 0.3)",
-                    transition: "transform 0.3s",
-                    ":hover": {
-                      transform: "scale(1.05)",
-                      background: theme.palette.primary.dark,
-                    },
-                    width: { xs: "100%", sm: "auto" },
-                  }}
-                  startIcon={<EmailIcon />}
-                >
-                  salaryapp2025@gmail.com
-                </Button>
-              </Link>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.1rem" },
+                }}
+              >
+                <Email sx={{ color: theme.palette.primary.main }} />
+                <Link href="mailto:salaryapp2025@gmail.com" passHref>
+                  <Box
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      textDecoration: "none",
+                      "&:hover": {
+                        textDecoration: "underline",
+                        color: theme.palette.primary.main,
+                      },
+                    }}
+                  >
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontSize: { xs: "1rem", sm: "1.1rem" },
+                        transition: "color 0.3s",
+                        "&:hover": {
+                          color: theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      salaryapp2025@gmail.com
+                    </Typography>
+                  </Box>
+                </Link>
+              </Box>
             </motion.div>
           </Box>
         </Box>

@@ -15,9 +15,6 @@ const Settings = ({
 }: {
   user: { name: string; email: string; id: string };
 }) => {
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-
   return (
     <Box>
       <Card

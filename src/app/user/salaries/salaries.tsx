@@ -26,8 +26,6 @@ const Salaries = ({
   user: { name: string; email: string; id: string };
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   return (
     <Box>

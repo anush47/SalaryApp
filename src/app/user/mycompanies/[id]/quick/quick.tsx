@@ -12,7 +12,6 @@ import {
   Tooltip,
   LinearProgress,
   Paper,
-  Container,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -57,7 +56,7 @@ const QuickTools = ({
   );
   const [purchased, setPurchased] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const [editable, setEditable] = useState<boolean>(false);
+  const [isEditingInHome, setIsEditingInHome] = useState<boolean>(false);
   const [inOut, setInOut] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [company, setCompany] = useState<Company | null>(null);
@@ -473,26 +472,26 @@ const QuickTools = ({
               Quick Tools
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <IconButton onClick={() => setEditable(!editable)} size="small">
-                {editable ? (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<Done />}
-                    disabled={loading}
-                  >
-                    {loading ? <CircularProgress size={24} /> : "Done"}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    startIcon={<Edit />}
-                    disabled={loading}
-                  >
-                    {loading ? <CircularProgress size={24} /> : "Edit"}
-                  </Button>
-                )}
-              </IconButton>
+              {isEditingInHome ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<Done />}
+                  disabled={loading}
+                  onClick={() => setIsEditingInHome(false)}
+                >
+                  {loading ? <CircularProgress size={24} /> : "Done"}
+                </Button>
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<Edit />}
+                  disabled={loading}
+                  onClick={() => setIsEditingInHome(true)}
+                >
+                  {loading ? <CircularProgress size={24} /> : "Edit"}
+                </Button>
+              )}
             </Box>
           </Box>
         }
@@ -836,7 +835,7 @@ const QuickTools = ({
                         companyId={companyId}
                         user={user}
                         period={period}
-                        isEditing={editable}
+                        isEditing={isEditingInHome}
                       />
                     )}
                   </AccordionDetails>
@@ -860,7 +859,7 @@ const QuickTools = ({
                         companyId={companyId}
                         user={user}
                         period={period}
-                        isEditing={editable}
+                        isEditing={isEditingInHome}
                       />
                     )}
                   </AccordionDetails>

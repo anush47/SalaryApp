@@ -33,8 +33,6 @@ const Salaries = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   //fetch query from url
   const searchParams = useSearchParams();

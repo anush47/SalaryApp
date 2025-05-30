@@ -88,9 +88,6 @@ const AddCompanyForm: React.FC<{
     {}
   );
 
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-
   const formatTime = (value: string) => {
     // Format time to HH:MM if necessary
     const [hours, minutes] = value.split(":");
