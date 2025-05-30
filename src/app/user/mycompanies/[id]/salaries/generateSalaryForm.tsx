@@ -176,11 +176,13 @@ const AddSalaryForm: React.FC<{
           <Box
             sx={{
               display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
               gap: 2,
-              mb: 2,
             }}
           >
-            <Typography variant={isSmallScreen ? "h5" : "h4"}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Tooltip title="Discard and go back" arrow>
                 <IconButton
                   sx={{
@@ -191,8 +193,10 @@ const AddSalaryForm: React.FC<{
                   <ArrowBack />
                 </IconButton>
               </Tooltip>
-              Generate Salary
-            </Typography>
+              <Typography variant="h4" component="h1">
+                Generate Salaries
+              </Typography>
+            </Box>
           </Box>
         }
       />

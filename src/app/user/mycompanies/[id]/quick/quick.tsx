@@ -664,7 +664,7 @@ const QuickTools = ({
                     id="individual-generation-header"
                   >
                     <Typography variant="subtitle1">
-                      Individual generation options
+                      Individual Generation Options
                     </Typography>
                   </AccordionSummary>
                   <AccordionDetails>

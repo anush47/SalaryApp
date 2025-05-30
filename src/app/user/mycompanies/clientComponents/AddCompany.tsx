@@ -285,26 +285,33 @@ const AddCompanyForm: React.FC<{
           <Box
             sx={{
               display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
               gap: 2,
-              mb: 2,
             }}
           >
-            <Box sx={{ display: "flex", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Tooltip title="Discard and go back to my companies" arrow>
                 <IconButton onClick={handleBackClick}>
                   <ArrowBack />
                 </IconButton>
               </Tooltip>
-              <Typography variant={isSmallScreen ? "h5" : "h4"} mr={3}>
+              <Typography variant="h4" component="h1">
                 Add Company
               </Typography>
-              <Tooltip title="Save new company" arrow>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Tooltip title="Add new company" arrow>
                 <Button
                   variant="contained"
                   color="success"
                   startIcon={<Save />}
+                  sx={{
+                    ml: 2,
+                  }}
                   onClick={onSaveClick}
-                  disabled={loading} // Disable button while loading
+                  disabled={loading}
                 >
                   {loading ? <CircularProgress size={24} /> : "Add"}
                 </Button>

@@ -326,14 +326,14 @@ const AddEmployeeForm: React.FC<{
                 <Button
                   variant="contained"
                   color="success"
-                  startIcon={<Add />}
+                  startIcon={<Save />}
                   sx={{
                     ml: 2,
                   }}
                   onClick={onSaveClick}
                   disabled={loading}
                 >
-                  {loading ? <CircularProgress size={24} /> : "Add Employee"}
+                  {loading ? <CircularProgress size={24} /> : "Add"}
                 </Button>
               </Tooltip>
             </Box>

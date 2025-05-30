@@ -254,17 +254,21 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              mb: 2,
+              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
             }}
           >
-            <Typography variant="h5">
-              <Tooltip title="Discard and go back" arrow>
-                <IconButton sx={{ mr: 2 }} onClick={handleBackClick}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Tooltip title="Discard and go back to my purchaces" arrow>
+                <IconButton onClick={handleBackClick}>
                   <ArrowBack />
                 </IconButton>
               </Tooltip>
-              Update Purchase
-            </Typography>
+              <Typography variant="h4" component="h1">
+                Purchase Details
+              </Typography>
+            </Box>
           </Box>
         }
       />

@@ -87,12 +87,21 @@ export async function GET(req: NextRequest) {
             .lean();
         }
       } else {
-        // User can see employees of a specific company
-        filter = { company: companyId };
-        companyFilter = { user: userId, _id: companyId };
-        companies = await Company.find(companyFilter)
-          .select("_id name employerNo")
-          .lean();
+        // User can see employees of user's companies
+        if (companyId === "all") {
+          // User can see employees of all their companies
+          companyFilter = { user: userId };
+          companies = await Company.find(companyFilter)
+            .select("_id name employerNo")
+            .lean();
+          filter = { company: { $in: companies.map((c) => c._id) } };
+        } else {
+          filter = { company: companyId };
+          companyFilter = { user: userId, _id: companyId };
+          companies = await Company.find(companyFilter)
+            .select("_id name employerNo")
+            .lean();
+        }
       }
       // Check if company exists without fetching data
       const companyExists = await Company.exists(companyFilter);
@@ -117,6 +126,7 @@ export async function GET(req: NextRequest) {
     }
   } catch (error) {
     // Handle Zod validation errors
+    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: error.errors[0].message },

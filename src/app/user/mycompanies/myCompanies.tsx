@@ -137,12 +137,11 @@ const MyCompanies = ({
                             width: "100%",
                           }}
                         >
-                          <Typography variant="body2">Advanced View</Typography>
+                          <Typography variant="body1">Advanced View</Typography>
                           <Switch
                             checked={advanced}
                             onChange={() => setAdvanced(!advanced)}
                             color="primary"
-                            size="small"
                           />
                         </Box>
                       </MenuItem>
@@ -155,14 +154,13 @@ const MyCompanies = ({
                             width: "100%",
                           }}
                         >
-                          <Typography variant="body2">
+                          <Typography variant="body1">
                             Active Companies Only
                           </Typography>
                           <Switch
                             checked={showActiveOnly}
                             onChange={() => setShowActiveOnly(!showActiveOnly)}
                             color="primary"
-                            size="small"
                           />
                         </Box>
                       </MenuItem>
