@@ -845,9 +845,38 @@ const CompanyDetails = ({
               </Grid>
 
               <Grid item xs={12}>
-                <hr className="my-2" />
+                <div className="my-5" />
+
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h5">Calendar</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="calendar-label">Calendar</InputLabel>
+                        <Select
+                          labelId="calendar-label"
+                          label="Calendar"
+                          name="calendar"
+                          value={formFields.calendar || "default"}
+                          onChange={handleChange}
+                          variant="outlined"
+                          readOnly={!isEditing}
+                        >
+                          <MenuItem value="default">Default</MenuItem>
+                          <MenuItem value="other">Other</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+
+                <hr className="my-5" />
+
                 <Typography variant="h5">User Info</Typography>
                 <br />
+
                 {user.role === "admin" ? (
                   <Grid item xs={12}>
                     {companyUser && (
@@ -1035,35 +1064,6 @@ const CompanyDetails = ({
                               />
                             </FormControl>
                           </Grid>
-                        </Grid>
-                      </AccordionDetails>
-                    </Accordion>
-
-                    <div className="my-5" />
-
-                    <Accordion>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="h5">Calendar</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <InputLabel id="calendar-label">
-                              Calendar
-                            </InputLabel>
-                            <Select
-                              labelId="calendar-label"
-                              label="Calendar"
-                              name="calendar"
-                              value={formFields.calendar || "default"}
-                              onChange={handleChange}
-                              variant="outlined"
-                              readOnly={!isEditing}
-                            >
-                              <MenuItem value="default">Default</MenuItem>
-                              <MenuItem value="other">Other</MenuItem>
-                            </Select>
-                          </FormControl>
                         </Grid>
                       </AccordionDetails>
                     </Accordion>

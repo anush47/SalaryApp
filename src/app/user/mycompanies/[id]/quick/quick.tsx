@@ -17,6 +17,9 @@ import {
   AccordionSummary,
   AccordionDetails,
   Stack,
+  Card,
+  CardHeader,
+  CardContent,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -449,344 +452,379 @@ const QuickTools = ({
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 4,
-          flexDirection: { xs: "column", sm: "row" },
-          gap: 2,
-        }}
-      >
-        <Typography variant="h4" component="h1">
-          Quick Tools
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <IconButton onClick={() => setEditable(!editable)} size="small">
-            {editable ? (
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<Done />}
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : "Done"}
-              </Button>
-            ) : (
-              <Button
-                variant="outlined"
-                startIcon={<Edit />}
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : "Edit"}
-              </Button>
-            )}
-          </IconButton>
-        </Box>
-      </Box>
-
-      <Grid container spacing={4}>
-        {/* Period Selection & Data Upload Card */}
-        <Grid item xs={12} md={6}>
-          <Paper
-            elevation={0}
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
+      <CardHeader
+        title={
+          <Box
             sx={{
-              p: 3,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
             }}
           >
-            <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-              Period & Data Upload
+            <Typography variant="h4" component="h1">
+              Quick Tools
             </Typography>
-            <Stack spacing={3}>
-              <FormControl fullWidth>
-                <LocalizationProvider
-                  dateAdapter={AdapterDayjs}
-                  adapterLocale="en-gb"
-                >
-                  <DatePicker
-                    label={"Select Period"}
-                    views={["month", "year"]}
-                    value={period ? dayjs(period) : dayjs()}
-                    onChange={(newValue) => {
-                      setPeriod(dayjs(newValue).format("YYYY-MM"));
-                    }}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        variant: "outlined",
-                      },
-                    }}
-                  />
-                </LocalizationProvider>
-              </FormControl>
-              {!purchased && (
-                <Link
-                  href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                    period.split("-")[1]
-                  }-${period.split("-")[0]}`}
-                  passHref
-                >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <IconButton onClick={() => setEditable(!editable)} size="small">
+                {editable ? (
                   <Button
                     variant="contained"
                     color="success"
-                    startIcon={<ShoppingBag />}
+                    startIcon={<Done />}
+                    disabled={loading}
+                  >
+                    {loading ? <CircularProgress size={24} /> : "Done"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Edit />}
+                    disabled={loading}
+                  >
+                    {loading ? <CircularProgress size={24} /> : "Edit"}
+                  </Button>
+                )}
+              </IconButton>
+            </Box>
+          </Box>
+        }
+      />
+      <CardContent>
+        <Grid container spacing={4}>
+          {/* Period Selection & Data Upload Card */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+                Period & Data Upload
+              </Typography>
+              <Stack spacing={3}>
+                <FormControl fullWidth>
+                  <LocalizationProvider
+                    dateAdapter={AdapterDayjs}
+                    adapterLocale="en-gb"
+                  >
+                    <DatePicker
+                      label={"Select Period"}
+                      views={["month", "year"]}
+                      value={period ? dayjs(period) : dayjs()}
+                      onChange={(newValue) => {
+                        setPeriod(dayjs(newValue).format("YYYY-MM"));
+                      }}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          variant: "outlined",
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                </FormControl>
+                {!purchased && (
+                  <Link
+                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
+                      period.split("-")[1]
+                    }-${period.split("-")[0]}`}
+                    passHref
+                  >
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<ShoppingBag />}
+                      fullWidth
+                      size="large"
+                      sx={{ borderRadius: 1 }}
+                    >
+                      Purchase Access
+                    </Button>
+                  </Link>
+                )}
+                <FormControl fullWidth>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    component="label"
+                    startIcon={<Upload />}
                     fullWidth
                     size="large"
                     sx={{ borderRadius: 1 }}
                   >
-                    Purchase Access
+                    Upload In-Out CSV
+                    <input
+                      type="file"
+                      accept=".csv"
+                      hidden
+                      onChange={async (event) => {
+                        if (event.target.files && event.target.files[0]) {
+                          const _inOut = await handleCsvUpload(
+                            event.target.files[0]
+                          );
+                          setInOut(_inOut);
+                        }
+                      }}
+                    />
                   </Button>
-                </Link>
-              )}
-              <FormControl fullWidth>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  component="label"
-                  startIcon={<Upload />}
-                  fullWidth
-                  size="large"
-                  sx={{ borderRadius: 1 }}
-                >
-                  Upload In-Out CSV
-                  <input
-                    type="file"
-                    accept=".csv"
-                    hidden
-                    onChange={async (event) => {
-                      if (event.target.files && event.target.files[0]) {
-                        const _inOut = await handleCsvUpload(
-                          event.target.files[0]
-                        );
-                        setInOut(_inOut);
-                      }
-                    }}
-                  />
-                </Button>
-              </FormControl>
-              <FormControl fullWidth>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => setOpenDialog(true)}
-                  disabled={!inOut || inOut === ""}
-                  fullWidth
-                  size="large"
-                  sx={{ borderRadius: 1 }}
-                >
-                  View In-Out Data
-                </Button>
-                {inOut && (
-                  <SimpleDialog
-                    inOutFetched={inOut}
-                    openDialog={openDialog}
-                    setOpenDialog={setOpenDialog}
-                  />
-                )}
-              </FormControl>
-            </Stack>
-          </Paper>
-        </Grid>
-
-        {/* Generation & Documents Card */}
-        <Grid item xs={12} md={6}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-              Generation & Documents
-            </Typography>
-            <Stack spacing={3}>
-              <LoadingButton
-                loading={loading}
-                loadingPosition="start"
-                variant="contained"
-                color="primary"
-                startIcon={<AutoAwesome />}
-                onClick={handleGenerateAll}
-                fullWidth
-                size="large"
-                sx={{ borderRadius: 1 }}
-              >
-                Generate All Documents
-              </LoadingButton>
-              {autoGenProgress > 0 && (
-                <Box sx={{ width: "100%", mr: 1 }}>
-                  <LinearProgress
-                    sx={{ height: "0.5rem", borderRadius: 1 }}
-                    value={autoGenProgress}
-                    variant="determinate"
-                    color="success"
-                  />
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
+                </FormControl>
+                <FormControl fullWidth>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => setOpenDialog(true)}
+                    disabled={!inOut || inOut === ""}
+                    fullWidth
+                    size="large"
+                    sx={{ borderRadius: 1 }}
                   >
-                    {autoGenStatus}
-                  </Typography>
-                </Box>
-              )}
+                    View In-Out Data
+                  </Button>
+                  {inOut && (
+                    <SimpleDialog
+                      inOutFetched={inOut}
+                      openDialog={openDialog}
+                      setOpenDialog={setOpenDialog}
+                    />
+                  )}
+                </FormControl>
+              </Stack>
+            </Paper>
+          </Grid>
 
-              <Accordion
-                sx={{
-                  boxShadow: "none",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 2,
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMore />}
-                  aria-controls="individual-generation-content"
-                  id="individual-generation-header"
+          {/* Generation & Documents Card */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+                Generation & Documents
+              </Typography>
+              <Stack spacing={3}>
+                <LoadingButton
+                  loading={loading}
+                  loadingPosition="start"
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AutoAwesome />}
+                  onClick={handleGenerateAll}
+                  fullWidth
+                  size="large"
+                  sx={{ borderRadius: 1 }}
                 >
-                  <Typography variant="subtitle1">
-                    Individual Generation Options
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Stack spacing={2}>
-                    {/* Salaries */}
-                    <FormControl fullWidth>
-                      {generatedSalaries.length > 0 ? (
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Tooltip
-                            title="Save generated salaries to the database"
-                            arrow
-                          >
-                            <LoadingButton
-                              loading={loading}
-                              loadingPosition="start"
-                              variant="contained"
-                              color="primary"
-                              onClick={() => handleSalaries(true)}
-                              sx={{ flexGrow: 1, borderRadius: 1 }}
-                              disabled={loading}
-                              size="medium"
-                            >
-                              Save Salaries
-                            </LoadingButton>
-                          </Tooltip>
-                          <Tooltip title="Delete generated salaries" arrow>
-                            <span>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={handleDeleteSalaries}
-                                disabled={loading}
-                              >
-                                <Delete fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </Box>
-                      ) : (
-                        <Tooltip title="Generate salaries for the selected period">
-                          <span>
-                            <LoadingButton
-                              loading={loading}
-                              loadingPosition="start"
-                              variant="outlined"
-                              color="primary"
-                              onClick={() => handleSalaries(false)}
-                              fullWidth
-                              disabled={loading}
-                              size="medium"
-                              sx={{ borderRadius: 1 }}
-                            >
-                              Generate Salaries
-                            </LoadingButton>
-                          </span>
-                        </Tooltip>
-                      )}
-                    </FormControl>
-                    {/* Payments */}
-                    <FormControl fullWidth>
-                      <LoadingButton
-                        loading={loading}
-                        loadingPosition="start"
-                        variant="outlined"
-                        color="primary"
-                        onClick={handlePayments}
-                        disabled={loading}
-                        fullWidth
-                        size="medium"
-                        sx={{ borderRadius: 1 }}
-                      >
-                        Generate Payments
-                      </LoadingButton>
-                    </FormControl>
-                    {/* Documents */}
-                    <FormControl fullWidth>
-                      <LoadingButton
-                        loading={loading}
-                        loadingPosition="start"
-                        variant="outlined"
-                        color="primary"
-                        onClick={(e) => {
-                          handleGetPDF("print", e);
-                        }}
-                        disabled={loading}
-                        fullWidth
-                        size="medium"
-                        sx={{ borderRadius: 1 }}
-                      >
-                        Generate Documents
-                      </LoadingButton>
-                    </FormControl>
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
-            </Stack>
-          </Paper>
-        </Grid>
+                  Generate All Documents
+                </LoadingButton>
+                {autoGenProgress > 0 && (
+                  <Box sx={{ width: "100%", mr: 1 }}>
+                    <LinearProgress
+                      sx={{ height: "0.5rem", borderRadius: 1 }}
+                      value={autoGenProgress}
+                      variant="determinate"
+                      color="success"
+                    />
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1 }}
+                    >
+                      {autoGenStatus}
+                    </Typography>
+                  </Box>
+                )}
 
-        {/* Data Grids Section */}
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-              View Data
-            </Typography>
-            <Stack spacing={3}>
-              {/* Generated Salaries */}
-              {generatedSalaries.length > 0 && (
-                <Accordion defaultExpanded>
+                <Accordion
+                  sx={{
+                    boxShadow: "none",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                  }}
+                >
                   <AccordionSummary
                     expandIcon={<ExpandMore />}
-                    aria-controls="generated-salaries-content"
-                    id="generated-salaries-header"
+                    aria-controls="individual-generation-content"
+                    id="individual-generation-header"
                   >
                     <Typography variant="subtitle1">
+                      Individual generation options
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={2}>
+                      {/* Salaries */}
+                      <FormControl fullWidth>
+                        {generatedSalaries.length > 0 ? (
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Tooltip
+                              title="Save generated salaries to the database"
+                              arrow
+                            >
+                              <LoadingButton
+                                loading={loading}
+                                loadingPosition="start"
+                                variant="contained"
+                                color="primary"
+                                onClick={() => handleSalaries(true)}
+                                sx={{ flexGrow: 1, borderRadius: 1 }}
+                                disabled={loading}
+                                size="medium"
+                              >
+                                Save Salaries
+                              </LoadingButton>
+                            </Tooltip>
+                            <Tooltip title="Delete generated salaries" arrow>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={handleDeleteSalaries}
+                                  disabled={loading}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                        ) : (
+                          <Tooltip title="Generate salaries for the selected period">
+                            <span>
+                              <LoadingButton
+                                loading={loading}
+                                loadingPosition="start"
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => handleSalaries(false)}
+                                fullWidth
+                                disabled={loading}
+                                size="medium"
+                                sx={{ borderRadius: 1 }}
+                              >
+                                Generate Salaries
+                              </LoadingButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                      </FormControl>
+                      {/* Payments */}
+                      <FormControl fullWidth>
+                        <LoadingButton
+                          loading={loading}
+                          loadingPosition="start"
+                          variant="outlined"
+                          color="primary"
+                          onClick={handlePayments}
+                          disabled={loading}
+                          fullWidth
+                          size="medium"
+                          sx={{ borderRadius: 1 }}
+                        >
+                          Generate Payments
+                        </LoadingButton>
+                      </FormControl>
+                      {/* Documents */}
+                      <FormControl fullWidth>
+                        <LoadingButton
+                          loading={loading}
+                          loadingPosition="start"
+                          variant="outlined"
+                          color="primary"
+                          onClick={(e) => {
+                            handleGetPDF("print", e);
+                          }}
+                          disabled={loading}
+                          fullWidth
+                          size="medium"
+                          sx={{ borderRadius: 1 }}
+                        >
+                          Generate Documents
+                        </LoadingButton>
+                      </FormControl>
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              </Stack>
+            </Paper>
+          </Grid>
+
+          <hr className="my-4" />
+
+          {/* Data Grids Section */}
+          <Grid item xs={12}>
+            <Box>
+              <Stack spacing={3}>
+                {/* Generated Salaries */}
+                {generatedSalaries.length > 0 && (
+                  <Accordion defaultExpanded>
+                    <AccordionSummary
+                      expandIcon={<ExpandMore />}
+                      aria-controls="generated-salaries-content"
+                      id="generated-salaries-header"
+                    >
+                      <Typography variant="h6" component="h2">
+                        {loading ? (
+                          <>
+                            Generated Salaries for{" "}
+                            <CircularProgress
+                              size={20}
+                              sx={{ ml: 1, verticalAlign: "middle" }}
+                            />
+                          </>
+                        ) : (
+                          `Generated Salaries for ${period}`
+                        )}
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {loading ? (
+                        <CircularProgress />
+                      ) : (
+                        <GeneratedSalaries
+                          generatedSalaries={generatedSalaries}
+                          setGeneratedSalaries={setGeneratedSalaries}
+                          error={null}
+                          loading={loading}
+                          setLoading={setLoading}
+                        />
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                )}
+                {/* Salaries */}
+                <Accordion defaultExpanded={generatedSalaries.length === 0}>
+                  <AccordionSummary
+                    expandIcon={<ExpandMore />}
+                    aria-controls="salaries-content"
+                    id="salaries-header"
+                  >
+                    <Typography variant="h6" component="h2">
                       {loading ? (
                         <>
-                          Generated Salaries for{" "}
+                          Salaries for{" "}
                           <CircularProgress
                             size={20}
                             sx={{ ml: 1, verticalAlign: "middle" }}
                           />
                         </>
                       ) : (
-                        `Generated Salaries for ${period}`
+                        `Salaries for ${period}`
                       )}
                     </Typography>
                   </AccordionSummary>
@@ -794,80 +832,44 @@ const QuickTools = ({
                     {loading ? (
                       <CircularProgress />
                     ) : (
-                      <GeneratedSalaries
-                        generatedSalaries={generatedSalaries}
-                        setGeneratedSalaries={setGeneratedSalaries}
-                        error={null}
-                        loading={loading}
-                        setLoading={setLoading}
+                      <SalariesDataGrid
+                        companyId={companyId}
+                        user={user}
+                        period={period}
+                        isEditing={editable}
                       />
                     )}
                   </AccordionDetails>
                 </Accordion>
-              )}
-              {/* Salaries */}
-              <Accordion defaultExpanded={generatedSalaries.length === 0}>
-                <AccordionSummary
-                  expandIcon={<ExpandMore />}
-                  aria-controls="salaries-content"
-                  id="salaries-header"
-                >
-                  <Typography variant="subtitle1">
+                {/* Payments */}
+                <Accordion defaultExpanded>
+                  <AccordionSummary
+                    expandIcon={<ExpandMore />}
+                    aria-controls="payments-content"
+                    id="payments-header"
+                  >
+                    <Typography variant="h6" component="h2">
+                      Payments for {period}
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
                     {loading ? (
-                      <>
-                        Salaries for{" "}
-                        <CircularProgress
-                          size={20}
-                          sx={{ ml: 1, verticalAlign: "middle" }}
-                        />
-                      </>
+                      <CircularProgress />
                     ) : (
-                      `Salaries for ${period}`
+                      <PaymentsDataGrid
+                        companyId={companyId}
+                        user={user}
+                        period={period}
+                        isEditing={editable}
+                      />
                     )}
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {loading ? (
-                    <CircularProgress />
-                  ) : (
-                    <SalariesDataGrid
-                      companyId={companyId}
-                      user={user}
-                      period={period}
-                      isEditing={editable}
-                    />
-                  )}
-                </AccordionDetails>
-              </Accordion>
-              {/* Payments */}
-              <Accordion defaultExpanded>
-                <AccordionSummary
-                  expandIcon={<ExpandMore />}
-                  aria-controls="payments-content"
-                  id="payments-header"
-                >
-                  <Typography variant="subtitle1">
-                    Payments for {period}
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {loading ? (
-                    <CircularProgress />
-                  ) : (
-                    <PaymentsDataGrid
-                      companyId={companyId}
-                      user={user}
-                      period={period}
-                      isEditing={editable}
-                    />
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </Stack>
-          </Paper>
+                  </AccordionDetails>
+                </Accordion>
+              </Stack>
+            </Box>
+          </Grid>
         </Grid>
-      </Grid>
-
+      </CardContent>
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={5000}
@@ -883,7 +885,7 @@ const QuickTools = ({
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </Container>
+    </Card>
   );
 };
 

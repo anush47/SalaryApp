@@ -318,7 +318,7 @@ const AddEmployeeForm: React.FC<{
                 </IconButton>
               </Tooltip>
               <Typography variant="h4" component="h1">
-                Add New Employee
+                Add Employee
               </Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

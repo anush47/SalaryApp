@@ -214,9 +214,19 @@ const Documents = ({
       >
         <CardHeader
           title={
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <Typography variant="h4">Documents</Typography>
-            </div>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+              }}
+            >
+              <Typography variant="h4" component="h1">
+                Documents
+              </Typography>
+            </Box>
           }
         />
         <CardContent
