@@ -1,41 +1,56 @@
-<<<<<<< HEAD
-# Employee Management System
+# SalaryApp
 
-## Overview
+**SalaryApp** is a cloud-based Salary and Employee Management System designed to help businesses streamline and automate their employee-related tasks, including salary processing, EPF/ETF contributions, attendance tracking, and B-Card management.
 
-This project is an Employee Management System designed to streamline and automate various tasks associated with employee management, salary processing, EPF/ETF contributions, and B-Card management. The system is built using Next.js, leveraging React for the frontend and NextAuth for authentication.
+## **Live Site:** [https://salary-mocha.vercel.app/](https://salary-mocha.vercel.app/)
 
-## Technology Stack
+## 🚀 Features
 
-- **Frontend:** React with Material-UI for a responsive and intuitive user interface.
-- **Backend:** Next.js with API routes for handling server-side logic and database interactions.
-- **Authentication:** NextAuth for secure, customizable authentication.
-- **Database:** Integrated with a suitable database (e.g., PostgreSQL, MySQL, MongoDB) to store and manage employee data.
-- **State Management:** Context API and React Hooks to manage the application state.
+- **Employee Management:** Effortlessly add, edit, and manage employee records.
+- **Salary Processing:** Automatically calculate salaries, overtime (OT), holiday pay, and generate payslips.
+- **EPF/ETF Contributions:** Track and manage mandatory EPF/ETF contributions seamlessly.
+- **B-Card Management:** Generate AH forms (successor to B-Card) and maintain employee records.
+- **Attendance Management:** Upload and process In/Out CSV files to calculate working hours, overtime, and attendance.
+- **Automated Reports:** Generate EPF/ETF reports, salary sheets, and more.
+- **Multi-Company Support:** Manage multiple companies or branches under one platform.
+- **Cloud-Based & Secure:** Access data anytime, anywhere, with secure authentication.
+- **User-Friendly UI:** Clean and intuitive interface for easy navigation and usage.
 
-## Getting Started
+---
+
+## ⚙️ Technology Stack
+
+- **Frontend:** [React](https://reactjs.org/) with [Material-UI](https://mui.com/) for a responsive, modern UI.
+- **Backend:** [Next.js](https://nextjs.org/) with API routes for server-side logic.
+- **Authentication:** [NextAuth.js](https://next-auth.js.org/) for secure, customizable authentication.
+- **Database:** [MongoDB](https://www.mongodb.com/) for flexible, scalable data storage.
+- **State Management:** React Context API and Hooks for efficient state handling.
+
+---
+
+## 🛠️ Getting Started
 
 ### Prerequisites
 
-- Node.js (version 14.x or later)
+- Node.js (v17.x or later)
 - npm or yarn
-- A suitable database (e.g., PostgreSQL, MySQL, MongoDB)
+- MongoDB instance (local or hosted, e.g., MongoDB Atlas)
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-username/employee-management-system.git
+   git clone https://github.com/anush47/SalaryApp.git
    ```
 
-2. Navigate to the project directory:
+2. **Navigate to the project directory:**
 
    ```bash
-   cd employee-management-system
+   cd SalaryApp
    ```
 
-3. Install the dependencies:
+3. **Install dependencies:**
 
    ```bash
    npm install
@@ -43,17 +58,18 @@ This project is an Employee Management System designed to streamline and automat
    yarn install
    ```
 
-4. Set up environment variables:
+4. **Set up environment variables:**
 
-   Create a `.env.local` file in the root directory and add the necessary environment variables for database connection, authentication, etc.
+   Create a `.env.local` file in the root directory and add the following:
 
    ```env
-   NEXTAUTH_URL=http://localhost:3000
-   DATABASE_URL=your-database-url
-   SECRET=your-secret
+   MONGO_URL=your-database-url
+   NEXTAUTH_SECRET=your-secret
+   GOOGLE_CLIENT_ID=your-google-auth-client-id
+   GOOGLE_CLIENT_SECRET=your-google-auth-client-secret
    ```
 
-5. Run the development server:
+5. **Run the development server:**
 
    ```bash
    npm run dev
@@ -61,52 +77,61 @@ This project is an Employee Management System designed to streamline and automat
    yarn dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000) to view the application in the browser.
+   Open [http://localhost:3000](http://localhost:3000) in your browser to view the app.
 
-### Deployment
+---
 
-For deployment, consider using platforms like Vercel or Netlify for seamless integration with Next.js. Ensure to configure environment variables for the production environment as done for development.
+## 🚀 Deployment
 
-## Usage
+To deploy the app in a production environment:
 
-- Navigate to the different sections of the app to manage employees, salaries, EPF/ETF contributions, and B-Cards.
-- Use the sidebar for easy navigation between different modules.
-- Authentication is required for accessing the application's features.
-=======
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+1. **Build the application:**
 
-## Getting Started
+   ```bash
+   npm run build
+   # or
+   yarn build
+   ```
 
-First, run the development server:
+2. **Start the production server:**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+   ```bash
+   npm run start
+   # or
+   yarn start
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app will run on [http://localhost:3000](http://localhost:3000) by default. Make sure your environment variables are set as in `.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## 🌟 Usage
 
-## Learn More
+- **Authentication:** Secure login with Google OAuth (or your preferred provider).
+- **Dashboard:** Access modules for Employees, Salaries, EPF/ETF, and B-Cards.
+- **Navigation:** Use the sidebar to switch between modules.
+- **Reports & Exports:** Download generated reports and payslips as needed.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📈 Additional Insights
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+- Supports half-days and full-days for precise OT and attendance tracking.
+- Color-coded suggestions (e.g., green for early buses, red for late buses) enhance visual feedback.
+- Automated calculations reduce manual labor and ensure accurate salary processing.
+- Data security and privacy are ensured throughout.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 👥 Support & Contact
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
->>>>>>> cfb057d (Initial commit from Create Next App)
+For support, customization, or further inquiries, contact us at:
+
+📧 **[salaryapp2025@gmail.com](mailto:salaryapp2025@gmail.com)**
+
+---
+
+## 📌 Links
+
+- **Live App:** [https://salary-mocha.vercel.app/](https://salary-mocha.vercel.app/)
+- **GitHub Repo:** [https://github.com/anush47/SalaryApp](https://github.com/anush47/SalaryApp)
