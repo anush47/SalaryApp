@@ -25,7 +25,7 @@ import {
   Logout,
 } from "@mui/icons-material";
 import { ThemeSwitch } from "./theme-provider";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -96,9 +96,11 @@ export default function LandingPage() {
                 Hello, {userName}!
               </Typography>
               <Tooltip title="Sign Out">
-                <IconButton color="inherit" onClick={() => signOut()}>
-                  <Logout />
-                </IconButton>
+                <Link href="/api/auth/signout">
+                  <IconButton color="inherit">
+                    <Logout />
+                  </IconButton>
+                </Link>
               </Tooltip>
             </>
           )}
