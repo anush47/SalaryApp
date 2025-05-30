@@ -29,6 +29,7 @@ import {
   AccordionSummary,
 } from "@mui/material";
 import {
+  Add,
   ArrowBack,
   Cancel,
   CheckBox,
@@ -325,14 +326,14 @@ const AddEmployeeForm: React.FC<{
                 <Button
                   variant="contained"
                   color="success"
-                  startIcon={<Save />}
+                  startIcon={<Add />}
                   sx={{
                     ml: 2,
                   }}
                   onClick={onSaveClick}
                   disabled={loading}
                 >
-                  {loading ? <CircularProgress size={24} /> : "Save"}
+                  {loading ? <CircularProgress size={24} /> : "Add Employee"}
                 </Button>
               </Tooltip>
             </Box>
