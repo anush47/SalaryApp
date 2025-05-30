@@ -13,7 +13,7 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import { Add, Check, Edit } from "@mui/icons-material";
+import { Add, Check, Done, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -81,53 +81,53 @@ const Payments = ({
                 <Box
                   sx={{
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
+                    flexDirection: { xs: "column", sm: "row" },
                     gap: 2,
-                    mb: 2,
                   }}
                 >
-                  <Typography
-                    variant={isSmallScreen ? "h5" : "h4"}
-                    gutterBottom
-                  >
+                  <Typography variant="h4" component="h1">
                     Payments
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {isEditing ? (
-                      <IconButton
-                        sx={{
-                          marginLeft: 1,
-                        }}
-                        color="success"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        <Check />
-                      </IconButton>
+                      <Tooltip title="Save changes" arrow>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          startIcon={<Done />}
+                          onClick={() => setIsEditing(false)}
+                        >
+                          Done
+                        </Button>
+                      </Tooltip>
                     ) : (
-                      <Tooltip title="Edit salaries" arrow>
-                        <IconButton
-                          sx={{
-                            marginLeft: 1,
-                          }}
-                          color="primary"
+                      <>
+                        <Tooltip title="Generate Salaries" arrow>
+                          <Link
+                            href={`/user/mycompanies/${companyId}?companyPageSelect=payments&gen=true`}
+                          >
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              startIcon={<Add />}
+                            >
+                              New Payment
+                            </Button>
+                          </Link>
+                        </Tooltip>
+                        <Button
+                          variant="outlined"
+                          startIcon={<Edit />}
+                          sx={{ mx: 0.25 }}
                           onClick={() => setIsEditing(true)}
                         >
-                          <Edit />
-                        </IconButton>
-                      </Tooltip>
+                          Edit
+                        </Button>
+                      </>
                     )}
-                  </Typography>
-
-                  {/* Add Button to open the form */}
-                  <Link
-                    href={`/user/mycompanies/${companyId}?companyPageSelect=payments&gen=true`}
-                  >
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<Add />}
-                    >
-                      New Payment
-                    </Button>
-                  </Link>
+                  </Box>
                 </Box>
               }
             />

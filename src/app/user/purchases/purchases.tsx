@@ -14,7 +14,7 @@ import {
   useMediaQuery,
   Slide,
 } from "@mui/material";
-import { Add, ArrowBack, Check, Edit } from "@mui/icons-material";
+import { Add, ArrowBack, Check, Done, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import UpdatePurchaseForm from "./updatePurchaseForm";
 
@@ -66,27 +66,38 @@ const Purchases = ({
               <Box
                 sx={{
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
+                  flexDirection: { xs: "column", sm: "row" },
                   gap: 2,
-                  mb: 2,
                 }}
               >
-                <Typography variant={isSmallScreen ? "h5" : "h4"} gutterBottom>
+                <Typography variant="h4" component="h1">
                   Purchases
                 </Typography>
-                <Tooltip title="Edit employees in home" arrow>
-                  <IconButton
-                    sx={{
-                      marginLeft: 1,
-                    }}
-                    color="primary"
-                    onClick={() =>
-                      setIsEditingPurchaseInHome(!isEditingPurchaseInHome)
-                    }
-                  >
-                    {isEditingPurchaseInHome ? <Check /> : <Edit />}
-                  </IconButton>
-                </Tooltip>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  {isEditingPurchaseInHome ? (
+                    <Tooltip title="Save changes" arrow>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<Done />}
+                        onClick={() => setIsEditingPurchaseInHome(false)}
+                      >
+                        Done
+                      </Button>
+                    </Tooltip>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Edit />}
+                      sx={{ mx: 0.25 }}
+                      onClick={() => setIsEditingPurchaseInHome(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </Box>
               </Box>
             }
           />

@@ -15,8 +15,10 @@ import {
   Slide,
   ToggleButton,
   Switch,
+  Menu,
+  MenuItem,
 } from "@mui/material";
-import { Add, ArrowBack } from "@mui/icons-material";
+import { Add, ArrowBack, MoreVert } from "@mui/icons-material";
 import AddCompanyForm from "./clientComponents/AddCompany";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -36,8 +38,9 @@ const MyCompanies = ({
   const [isAdding, setIsAdding] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
-  const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
   //fetch query from url
   const searchParams = useSearchParams();
   const add = searchParams ? searchParams.get("add") : null;
@@ -70,99 +73,101 @@ const MyCompanies = ({
           }}
         >
           <CardHeader
-            sx={{
-              background: (theme) => theme.palette.background.default,
-              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-              "& .MuiCardHeader-content": { width: "100%" },
-            }}
             title={
               <Box
                 sx={{
                   display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   flexDirection: { xs: "column", sm: "row" },
-                  alignItems: { xs: "flex-start", sm: "center" },
                   gap: 2,
-                  width: "100%",
                 }}
               >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                  }}
-                >
-                  <Typography variant={isSmallScreen ? "h5" : "h4"}>
-                    Companies
-                  </Typography>
-                  <Tooltip title="Add Company" arrow>
-                    <Link href={`user?userPageSelect=mycompanies&add=true`}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        startIcon={<Add />}
-                        sx={{
-                          borderRadius: 2,
-                          textTransform: "none",
-                          boxShadow: 2,
-                          "&:hover": {
-                            transform: "translateY(-2px)",
-                            transition: "transform 0.2s",
+                <Typography variant="h4" component="h1">
+                  Companies
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <>
+                    <Tooltip title="Add Company" arrow>
+                      <Link href={`user?userPageSelect=mycompanies&add=true`}>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          startIcon={<Add />}
+                        >
+                          Add Company
+                        </Button>
+                      </Link>
+                    </Tooltip>
+                    <IconButton
+                      aria-label="more"
+                      id="long-button"
+                      aria-controls={open ? "long-menu" : undefined}
+                      aria-expanded={open ? "true" : undefined}
+                      aria-haspopup="true"
+                      onClick={(event: React.MouseEvent<HTMLElement>) => {
+                        setAnchorEl(event.currentTarget);
+                      }}
+                    >
+                      <MoreVert />
+                    </IconButton>
+                    <Menu
+                      id="long-menu"
+                      MenuListProps={{
+                        "aria-labelledby": "long-button",
+                      }}
+                      anchorEl={anchorEl}
+                      open={open}
+                      onClose={() => setAnchorEl(null)}
+                      slotProps={{
+                        paper: {
+                          style: {
+                            maxHeight: 48 * 4.5,
+                            width: "25ch",
                           },
-                        }}
-                      >
-                        Add
-                      </Button>
-                    </Link>
-                  </Tooltip>
-                </Box>
-                <Box sx={{ flexGrow: 1 }} />
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    bgcolor: (theme) => theme.palette.background.paper,
-                    borderRadius: 2,
-                    px: 2,
-                    py: 0.5,
-                    boxShadow: 1,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      mr: 1,
-                      fontWeight: 500,
-                      color: "text.secondary",
-                    }}
-                  >
-                    Advanced
-                  </Typography>
-                  <Switch
-                    checked={advanced}
-                    onChange={() => setAdvanced(!advanced)}
-                    color="primary"
-                    size="small"
-                    sx={{ mr: 2 }}
-                  />
-
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      mr: 1,
-                      fontWeight: 500,
-                      color: "text.secondary",
-                    }}
-                  >
-                    Active
-                  </Typography>
-                  <Switch
-                    checked={showActiveOnly}
-                    onChange={() => setShowActiveOnly(!showActiveOnly)}
-                    color="primary"
-                    size="small"
-                    sx={{ mr: 2 }}
-                  />
+                        },
+                      }}
+                    >
+                      <MenuItem onClick={() => setAnchorEl(null)}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            width: "100%",
+                          }}
+                        >
+                          <Typography variant="body2">Advanced View</Typography>
+                          <Switch
+                            checked={advanced}
+                            onChange={() => setAdvanced(!advanced)}
+                            color="primary"
+                            size="small"
+                          />
+                        </Box>
+                      </MenuItem>
+                      <MenuItem onClick={() => setAnchorEl(null)}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            width: "100%",
+                          }}
+                        >
+                          <Typography variant="body2">
+                            Active Companies Only
+                          </Typography>
+                          <Switch
+                            checked={showActiveOnly}
+                            onChange={() => setShowActiveOnly(!showActiveOnly)}
+                            color="primary"
+                            size="small"
+                          />
+                        </Box>
+                      </MenuItem>
+                    </Menu>
+                  </>
                 </Box>
               </Box>
             }

@@ -75,27 +75,30 @@ const Purchases = ({
               <Box
                 sx={{
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
+                  flexDirection: { xs: "column", sm: "row" },
                   gap: 2,
-                  mb: 2,
                 }}
               >
-                <Typography variant={isSmallScreen ? "h5" : "h4"} gutterBottom>
+                <Typography variant="h4" component="h1">
                   Purchases
                 </Typography>
-                <Tooltip title="New Purchase" arrow>
-                  <Link
-                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true`}
-                  >
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<Add />}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Tooltip title="New Purchase" arrow>
+                    <Link
+                      href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true`}
                     >
-                      New Purchase
-                    </Button>
-                  </Link>
-                </Tooltip>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<Add />}
+                      >
+                        New Purchase
+                      </Button>
+                    </Link>
+                  </Tooltip>
+                </Box>
               </Box>
             }
           />

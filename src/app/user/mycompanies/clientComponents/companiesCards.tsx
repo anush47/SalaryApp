@@ -250,7 +250,7 @@ const CompaniesCards = ({
               >
                 <TextField
                   label="Search Companies..."
-                  variant="outlined"
+                  variant="filled"
                   fullWidth
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

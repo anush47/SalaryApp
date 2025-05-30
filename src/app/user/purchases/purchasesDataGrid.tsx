@@ -156,7 +156,6 @@ const PurchasesDataGrid: React.FC<{
   ];
 
   const handleRowUpdate = async (newPurchase: any) => {
-    setLoading(true);
     setError(null);
 
     const payload = {
@@ -207,8 +206,6 @@ const PurchasesDataGrid: React.FC<{
           error?.message || "An error occurred while updating the purchase.",
         error: error,
       };
-    } finally {
-      setLoading(false);
     }
   };
 

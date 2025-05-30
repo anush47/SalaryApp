@@ -28,9 +28,19 @@ const Settings = ({
       >
         <CardHeader
           title={
-            <Typography variant={isSmallScreen ? "h5" : "h4"} gutterBottom>
-              Settings
-            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+              }}
+            >
+              <Typography variant="h4" component="h1">
+                Settings
+              </Typography>
+            </Box>
           }
         />
         <CardContent

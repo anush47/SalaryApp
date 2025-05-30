@@ -14,7 +14,7 @@ import {
   useMediaQuery,
   Slide,
 } from "@mui/material";
-import { Add, ArrowBack, Cancel, Check, Edit } from "@mui/icons-material";
+import { Add, ArrowBack, Cancel, Check, Done, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 
 // Lazily load CompaniesDataGrid
@@ -51,41 +51,38 @@ const MyCompanies = ({
             <Box
               sx={{
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
                 gap: 2,
-                mb: 2,
               }}
             >
-              <Typography variant={isSmallScreen ? "h5" : "h4"} gutterBottom>
+              <Typography variant="h4" component="h1">
                 Employees
-                {isEditingEmployeeInHome ? (
-                  <IconButton
-                    sx={{
-                      marginLeft: 1,
-                    }}
-                    color="success"
-                    onClick={() => setIsEditingEmployeeInHome(false)}
-                  >
-                    <Check />
-                  </IconButton>
-                ) : (
-                  <Tooltip
-                    title="
-                      Edit employees in home"
-                    arrow
-                  >
-                    <IconButton
-                      sx={{
-                        marginLeft: 1,
-                      }}
-                      color="primary"
-                      onClick={() => setIsEditingEmployeeInHome(true)}
-                    >
-                      <Edit />
-                    </IconButton>
-                  </Tooltip>
-                )}
               </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                {isEditingEmployeeInHome ? (
+                  <Tooltip title="Save changes" arrow>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<Done />}
+                      onClick={() => setIsEditingEmployeeInHome(false)}
+                    >
+                      Done
+                    </Button>
+                  </Tooltip>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Edit />}
+                    sx={{ mx: 0.25 }}
+                    onClick={() => setIsEditingEmployeeInHome(true)}
+                  >
+                    Edit
+                  </Button>
+                )}
+              </Box>
             </Box>
           }
         />

@@ -159,28 +159,6 @@ const Employees = ({
     </Card>
   );
 
-  const EmployeesCard = () => (
-    <Card
-      sx={{
-        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
-        overflowY: "auto",
-      }}
-    >
-      <Header />
-      <CardContent
-        sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
-      >
-        <Suspense fallback={<CircularProgress />}>
-          <EmployeesDataGrid
-            companyId={companyId}
-            user={user}
-            isEditingEmployeeInHome={isEditingEmployeeInHome}
-          />
-        </Suspense>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <Box>
       {isAdding ? (
@@ -190,7 +168,25 @@ const Employees = ({
       ) : isEditing ? (
         <EditEmployeeCard />
       ) : (
-        <EmployeesCard />
+        <Card
+          sx={{
+            minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+            overflowY: "auto",
+          }}
+        >
+          <Header />
+          <CardContent
+            sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
+          >
+            <Suspense fallback={<CircularProgress />}>
+              <EmployeesDataGrid
+                companyId={companyId}
+                user={user}
+                isEditingEmployeeInHome={isEditingEmployeeInHome}
+              />
+            </Suspense>
+          </CardContent>
+        </Card>
       )}
     </Box>
   );

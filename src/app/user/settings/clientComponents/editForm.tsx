@@ -110,7 +110,7 @@ const EditForm = ({
           value={name}
           onChange={handleNameChange}
           InputProps={{
-            disabled: disabled,
+            readOnly: disabled,
             startAdornment: (
               <InputAdornment position="start">
                 <AccountCircle />
@@ -143,7 +143,6 @@ const EditForm = ({
         <TextField
           fullWidth
           required
-          disabled
           label="Email"
           defaultValue={user?.email}
           InputProps={{
