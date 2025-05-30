@@ -13,7 +13,7 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import { Add, Check, Edit } from "@mui/icons-material";
+import { Add, Check, Done, Edit } from "@mui/icons-material";
 import AddEmployeeForm from "./clientComponents/AddEmployee";
 import EditEmployeeForm from "./clientComponents/EditEmployee";
 import AH from "./clientComponents/AH";
@@ -56,38 +56,57 @@ const Employees = ({
   const Header = () => (
     <CardHeader
       title={
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-          <Typography variant={isSmallScreen ? "h5" : "h4"} gutterBottom>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 2,
+          }}
+        >
+          <Typography variant="h4" component="h1">
             Employees
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {isEditingEmployeeInHome ? (
-              <IconButton
-                sx={{ marginLeft: 1 }}
-                color="success"
-                onClick={() => setIsEditingEmployeeInHome(false)}
-              >
-                <Check />
-              </IconButton>
+              <Tooltip title="Save changes" arrow>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<Done />}
+                  onClick={() => setIsEditingEmployeeInHome(false)}
+                >
+                  Done
+                </Button>
+              </Tooltip>
             ) : (
-              <Tooltip title="Edit employees in home" arrow>
-                <IconButton
-                  sx={{ marginLeft: 1 }}
-                  color="primary"
+              <>
+                <Tooltip title="Add a new employee" arrow>
+                  <Link
+                    href={`/user/mycompanies/${companyId}?companyPageSelect=employees&add=true`}
+                  >
+                    <Button
+                      sx={{ mx: 0.25 }}
+                      variant="contained"
+                      color="primary"
+                      startIcon={<Add />}
+                    >
+                      Add Employee
+                    </Button>
+                  </Link>
+                </Tooltip>
+                <Button
+                  variant="outlined"
+                  startIcon={<Edit />}
+                  sx={{ mx: 0.25 }}
                   onClick={() => setIsEditingEmployeeInHome(true)}
                 >
-                  <Edit />
-                </IconButton>
-              </Tooltip>
+                  Edit
+                </Button>
+              </>
             )}
-          </Typography>
-          <Tooltip title="Add a new employee" arrow>
-            <Link
-              href={`/user/mycompanies/${companyId}?companyPageSelect=employees&add=true`}
-            >
-              <Button variant="outlined" color="primary" startIcon={<Add />}>
-                Add
-              </Button>
-            </Link>
-          </Tooltip>
+          </Box>
         </Box>
       }
     />

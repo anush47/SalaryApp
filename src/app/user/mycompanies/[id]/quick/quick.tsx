@@ -464,14 +464,24 @@ const QuickTools = ({
           Quick Tools
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            Edit Mode:
-          </Typography>
           <IconButton onClick={() => setEditable(!editable)} size="small">
             {editable ? (
-              <Done color="primary" fontSize="small" />
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<Done />}
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={24} /> : "Done"}
+              </Button>
             ) : (
-              <Edit color="action" fontSize="small" />
+              <Button
+                variant="outlined"
+                startIcon={<Edit />}
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={24} /> : "Edit"}
+              </Button>
             )}
           </IconButton>
         </Box>
@@ -656,20 +666,18 @@ const QuickTools = ({
                             title="Save generated salaries to the database"
                             arrow
                           >
-                            <span>
-                              <LoadingButton
-                                loading={loading}
-                                loadingPosition="start"
-                                variant="outlined"
-                                color="primary"
-                                onClick={() => handleSalaries(true)}
-                                sx={{ flexGrow: 1, borderRadius: 1 }}
-                                disabled={loading}
-                                size="medium"
-                              >
-                                Save Salaries
-                              </LoadingButton>
-                            </span>
+                            <LoadingButton
+                              loading={loading}
+                              loadingPosition="start"
+                              variant="contained"
+                              color="primary"
+                              onClick={() => handleSalaries(true)}
+                              sx={{ flexGrow: 1, borderRadius: 1 }}
+                              disabled={loading}
+                              size="medium"
+                            >
+                              Save Salaries
+                            </LoadingButton>
                           </Tooltip>
                           <Tooltip title="Delete generated salaries" arrow>
                             <span>

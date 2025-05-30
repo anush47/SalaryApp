@@ -490,17 +490,14 @@ const CompanyDetails = ({
             }}
           >
             <Typography variant="h4" component="h1">
-              Quick Tools
+              Company Details
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                Edit Mode:
-              </Typography>
               <IconButton onClick={() => setIsEditing(!isEditing)} size="small">
                 {isEditing ? (
                   <Tooltip title="Save changes" arrow>
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       color="success"
                       startIcon={<Save />}
                       onClick={handleSaveClick}
@@ -510,7 +507,13 @@ const CompanyDetails = ({
                     </Button>
                   </Tooltip>
                 ) : (
-                  <Edit color="action" fontSize="small" />
+                  <Button
+                    variant="outlined"
+                    startIcon={<Edit />}
+                    disabled={loading}
+                  >
+                    {loading ? <CircularProgress size={24} /> : "Edit"}
+                  </Button>
                 )}
               </IconButton>
             </Box>
