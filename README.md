@@ -105,24 +105,6 @@ The app will run on [http://localhost:3000](http://localhost:3000) by default. M
 
 ---
 
-## 🌟 Usage
-
-- **Authentication:** Secure login with Google OAuth (or your preferred provider).
-- **Dashboard:** Access modules for Employees, Salaries, EPF/ETF, and B-Cards.
-- **Navigation:** Use the sidebar to switch between modules.
-- **Reports & Exports:** Download generated reports and payslips as needed.
-
----
-
-## 📈 Additional Insights
-
-- Supports half-days and full-days for precise OT and attendance tracking.
-- Color-coded suggestions (e.g., green for early buses, red for late buses) enhance visual feedback.
-- Automated calculations reduce manual labor and ensure accurate salary processing.
-- Data security and privacy are ensured throughout.
-
----
-
 ## 👥 Support & Contact
 
 For support, customization, or further inquiries, contact us at:
