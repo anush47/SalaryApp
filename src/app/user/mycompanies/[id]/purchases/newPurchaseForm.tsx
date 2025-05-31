@@ -634,7 +634,7 @@ const NewPurchaseForm: React.FC<{
 
                   <Button
                     variant="contained"
-                    color="primary"
+                    color="success"
                     fullWidth
                     onClick={handleSubmit}
                     disabled={loading || (totalPrice ?? 0) <= 0}
@@ -643,10 +643,6 @@ const NewPurchaseForm: React.FC<{
                     }
                     sx={{
                       mt: "auto",
-                      bgcolor: (theme) => theme.palette.primary.main,
-                      "&:hover": {
-                        bgcolor: (theme) => theme.palette.primary.dark,
-                      },
                       fontWeight: "bold",
                       py: 1.5,
                     }}
