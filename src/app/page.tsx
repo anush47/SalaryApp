@@ -248,7 +248,7 @@ export default function LandingPage() {
                     }}
                     onClick={() =>
                       alert(
-                        "Watch Demo clicked! We Are working on Providing the Demo in the near future! Stay tuned!"
+                        "We Are working on Providing the Demo in the near future! Stay tuned!"
                       )
                     }
                     startIcon={<PlayCircleOutline />}
@@ -316,7 +316,7 @@ export default function LandingPage() {
                     }}
                     onClick={() =>
                       alert(
-                        "Watch Demo clicked! We Are working on Providing the Demo in the near future! Stay tuned!"
+                        "We Are working on Providing the Demo in the near future! Stay tuned!"
                       )
                     }
                     startIcon={<PlayCircleOutline />}

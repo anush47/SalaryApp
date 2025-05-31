@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   DataGrid,
   GridColDef,
@@ -291,9 +292,17 @@ const CompaniesCards = ({
             </Grid>
           ) : (
             <Box sx={{ textAlign: "left", mt: 4, mb: 4 }}>
-              <Typography variant="h5" color="textSecondary">
-                No companies to show 😟
-              </Typography>
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.3 }}
+              >
+                <Typography variant="h5" color="textSecondary">
+                  No companies to show 😟
+                </Typography>
+              </motion.div>
             </Box>
           )}
         </>

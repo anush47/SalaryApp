@@ -14,13 +14,14 @@ import {
   Tooltip,
   Card,
 } from "@mui/material";
-import { ArrowBack, ShoppingBag } from "@mui/icons-material";
+import { ArrowBack, ShoppingBag, ShoppingCart } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useSearchParams } from "next/navigation";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface ChipData {
   key: number;
@@ -296,7 +297,7 @@ const NewPurchaseForm: React.FC<{
     if (periods && companyId) fetchPrice();
   }, [companyId, periods]);
 
-  const oneMonthPrice = price ?? 0;
+  const oneMonthPrice = price ?? 3000;
 
   const handleDateChange = (newDate: any) => {
     if (newDate) {
@@ -304,20 +305,83 @@ const NewPurchaseForm: React.FC<{
     }
   };
 
+  const periodChip = (data: ChipData) => {
+    return (
+      <AnimatePresence>
+        <motion.div
+          key={data.key}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Chip
+            label={data.label}
+            onDelete={handleDeletePeriod(data)}
+            color="primary"
+            variant="outlined"
+            sx={{
+              py: 1,
+              px: 1.5,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              borderRadius: 3,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+              bgcolor: "background.paper",
+              color: "primary.main",
+              borderColor: "primary.main",
+              transition: "all 0.3s ease-in-out",
+              "&:hover": {
+                bgcolor: "primary.light",
+                color: "primary.contrastText",
+                borderColor: "primary.light",
+                boxShadow: "0 6px 12px rgba(0,0,0,0.25)",
+              },
+              "& .MuiChip-deleteIcon": {
+                color: "error.main",
+                transition: "color 0.3s ease",
+                "&:hover": {
+                  color: "error.dark",
+                },
+              },
+            }}
+          />
+        </motion.div>
+      </AnimatePresence>
+    );
+  };
+
   return (
-    <Box sx={{ maxWidth: 1200, margin: "0 auto" }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      style={{ maxWidth: 1200, margin: "0 auto" }}
+    >
       <Card elevation={0} sx={{ mb: 3, bgcolor: "transparent" }}>
         <CardHeader
           title={
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Tooltip title="Discard and go back" arrow>
-                <IconButton sx={{ mr: 2 }} onClick={handleBackClick}>
-                  <ArrowBack />
-                </IconButton>
-              </Tooltip>
-              <Typography variant="h5" fontWeight="bold">
-                New Purchase
-              </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Tooltip title="Discard and go back" arrow>
+                  <IconButton onClick={handleBackClick}>
+                    <ArrowBack />
+                  </IconButton>
+                </Tooltip>
+                <Typography variant="h4" component="h1">
+                  New Purchase
+                </Typography>
+              </Box>
             </Box>
           }
         />
@@ -326,257 +390,272 @@ const NewPurchaseForm: React.FC<{
       <Box component="form" onSubmit={handleSubmit}>
         <Grid container spacing={3}>
           {/* Period Selection Section */}
-          <Grid item xs={12}>
-            <Card
-              sx={{
-                p: 3,
-                bgcolor: (theme) =>
-                  theme.palette.mode === "dark" ? "grey.900" : "grey.50",
-                boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              }}
+          <Grid item xs={12} md={6}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
             >
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-                Select Periods ({periods.length})
-              </Typography>
-              <Box sx={{ mb: 3 }}>
-                <Paper
-                  sx={{
-                    p: 2,
-                    backgroundColor: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "grey.800"
-                        : "common.white",
-                    minHeight: "100px",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 1,
-                    alignItems: "flex-start",
-                  }}
-                >
-                  {periods.map((data) => (
-                    <Chip
-                      key={data.key}
-                      label={data.label}
-                      onDelete={handleDeletePeriod(data)}
-                      color="primary"
-                      sx={{
-                        py: 1,
-                        px: 1,
-                        fontSize: "0.875rem",
-                        fontWeight: 500,
-                        borderRadius: 2,
-                        boxShadow: "0 6px 12px rgba(0,0,0,0.3)",
-                        "&:hover": {
-                          bgcolor: (theme) => theme.palette.primary.dark,
-                        },
-                        "& .MuiChip-deleteIcon": {
-                          color: "error.main",
-                          "&:hover": {
-                            color: (theme) => theme.palette.error.main,
-                          },
-                        },
-                      }}
-                    />
-                  ))}
-                </Paper>
-              </Box>
-              <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    label="Select Month"
-                    value={dayjs(selectedPeriod, "MM-YYYY")}
-                    onChange={handleDateChange}
-                    views={["month", "year"]}
-                    format="MM-YYYY"
+              <Card
+                sx={{
+                  p: 3,
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark" ? "grey.900" : "grey.50",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                }}
+              >
+                <Typography variant="h5" sx={{ mb: 2 }}>
+                  Months to Purchase - {periods.length}
+                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <Paper
                     sx={{
-                      minWidth: 200,
+                      p: 2,
+                      backgroundColor: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "grey.800"
+                          : "common.white",
+                      minHeight: "100px",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 1,
+                      alignItems: "flex-start",
                     }}
-                    minDate={dayjs("1990-01-01")}
-                    maxDate={dayjs("2026-12-31")}
-                  />
-                </LocalizationProvider>
-                <Button
-                  variant="contained"
-                  onClick={handleAddPeriod}
+                  >
+                    {periods.map((data) => periodChip(data))}
+                  </Paper>
+                </Box>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="Select Month"
+                      value={dayjs(selectedPeriod, "MM-YYYY")}
+                      onChange={handleDateChange}
+                      views={["month", "year"]}
+                      format="MM-YYYY"
+                      sx={{
+                        minWidth: 80,
+                      }}
+                      minDate={dayjs("1990-01-01")}
+                      maxDate={dayjs("2026-12-31")}
+                    />
+                  </LocalizationProvider>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={handleAddPeriod}
+                    startIcon={<ShoppingCart />}
+                    sx={{ height: 56, textWrap: "nowrap" }}
+                  >
+                    Add To Purchases
+                  </Button>
+                </Box>
+              </Card>
+            </motion.div>
+          </Grid>
+
+          {/* Price Details Section */}
+          <Grid item xs={12} md={6}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              <Card
+                sx={{
+                  p: 3,
+                  height: "100%",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark" ? "grey.900" : "grey.50",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                }}
+              >
+                <Typography variant="h5" sx={{ mb: 3, fontWeight: "medium" }}>
+                  Price
+                </Typography>
+                <Box
                   sx={{
-                    height: 56,
-                    bgcolor: (theme) => theme.palette.success.main,
-                    "&:hover": {
-                      bgcolor: (theme) => theme.palette.success.dark,
-                    },
-                    fontWeight: "bold",
+                    bgcolor: loading ? "background.default" : "primary.900",
+                    my: 2,
+                    borderRadius: 2,
+                    color: "common.white",
                   }}
                 >
-                  Add Period
-                </Button>
-              </Box>
-            </Card>
+                  {loading ? (
+                    <Box sx={{ display: "flex", justifyContent: "center" }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <>
+                      <Typography
+                        variant="subtitle1"
+                        color="text.secondary"
+                        sx={{ mb: 2 }}
+                      >
+                        Monthly Fee: {formatPrice(oneMonthPrice)}
+                      </Typography>
+                      <Typography
+                        variant="h5"
+                        color="primary"
+                        fontWeight="bold"
+                      >
+                        Total: {formatPrice(finalTotalPrice ?? 0)}
+                      </Typography>
+                      {finalTotalPrice !== totalPrice && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            textDecoration: "line-through",
+                            color: "text.secondary",
+                          }}
+                        >
+                          Original: {formatPrice(totalPrice ?? 0)}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
+              </Card>
+            </motion.div>
           </Grid>
 
           {/* Payment Details Section */}
           <Grid item xs={12} md={6}>
-            <Card
-              sx={{
-                p: 3,
-                height: "100%",
-                bgcolor: (theme) =>
-                  theme.palette.mode === "dark" ? "grey.900" : "grey.50",
-                boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
             >
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: "medium" }}>
-                Payment Details
-              </Typography>
-              <Box
+              <Card
                 sx={{
-                  bgcolor: "background.default",
-                  p: 2,
-                  borderRadius: 1,
-                  mb: 3,
-                }}
-              >
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="bold"
-                  sx={{ mb: 2 }}
-                >
-                  Bank Information
-                </Typography>
-                <Typography variant="body1">
-                  Account Number: 123456789
-                </Typography>
-                <Typography variant="body1">Bank: Example Bank</Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  bgcolor: loading ? "background.default" : "primary.900",
                   p: 3,
-                  borderRadius: 2,
-                  color: "common.white",
+                  height: "100%",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark" ? "grey.900" : "grey.50",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                 }}
               >
-                {loading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center" }}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    <Typography
-                      variant="subtitle1"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      Monthly Fee: {formatPrice(oneMonthPrice)}
-                    </Typography>
-                    <Typography variant="h5" color="primary" fontWeight="bold">
-                      Total: {formatPrice(finalTotalPrice ?? 0)}
-                    </Typography>
-                    {finalTotalPrice !== totalPrice && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          textDecoration: "line-through",
-                          color: "text.secondary",
-                        }}
-                      >
-                        Original: {formatPrice(totalPrice ?? 0)}
-                      </Typography>
-                    )}
-                  </>
-                )}
-              </Box>
-            </Card>
+                <Typography variant="h5" sx={{ mb: 3, fontWeight: "medium" }}>
+                  Payment Details
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: "background.default",
+                    p: 2,
+                    borderRadius: 1,
+                    mb: 3,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    sx={{ mb: 2 }}
+                  >
+                    Bank Information
+                  </Typography>
+                  <Typography variant="body1">
+                    Account Number: 123456789
+                  </Typography>
+                  <Typography variant="body1">Bank: Example Bank</Typography>
+                </Box>
+              </Card>
+            </motion.div>
           </Grid>
 
           {/* Upload Section */}
           <Grid item xs={12} md={6}>
-            <Card
-              sx={{
-                p: 3,
-                height: "100%",
-                bgcolor: (theme) =>
-                  theme.palette.mode === "dark" ? "grey.900" : "grey.50",
-                boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
             >
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: "medium" }}>
-                Payment Proof
-              </Typography>
-              <Box
+              <Card
                 sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                  alignItems: "flex-start",
+                  p: 3,
+                  height: "100%",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark" ? "grey.900" : "grey.50",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                 }}
               >
-                <Button
-                  variant="outlined"
-                  component="label"
-                  disabled={(totalPrice ?? 0) <= 0}
-                  startIcon={<ShoppingBag />}
-                  sx={{ mb: 2 }}
-                >
-                  Upload Payment Slip
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    hidden
-                    onChange={handleImageChange}
-                  />
-                </Button>
-
-                {imagePreview && (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      borderRadius: 1,
-                      overflow: "hidden",
-                      bgcolor: "background.default",
-                    }}
-                  >
-                    {image?.type === "application/pdf" ? (
-                      <embed
-                        src={imagePreview as string}
-                        type="application/pdf"
-                        width="100%"
-                        height="400px"
-                      />
-                    ) : (
-                      <Image
-                        src={imagePreview as string}
-                        alt="Payment Slip"
-                        width={400}
-                        height={400}
-                      />
-                    )}
-                  </Box>
-                )}
-
-                <Button
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  onClick={handleSubmit}
-                  disabled={loading || (totalPrice ?? 0) <= 0}
-                  startIcon={
-                    loading ? <CircularProgress size={20} /> : <ShoppingBag />
-                  }
+                <Typography variant="h5" sx={{ mb: 3, fontWeight: "medium" }}>
+                  Payment
+                </Typography>
+                <Box
                   sx={{
-                    mt: "auto",
-                    bgcolor: (theme) => theme.palette.primary.main,
-                    "&:hover": {
-                      bgcolor: (theme) => theme.palette.primary.dark,
-                    },
-                    fontWeight: "bold",
-                    py: 1.5,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                    alignItems: "flex-start",
                   }}
                 >
-                  {loading ? "Processing..." : "Confirm Purchase"}
-                </Button>
-              </Box>
-            </Card>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    disabled={(totalPrice ?? 0) <= 0}
+                    startIcon={<ShoppingBag />}
+                    sx={{ mb: 2 }}
+                  >
+                    Upload Payment Slip
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      hidden
+                      onChange={handleImageChange}
+                    />
+                  </Button>
+
+                  {imagePreview && (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        borderRadius: 1,
+                        overflow: "hidden",
+                        bgcolor: "background.default",
+                      }}
+                    >
+                      {image?.type === "application/pdf" ? (
+                        <embed
+                          src={imagePreview as string}
+                          type="application/pdf"
+                          width="100%"
+                          height="400px"
+                        />
+                      ) : (
+                        <Image
+                          src={imagePreview as string}
+                          alt="Payment Slip"
+                          width={400}
+                          height={400}
+                        />
+                      )}
+                    </Box>
+                  )}
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    onClick={handleSubmit}
+                    disabled={loading || (totalPrice ?? 0) <= 0}
+                    startIcon={
+                      loading ? <CircularProgress size={20} /> : <ShoppingBag />
+                    }
+                    sx={{
+                      mt: "auto",
+                      bgcolor: (theme) => theme.palette.primary.main,
+                      "&:hover": {
+                        bgcolor: (theme) => theme.palette.primary.dark,
+                      },
+                      fontWeight: "bold",
+                      py: 1.5,
+                    }}
+                  >
+                    {loading ? "Processing..." : "Confirm Purchase"}
+                  </Button>
+                </Box>
+              </Card>
+            </motion.div>
           </Grid>
         </Grid>
       </Box>
@@ -596,7 +675,7 @@ const NewPurchaseForm: React.FC<{
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </Box>
+    </motion.div>
   );
 };
 

@@ -1,5 +1,6 @@
 "use client";
 import React, { Suspense, lazy, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -50,143 +51,153 @@ const MyCompanies = ({
   }, [add]);
 
   return (
-    <Box>
-      {isAdding ? (
-        <Card
-          sx={{
-            height: "91vh",
-            overflowY: "auto",
-          }}
-        >
-          <AddCompanyForm
-            user={user}
-            handleBackClick={() => {
-              window.history.back();
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Box>
+        {isAdding ? (
+          <Card
+            sx={{
+              height: "91vh",
+              overflowY: "auto",
             }}
-          />
-        </Card>
-      ) : (
-        <Card
-          sx={{
-            minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
-            overflowY: "auto",
-          }}
-        >
-          <CardHeader
-            title={
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  flexDirection: { xs: "column", sm: "row" },
-                  gap: 2,
-                }}
-              >
-                <Typography variant="h4" component="h1">
-                  Companies
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <>
-                    <Tooltip title="Add Company" arrow>
-                      <Link href={`user?userPageSelect=mycompanies&add=true`}>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          startIcon={<Add />}
-                        >
-                          Add Company
-                        </Button>
-                      </Link>
-                    </Tooltip>
-                    <IconButton
-                      aria-label="more"
-                      id="long-button"
-                      aria-controls={open ? "long-menu" : undefined}
-                      aria-expanded={open ? "true" : undefined}
-                      aria-haspopup="true"
-                      onClick={(event: React.MouseEvent<HTMLElement>) => {
-                        setAnchorEl(event.currentTarget);
-                      }}
-                    >
-                      <MoreVert />
-                    </IconButton>
-                    <Menu
-                      id="long-menu"
-                      MenuListProps={{
-                        "aria-labelledby": "long-button",
-                      }}
-                      anchorEl={anchorEl}
-                      open={open}
-                      onClose={() => setAnchorEl(null)}
-                      slotProps={{
-                        paper: {
-                          style: {
-                            maxHeight: 48 * 4.5,
-                            width: "25ch",
-                          },
-                        },
-                      }}
-                    >
-                      <MenuItem onClick={() => setAnchorEl(null)}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            width: "100%",
-                          }}
-                        >
-                          <Typography variant="body1">Advanced View</Typography>
-                          <Switch
-                            checked={advanced}
-                            onChange={() => setAdvanced(!advanced)}
-                            color="primary"
-                          />
-                        </Box>
-                      </MenuItem>
-                      <MenuItem onClick={() => setAnchorEl(null)}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            width: "100%",
-                          }}
-                        >
-                          <Typography variant="body1">
-                            Active Companies Only
-                          </Typography>
-                          <Switch
-                            checked={showActiveOnly}
-                            onChange={() => setShowActiveOnly(!showActiveOnly)}
-                            color="primary"
-                          />
-                        </Box>
-                      </MenuItem>
-                    </Menu>
-                  </>
-                </Box>
-              </Box>
-            }
-          />
-          <CardContent
-            sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
           >
-            <Suspense fallback={<CircularProgress />}>
-              {advanced ? (
-                <CompaniesDataGrid
-                  user={user}
-                  showActiveOnly={showActiveOnly}
-                />
-              ) : (
-                <CompaniesCards user={user} showActiveOnly={showActiveOnly} />
-              )}
-            </Suspense>
-          </CardContent>
-        </Card>
-      )}
-    </Box>
+            <AddCompanyForm
+              user={user}
+              handleBackClick={() => {
+                window.history.back();
+              }}
+            />
+          </Card>
+        ) : (
+          <Card
+            sx={{
+              minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+              overflowY: "auto",
+            }}
+          >
+            <CardHeader
+              title={
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexDirection: { xs: "column", sm: "row" },
+                    gap: 2,
+                  }}
+                >
+                  <Typography variant="h4" component="h1">
+                    Companies
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <>
+                      <Tooltip title="Add Company" arrow>
+                        <Link href={`user?userPageSelect=mycompanies&add=true`}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<Add />}
+                          >
+                            Add Company
+                          </Button>
+                        </Link>
+                      </Tooltip>
+                      <IconButton
+                        aria-label="more"
+                        id="long-button"
+                        aria-controls={open ? "long-menu" : undefined}
+                        aria-expanded={open ? "true" : undefined}
+                        aria-haspopup="true"
+                        onClick={(event: React.MouseEvent<HTMLElement>) => {
+                          setAnchorEl(event.currentTarget);
+                        }}
+                      >
+                        <MoreVert />
+                      </IconButton>
+                      <Menu
+                        id="long-menu"
+                        MenuListProps={{
+                          "aria-labelledby": "long-button",
+                        }}
+                        anchorEl={anchorEl}
+                        open={open}
+                        onClose={() => setAnchorEl(null)}
+                        slotProps={{
+                          paper: {
+                            style: {
+                              maxHeight: 48 * 4.5,
+                              width: "25ch",
+                            },
+                          },
+                        }}
+                      >
+                        <MenuItem onClick={() => setAnchorEl(null)}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              width: "100%",
+                            }}
+                          >
+                            <Typography variant="body1">
+                              Advanced View
+                            </Typography>
+                            <Switch
+                              checked={advanced}
+                              onChange={() => setAdvanced(!advanced)}
+                              color="primary"
+                            />
+                          </Box>
+                        </MenuItem>
+                        <MenuItem onClick={() => setAnchorEl(null)}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              width: "100%",
+                            }}
+                          >
+                            <Typography variant="body1">
+                              Active Companies Only
+                            </Typography>
+                            <Switch
+                              checked={showActiveOnly}
+                              onChange={() =>
+                                setShowActiveOnly(!showActiveOnly)
+                              }
+                              color="primary"
+                            />
+                          </Box>
+                        </MenuItem>
+                      </Menu>
+                    </>
+                  </Box>
+                </Box>
+              }
+            />
+            <CardContent
+              sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
+            >
+              <Suspense fallback={<CircularProgress />}>
+                {advanced ? (
+                  <CompaniesDataGrid
+                    user={user}
+                    showActiveOnly={showActiveOnly}
+                  />
+                ) : (
+                  <CompaniesCards user={user} showActiveOnly={showActiveOnly} />
+                )}
+              </Suspense>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+    </motion.div>
   );
 };
 
