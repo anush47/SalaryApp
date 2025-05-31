@@ -336,7 +336,7 @@ const Documents = ({
                                               minWidth: 0,
                                             }}
                                           >
-                                            Purchase Access
+                                            Purchase
                                           </Button>
                                         </Link>
                                       )}
