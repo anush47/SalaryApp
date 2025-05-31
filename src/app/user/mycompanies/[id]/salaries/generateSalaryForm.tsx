@@ -10,12 +10,11 @@ import {
   Typography,
   CardHeader,
   CardContent,
-  useMediaQuery,
-  useTheme,
   FormControl,
   Snackbar,
   Alert,
   Autocomplete,
+  Stack, // Add Stack import
 } from "@mui/material";
 import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
@@ -201,81 +200,95 @@ const AddSalaryForm: React.FC<{
         sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
       >
         <Grid container spacing={3}>
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth error={!!errors.employee}>
-              <Autocomplete
-                options={employees}
-                getOptionLabel={(option) =>
-                  option._id === "all"
-                    ? `${option.name}`
-                    : `${option.memberNo} - ${option.name} - ${option.nic}`
-                } // Display the employee name as the label
-                onChange={(event, newValue) => {
-                  if (newValue) {
-                    setFormFields((prevFields) => ({
-                      ...prevFields,
-                      employeeNo: newValue._id, // Store the selected employee ID
-                      employeeName: newValue.name, // Update the employee name in the form
-                    }));
-                    setEmployeeSelection(newValue._id);
+          <Grid item xs={12}>
+            <Stack spacing={3}>
+              <FormControl fullWidth error={!!errors.employee}>
+                <Autocomplete
+                  options={employees}
+                  getOptionLabel={(option) =>
+                    option._id === "all"
+                      ? `${option.name}`
+                      : `${option.memberNo} - ${option.name} - ${option.nic}`
                   }
-                }}
-                value={
-                  employees.find(
-                    (employee) => employee._id === employeeSelection
-                  ) || null
-                } // Select the current employee or set to null
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Employee"
-                    variant="filled"
-                    fullWidth
-                  />
-                )}
-                isOptionEqualToValue={(option, value) =>
-                  option._id === value._id
-                } // Ensure correct selection by comparing IDs
-              />
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <Box
-                display={purchased ? "grid" : "flex"}
-                alignItems="center"
-                gap={2}
-              >
-                <LocalizationProvider
-                  dateAdapter={AdapterDayjs}
-                  adapterLocale="en-gb"
-                >
-                  <DatePicker
-                    label={"Period"}
-                    views={["month", "year"]}
-                    value={period ? dayjs(period) : dayjs()}
-                    onChange={(newValue) => {
-                      setPeriod(dayjs(newValue).format("YYYY-MM"));
-                    }}
-                  />
-                  {!purchased && (
-                    <Link
-                      href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                        period.split("-")[1]
-                      }-${period.split("-")[0]}`}
-                    >
-                      <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<ShoppingBag />}
-                      >
-                        Purchase
-                      </Button>
-                    </Link>
+                  onChange={(_, newValue) => {
+                    // Removed 'event' parameter
+                    if (newValue) {
+                      setFormFields((prevFields) => ({
+                        ...prevFields,
+                        employeeNo: newValue._id,
+                        employeeName: newValue.name,
+                      }));
+                      setEmployeeSelection(newValue._id);
+                    }
+                  }}
+                  value={
+                    employees.find(
+                      (employee) => employee._id === employeeSelection
+                    ) || null
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Employee"
+                      variant="outlined" // Changed to outlined for consistency
+                      fullWidth
+                    />
                   )}
-                </LocalizationProvider>
-              </Box>
-            </FormControl>
+                  isOptionEqualToValue={(option, value) =>
+                    option._id === value._id
+                  }
+                />
+              </FormControl>
+              <FormControl fullWidth>
+                <Box display={"flex"} alignItems="center" gap={2}>
+                  <LocalizationProvider
+                    dateAdapter={AdapterDayjs}
+                    adapterLocale="en-gb"
+                  >
+                    <DatePicker
+                      label={"Period"}
+                      views={["month", "year"]}
+                      value={period ? dayjs(period) : dayjs()}
+                      onChange={(newValue) => {
+                        setPeriod(dayjs(newValue).format("YYYY-MM"));
+                      }}
+                      slotProps={{
+                        // Added slotProps for consistency
+                        textField: {
+                          fullWidth: true,
+                          variant: "outlined",
+                          InputProps: {
+                            endAdornment: (
+                              <>
+                                {!purchased && (
+                                  <Link
+                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
+                                      period.split("-")[1]
+                                    }-${period.split("-")[0]}`}
+                                  >
+                                    <Button
+                                      variant="contained"
+                                      color="success"
+                                      startIcon={<ShoppingBag />}
+                                      sx={{
+                                        whiteSpace: "nowrap",
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      Purchase Access
+                                    </Button>
+                                  </Link>
+                                )}
+                              </>
+                            ),
+                          },
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                </Box>
+              </FormControl>
+            </Stack>
           </Grid>
           <Grid item xs={12}>
             {employeeSelection === "all" ? (

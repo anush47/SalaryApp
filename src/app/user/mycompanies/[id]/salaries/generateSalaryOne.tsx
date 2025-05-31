@@ -1,6 +1,5 @@
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Card,
@@ -10,7 +9,6 @@ import {
   FormControl,
   FormHelperText,
   Grid,
-  Slide,
   Snackbar,
   TextField,
   Tooltip,
@@ -24,7 +22,7 @@ import { Autorenew, CheckCircle, Save, Upload } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { handleCsvUpload } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
-import { InOutTable } from "./inOutTable";
+import { InOutTable, SimpleDialog } from "./inOutTable";
 
 const GenerateSalaryOne = ({
   period,
@@ -40,6 +38,7 @@ const GenerateSalaryOne = ({
   const [inOut, setInOut] = useState("");
   const [generated, setGenerated] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [openDialog, setOpenDialog] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>("");
   const [snackbarSeverity, setSnackbarSeverity] = useState<
     "success" | "error" | "warning" | "info"
@@ -434,28 +433,29 @@ const GenerateSalaryOne = ({
             <Box
               sx={{
                 display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
                 flexDirection: { xs: "column", sm: "row" },
-                alignItems: { xs: "flex-start", sm: "center" },
                 gap: 2,
               }}
             >
-              <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                Generated Salary Information
-              </Typography>
-              <Tooltip title="Save new salary record" arrow>
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<Save />}
-                  onClick={onSaveClick}
-                  disabled={loading || !formFields.employee}
-                  sx={{
-                    width: { xs: "100%", sm: "auto" },
-                  }}
-                >
-                  {loading ? <CircularProgress size={24} /> : "Save"}
-                </Button>
-              </Tooltip>
+              <Typography variant="h5">Generated Salary Information</Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Tooltip title="Save new salary record" arrow>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<Save />}
+                    onClick={onSaveClick}
+                    disabled={loading || !formFields.employee}
+                    sx={{
+                      width: { xs: "100%", sm: "auto" },
+                    }}
+                  >
+                    {loading ? <CircularProgress size={24} /> : "Save"}
+                  </Button>
+                </Tooltip>
+              </Box>
             </Box>
           }
         />
@@ -468,7 +468,6 @@ const GenerateSalaryOne = ({
               ) : (
                 <Box
                   sx={{
-                    mt: 2,
                     p: 2,
                     border: "1px solid #ccc",
                     borderRadius: "8px",
@@ -483,15 +482,12 @@ const GenerateSalaryOne = ({
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
                     NIC: {employee?.nic}
                   </Typography>
-                  <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    Period: {period}
-                  </Typography>
                 </Box>
               )}
             </Grid>
             {!generated && (
               <>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
                     <Button
                       variant="outlined"
@@ -516,7 +512,27 @@ const GenerateSalaryOne = ({
                     </Button>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth>
+                    {/* show fetched inout in a dialog */}
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => setOpenDialog(true)}
+                      disabled={!inOut || inOut === ""}
+                    >
+                      View In-Out
+                    </Button>
+                    {inOut && inOut !== "" && (
+                      <SimpleDialog
+                        openDialog={openDialog}
+                        setOpenDialog={setOpenDialog}
+                        inOutFetched={inOut}
+                      />
+                    )}
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
                     <LoadingButton
                       variant="contained"

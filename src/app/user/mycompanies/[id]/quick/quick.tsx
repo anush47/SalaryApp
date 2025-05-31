@@ -529,30 +529,37 @@ const QuickTools = ({
                         textField: {
                           fullWidth: true,
                           variant: "outlined",
+                          InputProps: {
+                            endAdornment: (
+                              <>
+                                {!purchased && (
+                                  <Link
+                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
+                                      period.split("-")[1]
+                                    }-${period.split("-")[0]}`}
+                                  >
+                                    <Button
+                                      variant="contained"
+                                      color="success"
+                                      startIcon={<ShoppingBag />}
+                                      sx={{
+                                        whiteSpace: "nowrap",
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      Purchase Access
+                                    </Button>
+                                  </Link>
+                                )}
+                              </>
+                            ),
+                          },
                         },
                       }}
                     />
                   </LocalizationProvider>
                 </FormControl>
-                {!purchased && (
-                  <Link
-                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                      period.split("-")[1]
-                    }-${period.split("-")[0]}`}
-                    passHref
-                  >
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<ShoppingBag />}
-                      fullWidth
-                      size="large"
-                      sx={{ borderRadius: 1 }}
-                    >
-                      Purchase Access
-                    </Button>
-                  </Link>
-                )}
+
                 <FormControl fullWidth>
                   <Button
                     variant="outlined"

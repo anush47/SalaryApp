@@ -16,6 +16,12 @@ import {
   Snackbar,
   Switch,
   Typography,
+  Paper,
+  Stack,
+  Tooltip,
+  FormLabel,
+  RadioGroup,
+  Radio,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -232,132 +238,197 @@ const Documents = ({
         <CardContent
           sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
         >
-          <Grid container spacing={3}>
+          <Grid container spacing={4}>
+            {/* Company Info Card */}
             <Grid item xs={12}>
-              {loading ? (
-                <CircularProgress size={20} />
-              ) : (
-                <Box
-                  sx={{
-                    mt: 2,
-                    p: 2,
-                    border: "1px solid #ccc",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ fontWeight: "bold", color: "primary.main" }}
-                  >
-                    {company?.name} - {company?.employerNo}
-                  </Typography>
-                </Box>
-              )}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: "bold", color: "primary.main" }}
+                    >
+                      {company?.name} - {company?.employerNo}
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <Box
-                  display={purchased ? "grid" : "flex"}
-                  alignItems="center"
-                  gap={2}
-                >
-                  <LocalizationProvider
-                    dateAdapter={AdapterDayjs}
-                    adapterLocale="en-gb"
-                  >
-                    <DatePicker
-                      label={"Period"}
-                      views={["month", "year"]}
-                      value={period ? dayjs(period) : dayjs()}
-                      onChange={(newValue) => {
-                        setPeriod(dayjs(newValue).format("YYYY-MM"));
-                      }}
-                    />
-                    {!purchased && (
-                      <Link
-                        href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                          period?.split("-")[1] || ""
-                        }-${period ? period.split("-")[0] : ""}`}
+
+            {/* Period Selection & Options Card */}
+            <Grid item xs={12} md={6}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Stack spacing={3}>
+                  <FormControl fullWidth>
+                    <Box
+                      display={purchased ? "grid" : "flex"}
+                      alignItems="center"
+                      gap={2}
+                    >
+                      <LocalizationProvider
+                        dateAdapter={AdapterDayjs}
+                        adapterLocale="en-gb"
                       >
-                        <Button
-                          variant="contained"
-                          color="success"
-                          startIcon={<ShoppingBag />}
-                        >
-                          Purchase
-                        </Button>
-                      </Link>
-                    )}
-                  </LocalizationProvider>
-                </Box>
-              </FormControl>
+                        <DatePicker
+                          label={"Period"}
+                          views={["month", "year"]}
+                          value={period ? dayjs(period) : dayjs()}
+                          onChange={(newValue) => {
+                            setPeriod(dayjs(newValue).format("YYYY-MM"));
+                          }}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true,
+                              variant: "outlined",
+                              InputProps: {
+                                endAdornment: (
+                                  <>
+                                    {!purchased && (
+                                      <Link
+                                        href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
+                                          period.split("-")[1]
+                                        }-${period.split("-")[0]}`}
+                                      >
+                                        <Button
+                                          variant="contained"
+                                          color="success"
+                                          startIcon={<ShoppingBag />}
+                                          sx={{
+                                            whiteSpace: "nowrap",
+                                            minWidth: 0,
+                                          }}
+                                        >
+                                          Purchase Access
+                                        </Button>
+                                      </Link>
+                                    )}
+                                  </>
+                                ),
+                              },
+                            },
+                          }}
+                        />
+                      </LocalizationProvider>
+                    </Box>
+                  </FormControl>
+                  <FormControl component="fieldset">
+                    <FormLabel component="legend">
+                      Generate Documents for:
+                    </FormLabel>
+                    <RadioGroup
+                      row
+                      aria-label="salary-selection"
+                      name="salary-selection"
+                      value={customSalaries ? "selected" : "all"}
+                      onChange={(event) => {
+                        setCustomSalaries(event.target.value === "selected");
+                      }}
+                    >
+                      <FormControlLabel
+                        value="all"
+                        control={<Radio />}
+                        label="All Salaries"
+                      />
+                      <FormControlLabel
+                        value="selected"
+                        control={<Radio />}
+                        label="Selected Salaries"
+                      />
+                    </RadioGroup>
+                  </FormControl>
+                </Stack>
+              </Paper>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                {/* custom salaries switch */}
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={customSalaries}
-                      onChange={(event) =>
-                        setCustomSalaries(event.target.checked)
-                      }
-                    />
-                  }
-                  label="For Selected Salaries"
-                />
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <Accordion>
-                <AccordionSummary
-                  expandIcon={<ExpandMore />}
-                  aria-controls="panel1-content"
-                  id="panel1-header"
-                >
-                  <Typography variant="h6">More Generate Options</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Grid container spacing={3}>
-                    {[
-                      { label: "Salary", type: "salary" as const },
-                      { label: "EPF", type: "epf" as const },
-                      { label: "ETF", type: "etf" as const },
-                      { label: "Payslips", type: "payslip" as const },
-                      { label: "Attendance", type: "attendance" as const },
-                      { label: "All", type: "all" as const },
-                    ].map((item) => (
-                      <Grid item xs={6} sm={2} key={item.type}>
-                        <FormControl fullWidth>
-                          <LoadingButton
-                            loading={loading}
-                            loadingPosition="start"
-                            variant="outlined"
-                            color="success"
-                            onClick={(e) => handleGetPDF(item.type, e)}
-                          >
-                            <span>{item.label}</span>
-                          </LoadingButton>
-                        </FormControl>
+
+            {/* Generate Options Card */}
+            <Grid item xs={12} md={6}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Stack spacing={3}>
+                  <Accordion>
+                    <AccordionSummary
+                      expandIcon={<ExpandMore />}
+                      aria-controls="panel1-content"
+                      id="panel1-header"
+                    >
+                      <Typography variant="h6">
+                        Individual Generate Options
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Grid container spacing={3}>
+                        {[
+                          { label: "Salary", type: "salary" as const },
+                          { label: "EPF", type: "epf" as const },
+                          { label: "ETF", type: "etf" as const },
+                          { label: "Payslips", type: "payslip" as const },
+                          { label: "Attendance", type: "attendance" as const },
+                          { label: "All", type: "all" as const },
+                        ].map((item) => (
+                          <Grid item xs={12} sm={6} md={4} key={item.type}>
+                            <FormControl fullWidth>
+                              <Tooltip
+                                title={`Generate ${item.label} PDF`}
+                                arrow
+                              >
+                                <Button
+                                  disabled={loading}
+                                  variant="outlined"
+                                  onClick={(e) => handleGetPDF(item.type, e)}
+                                  fullWidth
+                                >
+                                  {item.label}
+                                </Button>
+                              </Tooltip>
+                            </FormControl>
+                          </Grid>
+                        ))}
                       </Grid>
-                    ))}
-                  </Grid>
-                </AccordionDetails>
-              </Accordion>
+                    </AccordionDetails>
+                  </Accordion>
+                  <FormControl fullWidth>
+                    <Tooltip title="Generate All Documents as Print" arrow>
+                      <LoadingButton
+                        loading={loading}
+                        loadingPosition="start"
+                        variant="contained"
+                        onClick={(e) => handleGetPDF("print", e)}
+                        fullWidth
+                      >
+                        <span>Generate All Documents</span>
+                      </LoadingButton>
+                    </Tooltip>
+                  </FormControl>
+                </Stack>
+              </Paper>
             </Grid>
-            <Grid item xs={6} sm={2}>
-              <FormControl fullWidth>
-                <LoadingButton
-                  loading={loading}
-                  loadingPosition="start"
-                  color="success"
-                  variant="contained"
-                  onClick={(e) => handleGetPDF("print", e)}
-                >
-                  <span>Generate Print</span>
-                </LoadingButton>
-              </FormControl>
-            </Grid>
+
+            {/* Data Grids */}
             <Grid item xs={12}>
               {period && (
                 <Accordion defaultExpanded>

@@ -9,9 +9,7 @@ import {
   CircularProgress,
   FormControl,
   Grid,
-  Slide,
   Snackbar,
-  Switch,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -37,13 +35,13 @@ const GenerateSalaryAll = ({
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeIds, setEmployeeIds] = useState<String[]>([]);
-  const SlideTransition = (props: any) => <Slide {...props} direction="up" />;
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>("");
   const [snackbarSeverity, setSnackbarSeverity] = useState<
     "success" | "error" | "warning" | "info"
   >("success");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -312,8 +310,6 @@ const GenerateSalaryAll = ({
     }
   };
 
-  const [openDialog, setOpenDialog] = useState(false);
-
   return (
     <>
       <Card>
@@ -322,34 +318,34 @@ const GenerateSalaryAll = ({
             <Box
               sx={{
                 display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
                 flexDirection: { xs: "column", sm: "row" },
-                alignItems: { xs: "flex-start", sm: "center" },
                 gap: 2,
               }}
             >
-              <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                Generated Salary Information
-              </Typography>
-              <Tooltip title="Save new salary record" arrow>
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<Save />}
-                  onClick={onSaveClick}
-                  disabled={
-                    loading ||
-                    (generatedSalaries && generatedSalaries.length <= 0)
-                  } // Disable button while loading
-                  sx={{
-                    width: { xs: "100%", sm: "auto" },
-                  }}
-                >
-                  {loading ? <CircularProgress size={24} /> : "Save"}
-                </Button>
-              </Tooltip>
+              <Typography variant="h5">Generated Salary Information</Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Tooltip title="Save new salary record" arrow>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<Save />}
+                    onClick={onSaveClick}
+                    disabled={
+                      loading ||
+                      (generatedSalaries && generatedSalaries.length <= 0)
+                    }
+                    sx={{
+                      width: { xs: "100%", sm: "auto" },
+                    }}
+                  >
+                    {loading ? <CircularProgress size={24} /> : "Save"}
+                  </Button>
+                </Tooltip>
+              </Box>
             </Box>
           }
-          subheader={`Period: ${period}`}
         />
         <CardContent>
           <Grid container spacing={3}>

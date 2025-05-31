@@ -572,38 +572,24 @@ const EditSalaryForm: React.FC<{
               )}
             </Grid>
             <Grid item xs={12}>
-              <Accordion>
-                <AccordionSummary
-                  expandIcon={<ExpandMore />}
-                  aria-controls="panel1-content"
-                  id="panel1-header"
-                >
-                  <Typography variant="h5">In Out Details</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {" "}
-                  <FormControl fullWidth>
-                    <InOutTable
-                      inOuts={formFields.inOut.map((inOut, index) => ({
-                        id: inOut._id || index + 1,
-                        employeeName: employee?.name,
-                        employeeNIC: employee?.nic,
-                        basic: formFields.basic,
-                        divideBy: employee?.divideBy ?? 240,
-                        ...inOut,
-                      }))}
-                      setInOuts={(inOuts: any) => {
-                        setFormFields((prev) => ({
-                          ...prev,
-                          inOut: inOuts,
-                        }));
-                      }}
-                      editable={isEditing}
-                      fetchSalary={fetchSalary}
-                    />
-                  </FormControl>
-                </AccordionDetails>
-              </Accordion>
+              <InOutTable
+                inOuts={formFields.inOut.map((inOut, index) => ({
+                  id: inOut._id || index + 1,
+                  employeeName: employee?.name,
+                  employeeNIC: employee?.nic,
+                  basic: formFields.basic,
+                  divideBy: employee?.divideBy ?? 240,
+                  ...inOut,
+                }))}
+                setInOuts={(inOuts: any) => {
+                  setFormFields((prev) => ({
+                    ...prev,
+                    inOut: inOuts,
+                  }));
+                }}
+                editable={isEditing}
+                fetchSalary={fetchSalary}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={!!errors.basic}>

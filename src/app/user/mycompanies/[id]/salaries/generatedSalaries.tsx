@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -11,6 +14,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Typography,
 } from "@mui/material";
 import {
   DataGrid,
@@ -21,6 +25,7 @@ import {
 import React, { useState } from "react";
 import { LoadingButton } from "@mui/lab";
 import { Salary } from "./salariesDataGrid";
+import { ExpandMore } from "@mui/icons-material";
 
 interface GeneratedSalariesProps {
   generatedSalaries: Salary[];
@@ -290,14 +295,11 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
   };
 
   return (
-    <Card
-      sx={{
-        height: "91vh",
-        overflowY: "auto",
-      }}
-    >
-      <CardHeader title={"Generated Salaries"} />
-      <CardContent>
+    <Accordion>
+      <AccordionSummary expandIcon={<ExpandMore />}>
+        <Typography variant="h6">{`Generated Salaries - ${generatedSalaries.length}`}</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
         <Box
           sx={{
             width: "100%",
@@ -357,8 +359,8 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
             message={`Are you sure you want to delete the salary record?`}
           />
         </Box>
-      </CardContent>
-    </Card>
+      </AccordionDetails>
+    </Accordion>
   );
 };
 

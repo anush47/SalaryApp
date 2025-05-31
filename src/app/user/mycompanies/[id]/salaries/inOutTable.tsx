@@ -1,5 +1,9 @@
-import { Add, Autorenew, DeleteOutline } from "@mui/icons-material";
+import { Add, Autorenew, DeleteOutline, ExpandMore } from "@mui/icons-material";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
   Button,
   Chip,
   Dialog,
@@ -10,6 +14,7 @@ import {
   Grid,
   IconButton,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -392,210 +397,228 @@ export const InOutTable = ({
   };
 
   return (
-    <div
-      style={{ height: 400, width: "100%" }}
-      className={edited || rowSelectionModel.length > 0 ? "mb-20" : "mb-10"}
-    >
-      <Typography variant="h6" gutterBottom>
-        <div className="flex items-start">
-          <div className="mr-2">In-Out Records</div>
-          {editable && (
+    <Accordion>
+      <AccordionSummary
+        expandIcon={<ExpandMore />}
+        aria-controls="panel1-content"
+        id="panel1-header"
+      >
+        <Typography variant="h5">In Out Details</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Box
+          sx={{
+            display: editable ? "flex" : "none",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 2,
+            mb: 1,
+          }}
+        >
+          <Tooltip title="Delete Selected In-Out records" arrow>
             <Button
               variant="outlined"
+              color="error"
+              onClick={
+                rowSelectionModel.length === 1
+                  ? () => handleDeleteClick(rowSelectionModel[0] as string)
+                  : () => handleMultipleDeleteClick(rowSelectionModel)
+              }
+              disabled={!editable || rowSelectionModel.length === 0}
+              startIcon={<DeleteOutline />}
+            >
+              Delete Selected
+            </Button>
+          </Tooltip>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {edited && (
+              <Tooltip title="Calculate Salary based on In-Outs" arrow>
+                <Button
+                  variant="contained"
+                  onClick={async () => {
+                    await handleCalculate();
+                  }}
+                  disabled={!editable}
+                  startIcon={<Autorenew />}
+                >
+                  Calculate
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip title="Add new In-Out record" arrow>
+              <Button
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={() => setOpenAdd(true)}
+                disabled={!editable}
+              >
+                Add Record
+              </Button>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            width: "100%",
+            height: "calc(100vh - 230px)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <DataGrid
+            rows={inOuts}
+            columns={columns}
+            editMode="row"
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: 31,
+                },
+              },
+              filter: {
+                filterModel: {
+                  items: [],
+                  quickFilterExcludeHiddenColumns: false,
+                },
+              },
+            }}
+            pageSizeOptions={[5, 10, 31]}
+            slots={{
+              toolbar: (props) => (
+                <GridToolbar
+                  {...props}
+                  // csvOptions={{ disableToolbarButton: true }}
+                  printOptions={{ disableToolbarButton: true }}
+                />
+              ),
+            }}
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true,
+              },
+            }}
+            columnVisibilityModel={columnVisibilityModel}
+            onColumnVisibilityModelChange={(newModel) =>
+              setColumnVisibilityModel(newModel)
+            }
+            processRowUpdate={handleRowUpdate}
+            disableRowSelectionOnClick
+            disableDensitySelector
+            checkboxSelection={editable}
+            onRowSelectionModelChange={(newModel) =>
+              setRowSelectionModel(newModel)
+            }
+          />
+        </Box>
+
+        {/* Confirmation Dialog */}
+        <Dialog open={openDelete} onClose={handleDeleteClose}>
+          <DialogTitle>Confirm Delete</DialogTitle>
+          <DialogContent>
+            Are you sure you want to delete this record?
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteClose} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDelete} color="error">
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Add Dialog */}
+        <Dialog open={openAdd} onClose={handleAddClose} fullWidth>
+          <DialogTitle>Add Record</DialogTitle>
+          <DialogContent>
+            <Grid my={3} container spacing={3}>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <LocalizationProvider
+                    dateAdapter={AdapterDayjs}
+                    adapterLocale="en-gb"
+                  >
+                    <DateTimePicker
+                      label="In time"
+                      value={dayjs(newInOut?.in)}
+                      onChange={
+                        (date) =>
+                          setNewInOut({
+                            ...newInOut,
+                            in: date
+                              ? date.format("YYYY-MM-DDTHH:mm:ss.SSS")
+                              : newInOut.in,
+                          }) // Store the value as a string
+                      }
+                    />
+                  </LocalizationProvider>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <LocalizationProvider
+                    dateAdapter={AdapterDayjs}
+                    adapterLocale="en-gb"
+                  >
+                    <DateTimePicker
+                      label="Out time"
+                      value={dayjs(newInOut?.out)}
+                      minDate={newInOut?.in ? dayjs(newInOut?.in) : undefined}
+                      onChange={
+                        (date) =>
+                          setNewInOut({
+                            ...newInOut,
+                            out: date
+                              ? date.format("YYYY-MM-DDTHH:mm:ss.SSS")
+                              : newInOut.out,
+                          }) // Store the value as a string
+                      }
+                    />
+                  </LocalizationProvider>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <TextField
+                    label="Details"
+                    name="designation"
+                    variant="filled"
+                    multiline
+                    rows={2}
+                    value={newInOut?.description}
+                    onChange={(e) =>
+                      setNewInOut({
+                        ...newInOut,
+                        description: e.target.value,
+                      })
+                    }
+                  />
+                </FormControl>
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleAddClose} color="inherit">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAdd}
+              color="success"
+              variant="outlined"
+              disabled={
+                !newInOut?.in ||
+                !newInOut?.out ||
+                newInOut?.in === newInOut?.out
+              }
               startIcon={<Add />}
-              onClick={() => setOpenAdd(true)}
             >
               Add
             </Button>
-          )}
-        </div>
-      </Typography>
-      {editable && rowSelectionModel.length > 0 && (
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={
-            rowSelectionModel.length === 1
-              ? () => handleDeleteClick(rowSelectionModel[0] as string)
-              : () => handleMultipleDeleteClick(rowSelectionModel)
-          }
-          disabled={!editable}
-          sx={{
-            mb: 1,
-            mr: 1,
-          }}
-          startIcon={
-            <DeleteOutline
-              style={{ marginRight: "8px" }}
-              color="error"
-              fontSize="small"
-            />
-          }
-        >
-          Delete Selected
-        </Button>
-      )}
-      {edited && (
-        <Button
-          variant="contained"
-          color="success"
-          onClick={async () => {
-            await handleCalculate();
-          }}
-          disabled={!editable}
-          sx={{
-            mb: 1,
-          }}
-          startIcon={
-            <Autorenew style={{ marginRight: "8px" }} fontSize="small" />
-          }
-        >
-          Calculate
-        </Button>
-      )}
-      <DataGrid
-        rows={inOuts}
-        columns={columns}
-        editMode="row"
-        initialState={{
-          pagination: {
-            paginationModel: {
-              pageSize: 31,
-            },
-          },
-          filter: {
-            filterModel: {
-              items: [],
-              quickFilterExcludeHiddenColumns: false,
-            },
-          },
-        }}
-        pageSizeOptions={[5, 10, 31]}
-        slots={{
-          toolbar: (props) => (
-            <GridToolbar
-              {...props}
-              // csvOptions={{ disableToolbarButton: true }}
-              printOptions={{ disableToolbarButton: true }}
-            />
-          ),
-        }}
-        slotProps={{
-          toolbar: {
-            showQuickFilter: true,
-          },
-        }}
-        columnVisibilityModel={columnVisibilityModel}
-        onColumnVisibilityModelChange={(newModel) =>
-          setColumnVisibilityModel(newModel)
-        }
-        processRowUpdate={handleRowUpdate}
-        disableRowSelectionOnClick
-        disableDensitySelector
-        checkboxSelection={editable}
-        onRowSelectionModelChange={(newModel) => setRowSelectionModel(newModel)}
-      />
-      {/* Confirmation Dialog */}
-      <Dialog open={openDelete} onClose={handleDeleteClose}>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete this record?
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteClose} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDelete} color="error">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add Dialog */}
-      <Dialog open={openAdd} onClose={handleAddClose} fullWidth>
-        <DialogTitle>Add Record</DialogTitle>
-        <DialogContent>
-          <Grid my={3} container spacing={3}>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <LocalizationProvider
-                  dateAdapter={AdapterDayjs}
-                  adapterLocale="en-gb"
-                >
-                  <DateTimePicker
-                    label="In time"
-                    value={dayjs(newInOut?.in)}
-                    onChange={
-                      (date) =>
-                        setNewInOut({
-                          ...newInOut,
-                          in: date
-                            ? date.format("YYYY-MM-DDTHH:mm:ss.SSS")
-                            : newInOut.in,
-                        }) // Store the value as a string
-                    }
-                  />
-                </LocalizationProvider>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <LocalizationProvider
-                  dateAdapter={AdapterDayjs}
-                  adapterLocale="en-gb"
-                >
-                  <DateTimePicker
-                    label="Out time"
-                    value={dayjs(newInOut?.out)}
-                    minDate={newInOut?.in ? dayjs(newInOut?.in) : undefined}
-                    onChange={
-                      (date) =>
-                        setNewInOut({
-                          ...newInOut,
-                          out: date
-                            ? date.format("YYYY-MM-DDTHH:mm:ss.SSS")
-                            : newInOut.out,
-                        }) // Store the value as a string
-                    }
-                  />
-                </LocalizationProvider>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <TextField
-                  label="Details"
-                  name="designation"
-                  variant="filled"
-                  multiline
-                  rows={2}
-                  value={newInOut?.description}
-                  onChange={(e) =>
-                    setNewInOut({ ...newInOut, description: e.target.value })
-                  }
-                />
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleAddClose} color="inherit">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmAdd}
-            color="success"
-            variant="outlined"
-            disabled={
-              !newInOut?.in || !newInOut?.out || newInOut?.in === newInOut?.out
-            }
-            startIcon={<Add />}
-          >
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+          </DialogActions>
+        </Dialog>
+      </AccordionDetails>
+    </Accordion>
   );
 };
 

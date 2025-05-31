@@ -425,22 +425,39 @@ const NewPaymentForm = ({
                       onChange={(newValue) => {
                         setPeriod(dayjs(newValue).format("YYYY-MM"));
                       }}
+                      slotProps={{
+                        // Added slotProps for consistency
+                        textField: {
+                          fullWidth: true,
+                          variant: "outlined",
+                          InputProps: {
+                            endAdornment: (
+                              <>
+                                {!purchased && (
+                                  <Link
+                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
+                                      period.split("-")[1]
+                                    }-${period.split("-")[0]}`}
+                                  >
+                                    <Button
+                                      variant="contained"
+                                      color="success"
+                                      startIcon={<ShoppingBag />}
+                                      sx={{
+                                        whiteSpace: "nowrap",
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      Purchase Access
+                                    </Button>
+                                  </Link>
+                                )}
+                              </>
+                            ),
+                          },
+                        },
+                      }}
                     />
-                    {!purchased && (
-                      <Link
-                        href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                          period?.split("-")[1] || ""
-                        }-${period ? period.split("-")[0] : ""}`}
-                      >
-                        <Button
-                          variant="contained"
-                          color="success"
-                          startIcon={<ShoppingBag />}
-                        >
-                          Purchase
-                        </Button>
-                      </Link>
-                    )}
                   </LocalizationProvider>
                   {errors.period && (
                     <FormHelperText>{errors.period}</FormHelperText>

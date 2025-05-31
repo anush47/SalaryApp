@@ -1,10 +1,14 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Card,
   CardContent,
   CardHeader,
   Switch,
+  Typography,
 } from "@mui/material";
 import {
   DataGrid,
@@ -15,6 +19,7 @@ import {
 import Link from "next/link";
 import React from "react";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
+import { ExpandMore } from "@mui/icons-material";
 
 interface Props {
   employees: Employee[];
@@ -225,9 +230,15 @@ const EmployeesInclude: React.FC<Props> = ({
       remark: false,
     });
   return (
-    <Card>
-      <CardHeader title={"Employees to Include"} />
-      <CardContent>
+    <Accordion>
+      <AccordionSummary expandIcon={<ExpandMore />}>
+        <Typography variant="h6">{`Employees to Include - ${
+          employees.filter((employee) =>
+            employeeIds.includes(employee.id.toString())
+          ).length
+        }`}</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
         <Box
           sx={{
             width: "100%",
@@ -271,8 +282,8 @@ const EmployeesInclude: React.FC<Props> = ({
             }
           />
         </Box>
-      </CardContent>
-    </Card>
+      </AccordionDetails>
+    </Accordion>
   );
 };
 
