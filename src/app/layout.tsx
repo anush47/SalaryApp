@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v13-appRouter";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -11,6 +11,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "SalaryApp",
   description: "Payroll, EPF/ETF Management Made Simple",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
 };
 
 export default function RootLayout({
