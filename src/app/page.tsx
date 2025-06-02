@@ -19,7 +19,6 @@ import {
 import { motion, useAnimation, useInView } from "framer-motion";
 import { useEffect, useRef } from "react";
 import {
-  Email,
   CheckCircleOutline,
   AccessTime,
   Payments,
@@ -30,8 +29,8 @@ import {
   Logout,
   Groups,
   Business,
-  VerifiedUser,
   AdminPanelSettings,
+  RequestPage,
 } from "@mui/icons-material";
 import { ThemeSwitch } from "./theme-provider";
 import { useSession } from "next-auth/react";
@@ -98,7 +97,7 @@ export default function LandingPage() {
   const stats = [
     { value: "25+", label: "Trusted Companies", icon: <Business /> },
     { value: "150+", label: "Employees Managed", icon: <Groups /> },
-    { value: "100%", label: "Compliance", icon: <VerifiedUser /> },
+    { value: "500+", label: "Salaries Processed", icon: <RequestPage /> },
   ];
 
   const features = [
@@ -185,12 +184,30 @@ export default function LandingPage() {
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             {session && (
               <Chip
-                avatar={<Avatar>{userName.charAt(0).toUpperCase()}</Avatar>}
-                label={userName}
+                avatar={
+                  <Avatar
+                    alt={session?.user?.name ?? undefined}
+                    src={session?.user?.image ?? undefined}
+                  />
+                }
+                label={
+                  <Box
+                    sx={{
+                      maxWidth: { xs: 50, sm: 170 },
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                    }}
+                  >
+                    {userName}
+                  </Box>
+                }
                 variant="outlined"
                 sx={{
                   borderColor: alpha(theme.palette.primary.main, 0.2),
                   fontWeight: 500,
+                  maxWidth: { xs: 120, sm: "none" },
                 }}
               />
             )}
@@ -233,7 +250,7 @@ export default function LandingPage() {
                   mb: 3,
                 }}
               >
-                Modern Payroll, EPF/ETF Management Made Simple
+                Payroll, EPF/ETF Management Made Simple
               </Typography>
               <Typography
                 variant="body1"
