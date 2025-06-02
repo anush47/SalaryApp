@@ -14,7 +14,7 @@ export default function UserAgreement() {
   return (
     <main
       style={{
-        background: "linear-gradient(to right, #e3f2fd, #bbdefb, #90caf9)",
+        background: "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)",
         paddingBottom: "2rem",
       }}
     >

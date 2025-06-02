@@ -10,11 +10,16 @@ import {
   Tooltip,
   CircularProgress,
   useMediaQuery,
+  Stack,
+  Divider,
+  alpha,
+  Avatar,
+  Chip,
 } from "@mui/material";
-import { motion } from "framer-motion";
+import { motion, useAnimation, useInView } from "framer-motion";
+import { useEffect, useRef } from "react";
 import {
   Email,
-  ContactMail,
   CheckCircleOutline,
   AccessTime,
   Payments,
@@ -23,6 +28,10 @@ import {
   PlayCircleOutline,
   ArrowForward,
   Logout,
+  Groups,
+  Business,
+  VerifiedUser,
+  AdminPanelSettings,
 } from "@mui/icons-material";
 import { ThemeSwitch } from "./theme-provider";
 import { useSession } from "next-auth/react";
@@ -33,746 +42,610 @@ export default function LandingPage() {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { data: session, status } = useSession();
-  const userName =
-    session?.user?.name || session?.user?.email?.split("@")[0] || "User";
+  const heroControls = useAnimation();
+  const statsControls = useAnimation();
+  const featuresControls = useAnimation();
+  const ctaControls = useAnimation();
+  const footerControls = useAnimation();
+
+  const heroRef = useRef(null);
+  const statsRef = useRef(null);
+  const featuresRef = useRef(null);
+  const ctaRef = useRef(null);
+  const footerRef = useRef(null);
+
+  const isHeroInView = useInView(heroRef, { once: true, amount: 0.1 });
+  const isStatsInView = useInView(statsRef, { once: true, amount: 0.1 });
+  const isFeaturesInView = useInView(featuresRef, { once: true, amount: 0.1 });
+  const isCtaInView = useInView(ctaRef, { once: true, amount: 0.1 });
+  const isFooterInView = useInView(footerRef, { once: true, amount: 0.1 });
+
+  useEffect(() => {
+    if (isHeroInView) heroControls.start("visible");
+  }, [isHeroInView, heroControls]);
+
+  useEffect(() => {
+    if (isStatsInView) statsControls.start("visible");
+  }, [isStatsInView, statsControls]);
+
+  useEffect(() => {
+    if (isFeaturesInView) featuresControls.start("visible");
+  }, [isFeaturesInView, featuresControls]);
+
+  useEffect(() => {
+    if (isCtaInView) ctaControls.start("visible");
+  }, [isCtaInView, ctaControls]);
+
+  useEffect(() => {
+    if (isFooterInView) footerControls.start("visible");
+  }, [isFooterInView, footerControls]);
+
+  const userName = (() => {
+    if (session?.user?.name) {
+      return session.user.name.split(" ")[0];
+    }
+    if (session?.user?.email) {
+      return session.user.email.split("@")[0].split(" ")[0];
+    }
+    return "User";
+  })();
 
   const gradientBackground =
     theme.palette.mode === "dark"
-      ? "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)"
-      : "linear-gradient(135deg, #e0f2f7 0%, #c1e4ed 50%, #a2d7e3 100%)";
+      ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
+      : "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)";
 
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
+  const stats = [
+    { value: "25+", label: "Trusted Companies", icon: <Business /> },
+    { value: "150+", label: "Employees Managed", icon: <Groups /> },
+    { value: "100%", label: "Compliance", icon: <VerifiedUser /> },
+  ];
+
+  const features = [
+    {
+      icon: <AccessTime sx={{ fontSize: 32 }} />,
+      title: "Smart Attendance",
+      description: "Automated tracking with OT calculations",
+    },
+    {
+      icon: <Payments sx={{ fontSize: 32 }} />,
+      title: "Instant Payroll",
+      description: "Generate accurate salaries in minutes",
+    },
+    {
+      icon: <Description sx={{ fontSize: 32 }} />,
+      title: "EPF/ETF Reports",
+      description: "Compliant with government regulations",
+    },
+    {
+      icon: <People sx={{ fontSize: 32 }} />,
+      title: "Employee Management",
+      description: "Centralized staff records",
+    },
+    {
+      icon: <Description sx={{ fontSize: 32 }} />,
+      title: "AH Forms Generation",
+      description: "Generate and manage AH forms effortlessly",
+    },
+  ];
+
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 40 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.8, ease: "easeOut" },
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
     },
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+  const staggerContainer = {
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: "easeOut" },
+      transition: {
+        staggerChildren: 0.15,
+      },
     },
   };
 
   return (
-    <main
-      className="flex flex-col items-center justify-center min-h-screen"
-      style={{
+    <Box
+      sx={{
+        minHeight: "100vh",
         background: gradientBackground,
         color: theme.palette.text.primary,
-        overflow: "hidden",
+        overflowX: "hidden",
       }}
     >
-      <Container maxWidth="lg" sx={{ p: { xs: 2, sm: 6 } }}>
+      {/* Header */}
+      <Container maxWidth="lg">
         <Box
           sx={{
-            position: { sm: "absolute" },
-            top: 16,
-            right: 16,
-            zIndex: 1000,
             display: "flex",
-            alignItems: "center",
             justifyContent: "space-between",
-            gap: 2,
+            alignItems: "center",
+            py: 3,
           }}
         >
-          <ThemeSwitch />
-          {session && (
-            <>
-              <Typography
-                variant="h6"
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Image
+              src="/Logo_Withtext.png"
+              alt="SalaryApp Logo"
+              width={isSmallScreen ? 120 : 160}
+              height={isSmallScreen ? 40 : 50}
+              style={{
+                filter:
+                  theme.palette.mode === "dark"
+                    ? "brightness(0) invert(1)"
+                    : "none",
+              }}
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {session && (
+              <Chip
+                avatar={<Avatar>{userName.charAt(0).toUpperCase()}</Avatar>}
+                label={userName}
+                variant="outlined"
                 sx={{
-                  fontSize: { xs: "0.9rem", sm: "1.1rem" },
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  mr: 1,
+                  borderColor: alpha(theme.palette.primary.main, 0.2),
+                  fontWeight: 500,
+                }}
+              />
+            )}
+            <ThemeSwitch />
+            {session && (
+              <Tooltip title="Sign Out">
+                <IconButton
+                  onClick={() => (window.location.href = "/api/auth/signout")}
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    "&:hover": {
+                      bgcolor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                  }}
+                >
+                  <Logout fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        </Box>
+      </Container>
+
+      {/* Hero Section */}
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
+        <Grid container spacing={6} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <motion.div
+              ref={heroRef}
+              initial="hidden"
+              animate={heroControls}
+              variants={fadeInUp}
+            >
+              <Typography
+                variant="h1"
+                sx={{
+                  fontSize: { xs: "2.5rem", md: "3.5rem" },
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  mb: 3,
                 }}
               >
-                Hello, {userName}!
+                Modern Payroll, EPF/ETF Management Made Simple
               </Typography>
-              <Tooltip title="Sign Out">
-                <Link href="/api/auth/signout">
-                  <IconButton color="inherit">
-                    <Logout />
-                  </IconButton>
-                </Link>
-              </Tooltip>
-            </>
-          )}
-        </Box>
+              <Typography
+                variant="body1"
+                sx={{
+                  fontSize: "1.2rem",
+                  color: theme.palette.text.secondary,
+                  mb: 4,
+                  maxWidth: 600,
+                }}
+              >
+                Effortlessly handle salaries, attendance, and
+                government-mandated EPF/ETF contributions—all in one platform.
+              </Typography>
 
-        {/* Hero Section */}
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={sectionVariants}
-        >
-          <Box
-            sx={{
-              textAlign: "center",
-              mb: 8,
-              pt: { xs: 4, sm: 5 },
-              px: 2,
-            }}
-          >
-            <div className="flex justify-center mb-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+              {status === "loading" ? (
+                <Box display="flex" alignItems="center" gap={2}>
+                  <CircularProgress size={24} />
+                  <Typography>Loading...</Typography>
+                </Box>
+              ) : (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Link
+                    href={
+                      session
+                        ? "/user?userPageSelect=mycompanies"
+                        : "/api/auth/signin"
+                    }
+                  >
+                    <Button
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      endIcon={<ArrowForward />}
+                      sx={{
+                        px: 4,
+                        py: 1.5,
+                        borderRadius: 2,
+                        fontSize: "1rem",
+                      }}
+                      component={motion.div}
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {session ? "Go to Dashboard" : "Get Started Free"}
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={() => alert("Demo coming soon!")}
+                    startIcon={<PlayCircleOutline />}
+                    sx={{
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 2,
+                      fontSize: "1rem",
+                    }}
+                    component={motion.div}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Watch Demo
+                  </Button>
+                </Stack>
+              )}
+
+              <Stack
+                direction="row"
+                spacing={3}
+                sx={{ mt: 4, flexWrap: "wrap" }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    fontWeight: 500,
+                  }}
+                >
+                  <CheckCircleOutline color="success" fontSize="small" />
+                  No setup fees
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    fontWeight: 500,
+                  }}
+                >
+                  <CheckCircleOutline color="success" fontSize="small" />
+                  3-months free
+                </Typography>
+              </Stack>
+            </motion.div>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8 }}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  height: { xs: 300, md: 400 },
+                }}
               >
                 <Image
-                  className="m-0 sm:mr-10"
-                  src="/Logo_Withtext.png"
-                  alt="SalaryApp Logo"
-                  width={isSmallScreen ? 300 : 400}
-                  height={isSmallScreen ? 300 : 400}
-                  style={{
-                    padding: 0,
-                  }}
+                  src="/payroll.png"
+                  alt="Payroll illustration"
+                  fill
+                  style={{ objectFit: "contain" }}
+                  priority
                 />
-              </motion.div>
-            </div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-            >
-              <Typography
-                variant="h2"
-                sx={{
-                  fontSize: { xs: "2rem", sm: "2.5rem", md: "3.5rem" },
-                  fontWeight: 700,
-                  color: theme.palette.text.primary,
-                  mb: { xs: 1, sm: 2 },
-                  lineHeight: 1.2,
-                }}
-              >
-                Effortless Payroll, EPF/ETF, Payslips & Staff Management
-              </Typography>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontSize: { xs: "1rem", sm: "1.2rem", md: "1.6rem" },
-                  color: theme.palette.text.secondary,
-                  mb: { xs: 3, sm: 4 },
-                  maxWidth: 800,
-                  mx: "auto",
-                  px: { xs: 2, sm: 0 }, // Add horizontal padding for mobile
-                }}
-              >
-                Simplify salary calculations, generate accurate EPF/ETF reports,
-                create instant payslips, and manage your team with ease.
-              </Typography>
-            </motion.div>
-            {status === "loading" ? (
-              <Box
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                sx={{ mt: 4, mb: 2 }}
-              >
-                <CircularProgress color="primary" />
-                <Typography
-                  variant="h5"
-                  sx={{
-                    ml: 2,
-                    fontSize: { xs: "1.5rem", md: "1.8rem" },
-                    color: theme.palette.text.secondary,
-                  }}
-                >
-                  Loading...
-                </Typography>
-              </Box>
-            ) : session ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: { xs: "column", sm: "row" },
-                    gap: 2,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    mx: 3,
-                  }}
-                >
-                  <Button
-                    variant="contained"
-                    size="large"
-                    sx={{
-                      fontSize: "1.1rem",
-                      px: 4,
-                      py: 1.5,
-                      borderRadius: 8,
-                      background: theme.palette.primary.main,
-                      boxShadow: "0px 6px 20px rgba(0, 123, 255, 0.4)",
-                      transition: "transform 0.3s, box-shadow 0.3s",
-                      ":hover": {
-                        transform: "scale(1.05)",
-                        background: theme.palette.primary.dark,
-                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.6)",
-                      },
-                      width: { xs: "100%", sm: "auto" },
-                    }}
-                    href={"/user?userPageSelect=mycompanies"}
-                    endIcon={<ArrowForward />}
-                  >
-                    My Companies
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    sx={{
-                      fontSize: "1.1rem",
-                      px: 4,
-                      py: 1.5,
-                      borderRadius: 8,
-                      borderColor: theme.palette.primary.main,
-                      color: theme.palette.primary.main,
-                      transition: "transform 0.3s, box-shadow 0.3s",
-                      ":hover": {
-                        transform: "scale(1.05)",
-                        background: "rgba(0, 123, 255, 0.1)",
-                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.2)",
-                      },
-                      width: { xs: "100%", sm: "auto" },
-                    }}
-                    onClick={() =>
-                      alert(
-                        "We Are working on Providing the Demo in the near future! Stay tuned!"
-                      )
-                    }
-                    startIcon={<PlayCircleOutline />}
-                  >
-                    Watch a Demo
-                  </Button>
-                </Box>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: { xs: "column", sm: "row" },
-                    gap: 2,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    mx: 3,
-                  }}
-                >
-                  <Button
-                    variant="contained"
-                    size="large"
-                    sx={{
-                      fontSize: "1.1rem",
-                      px: 4,
-                      py: 1.5,
-                      borderRadius: 8,
-                      background: theme.palette.primary.main,
-                      boxShadow: "0px 6px 20px rgba(0, 123, 255, 0.4)",
-                      transition: "transform 0.3s, box-shadow 0.3s",
-                      ":hover": {
-                        transform: "scale(1.05)",
-                        background: theme.palette.primary.dark,
-                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.6)",
-                      },
-                      width: { xs: "100%", sm: "auto" },
-                    }}
-                    href={"/api/auth/signin"}
-                    endIcon={<ArrowForward />}
-                  >
-                    Get Started
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    sx={{
-                      fontSize: "1.1rem",
-                      px: 4,
-                      py: 1.5,
-                      borderRadius: 8,
-                      borderColor: theme.palette.primary.main,
-                      color: theme.palette.primary.main,
-                      transition: "transform 0.3s, box-shadow 0.3s",
-                      ":hover": {
-                        transform: "scale(1.05)",
-                        background: "rgba(0, 123, 255, 0.1)",
-                        boxShadow: "0px 8px 25px rgba(0, 123, 255, 0.2)",
-                      },
-                      width: { xs: "100%", sm: "auto" },
-                    }}
-                    onClick={() =>
-                      alert(
-                        "We Are working on Providing the Demo in the near future! Stay tuned!"
-                      )
-                    }
-                    startIcon={<PlayCircleOutline />}
-                  >
-                    Watch a Demo
-                  </Button>
-                </Box>
-              </motion.div>
-            )}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mt: 4,
-                  gap: 1,
-                }}
-              >
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontSize: { xs: "1rem", md: "1.1rem" },
-                    color: theme.palette.text.secondary,
-                    fontWeight: 500,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <CheckCircleOutline sx={{ color: "success.main" }} />
-                  No setup fees.
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontSize: { xs: "1rem", md: "1.1rem" },
-                    color: theme.palette.text.secondary,
-                    fontWeight: 500,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <CheckCircleOutline sx={{ color: "success.main" }} />
-                  3-months free access!
-                </Typography>
               </Box>
             </motion.div>
-          </Box>
-        </motion.div>
+          </Grid>
+        </Grid>
+      </Container>
 
-        {/* Features Section */}
-        <Box sx={{ mt: 10, mb: 8 }}>
+      {/* Stats Section */}
+      <Box sx={{ py: 6, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+        <Container maxWidth="lg">
           <motion.div
+            ref={statsRef}
             initial="hidden"
-            animate="visible"
-            variants={sectionVariants}
+            animate={statsControls}
+            variants={staggerContainer}
+          >
+            <Grid container spacing={4}>
+              {stats.map((stat, index) => (
+                <Grid item xs={12} sm={4} key={index}>
+                  <motion.div variants={fadeInUp}>
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        p: 3,
+                      }}
+                    >
+                      <Typography
+                        variant="h3"
+                        sx={{
+                          fontWeight: 700,
+                          mb: 1,
+                          color: theme.palette.primary.main,
+                        }}
+                      >
+                        {stat.value}
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 500,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 1,
+                        }}
+                      >
+                        {stat.icon} {stat.label}
+                      </Typography>
+                    </Box>
+                  </motion.div>
+                </Grid>
+              ))}
+            </Grid>
+          </motion.div>
+        </Container>
+      </Box>
+
+      {/* Features Section */}
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Box textAlign="center" sx={{ mb: 6 }}>
+          <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: "primary.main",
+                fontWeight: 600,
+                letterSpacing: 1,
+                fontSize: "1rem",
+                mb: 2,
+                display: "inline-block",
+              }}
+            >
+              Features
+            </Typography>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 700,
+                mb: 2,
+              }}
+            >
+              Everything You Need
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: theme.palette.text.secondary,
+                maxWidth: 600,
+                mx: "auto",
+                fontSize: "1.1rem",
+              }}
+            >
+              Comprehensive tools to simplify your payroll process
+            </Typography>
+          </motion.div>
+        </Box>
+
+        <motion.div
+          ref={featuresRef}
+          initial="hidden"
+          animate={featuresControls}
+          variants={staggerContainer}
+        >
+          <Grid container spacing={4}>
+            {features.map((feature, index) => (
+              <Grid item xs={12} sm={6} md={2.4} key={index}>
+                <motion.div variants={fadeInUp}>
+                  <Box
+                    sx={{
+                      p: 3,
+                      height: "100%",
+                      borderRadius: 2,
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mb: 3,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        color: theme.palette.primary.main,
+                      }}
+                    >
+                      {feature.icon}
+                    </Box>
+                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+                      {feature.title}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: theme.palette.text.secondary }}
+                    >
+                      {feature.description}
+                    </Typography>
+                  </Box>
+                </motion.div>
+              </Grid>
+            ))}
+          </Grid>
+        </motion.div>
+      </Container>
+
+      {/* CTA Section */}
+      <Box sx={{ py: 8, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+        <Container maxWidth="md" sx={{ textAlign: "center" }}>
+          <motion.div
+            ref={ctaRef}
+            initial="hidden"
+            animate={ctaControls}
+            variants={fadeInUp}
           >
             <Typography
               variant="h3"
-              textAlign="center"
               sx={{
-                mb: 6,
-                fontSize: { xs: "2rem", md: "3rem" },
                 fontWeight: 700,
-                color: theme.palette.text.primary,
+                mb: 3,
               }}
             >
-              Discover Our Powerful Features
+              Ready to Simplify Your Payroll?
             </Typography>
-          </motion.div>
-          <Grid container spacing={4} justifyContent="center">
-            {/* Feature 1: Smart Attendance & OT */}
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.5 }}
-                variants={itemVariants}
-              >
-                <Box
-                  textAlign="center"
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    backgroundColor: theme.palette.background.paper,
-                    boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    "&:hover": {
-                      transform: "translateY(-5px)",
-                      boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.2)",
-                    },
-                  }}
-                >
-                  <AccessTime
-                    sx={{
-                      fontSize: 60,
-                      color: theme.palette.primary.main,
-                      mb: 2,
-                    }}
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Smart Attendance & OT
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: theme.palette.text.secondary }}
-                  >
-                    Handles In/Out records, identifies working days, and
-                    calculates overtime, holiday pay, and special allowances.
-                  </Typography>
-                </Box>
-              </motion.div>
-            </Grid>
-
-            {/* Feature 2: Automated Payroll Generation */}
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.5 }}
-                variants={itemVariants}
-                transition={{ delay: 0.1 }}
-              >
-                <Box
-                  textAlign="center"
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    backgroundColor: theme.palette.background.paper,
-                    boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    "&:hover": {
-                      transform: "translateY(-5px)",
-                      boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.2)",
-                    },
-                  }}
-                >
-                  <Payments
-                    sx={{
-                      fontSize: 60,
-                      color: theme.palette.primary.main,
-                      mb: 2,
-                    }}
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Automated Payroll
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: theme.palette.text.secondary }}
-                  >
-                    Generates monthly payslips, handles EPF/ETF calculations,
-                    and accounts for basic salary, allowances, and deductions.
-                  </Typography>
-                </Box>
-              </motion.div>
-            </Grid>
-
-            {/* Feature 3: EPF/ETF & Compliance Reporting */}
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.5 }}
-                variants={itemVariants}
-                transition={{ delay: 0.2 }}
-              >
-                <Box
-                  textAlign="center"
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    backgroundColor: theme.palette.background.paper,
-                    boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    "&:hover": {
-                      transform: "translateY(-5px)",
-                      boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.2)",
-                    },
-                  }}
-                >
-                  <Description
-                    sx={{
-                      fontSize: 60,
-                      color: theme.palette.primary.main,
-                      mb: 2,
-                    }}
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    EPF/ETF & Compliance
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: theme.palette.text.secondary }}
-                  >
-                    Find EPF reference numbers, attendance, and payroll reports
-                    to ensure full regulatory compliance.
-                  </Typography>
-                </Box>
-              </motion.div>
-            </Grid>
-
-            {/* Feature 4: Simplified AH Form Handling */}
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.5 }}
-                variants={itemVariants}
-                transition={{ delay: 0.3 }}
-              >
-                <Box
-                  textAlign="center"
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    backgroundColor: theme.palette.background.paper,
-                    boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    "&:hover": {
-                      transform: "translateY(-5px)",
-                      boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.2)",
-                    },
-                  }}
-                >
-                  <ContactMail
-                    sx={{
-                      fontSize: 60,
-                      color: theme.palette.primary.main,
-                      mb: 2,
-                    }}
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Effortless AH Forms
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: theme.palette.text.secondary }}
-                  >
-                    Generate and manage AH forms (successor to B-cards)
-                    effortlessly, ensuring compliance.
-                  </Typography>
-                </Box>
-              </motion.div>
-            </Grid>
-
-            {/* Feature 5: Streamlined Employee Management */}
-            <Grid item xs={12} sm={6} md={4} lg={2.4}>
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.5 }}
-                variants={itemVariants}
-                transition={{ delay: 0.4 }}
-              >
-                <Box
-                  textAlign="center"
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    backgroundColor: theme.palette.background.paper,
-                    boxShadow: "0px 5px 15px rgba(0, 0, 0, 0.1)",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                    "&:hover": {
-                      transform: "translateY(-5px)",
-                      boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.2)",
-                    },
-                  }}
-                >
-                  <People
-                    sx={{
-                      fontSize: 60,
-                      color: theme.palette.primary.main,
-                      mb: 2,
-                    }}
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Streamlined Staff Records
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: theme.palette.text.secondary }}
-                  >
-                    Centralized management of all employee records, simplifying
-                    organizational oversight.
-                  </Typography>
-                </Box>
-              </motion.div>
-            </Grid>
-          </Grid>
-        </Box>
-
-        {/* Contact Section */}
-        <Box textAlign="center" sx={{ mt: 10, mb: 8 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-          >
-            <Typography variant="h4" sx={{ mb: 2, fontWeight: 700 }}>
-              Connect With Us
-            </Typography>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
-          >
             <Typography
-              variant="h6"
-              sx={{ mb: 4, color: theme.palette.text.secondary }}
-            >
-              Have questions or need support? Reach out to our team:
-            </Typography>
-          </motion.div>
-
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: "1rem", sm: "1.1rem" },
-                }}
-              >
-                <Email sx={{ color: theme.palette.primary.main }} />
-                <Link href="mailto:salaryapp2025@gmail.com" passHref>
-                  <Box
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      textDecoration: "none",
-                      "&:hover": {
-                        textDecoration: "underline",
-                        color: theme.palette.primary.main,
-                      },
-                    }}
-                  >
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        fontSize: { xs: "1rem", sm: "1.1rem" },
-                        transition: "color 0.3s",
-                        "&:hover": {
-                          color: theme.palette.primary.main,
-                        },
-                      }}
-                    >
-                      salaryapp2025@gmail.com
-                    </Typography>
-                  </Box>
-                </Link>
-              </Box>
-            </motion.div>
-          </Box>
-        </Box>
-
-        {/* Footer Section */}
-        <Box textAlign="center" sx={{ mt: 8, pb: 4 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.7, ease: "easeOut" }}
-          >
-            <Typography
-              variant="body2"
-              sx={{ mb: 2, color: theme.palette.text.secondary }}
-            >
-              © {new Date().getFullYear()} SalaryApp. All rights reserved.
-            </Typography>
-            <Box
+              variant="body1"
               sx={{
-                display: "flex",
-                justifyContent: "center",
-                flexWrap: "wrap",
-                gap: 2,
+                mb: 4,
+                color: theme.palette.text.secondary,
+                fontSize: "1.1rem",
+                maxWidth: 600,
+                mx: "auto",
               }}
             >
-              <Link href="/policies/privacy" passHref>
-                <Button color="primary" variant="text" sx={{ mx: 1 }}>
-                  Privacy Policy
-                </Button>
-              </Link>
-              <Link href="/policies/terms" passHref>
-                <Button color="primary" variant="text" sx={{ mx: 1 }}>
-                  Terms of Service
-                </Button>
-              </Link>
-              <Link href="/policies/agreement" passHref>
-                <Button color="primary" variant="text" sx={{ mx: 1 }}>
-                  Agreement
-                </Button>
-              </Link>
-            </Box>
+              Join businesses that trust SalaryApp for their payroll needs.
+            </Typography>
+            <Link
+              href={
+                session
+                  ? "/user?userPageSelect=mycompanies"
+                  : "/api/auth/signin"
+              }
+            >
+              <Button
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForward />}
+                sx={{
+                  px: 5,
+                  py: 1.5,
+                  borderRadius: 2,
+                }}
+                component={motion.div}
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {session ? "Go to Dashboard" : "Start Free Trial"}
+              </Button>
+            </Link>
           </motion.div>
+        </Container>
+      </Box>
+
+      {/* Footer */}
+      <Container maxWidth="lg" sx={{ py: 6 }} ref={footerRef}>
+        <Divider sx={{ mb: 4 }} />
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Image
+              src="/Logo_Withtext.png"
+              alt="SalaryApp Logo"
+              width={120}
+              height={40}
+              style={{
+                filter:
+                  theme.palette.mode === "dark"
+                    ? "brightness(0) invert(1)"
+                    : "none",
+              }}
+            />
+          </Box>
+          <Typography
+            variant="body2"
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            © SalaryApp 2025. All rights reserved.
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            <Link href="/policies/privacy" passHref>
+              <Button variant="text" size="small">
+                Privacy
+              </Button>
+            </Link>
+            <Link href="/policies/terms" passHref>
+              <Button variant="text" size="small">
+                Terms
+              </Button>
+            </Link>
+            <Link href="/policies/agreement" passHref>
+              <Button variant="text" size="small">
+                Agreement
+              </Button>
+            </Link>
+          </Stack>
         </Box>
 
-        {session?.user.role === "admin" && (
-          <Box textAlign="center" sx={{ mt: 4 }}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
-            >
-              <Link href="/admin">
-                <Button variant="contained">Admin Dashboard</Button>
-              </Link>
-            </motion.div>
-          </Box>
+        {session?.user?.role === "admin" && (
+          <motion.div
+            initial="hidden"
+            animate={footerControls}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: {
+                opacity: 1,
+                y: 0,
+                transition: {
+                  duration: 0.6,
+                  ease: [0.16, 1, 0.3, 1],
+                  delay: 0.3,
+                },
+              },
+            }}
+            style={{ textAlign: "center", marginTop: "2rem" }}
+          >
+            <Link href="/admin" passHref>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AdminPanelSettings />}
+                component={motion.div}
+                whileHover={{
+                  y: -2,
+                  scale: 1.02,
+                  boxShadow: theme.shadows[4],
+                }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Admin Dashboard
+              </Button>
+            </Link>
+          </motion.div>
         )}
       </Container>
-    </main>
+    </Box>
   );
 }
