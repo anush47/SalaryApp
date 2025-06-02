@@ -11,6 +11,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "SalaryApp",
   description: "Payroll, EPF/ETF Management Made Simple",
+  manifest: "/manifest.ts",
+  metadataBase: new URL("https://salaryapp.vercel.app"),
+  themeColor: "#000000",
+  viewport:
+    "width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover",
 };
 
 export default function RootLayout({

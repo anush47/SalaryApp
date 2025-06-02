@@ -30,6 +30,7 @@
     "next": "^14.2.5",
     "next-app": "file:",
     "next-auth": "^4.24.7",
+    "next-pwa": "^5.6.0",
     "pdf-lib": "^1.17.1",
     "react": "^18",
     "react-dom": "^18",
