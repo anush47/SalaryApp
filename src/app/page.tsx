@@ -294,7 +294,7 @@ export default function LandingPage() {
                       whileHover={{ y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {session ? "Go to Dashboard" : "Get Started Free"}
+                      {session ? "Goto My Companies" : "Get Started Free"}
                     </Button>
                   </Link>
                   <Button
@@ -568,7 +568,7 @@ export default function LandingPage() {
                 whileHover={{ y: -2, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {session ? "Go to Dashboard" : "Start Free Trial"}
+                {session ? "Goto My Companies" : "Start Free Trial"}
               </Button>
             </Link>
           </motion.div>
@@ -657,7 +657,7 @@ export default function LandingPage() {
                 }}
                 whileTap={{ scale: 0.98 }}
               >
-                Admin Dashboard
+                Admin Page
               </Button>
             </Link>
           </motion.div>
