@@ -200,7 +200,7 @@ const HelpContent = ({ searchQuery }: HelpContentProps) => {
           color="textSecondary"
           sx={{ textAlign: "center", mt: 5 }}
         >
-          No results found for "{searchQuery}" in{" "}
+          No results found for &quot;{searchQuery}&quot; in{" "}
           {currentLanguage.toUpperCase()} content.
         </Typography>
       )}
