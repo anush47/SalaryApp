@@ -87,7 +87,7 @@ export const ViewUploadedInOutBtn = ({
         onClick={() => setOpenDialog(true)}
         disabled={!inOut || inOut === ""}
       >
-        View In-Out
+        View Uploaded In-Out
       </Button>
       {inOut && inOut !== "" && (
         <ViewUploadedInOutDialog
