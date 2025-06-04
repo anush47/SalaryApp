@@ -1,3 +1,14 @@
+import { CheckCircle, Upload } from "@mui/icons-material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+  useTheme,
+} from "@mui/material";
+
 export const handleCsvUpload = async (file: File): Promise<string> => {
   try {
     const reader = new FileReader();
@@ -27,4 +38,101 @@ export const handleCsvUpload = async (file: File): Promise<string> => {
         : "An unexpected error occurred during file upload or processing"
     );
   }
+};
+
+export const UploadInOutBtn = ({
+  inOut,
+  setInOut,
+}: {
+  inOut: string;
+  setInOut: (value: string) => void;
+}) => {
+  return (
+    <Button
+      variant="outlined"
+      color="primary"
+      component="label"
+      startIcon={inOut ? <CheckCircle /> : <Upload />}
+    >
+      {inOut ? "Re-Upload In-Out CSV" : "Upload In-Out CSV"}
+      <input
+        type="file"
+        accept=".csv"
+        hidden
+        onChange={async (event) => {
+          if (event.target.files && event.target.files[0]) {
+            const _inOut = await handleCsvUpload(event.target.files[0]);
+            setInOut(_inOut);
+          }
+        }}
+      />
+    </Button>
+  );
+};
+
+export const ViewUploadedInOutBtn = ({
+  inOut,
+  openDialog,
+  setOpenDialog,
+}: {
+  inOut: string;
+  openDialog: boolean;
+  setOpenDialog: (value: boolean) => void;
+}) => {
+  return (
+    <>
+      <Button
+        variant="outlined"
+        color="primary"
+        onClick={() => setOpenDialog(true)}
+        disabled={!inOut || inOut === ""}
+      >
+        View In-Out
+      </Button>
+      {inOut && inOut !== "" && (
+        <ViewUploadedInOutDialog
+          openDialog={openDialog}
+          setOpenDialog={setOpenDialog}
+          inOutFetched={inOut}
+        />
+      )}
+    </>
+  );
+};
+
+export const ViewUploadedInOutDialog = (props: {
+  inOutFetched: string | React.ReactNode;
+  openDialog: boolean;
+  setOpenDialog: (value: boolean) => void;
+}) => {
+  const { inOutFetched, openDialog, setOpenDialog } = props;
+  const theme = useTheme();
+  //const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
+
+  return (
+    <Dialog
+      open={openDialog}
+      onClose={() => setOpenDialog(false)}
+      maxWidth={"xl"}
+      fullWidth
+    >
+      <DialogTitle>Fetched In-Out</DialogTitle>
+      <DialogContent>
+        {typeof inOutFetched === "string"
+          ? inOutFetched
+              .split("\n")
+              .map((line, index) => <Typography key={index}>{line}</Typography>)
+          : inOutFetched}
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={() => {
+            setOpenDialog(false);
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };

@@ -30,13 +30,11 @@ import {
   Edit,
   ExpandMore,
   ShoppingBag,
-  Upload,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { LoadingButton } from "@mui/lab";
-import { handleCsvUpload } from "../salaries/csvUpload";
-import { SimpleDialog } from "../salaries/inOutTable";
+import { UploadInOutBtn, ViewUploadedInOutBtn } from "../salaries/csvUpload";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Company } from "../../clientComponents/companiesDataGrid";
@@ -576,50 +574,14 @@ const QuickTools = ({
                     </FormControl>
 
                     <FormControl fullWidth>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        component="label"
-                        startIcon={<Upload />}
-                        fullWidth
-                        size="large"
-                        sx={{ borderRadius: 1 }}
-                      >
-                        Upload In-Out CSV
-                        <input
-                          type="file"
-                          accept=".csv"
-                          hidden
-                          onChange={async (event) => {
-                            if (event.target.files && event.target.files[0]) {
-                              const _inOut = await handleCsvUpload(
-                                event.target.files[0]
-                              );
-                              setInOut(_inOut);
-                            }
-                          }}
-                        />
-                      </Button>
+                      <UploadInOutBtn inOut={inOut} setInOut={setInOut} />
                     </FormControl>
                     <FormControl fullWidth>
-                      <Button
-                        variant="outlined"
-                        color="secondary"
-                        onClick={() => setOpenDialog(true)}
-                        disabled={!inOut || inOut === ""}
-                        fullWidth
-                        size="large"
-                        sx={{ borderRadius: 1 }}
-                      >
-                        View In-Out Data
-                      </Button>
-                      {inOut && (
-                        <SimpleDialog
-                          inOutFetched={inOut}
-                          openDialog={openDialog}
-                          setOpenDialog={setOpenDialog}
-                        />
-                      )}
+                      <ViewUploadedInOutBtn
+                        inOut={inOut}
+                        openDialog={openDialog}
+                        setOpenDialog={setOpenDialog}
+                      />
                     </FormControl>
                   </Stack>
                 </Paper>
@@ -657,7 +619,7 @@ const QuickTools = ({
                       size="large"
                       sx={{ borderRadius: 1 }}
                     >
-                      Generate All Documents
+                      Auto Generate
                     </LoadingButton>
                     {autoGenProgress > 0 && (
                       <Box sx={{ width: "100%", mr: 1 }}>
@@ -691,7 +653,7 @@ const QuickTools = ({
                         id="individual-generation-header"
                       >
                         <Typography variant="subtitle1">
-                          Individual Generation Options
+                          Step by Step Generation
                         </Typography>
                       </AccordionSummary>
                       <AccordionDetails>

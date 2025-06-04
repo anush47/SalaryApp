@@ -18,11 +18,11 @@ import {
 import React, { useEffect, useState } from "react";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
 import { Salary } from "./salariesDataGrid";
-import { Autorenew, CheckCircle, Save, Upload } from "@mui/icons-material";
+import { Autorenew, Save } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
-import { handleCsvUpload } from "./csvUpload";
+import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
-import { InOutTable, SimpleDialog } from "./inOutTable";
+import { InOutTable } from "./inOutTable";
 
 const GenerateSalaryOne = ({
   period,
@@ -489,47 +489,16 @@ const GenerateSalaryOne = ({
               <>
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      component="label"
-                      startIcon={inOut ? <CheckCircle /> : <Upload />}
-                    >
-                      Upload In-Out CSV
-                      <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        onChange={async (event) => {
-                          if (event.target.files && event.target.files[0]) {
-                            const _inOut = await handleCsvUpload(
-                              event.target.files[0]
-                            );
-                            setInOut(_inOut);
-                          }
-                        }}
-                      />
-                    </Button>
+                    <UploadInOutBtn inOut={inOut} setInOut={setInOut} />
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
-                    {/* show fetched inout in a dialog */}
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      onClick={() => setOpenDialog(true)}
-                      disabled={!inOut || inOut === ""}
-                    >
-                      View In-Out
-                    </Button>
-                    {inOut && inOut !== "" && (
-                      <SimpleDialog
-                        openDialog={openDialog}
-                        setOpenDialog={setOpenDialog}
-                        inOutFetched={inOut}
-                      />
-                    )}
+                    <ViewUploadedInOutBtn
+                      inOut={inOut}
+                      openDialog={openDialog}
+                      setOpenDialog={setOpenDialog}
+                    />
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={4}>
