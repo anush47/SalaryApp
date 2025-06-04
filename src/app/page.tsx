@@ -15,9 +15,12 @@ import {
   alpha,
   Avatar,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { motion, useAnimation, useInView } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import {
   CheckCircleOutline,
   AccessTime,
@@ -31,11 +34,13 @@ import {
   Business,
   AdminPanelSettings,
   RequestPage,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { ThemeSwitch } from "./theme-provider";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+const LazyDemoContent = lazy(() => import("./help/DemoContent"));
 
 export default function LandingPage() {
   const theme = useTheme();
@@ -58,6 +63,11 @@ export default function LandingPage() {
   const isFeaturesInView = useInView(featuresRef, { once: true, amount: 0.1 });
   const isCtaInView = useInView(ctaRef, { once: true, amount: 0.1 });
   const isFooterInView = useInView(footerRef, { once: true, amount: 0.1 });
+
+  const [openDemoModal, setOpenDemoModal] = useState(false);
+
+  const handleOpenDemoModal = () => setOpenDemoModal(true);
+  const handleCloseDemoModal = () => setOpenDemoModal(false);
 
   useEffect(() => {
     if (isHeroInView) heroControls.start("visible");
@@ -300,7 +310,7 @@ export default function LandingPage() {
                   <Button
                     variant="outlined"
                     size="large"
-                    onClick={() => alert("Demo coming soon!")}
+                    onClick={handleOpenDemoModal}
                     startIcon={<PlayCircleOutline />}
                     sx={{
                       px: 4,
@@ -623,6 +633,11 @@ export default function LandingPage() {
                 Agreement
               </Button>
             </Link>
+            {/* <Link href="/help" passHref>
+              <Button variant="text" size="small">
+                Need Help ?
+              </Button>
+            </Link> */}
           </Stack>
         </Box>
 
@@ -663,6 +678,67 @@ export default function LandingPage() {
           </motion.div>
         )}
       </Container>
+
+      <Dialog
+        open={openDemoModal}
+        onClose={handleCloseDemoModal}
+        maxWidth="lg"
+        fullWidth
+        scroll="paper"
+        sx={{
+          "& .MuiDialog-paper": {
+            borderRadius: 3,
+            bgcolor: theme.palette.background.default,
+            boxShadow: theme.shadows[10],
+            position: "relative",
+            overflow: "hidden",
+          },
+        }}
+      >
+        <DialogActions
+          sx={{
+            justifyContent: "flex-end",
+            p: 1,
+            position: "absolute",
+            top: 0,
+            right: 0,
+            zIndex: 1,
+            bgcolor: "transparent",
+          }}
+        >
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseDemoModal}
+            sx={{
+              color: theme.palette.grey[500],
+              "&:hover": {
+                color: theme.palette.primary.main,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogActions>
+        <DialogContent dividers>
+          <Suspense
+            fallback={
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  minHeight: 200,
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <LazyDemoContent />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
