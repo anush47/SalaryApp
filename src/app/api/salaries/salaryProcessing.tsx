@@ -282,14 +282,13 @@ export const processSalaryWithInOut = async (
         day.setUTCDate(outDate.getUTCDate() + 1);
       }
 
+      const shift = shifts[0] || {
+        start: "08:00", // Default shift start time
+        end: "17:00", // Default shift end time
+        break: 1, // Default break time in hours
+      };
       // If no records exist for this day, create a record with shift start as both in and out times
       if (!dayHasRecord && !gen) {
-        const shift = {
-          start: "08:00", // Default shift start time
-          end: "17:00", // Default shift end time
-          break: 1, // Default break time in hours
-        };
-
         if (shift) {
           const inDate = new Date(day); // Mark the in time as the start of the shift
 
@@ -302,6 +301,14 @@ export const processSalaryWithInOut = async (
       }
 
       // Move to the next day
+      if (shift && shift.start) {
+        const [startHour, startMinute] = shift.start.split(":").map(Number);
+        day.setUTCHours(!isNaN(startHour) ? startHour : 8);
+        day.setUTCMinutes(!isNaN(startMinute) ? startMinute : 0);
+      } else {
+        day.setUTCHours(8);
+        day.setUTCMinutes(0);
+      }
       day.setUTCDate(day.getUTCDate() + 1);
     }
   }
