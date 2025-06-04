@@ -633,11 +633,11 @@ export default function LandingPage() {
                 Agreement
               </Button>
             </Link>
-            <Link href="/help" passHref>
+            {/* <Link href="/help" passHref>
               <Button variant="text" size="small">
                 Need Help ?
               </Button>
-            </Link>
+            </Link> */}
           </Stack>
         </Box>
 
