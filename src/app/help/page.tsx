@@ -95,6 +95,7 @@ const HelpPage = () => {
                 display={"flex"}
                 justifyContent={"space-between"}
                 alignItems="center"
+                sx={{ mb: 2 }}
               >
                 <Typography variant="h5" sx={{ fontWeight: "bold", mb: 2 }}>
                   Help & Support
@@ -118,7 +119,7 @@ const HelpPage = () => {
                 >
                   <LanguageSelector />
                 </Box>
-                <Box sx={{ width: { xs: "100%", sm: "60%" } }}>
+                <Box sx={{ width: { xs: "100%", sm: "66%" } }}>
                   <SearchBar
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
@@ -162,19 +163,18 @@ const HelpPage = () => {
                   />
                 </Grid>
               </Grid>
+              <Divider sx={{ my: 2 }} />
 
               <Box mt={4} textAlign="center">
                 <Typography variant="body2" color="textSecondary" mb={1}>
                   If you need further assistance, please contact our support
                   team:
                 </Typography>
-                <Button
-                  variant="text"
-                  component="a"
-                  href="mailto:salaryapp2025@gmail.com"
-                >
-                  salaryapp2025@gmail.com
-                </Button>
+                <Link href="mailto:salaryapp2025@gmail.com">
+                  <Typography variant="body1" color="textSecondary" mb={1}>
+                    salaryapp2025@gmail.com
+                  </Typography>
+                </Link>
               </Box>
               <Box mt={4} textAlign="center">
                 <Link href="/">

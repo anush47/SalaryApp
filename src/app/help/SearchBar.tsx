@@ -179,7 +179,7 @@ const SearchBar = ({
       <Box sx={{ mb: 4, position: "relative" }}>
         <TextField
           fullWidth
-          variant="outlined"
+          variant="filled"
           placeholder="Search help topics..."
           value={searchQuery}
           onChange={handleChange}

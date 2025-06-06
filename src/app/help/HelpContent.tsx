@@ -20,42 +20,6 @@ const HelpContent = ({
   const { currentLanguage } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filterContent = (
-    content: string | string[] | undefined,
-    query: string
-  ) => {
-    if (!content) return [];
-    if (Array.isArray(content)) {
-      return content.filter(
-        (paragraph) =>
-          typeof paragraph === "string" &&
-          paragraph.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-    return typeof content === "string" &&
-      content.toLowerCase().includes(query.toLowerCase())
-      ? [content]
-      : [];
-  };
-
-  const highlightText = (text: string, query: string) => {
-    if (!query) return text;
-    const parts = text.split(new RegExp(`(${query})`, "gi"));
-    return (
-      <>
-        {parts.map((part, i) =>
-          part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={i} style={{ backgroundColor: "yellow" }}>
-              {part}
-            </mark>
-          ) : (
-            part
-          )
-        )}
-      </>
-    );
-  };
-
   // Flatten sections and subsections into a linear array for navigation
   const flattenedSections: { id: string; title: string }[] = [];
   helpContentData.forEach((section) => {
@@ -106,9 +70,7 @@ const HelpContent = ({
 
   // Prepare content to display
   const sectionContent = currentSection.content[currentLanguage] || "";
-  const displayContent = searchQuery
-    ? filterContent(sectionContent, searchQuery)
-    : Array.isArray(sectionContent)
+  const displayContent = Array.isArray(sectionContent)
     ? sectionContent
     : typeof sectionContent === "string"
     ? [sectionContent]
@@ -174,20 +136,17 @@ const HelpContent = ({
         <Typography
           variant={isSubsection ? "h6" : "h5"}
           sx={{ fontWeight: "bold", mb: 2 }}
-        >
-          {highlightText(
-            currentSection.title[currentLanguage] || "",
-            searchQuery
-          )}
-        </Typography>
+          dangerouslySetInnerHTML={{
+            __html: currentSection.title[currentLanguage] || "",
+          }}
+        />
         {displayContent.map((paragraph, idx) => (
           <Typography
             key={idx}
             variant={isSubsection ? "body2" : "body1"}
             paragraph
-          >
-            {highlightText(paragraph, searchQuery)}
-          </Typography>
+            dangerouslySetInnerHTML={{ __html: paragraph }}
+          />
         ))}
       </Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>

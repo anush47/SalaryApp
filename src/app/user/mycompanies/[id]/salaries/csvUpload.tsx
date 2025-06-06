@@ -55,7 +55,7 @@ export const UploadInOutBtn = ({
       direction="row"
       alignItems="flex-start"
       justifyContent="space-between"
-      spacing={1}
+      spacing={0.5}
       width="100%"
     >
       <Tooltip title="Choose in-out csv file to Upload">
@@ -81,12 +81,13 @@ export const UploadInOutBtn = ({
         </Button>
       </Tooltip>
       <Tooltip title="Help with in-out csv format">
-        <IconButton
+        <Button
+          variant="outlined"
           color="primary"
-          onClick={() => window.open("/help/inout-csv", "_blank")}
+          onClick={() => window.open("/help?section=in-out-csv", "_blank")}
         >
           <LiveHelpOutlined />
-        </IconButton>
+        </Button>
       </Tooltip>
     </Stack>
   );
