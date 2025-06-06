@@ -10,6 +10,7 @@ interface HelpSubsection {
   id: string;
   title: LocalizedString;
   content: LocalizedContent;
+  imageUrl?: LocalizedString;
 }
 
 interface HelpSection {
@@ -17,6 +18,7 @@ interface HelpSection {
   title: LocalizedString;
   videoUrl?: LocalizedString;
   content: LocalizedContent;
+  imageUrl?: LocalizedString;
   subsections?: HelpSubsection[];
 }
 
@@ -57,6 +59,9 @@ export const helpContentData: HelpSection[] = [
         "SalaryApp වෙත සාදරයෙන් පිළිගනිමු! ආරම්භ කිරීමට, ඔබගේ Google ගිණුම භාවිතයෙන් පුරනය වන්න. ඔබට ගිණුමක් නොමැති නම්, ඔබට පහසුවෙන් එකක් සෑදිය හැක.",
         "පුරනය වූ පසු, ඔබට ඔබගේ වැටුප් විස්තර කළමනාකරණය කළ හැකි උපකරණ පුවරුව වෙත යොමු කරනු ඇත.",
       ],
+    },
+    imageUrl: {
+      en: "/Logo.png",
     },
   },
   {
