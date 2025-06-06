@@ -23,7 +23,7 @@ const Agreement = () => {
       <Card sx={{ p: { xs: 1, sm: 5 }, borderRadius: 4, boxShadow: 6 }}>
         <CardContent>
           <Typography
-            variant="h4"
+            variant="h5"
             component="h1"
             sx={{ fontWeight: "bold", mb: 2 }}
           >

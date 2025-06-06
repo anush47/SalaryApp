@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, Tooltip } from "@mui/material";
 import { useLanguage } from "../context/LanguageContext";
 import { helpContentData } from "./helpData";
+import { ArrowBack, ArrowForward } from "@mui/icons-material";
 
 interface HelpContentProps {
   searchQuery: string;
@@ -120,6 +121,36 @@ const HelpContent = ({
       ? flattenedSections[currentIndex + 1]
       : null;
 
+  const NavigateButton = ({
+    section,
+    isForward = true,
+  }: {
+    section: { title: string; id: string };
+    isForward?: boolean;
+  }) => (
+    <Tooltip title={"Goto : " + section.title}>
+      <Button
+        variant="text"
+        onClick={() => setSelectedSectionId(section.id)}
+        startIcon={!isForward ? <ArrowBack /> : undefined}
+        endIcon={isForward ? <ArrowForward /> : undefined}
+      >
+        <Typography
+          variant="inherit"
+          fontSize="12px"
+          sx={{
+            maxWidth: "150px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {section.title}
+        </Typography>
+      </Button>
+    </Tooltip>
+  );
+
   return (
     <Box>
       <Box id={currentSection.id} sx={{ mb: 4 }}>
@@ -144,25 +175,11 @@ const HelpContent = ({
       </Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
         {prevSection ? (
-          <Button
-            variant="contained"
-            onClick={() => setSelectedSectionId(prevSection.id)}
-          >
-            {"<"} Previous: {prevSection.title}
-          </Button>
+          <NavigateButton section={prevSection} isForward={false} />
         ) : (
           <Box />
         )}
-        {nextSection ? (
-          <Button
-            variant="contained"
-            onClick={() => setSelectedSectionId(nextSection.id)}
-          >
-            Next: {nextSection.title} {">"}
-          </Button>
-        ) : (
-          <Box />
-        )}
+        {nextSection && <NavigateButton section={nextSection} />}
       </Box>
     </Box>
   );

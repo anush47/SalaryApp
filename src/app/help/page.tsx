@@ -18,6 +18,7 @@ import LanguageSelector from "./LanguageSelector";
 import SearchBar from "./SearchBar";
 import HelpIndex from "./HelpIndex";
 import HelpContent from "./HelpContent";
+import { ThemeSwitch } from "../theme-provider";
 
 const HelpPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,10 +50,16 @@ const HelpPage = () => {
           </Box>
           <Card sx={{ p: { xs: 1, sm: 5 }, borderRadius: 4, boxShadow: 6 }}>
             <CardContent>
-              <Typography variant="h4" sx={{ fontWeight: "bold", mb: 2 }}>
-                Help & Support
-              </Typography>
-              <Divider sx={{ mb: 3 }} />
+              <Box
+                display={"flex"}
+                justifyContent={"space-between"}
+                alignItems="center"
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold", mb: 2 }}>
+                  Help & Support
+                </Typography>
+                <ThemeSwitch />
+              </Box>
               <Box
                 sx={{
                   display: "flex",
@@ -78,14 +85,35 @@ const HelpPage = () => {
                   />
                 </Box>
               </Box>
-              <Grid container spacing={4}>
-                <Grid item xs={12} md={4}>
+              <Grid
+                container
+                spacing={4}
+                alignItems="stretch"
+                sx={{ position: "relative" }}
+              >
+                <Grid
+                  item
+                  xs={12}
+                  md={4}
+                  sx={{
+                    borderRight: { xs: "none", md: "1px solid" },
+                    borderColor: "divider",
+                    paddingRight: { md: 2 },
+                  }}
+                >
                   <HelpIndex
                     selectedSectionId={selectedSectionId}
                     setSelectedSectionId={setSelectedSectionId}
                   />
                 </Grid>
-                <Grid item xs={12} md={8}>
+                <Grid
+                  item
+                  xs={12}
+                  md={8}
+                  sx={{
+                    paddingTop: { xs: 2, md: 0 },
+                  }}
+                >
                   <HelpContent
                     searchQuery={searchQuery}
                     selectedSectionId={selectedSectionId}
@@ -93,6 +121,7 @@ const HelpPage = () => {
                   />
                 </Grid>
               </Grid>
+
               <Box mt={4} textAlign="center">
                 <Typography variant="body2" color="textSecondary" mb={1}>
                   If you need further assistance, please contact our support

@@ -1,3 +1,5 @@
+"use client";
+import { ThemeSwitch } from "@/app/theme-provider";
 import {
   Box,
   Typography,
@@ -6,16 +8,21 @@ import {
   CardContent,
   Divider,
   Button,
+  useTheme,
 } from "@mui/material";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/router";
 
 export default function PrivacyPolicy() {
+  const theme = useTheme();
+  const gradientBackground =
+    theme.palette.mode === "dark"
+      ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
+      : "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)";
   return (
     <main
       style={{
-        background: "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)",
+        background: gradientBackground,
         paddingBottom: "2rem",
       }}
     >
@@ -30,13 +37,20 @@ export default function PrivacyPolicy() {
         </Box>
         <Card sx={{ p: { xs: 1, sm: 5 }, borderRadius: 4, boxShadow: 6 }}>
           <CardContent>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{ fontWeight: "bold", mb: 2 }}
+            <Box
+              display={"flex"}
+              justifyContent={"space-between"}
+              alignItems="center"
             >
-              Privacy Policy
-            </Typography>
+              <Typography
+                variant="h5"
+                component="h1"
+                sx={{ fontWeight: "bold", mb: 2 }}
+              >
+                Privacy Policy
+              </Typography>
+              <ThemeSwitch />
+            </Box>
             <Divider sx={{ mb: 3 }} />
             <Typography variant="body1" paragraph sx={{ lineHeight: 1.8 }}>
               Welcome to SalaryApp! This Privacy Policy outlines how we handle
