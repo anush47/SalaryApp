@@ -8,6 +8,9 @@ import {
   Divider,
   Typography,
   Grid,
+  useTheme,
+  Link,
+  Button,
 } from "@mui/material";
 import Image from "next/image";
 import { LanguageProvider } from "../context/LanguageContext";
@@ -18,12 +21,20 @@ import HelpContent from "./HelpContent";
 
 const HelpPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
+    null
+  );
+  const theme = useTheme();
+  const gradientBackground =
+    theme.palette.mode === "dark"
+      ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
+      : "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)";
 
   return (
     <LanguageProvider>
       <main
         style={{
-          background: "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)",
+          background: gradientBackground,
           paddingBottom: "2rem",
         }}
       >
@@ -63,17 +74,45 @@ const HelpPage = () => {
                   <SearchBar
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
+                    setSelectedSectionId={setSelectedSectionId}
                   />
                 </Box>
               </Box>
               <Grid container spacing={4}>
                 <Grid item xs={12} md={4}>
-                  <HelpIndex />
+                  <HelpIndex
+                    selectedSectionId={selectedSectionId}
+                    setSelectedSectionId={setSelectedSectionId}
+                  />
                 </Grid>
                 <Grid item xs={12} md={8}>
-                  <HelpContent searchQuery={searchQuery} />
+                  <HelpContent
+                    searchQuery={searchQuery}
+                    selectedSectionId={selectedSectionId}
+                    setSelectedSectionId={setSelectedSectionId}
+                  />
                 </Grid>
               </Grid>
+              <Box mt={4} textAlign="center">
+                <Typography variant="body2" color="textSecondary" mb={1}>
+                  If you need further assistance, please contact our support
+                  team:
+                </Typography>
+                <Button
+                  variant="text"
+                  component="a"
+                  href="mailto:salaryapp2025@gmail.com"
+                >
+                  salaryapp2025@gmail.com
+                </Button>
+              </Box>
+              <Box mt={4} textAlign="center">
+                <Link href="/">
+                  <Button variant="contained" color="primary" sx={{ my: 1 }}>
+                    Go Back to Home
+                  </Button>
+                </Link>
+              </Box>
             </CardContent>
           </Card>
         </Container>

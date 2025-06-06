@@ -1,22 +1,21 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Typography,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-} from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { Box, Typography, Button } from "@mui/material";
 import { useLanguage } from "../context/LanguageContext";
 import { helpContentData } from "./helpData";
 
 interface HelpContentProps {
   searchQuery: string;
+  selectedSectionId: string | null;
+  setSelectedSectionId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-const HelpContent = ({ searchQuery }: HelpContentProps) => {
+const HelpContent = ({
+  searchQuery,
+  selectedSectionId,
+  setSelectedSectionId,
+}: HelpContentProps) => {
   const { currentLanguage } = useLanguage();
 
   const filterContent = (
@@ -55,155 +54,116 @@ const HelpContent = ({ searchQuery }: HelpContentProps) => {
     );
   };
 
-  const filteredSections = helpContentData.filter((section) => {
-    const title = section.title[currentLanguage] || "";
-    const content = section.content[currentLanguage];
-
-    const matchesTitle = title
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesContent = Array.isArray(content)
-      ? content.some(
-          (p) =>
-            typeof p === "string" &&
-            p.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : typeof content === "string" &&
-        content.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesSubsections = section.subsections?.some((sub) => {
-      const subTitle = sub.title[currentLanguage] || "";
-      const subContent = sub.content[currentLanguage];
-      return (
-        subTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (Array.isArray(subContent)
-          ? subContent.some(
-              (p) =>
-                typeof p === "string" &&
-                p.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-          : typeof subContent === "string" &&
-            subContent.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+  // Flatten sections and subsections into a linear array for navigation
+  const flattenedSections: { id: string; title: string }[] = [];
+  helpContentData.forEach((section) => {
+    flattenedSections.push({
+      id: section.id,
+      title: section.title[currentLanguage] || "",
     });
-
-    return matchesTitle || matchesContent || matchesSubsections;
+    if (section.subsections) {
+      section.subsections.forEach((sub) => {
+        flattenedSections.push({
+          id: sub.id,
+          title: sub.title[currentLanguage] || "",
+        });
+      });
+    }
   });
+
+  // Find index of selectedSectionId or default to 0
+  const currentIndex = selectedSectionId
+    ? flattenedSections.findIndex((s) => s.id === selectedSectionId)
+    : 0;
+
+  // Get current section or subsection data
+  let currentSection = null;
+  let isSubsection = false;
+  for (const section of helpContentData) {
+    if (section.id === selectedSectionId) {
+      currentSection = section;
+      isSubsection = false;
+      break;
+    }
+    if (section.subsections) {
+      const sub = section.subsections.find(
+        (sub) => sub.id === selectedSectionId
+      );
+      if (sub) {
+        currentSection = sub;
+        isSubsection = true;
+        break;
+      }
+    }
+  }
+  // If no selectedSectionId or not found, default to first section
+  if (!currentSection) {
+    currentSection = helpContentData[0];
+    isSubsection = false;
+  }
+
+  // Prepare content to display
+  const sectionContent = currentSection.content[currentLanguage] || "";
+  const displayContent = searchQuery
+    ? filterContent(sectionContent, searchQuery)
+    : Array.isArray(sectionContent)
+    ? sectionContent
+    : typeof sectionContent === "string"
+    ? [sectionContent]
+    : [];
+
+  // Get previous and next section ids and titles
+  const prevSection =
+    currentIndex > 0 ? flattenedSections[currentIndex - 1] : null;
+  const nextSection =
+    currentIndex < flattenedSections.length - 1
+      ? flattenedSections[currentIndex + 1]
+      : null;
 
   return (
     <Box>
-      {filteredSections.map((section) => {
-        const sectionTitle =
-          section.title[currentLanguage as keyof typeof section.title] || "";
-        const sectionContent =
-          section.content[currentLanguage as keyof typeof section.content] ||
-          "";
-        const sectionVideoUrl =
-          section.videoUrl?.[currentLanguage] || section.videoUrl?.en; // Fallback to English video
-
-        const displayContent = searchQuery
-          ? filterContent(sectionContent, searchQuery)
-          : Array.isArray(sectionContent)
-          ? sectionContent
-          : typeof sectionContent === "string"
-          ? [sectionContent]
-          : [];
-
-        if (
-          displayContent.length === 0 &&
-          !sectionVideoUrl &&
-          !section.subsections?.length
-        ) {
-          return null; // Don't render section if no content matches search and no video/subsections
-        }
-
-        return (
-          <Box key={section.id} id={section.id} sx={{ mb: 4 }}>
-            <Accordion defaultExpanded={searchQuery !== ""}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                  {highlightText(sectionTitle, searchQuery)}
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                {section.id === "overview-video" && sectionVideoUrl && (
-                  <Box
-                    sx={{ mb: 3, display: "flex", justifyContent: "center" }}
-                  >
-                    <iframe
-                      width="800" // Increased width for better visibility
-                      height="450" // Adjusted height for 16:9 aspect ratio
-                      src={sectionVideoUrl}
-                      title={sectionTitle}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                      style={{ border: "none" }}
-                    ></iframe>
-                  </Box>
-                )}
-                {displayContent.map((paragraph, idx) => (
-                  <Typography key={idx} variant="body1" paragraph>
-                    {highlightText(paragraph, searchQuery)}
-                  </Typography>
-                ))}
-
-                {section.subsections &&
-                  section.subsections.map((sub) => {
-                    const subTitle = sub.title[currentLanguage] || "";
-                    const subContent = sub.content[currentLanguage];
-
-                    const displaySubContent = searchQuery
-                      ? filterContent(subContent, searchQuery)
-                      : Array.isArray(subContent)
-                      ? subContent
-                      : typeof subContent === "string"
-                      ? [subContent]
-                      : [];
-
-                    if (
-                      displaySubContent.length === 0 &&
-                      !subTitle
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                    ) {
-                      return null; // Don't render subsection if no content matches search
-                    }
-
-                    return (
-                      <Box
-                        key={sub.id}
-                        id={sub.id}
-                        sx={{ mt: 3, pl: 2, borderLeft: "2px solid #eee" }}
-                      >
-                        <Typography
-                          variant="h6"
-                          sx={{ fontWeight: "medium", mb: 1 }}
-                        >
-                          {highlightText(subTitle, searchQuery)}
-                        </Typography>
-                        {displaySubContent.map((paragraph, idx) => (
-                          <Typography key={idx} variant="body2" paragraph>
-                            {highlightText(paragraph, searchQuery)}
-                          </Typography>
-                        ))}
-                      </Box>
-                    );
-                  })}
-              </AccordionDetails>
-            </Accordion>
-          </Box>
-        );
-      })}
-      {filteredSections.length === 0 && searchQuery && (
+      <Box id={currentSection.id} sx={{ mb: 4 }}>
         <Typography
-          variant="h6"
-          color="textSecondary"
-          sx={{ textAlign: "center", mt: 5 }}
+          variant={isSubsection ? "h6" : "h5"}
+          sx={{ fontWeight: "bold", mb: 2 }}
         >
-          No results found for &quot;{searchQuery}&quot; in{" "}
-          {currentLanguage.toUpperCase()} content.
+          {highlightText(
+            currentSection.title[currentLanguage] || "",
+            searchQuery
+          )}
         </Typography>
-      )}
+        {displayContent.map((paragraph, idx) => (
+          <Typography
+            key={idx}
+            variant={isSubsection ? "body2" : "body1"}
+            paragraph
+          >
+            {highlightText(paragraph, searchQuery)}
+          </Typography>
+        ))}
+      </Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
+        {prevSection ? (
+          <Button
+            variant="contained"
+            onClick={() => setSelectedSectionId(prevSection.id)}
+          >
+            {"<"} Previous: {prevSection.title}
+          </Button>
+        ) : (
+          <Box />
+        )}
+        {nextSection ? (
+          <Button
+            variant="contained"
+            onClick={() => setSelectedSectionId(nextSection.id)}
+          >
+            Next: {nextSection.title} {">"}
+          </Button>
+        ) : (
+          <Box />
+        )}
+      </Box>
     </Box>
   );
 };

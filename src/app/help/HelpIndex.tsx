@@ -13,10 +13,19 @@ import {
 import { useLanguage } from "../context/LanguageContext";
 import { helpContentData } from "./helpData";
 
-const HelpIndex = () => {
+interface HelpIndexProps {
+  selectedSectionId: string | null;
+  setSelectedSectionId: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
+const HelpIndex = ({
+  selectedSectionId,
+  setSelectedSectionId,
+}: HelpIndexProps) => {
   const { currentLanguage } = useLanguage();
 
-  const scrollToSection = (id: string) => {
+  const handleSectionClick = (id: string) => {
+    setSelectedSectionId(id);
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -42,7 +51,10 @@ const HelpIndex = () => {
         {helpContentData.map((section) => (
           <React.Fragment key={section.id}>
             <ListItem disablePadding>
-              <ListItemButton onClick={() => scrollToSection(section.id)}>
+              <ListItemButton
+                onClick={() => handleSectionClick(section.id)}
+                selected={selectedSectionId === section.id}
+              >
                 <ListItemText
                   primary={section.title[currentLanguage]}
                   primaryTypographyProps={{ fontWeight: "medium" }}
@@ -52,7 +64,10 @@ const HelpIndex = () => {
             {section.subsections &&
               section.subsections.map((sub) => (
                 <ListItem key={sub.id} disablePadding sx={{ pl: 2 }}>
-                  <ListItemButton onClick={() => scrollToSection(sub.id)}>
+                  <ListItemButton
+                    onClick={() => handleSectionClick(sub.id)}
+                    selected={selectedSectionId === sub.id}
+                  >
                     <ListItemText
                       primary={sub.title[currentLanguage]}
                       primaryTypographyProps={{ variant: "body2" }}
