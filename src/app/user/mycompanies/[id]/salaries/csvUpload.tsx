@@ -1,10 +1,13 @@
-import { CheckCircle, Upload } from "@mui/icons-material";
+import { CheckCircle, LiveHelpOutlined, Upload } from "@mui/icons-material";
 import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
+  Stack,
+  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -48,25 +51,44 @@ export const UploadInOutBtn = ({
   setInOut: (value: string) => void;
 }) => {
   return (
-    <Button
-      variant="outlined"
-      color="primary"
-      component="label"
-      startIcon={inOut ? <CheckCircle /> : <Upload />}
+    <Stack
+      direction="row"
+      alignItems="flex-start"
+      justifyContent="space-between"
+      spacing={1}
+      width="100%"
     >
-      {inOut ? "Re-Upload In-Out CSV" : "Upload In-Out CSV"}
-      <input
-        type="file"
-        accept=".csv"
-        hidden
-        onChange={async (event) => {
-          if (event.target.files && event.target.files[0]) {
-            const _inOut = await handleCsvUpload(event.target.files[0]);
-            setInOut(_inOut);
-          }
-        }}
-      />
-    </Button>
+      <Tooltip title="Choose in-out csv file to Upload">
+        <Button
+          variant="outlined"
+          color="primary"
+          component="label"
+          fullWidth
+          startIcon={inOut ? <CheckCircle /> : <Upload />}
+        >
+          {inOut ? "Re-Upload In-Out CSV" : "Upload In-Out CSV"}
+          <input
+            type="file"
+            accept=".csv"
+            hidden
+            onChange={async (event) => {
+              if (event.target.files && event.target.files[0]) {
+                const _inOut = await handleCsvUpload(event.target.files[0]);
+                setInOut(_inOut);
+              }
+            }}
+          />
+        </Button>
+      </Tooltip>
+      <Tooltip title="Help with in-out csv format">
+        <IconButton
+          color="primary"
+          onClick={() => window.open("/help/inout-csv", "_blank")}
+        >
+          <LiveHelpOutlined />
+        </IconButton>
+      </Tooltip>
+    </Stack>
   );
 };
 
