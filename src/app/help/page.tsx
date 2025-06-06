@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Card,
@@ -21,6 +22,9 @@ import HelpContent from "./HelpContent";
 import { ThemeSwitch } from "../theme-provider";
 
 const HelpPage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
     null
@@ -30,6 +34,43 @@ const HelpPage = () => {
     theme.palette.mode === "dark"
       ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
       : "linear-gradient(300deg, #F2FCFF 0%, #B3DBE6 100%)";
+
+  // On mount, read query params and set selectedSectionId
+  useEffect(() => {
+    const sectionID = searchParams.get("sectionID");
+    const section = searchParams.get("section");
+    if (section) {
+      setSelectedSectionId(section);
+    } else if (sectionID) {
+      setSelectedSectionId(sectionID);
+    }
+  }, [searchParams]);
+
+  // Update URL query params when selectedSectionId changes
+  useEffect(() => {
+    if (!selectedSectionId) return;
+    const section = searchParams.get("section");
+
+    // Only update if different to avoid infinite loop
+    if (selectedSectionId !== section) {
+      const newParams = new URLSearchParams(searchParams.toString());
+      // We can set section to selectedSectionId and clear sectionID for clarity
+      newParams.set("section", selectedSectionId);
+      newParams.delete("sectionID");
+
+      const newUrl = `${window.location.pathname}?${newParams.toString()}`;
+      router.replace(newUrl);
+    }
+  }, [selectedSectionId, router, searchParams]);
+
+  // Scroll to element with selectedSectionId on change
+  useEffect(() => {
+    if (!selectedSectionId) return;
+    const element = document.getElementById(selectedSectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedSectionId]);
 
   return (
     <LanguageProvider>

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { Box, Typography, Button, Tooltip } from "@mui/material";
 import { useLanguage } from "../context/LanguageContext";
 import { helpContentData } from "./helpData";
@@ -18,6 +18,7 @@ const HelpContent = ({
   setSelectedSectionId,
 }: HelpContentProps) => {
   const { currentLanguage } = useLanguage();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const filterContent = (
     content: string | string[] | undefined,
@@ -151,8 +152,24 @@ const HelpContent = ({
     </Tooltip>
   );
 
+  // Scroll to selected section inside the container
+  useEffect(() => {
+    if (!selectedSectionId) return;
+    if (!containerRef.current) return;
+
+    const element = containerRef.current.querySelector(
+      `#${selectedSectionId}`
+    ) as HTMLElement | null;
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedSectionId]);
+
   return (
-    <Box>
+    <Box
+      ref={containerRef}
+      sx={{ maxHeight: "70vh", overflowY: "auto", pr: 2 }}
+    >
       <Box id={currentSection.id} sx={{ mb: 4 }}>
         <Typography
           variant={isSubsection ? "h6" : "h5"}
