@@ -86,7 +86,7 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
       icon: <LocalAtm />,
     },
     {
-      name: "Payments",
+      name: "EPF/ETF Payments",
       key: "payments",
       icon: <Payments />,
     },

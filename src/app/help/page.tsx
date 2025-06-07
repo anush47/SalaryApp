@@ -12,6 +12,7 @@ import {
   useTheme,
   Link,
   Button,
+  Alert,
 } from "@mui/material";
 import Image from "next/image";
 import { LanguageProvider } from "../context/LanguageContext";
@@ -100,7 +101,12 @@ const HelpPage = () => {
                 <Typography variant="h5" sx={{ fontWeight: "bold", mb: 2 }}>
                   Help & Support
                 </Typography>
-                <ThemeSwitch />
+                <Box display={"flex"}>
+                  <Alert severity="warning" sx={{ mr: 2 }}>
+                    This section is still under development.
+                  </Alert>
+                  <ThemeSwitch />
+                </Box>
               </Box>
               <Box
                 sx={{

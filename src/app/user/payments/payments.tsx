@@ -9,16 +9,9 @@ import {
   Button,
   Box,
   CircularProgress,
-  IconButton,
-  useTheme,
-  useMediaQuery,
-  Slide,
-  Dialog,
-  DialogContent,
 } from "@mui/material";
-import { Add, Check, Done, Edit } from "@mui/icons-material";
+import { Done, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 
 // Lazily load SalariesDataGrid and AddSalaryForm
 const PaymentsDataGrid = lazy(() => import("./paymentsDataGrid"));
@@ -64,7 +57,7 @@ const Payments = ({
                 }}
               >
                 <Typography variant="h4" component="h1">
-                  Payments
+                  EPF/ETF Payments
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   {isEditing ? (

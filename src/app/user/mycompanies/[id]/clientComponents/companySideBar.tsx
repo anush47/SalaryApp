@@ -97,7 +97,7 @@ const CompanySideBar: React.FC<Props> = ({
       icon: <LocalAtm />,
     },
     {
-      name: "Payments",
+      name: "EPF/ETF Payments",
       key: "payments",
       icon: <Payments />,
     },

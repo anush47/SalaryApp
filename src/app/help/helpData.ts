@@ -27,22 +27,6 @@ export const availableLanguages = [
   { code: "si", name: "Sinhala" },
 ];
 
-export const mainVideoSection: HelpSection = {
-  id: "overview-video",
-  title: {
-    en: "Watch Our Quick Start Video",
-    si: "අපගේ ඉක්මන් ආරම්භක වීඩියෝව නරඹන්න",
-  },
-  videoUrl: {
-    en: "https://www.youtube.com/embed/StWSpZHF998?si=7iEoPGTE70EXKZ0h",
-    si: "https://www.youtube.com/embed/sinhala-video-id", // Placeholder
-  },
-  content: {
-    en: "This video provides a comprehensive overview of SalaryApp's core functionalities for new employers.",
-    si: "මෙම වීඩියෝව නව සේවා යෝජකයින් සඳහා SalaryApp හි මූලික ක්‍රියාකාරකම් පිළිබඳ පුළුල් දළ විශ්ලේෂණයක් සපයයි.",
-  },
-};
-
 export const helpContentData: HelpSection[] = [
   {
     id: "getting-started",
@@ -52,7 +36,7 @@ export const helpContentData: HelpSection[] = [
     },
     content: {
       en: [
-        "Let’s get started! Just click on <b>“Get Started”</b> to begin.",
+        "Let`s get started! Just click on <b>“Get Started”</b> to begin.",
         "Now, select <b>“Continue with Google”</b> to log in using your Google account.",
         "Pick your Google account, and continue to sign in.",
         "Once you're in, click on <b>“Go to My Companies”</b> to see your list of companies.",
@@ -89,35 +73,6 @@ export const helpContentData: HelpSection[] = [
         "දැන්, නව සමාගම ක්ලික් කර එහි විස්තර විවෘත කරන්න.",
       ],
     },
-    subsections: [
-      {
-        id: "company-details",
-        title: {
-          en: "2.1. Configuring Company Details",
-          si: "2.1. සමාගම් විස්තර වින්‍යාස කිරීම",
-        },
-        content: {
-          en: [
-            "Next, click on <b>“Company Details”</b> to view everything about your company.",
-            "Need to make a change? Click <b>“Edit”</b> to update the company info.",
-            "Click on <b>“Payment Structure”</b> to check or update your company’s default salary setup.",
-            "You can set default amounts for salary components to match how your company works. Need to tweak something? Add a new earning or deduction. You can also remove anything that doesn’t apply. Want it to affect total earnings and EPF/ETF? Just tick the checkbox.",
-            "Click on <b>“Shifts”</b> to set up or manage your work schedules.",
-            "Then click <b>“Working Days”</b> to update which days your company operates.",
-            "Don’t forget to hit <b>“Save”</b> to apply the changes.",
-          ],
-          si: [
-            "ඊළඟට, ඔබගේ සමාගමේ සියලු විස්තර බැලීමට <b>“Company Details”</b> ක්ලික් කරන්න.",
-            " වෙනස් කිරීමට අවශ්‍යද? සමාගම පිළිබඳ තොරතුරු යාවත්කාලීන කිරීමට <b>“Edit”</b> ක්ලික් කරන්න.",
-            "<b>“Payment Structure”</b> ක්ලික් කර ඔබේ සමාගමේ මුල් වැටුප් සැකසුම පරීක්ෂා කරන්න හෝ යාවත්කාලීන කරන්න.",
-            "සමාගමේ ක්‍රමයට ගැළපෙන වැටුප් කොටස් සඳහා පූර්වනිර්ණිත මුදල් සැකසිය හැක. වෙනස් කිරීමට අවශ්‍යද? අලුත් ආදායමක් හෝ අඩු කිරීමක් එක් කරන්න. අදාළ නොවන දේ ඉවත් කළ හැක. මෙය මුළු ආදායමට සහ EPF/ETF වෙත බලපාන්න කැමතිද? චෙක්බොක්ස් එක සලකුණු කරන්න.",
-            "<b>“Shifts”</b> ක්ලික් කර වැඩ කාලසටහන් සකස් හෝ කළමනාකරණය කරන්න.",
-            "පසුව, සමාගම කටයුතු කරන දින යාවත්කාලීන කිරීමට <b>“Working Days”</b> ක්ලික් කරන්න.",
-            "වෙනස්කම් සුරකින්න <b>“Save”</b> ක්ලික් කරන්න මතක ඇතුව.",
-          ],
-        },
-      },
-    ],
   },
   {
     id: "managing-employees",
@@ -147,29 +102,6 @@ export const helpContentData: HelpSection[] = [
         "<b>“Overrides”</b> ක්ලික් කර මෙම සේවකයා සඳහා ගෙවීම් ව්‍යුහය හෝ මාරු සැකසුම් විශේෂාංග අභිරුචිකරණය කරන්න.",
         "මෙහිදී ඔබ පුද්ගල සේවකයෙකුට සමාගමේ මූලික සැකසුම් වටහා දිය හැක.",
         "සම්පූර්ණද? සේවක විස්තර සුරැකිමට <b>“Add”</b> ක්ලික් කරන්න.",
-      ],
-    },
-  },
-  {
-    id: "quick-tools-and-purchases",
-    title: {
-      en: "4. Quick Tools and Purchases",
-      si: "4. ද්‍රුත මෙවලම් සහ මිළදී ගැනීම්",
-    },
-    content: {
-      en: [
-        "From your company page, click on <b>“Quick Tools”</b>.",
-        "Here you can upload your employee In-Out CSV files for quick processing.",
-        "Simply drag and drop your CSV files to upload.",
-        "You can also generate EPF and ETF reports from here with just one click.",
-        "Want to buy a license or renew? Click <b>“Buy License”</b> and follow the instructions.",
-      ],
-      si: [
-        "ඔබේ සමාගම පිටුවෙන්, <b>“Quick Tools”</b> ක්ලික් කරන්න.",
-        "මෙහි ඔබේ සේවක In-Out CSV ගොනු ඉක්මනින් සැකසීමට උඩුගත කළ හැක.",
-        "CSV ගොනු ඇල්ලී නවත්වන්න සහ උඩුගත කරන්න.",
-        "එතැනින් EPF සහ ETF වාර්තා එක් ක්ලික් එකකින් ජනනය කළ හැක.",
-        "ලයිසන්සයක් මිළදී ගැනීමට හෝ නවීකරණය කිරීමට අවශ්‍යද? <b>“Buy License”</b> ක්ලික් කර උපදෙස් පිළිපදින්න.",
       ],
     },
   },

@@ -356,7 +356,7 @@ const NewPaymentForm = ({
                   </IconButton>
                 </Tooltip>
                 <Typography variant="h4" component="h1">
-                  New Payment
+                  New EPF/ETF Payment
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

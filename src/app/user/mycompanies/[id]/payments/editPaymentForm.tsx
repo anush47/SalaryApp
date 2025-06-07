@@ -424,7 +424,7 @@ const EditPaymentForm: React.FC<{
                   </IconButton>
                 </Tooltip>
                 <Typography variant="h4" component="h1">
-                  Payment Details
+                  EPF/ETF Payment Details
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

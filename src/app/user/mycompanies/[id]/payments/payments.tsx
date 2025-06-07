@@ -86,7 +86,7 @@ const Payments = ({
                   }}
                 >
                   <Typography variant="h4" component="h1">
-                    Payments
+                    EPF/ETF Payments
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {isEditing ? (
