@@ -81,6 +81,27 @@ const PaymentsDataGrid: React.FC<{
       field: "companyName",
       headerName: "Company",
       flex: 1,
+      renderCell: (params) => {
+        return (
+          <Link
+            href={`/user/mycompanies/${
+              //find companyId from payments
+              payments.find((payment) => payment.id === params.id)?.company
+            }`}
+          >
+            <Button
+              variant="text"
+              color="primary"
+              size="small"
+              onClick={() => {
+                console.log(params);
+              }}
+            >
+              {params.value}
+            </Button>
+          </Link>
+        );
+      },
     },
     {
       field: "companyEmployerNo",
