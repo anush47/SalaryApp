@@ -847,7 +847,7 @@ const QuickTools = ({
                         id="payments-header"
                       >
                         <Typography variant="h6" component="h2">
-                          Payments for {period}
+                          EPF/ETF Payments for {period}
                         </Typography>
                       </AccordionSummary>
                       <AccordionDetails>
