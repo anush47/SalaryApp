@@ -35,6 +35,8 @@ import {
   AdminPanelSettings,
   RequestPage,
   Close as CloseIcon,
+  Email,
+  WhatsApp,
 } from "@mui/icons-material";
 import { ThemeSwitch } from "./theme-provider";
 import { useSession } from "next-auth/react";
@@ -584,6 +586,75 @@ export default function LandingPage() {
           </motion.div>
         </Container>
       </Box>
+
+      {/* Contact Us Section */}
+      <Container maxWidth="lg" sx={{ textAlign: "center", py: 8 }}>
+        <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 700,
+              mb: 3,
+            }}
+          >
+            Contact Us
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              mb: 4,
+              color: theme.palette.text.secondary,
+              fontSize: "1.1rem",
+              maxWidth: 600,
+              mx: "auto",
+            }}
+          >
+            Have questions or need support? Reach out to us!
+          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            justifyContent="center"
+          >
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<Email />}
+              href="mailto:salaryapp2025@gmail.com"
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: 2,
+                fontSize: "1rem",
+              }}
+              component={motion.a}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Email Us
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<WhatsApp />}
+              href="https://wa.me/+94717539478"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: 2,
+                fontSize: "1rem",
+              }}
+              component={motion.a}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              WhatsApp Us
+            </Button>
+          </Stack>
+        </motion.div>
+      </Container>
 
       {/* Footer */}
       <Container maxWidth="lg" sx={{ py: 6 }} ref={footerRef}>
