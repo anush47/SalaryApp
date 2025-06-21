@@ -32,7 +32,8 @@ export default function CreateUserDialog({
     setOpen(false);
     // setError(null); // Removed
     // setSuccess(null); // Removed
-    if (formVisible === false) { // if form was hidden due to success
+    if (formVisible === false) {
+      // if form was hidden due to success
       setTimeout(() => {
         window.location.reload();
       }, 1000); // Shorter delay as snackbar is already shown
@@ -67,11 +68,14 @@ export default function CreateUserDialog({
         throw new Error(data.message || "An error occurred");
       }
 
-      showSnackbar({ message: `${data.user.name} created successfully`, severity: 'success' });
+      showSnackbar({
+        message: `${data.user.name} created successfully`,
+        severity: "success",
+      });
       setFormVisible(false); // Hide the form inputs, dialog can be closed or will reload
       // No need to call handleClose here, user will click OK or Cancel
     } catch (error) {
-      showSnackbar({ message: (error as Error).message, severity: 'error' });
+      showSnackbar({ message: (error as Error).message, severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -87,56 +91,59 @@ export default function CreateUserDialog({
     >
       <DialogTitle>Create User</DialogTitle>
       <DialogContent>
-        {/* Removed local success/error Alert components */}
-        {/* <Box mb={2}>{error && <Alert severity="error">{error}</Alert>}</Box> */} {/* Removed */}
         {formVisible ? (
           <>
             <TextField
               autoFocus
-                  margin="dense"
-                  id="name"
-                  name="name"
-                  label="Name"
-                  type="text"
-                  fullWidth
-                  variant="standard"
-                />
-                <TextField
-                  autoFocus
-                  margin="dense"
-                  id="email"
-                  name="email"
-                  label="Email"
-                  type="text"
-                  fullWidth
-                  variant="standard"
-                />
-                <TextField
-                  required
-                  margin="dense"
-                  id="password"
-                  name="password"
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  fullWidth
-                  variant="standard"
-                  InputProps={{
-                    endAdornment: (
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    ),
-                  }}
-                />
-              </>
-            )}
+              margin="dense"
+              id="name"
+              name="name"
+              label="Name"
+              type="text"
+              fullWidth
+              variant="standard"
+            />
+            <TextField
+              autoFocus
+              margin="dense"
+              id="email"
+              name="email"
+              label="Email"
+              type="text"
+              fullWidth
+              variant="standard"
+            />
+            <TextField
+              required
+              margin="dense"
+              id="password"
+              name="password"
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              fullWidth
+              variant="standard"
+              InputProps={{
+                endAdornment: (
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                ),
+              }}
+            />
           </>
         ) : (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "100px",
+            }}
+          >
             {/* Optionally, keep a simple text message or a placeholder if form is hidden post-success */}
             {/* For now, assume dialog will be closed or reloaded */}
             <DialogActions>
