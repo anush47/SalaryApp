@@ -16,9 +16,9 @@ import {
   InputAdornment,
   FormControl,
   FormHelperText,
-  Snackbar,
-  Alert,
-  Slide,
+  // Snackbar, // Removed
+  // Alert, // Removed (ensure it's not used for other purposes)
+  Slide, // Keep if used for other transitions
   Select,
   MenuItem,
   InputLabel,
@@ -39,6 +39,7 @@ import {
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { defaultEmployee, Employee } from "./employeesDataGrid";
 import { LoadingButton } from "@mui/lab";
@@ -59,11 +60,10 @@ const AddEmployeeForm: React.FC<{
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
   const [memberNoLoading, setNameLoading] = useState<boolean>(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
   const [errors, setErrors] = useState<{
     [key: string]: string;
   }>({});
@@ -122,11 +122,10 @@ const AddEmployeeForm: React.FC<{
               },
         }));
       } catch (error) {
-        setSnackbarMessage(
-          error instanceof Error ? error.message : "Error fetching company."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -136,11 +135,12 @@ const AddEmployeeForm: React.FC<{
       fetchCompany();
       onFetchMemberNoClick();
     } else {
-      setSnackbarMessage("Invalid Company ID");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Invalid Company ID"); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [companyId, user]);
+  }, [companyId, user, showSnackbar]); // Added showSnackbar
 
   // Unified handle change for all fields
   const handleChange = (
@@ -222,30 +222,30 @@ const AddEmployeeForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Employee saved successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Employee saved successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Employee saved successfully!", severity: "success" });
 
         // Wait for 2 seconds before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Keep or adjust delay
 
         // Clear the form after successful save
         setErrors({});
         handleBackClick();
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error saving employee. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: result.message || "Error saving employee. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error saving employee:", error);
-
-      setSnackbarMessage("Error saving employee. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving employee. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error saving employee. Please try again.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -270,30 +270,31 @@ const AddEmployeeForm: React.FC<{
       setFormFields((prevFields) => ({ ...prevFields, memberNo: newMemberNo }));
 
       // Show success snackbar with the fetched name
-      setSnackbarMessage(`New Member No. - ${newMemberNo}`);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`New Member No. - ${newMemberNo}`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: `New Member No. - ${newMemberNo}`, severity: "success" });
     } catch (error) {
       console.error("Error fetching Member No:", error);
-
-      setSnackbarMessage("Error fetching Member No. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error fetching Member No. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error fetching Member No. Please try again.", severity: "error" });
     } finally {
       setNameLoading(false);
       setLoading(false);
     }
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   return (
     <>
@@ -811,22 +812,7 @@ const AddEmployeeForm: React.FC<{
         }
       </CardContent>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

@@ -19,17 +19,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Alert,
-  Snackbar,
   Chip,
 } from "@mui/material";
-import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
-import { Add, Delete } from "@mui/icons-material";
+import { Delete } from "@mui/icons-material";
 import CreateHolidaysDialog from "./CreateHolidaysDialog";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   //if null return ""
@@ -46,11 +44,7 @@ const Users = ({
   user: { name: string; email: string; role: string; image: string };
 }) => {
   const theme = useTheme();
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [holidays, setHolidays] = useState<
     {
       id: string;
@@ -197,16 +191,6 @@ const Users = ({
     // },
   ];
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
-
   interface ConfirmationDialogProps {
     open: boolean;
     onClose: (confirmed: boolean) => void;
@@ -226,23 +210,17 @@ const Users = ({
         method: "DELETE",
       });
       if (response.ok) {
-        setSnackbarMessage(`${user.name} deleted successfully`);
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        showSnackbar({ message: `${user.name} deleted successfully`, severity: "success" });
         //wait for 2 seconds and reload the page
         setTimeout(() => {
           window.location.reload();
         }, 2000);
       } else {
-        setSnackbarMessage(`Failed to delete ${user.name}`);
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({ message: `Failed to delete ${user.name}`, severity: "error" });
       }
     } catch (error) {
       console.error(error);
-      setSnackbarMessage(`Failed to delete ${user.name}`);
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar({ message: `Failed to delete ${user.name}`, severity: "error" });
     } finally {
       setReqLoading(false);
     }
@@ -256,26 +234,18 @@ const Users = ({
       if (user) {
         //if admin
         if (user.role === "admin") {
-          setSnackbarMessage(`Cannot delete admin user ID: ${id}`);
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
+          showSnackbar({ message: `Cannot delete admin user ID: ${id}`, severity: "error" });
           return;
         }
         //check if user has companies
         if (user.companies && user.companies.length > 0) {
-          setSnackbarMessage(
-            `Cannot delete ${user.name} with companies assigned.`
-          );
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
+          showSnackbar({ message: `Cannot delete ${user.name} with companies assigned.`, severity: "error" });
           return;
         }
         //delete user
         await deleteUser(user);
       } else {
-        setSnackbarMessage(`User ID: ${id} not found`);
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({ message: `User ID: ${id} not found`, severity: "error" });
       }
     }
   };
@@ -396,21 +366,6 @@ const Users = ({
           </Box>
         </CardContent>
       </Card>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
       <ConfirmationDialog
         open={deleteDialogOpen}
         onClose={handleDeleteDialogClose}

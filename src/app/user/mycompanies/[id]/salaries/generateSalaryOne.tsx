@@ -1,5 +1,5 @@
 import {
-  Alert,
+  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -9,7 +9,7 @@ import {
   FormControl,
   FormHelperText,
   Grid,
-  Snackbar,
+  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
@@ -23,6 +23,7 @@ import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const GenerateSalaryOne = ({
   period,
@@ -37,12 +38,11 @@ const GenerateSalaryOne = ({
   const [loading, setLoading] = useState(false);
   const [inOut, setInOut] = useState("");
   const [generated, setGenerated] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
   const [openDialog, setOpenDialog] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "warning" | "info"
-  >("success");
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
 
   const [formFields, setFormFields] = useState<Salary>({
     id: "",
@@ -96,11 +96,10 @@ const GenerateSalaryOne = ({
         }
         setGenerated(false);
       } catch (error) {
-        setSnackbarMessage(
-          error instanceof Error ? error.message : "Error fetching company."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -109,11 +108,12 @@ const GenerateSalaryOne = ({
     if (companyId?.length === 24) {
       fetchEmployee();
     } else {
-      setSnackbarMessage("Invalid Company ID");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Invalid Company ID"); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [employeeId]);
+  }, [employeeId, companyId, showSnackbar]); // Added companyId and showSnackbar
 
   //when period or employee changed
   useEffect(() => {
@@ -153,11 +153,10 @@ const GenerateSalaryOne = ({
         !inOut &&
         formFields.inOut.length === 0
       ) {
-        setSnackbarMessage(
-          `InOut required for calculated OT of ${employee?.name || "employee"}`
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(`InOut required for calculated OT of ${employee?.name || "employee"}`); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: `InOut required for calculated OT of ${employee?.name || "employee"}`, severity: "error" });
         return;
       }
 
@@ -191,9 +190,10 @@ const GenerateSalaryOne = ({
 
       //if data.exists then show salary for this month already exists
       if (data.exists && data.exists.length > 0) {
-        setSnackbarMessage(`Salary for ${period} already exists.`);
-        setSnackbarSeverity("warning");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(`Salary for ${period} already exists.`); // Removed
+        // setSnackbarSeverity("warning"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: `Salary for ${period} already exists.`, severity: "warning" });
         return;
       }
 
@@ -212,11 +212,10 @@ const GenerateSalaryOne = ({
         setGenerated(true);
       }
     } catch (error) {
-      setSnackbarMessage(
-        error instanceof Error ? error.message : "Error fetching Salary."
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Salary."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: error instanceof Error ? error.message : "Error fetching Salary.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -226,21 +225,22 @@ const GenerateSalaryOne = ({
   //   if (employeeId?.length === 24) {
   //     fetchSalary();
   //   } else {
-  //     setSnackbarMessage("Invalid Employee ID");
-  //     setSnackbarSeverity("error");
-  //     setSnackbarOpen(true);
+  //     // setSnackbarMessage("Invalid Employee ID"); // Removed
+  //     // setSnackbarSeverity("error"); // Removed
+  //     // setSnackbarOpen(true); // Removed
+  //     showSnackbar({ message: "Invalid Employee ID", severity: "error" });
   //   }
-  // }, [employeeId, period, inOut]);
+  // }, [employeeId, period, inOut, showSnackbar]); // Added showSnackbar
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const calculateFinalSalary = () => {
     const basic = Number(formFields.basic);
@@ -370,12 +370,13 @@ const GenerateSalaryOne = ({
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Salary record saved successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Salary record saved successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Salary record saved successfully!", severity: "success" });
 
         // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         // setFormFields({
@@ -408,18 +409,17 @@ const GenerateSalaryOne = ({
         setGenerated(false);
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error saving salary. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: result.message || "Error saving salary. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error saving salary:", error);
-
-      setSnackbarMessage("Error saving salary. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving salary. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error saving salary. Please try again.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -723,22 +723,7 @@ const GenerateSalaryOne = ({
           </Grid>
         </CardContent>
       </Card>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

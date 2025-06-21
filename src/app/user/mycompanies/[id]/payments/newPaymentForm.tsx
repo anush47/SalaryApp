@@ -2,7 +2,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Alert,
+  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -14,8 +14,8 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  Slide,
-  Snackbar,
+  Slide, // Keep if used for other transitions
+  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
@@ -39,6 +39,7 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import Link from "next/link";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const NewPaymentForm = ({
   handleBackClick,
@@ -56,11 +57,10 @@ const NewPaymentForm = ({
   );
   const [loading, setLoading] = useState(false);
   const [ReferenceLoading, setReferenceLoading] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "warning" | "info"
-  >("success");
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
 
   const [formFields, setFormFields] = useState<{
     _id: string;
@@ -114,11 +114,10 @@ const NewPaymentForm = ({
           etfPaymentMethod: data.companies[0].paymentMethod,
         });
       } catch (error) {
-        setSnackbarMessage(
-          error instanceof Error ? error.message : "Error fetching company."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -127,11 +126,12 @@ const NewPaymentForm = ({
     if (companyId?.length === 24) {
       fetchCompany();
     } else {
-      setSnackbarMessage("Invalid Company ID");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Invalid Company ID"); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [companyId]);
+  }, [companyId, formFields, showSnackbar]); // Added formFields, showSnackbar to dependencies
 
   useEffect(() => {
     const checkPurchased = async () => {
@@ -182,9 +182,10 @@ const NewPaymentForm = ({
       }
       const paymentNew = data.payment;
       if (!paymentNew) {
-        setSnackbarMessage("Payment generation failed. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Payment generation failed. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Payment generation failed. Please try again.", severity: "error" });
         return;
       }
 
@@ -193,33 +194,33 @@ const NewPaymentForm = ({
         epfAmount: paymentNew.epfAmount,
         etfAmount: paymentNew.etfAmount,
       });
-      setSnackbarMessage("Payment calculated successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Payment calculated successfully!"); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Payment calculated successfully!", severity: "success" });
       //wait 2 seconds
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       await fetchReferenceNo();
     } catch (error) {
       console.error("Error fetching payments:", error);
-      setSnackbarMessage(
-        error instanceof Error ? error.message : "Error fetching payments."
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching payments."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: error instanceof Error ? error.message : "Error fetching payments.", severity: "error" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -252,24 +253,27 @@ const NewPaymentForm = ({
       //const name = await fetchCompanyName(formFields.employerNo);
       const referenceNo = result.referenceNo;
       if (!referenceNo) {
-        setSnackbarMessage("Reference number not found. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Reference number not found. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Reference number not found. Please try again.", severity: "error" });
         return;
       }
       //show in snackbar
-      setSnackbarMessage(` Found EPF Reference No: ${referenceNo}`);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(` Found EPF Reference No: ${referenceNo}`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: `Found EPF Reference No: ${referenceNo}`, severity: "success" });
       setFormFields((prevFields) => ({
         ...prevFields,
         epfReferenceNo: referenceNo,
       }));
     } catch (error) {
       console.error("Error fetching EPF Reference No:", error);
-      setSnackbarMessage("Error fetching EPF Reference No. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error fetching EPF Reference No. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error fetching EPF Reference No. Please try again.", severity: "error" });
     } finally {
       setReferenceLoading(false);
     }
@@ -302,29 +306,29 @@ const NewPaymentForm = ({
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Payment record saved successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Payment record saved successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Payment record saved successfully!", severity: "success" });
 
         // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         setErrors({});
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error saving payment. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving payment. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: result.message || "Error saving payment. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error saving payment:", error);
-
-      setSnackbarMessage("Error saving payment. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving payment. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error saving payment. Please try again.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -818,22 +822,7 @@ const NewPaymentForm = ({
           </Grid>
         </CardContent>
       </Card>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

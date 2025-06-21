@@ -12,7 +12,7 @@ import {
   FormHelperText,
   Grid,
   IconButton,
-  Snackbar,
+  // Snackbar, // Removed
   TextField,
   Typography,
   Tooltip,
@@ -30,6 +30,7 @@ import {
   AccordionDetails,
   Accordion,
   AccordionSummary,
+  Alert, // Keep Alert if used for non-snackbar purposes, otherwise remove
 } from "@mui/material";
 import {
   Save,
@@ -51,6 +52,7 @@ import dayjs from "dayjs";
 import { Shifts } from "./shifts";
 import { WorkingDays } from "./workingDays";
 import { LoadingButton } from "@mui/lab";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 const ChangeUser = React.lazy(() => import("./ChangeUser"));
 
 const CompanyDetails = ({
@@ -62,7 +64,8 @@ const CompanyDetails = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null); // Replaced by showSnackbar for general errors
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [company, setCompany] = useState<Company>();
   const [formFields, setFormFields] = useState<Company>({
     id: "",
@@ -110,15 +113,13 @@ const CompanyDetails = ({
   });
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
   const [companyUser, setCompanyUser] = useState<{
     userName: string;
     userEmail: string;
   }>();
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "info" | "warning"
-  >("success");
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error" | "info" | "warning">("success"); // Removed
   const [errors, setErrors] = useState<{ name?: string; employerNo?: string }>(
     {}
   );
@@ -183,11 +184,8 @@ const CompanyDetails = ({
         setCompany(companyWithId);
         setFormFields(companyWithId);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
+        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -197,9 +195,10 @@ const CompanyDetails = ({
     if (companyId?.length === 24) {
       fetchCompanyAndUser();
     } else {
-      setError("Invalid ID");
+      // setError("Invalid ID"); // Removed
+      showSnackbar({ message: "Invalid ID", severity: "error" });
     }
-  }, [companyId, user]);
+  }, [companyId, user, showSnackbar]); // Added showSnackbar to dependencies
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | any> | any
@@ -323,26 +322,27 @@ const CompanyDetails = ({
       });
 
       if (response.ok) {
-        setSnackbarMessage("Company updated successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Company updated successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Company updated successfully!", severity: "success" });
         setIsEditing(false);
         const updatedCompany = await response.json();
         setCompany(updatedCompany);
       } else {
         const result = await response.json();
-        setSnackbarMessage(
-          result.message || "Error updating company. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error updating company. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: result.message || "Error updating company. Please try again.", severity: "error" });
         setIsEditing(false);
       }
     } catch (error) {
       console.error("Error updating company:", error);
-      setSnackbarMessage("Error updating company. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error updating company. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error updating company. Please try again.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -360,29 +360,35 @@ const CompanyDetails = ({
         }),
       });
       if (response.ok) {
-        setSnackbarMessage("Company deleted successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Company deleted successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Company deleted successfully!", severity: "success" });
         setDeleteDialogOpen(false);
         await new Promise((resolve) => setTimeout(resolve, 1000));
         //await
         // Redirect to the companies page
         window.location.href = "/user?userPageSelect=mycompanies";
+      } else {
+        const result = await response.json();
+        showSnackbar({ message: result.message || "Error deleting company. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error deleting company:", error);
-      setSnackbarMessage("Error deleting company. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error deleting company. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error deleting company. Please try again.", severity: "error" });
     }
   };
 
   //delete cancelation
   const handleDeleteCancelation = () => {
     //show snackbar
-    setSnackbarMessage("Delete canceled");
-    setSnackbarSeverity("info");
-    setSnackbarOpen(true);
+    // setSnackbarMessage("Delete canceled"); // Removed
+    // setSnackbarSeverity("info"); // Removed
+    // setSnackbarOpen(true); // Removed
+    showSnackbar({ message: "Delete canceled", severity: "info" });
     setDeleteDialogOpen(false);
   };
 
@@ -390,15 +396,15 @@ const CompanyDetails = ({
     setDeleteDialogOpen(true);
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const DeleteDialog = () => {
     return (
@@ -446,9 +452,10 @@ const CompanyDetails = ({
       //const name = await fetchCompanyName(formFields.employerNo);
       const name = result.name;
       if (!name) {
-        setSnackbarMessage("Employer number not found. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Employer number not found. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Employer number not found. Please try again.", severity: "error" });
         return;
       }
       setFormFields((prevFields) => ({
@@ -457,15 +464,16 @@ const CompanyDetails = ({
       }));
 
       // Show success snackbar with the fetched name
-      setSnackbarMessage(`Name found: ${name}`);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Name found: ${name}`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
       console.error("Error fetching company name:", error);
-
-      setSnackbarMessage("Error fetching company name. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error fetching company name. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error fetching company name. Please try again.", severity: "error" });
     } finally {
       setNameLoading(false);
     }
@@ -524,14 +532,14 @@ const CompanyDetails = ({
         sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
       >
         {loading && <CircularProgress />}
-        {error && (
+        {/* {error && ( // Removed general error display, handled by snackbar
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
-        )}
+        )} */}
         {
           // Display the company details with form controls if editing
-          !loading && !error && company && (
+          !loading && company && ( // Removed !error from condition
             <Grid container spacing={3}>
               <Grid item xs={12} sm={8}>
                 <FormControl fullWidth error={!!errors.name}>
@@ -1187,8 +1195,7 @@ const CompanyDetails = ({
           sx={{ width: "100%" }}
         >
           {snackbarMessage}
-        </Alert>
-      </Snackbar>
+        {/* Snackbar component removed, global one will be used */}
     </Card>
   );
 };

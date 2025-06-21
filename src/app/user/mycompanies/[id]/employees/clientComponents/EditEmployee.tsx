@@ -16,8 +16,8 @@ import {
   InputAdornment,
   FormControl,
   FormHelperText,
-  Snackbar,
-  Alert,
+  // Snackbar, // Removed
+  // Alert, // Removed (ensure it's not used for other purposes)
   Select,
   InputLabel,
   FormControlLabel,
@@ -61,6 +61,7 @@ import { WorkingDays } from "../../companyDetails/workingDays";
 import Link from "next/link";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { MenuItem } from "@mui/material";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -70,11 +71,10 @@ const EditEmployeeForm: React.FC<{
 }> = ({ user, handleBackClick, employeeId, companyId }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
   const [loading, setLoading] = useState<boolean>(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "warning" | "info"
-  >("success");
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error" | "warning" | "info">("success"); // Removed
   const [errors, setErrors] = useState<Record<string, string | any>>({});
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
@@ -139,11 +139,10 @@ const EditEmployeeForm: React.FC<{
 
         setFormFields(data.employees[0]);
       } catch (error) {
-        setSnackbarMessage(
-          error instanceof Error ? error.message : "Error fetching company."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -152,11 +151,12 @@ const EditEmployeeForm: React.FC<{
     if (companyId?.length === 24) {
       fetchEmployee();
     } else {
-      setSnackbarMessage("Invalid Company ID");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Invalid Company ID"); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [companyId, user]);
+  }, [companyId, user, employeeId, showSnackbar]); // Added employeeId and showSnackbar
 
   // Unified handle change for all fields
   const handleChange = (
@@ -230,26 +230,27 @@ const EditEmployeeForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Employee updated successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Employee updated successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Employee updated successfully!", severity: "success" });
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         setErrors({});
         handleBackClick();
       } else {
-        setSnackbarMessage(
-          result.message || "Error saving employee. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: result.message || "Error saving employee. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error saving employee:", error);
-      setSnackbarMessage("Error saving employee. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving employee. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error saving employee. Please try again.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -272,9 +273,10 @@ const EditEmployeeForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Employee deleted successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Employee deleted successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: "Employee deleted successfully!", severity: "success" });
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -282,17 +284,17 @@ const EditEmployeeForm: React.FC<{
         setErrors({});
         handleBackClick();
       } else {
-        setSnackbarMessage(
-          result.message || "Error deleting employee. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error deleting employee. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: result.message || "Error deleting employee. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error deleting employee:", error);
-      setSnackbarMessage("Error deleting employee. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error deleting employee. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Error deleting employee. Please try again.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -301,9 +303,10 @@ const EditEmployeeForm: React.FC<{
   //delete cancelation
   const handleDeleteCancelation = () => {
     //show snackbar
-    setSnackbarMessage("Delete canceled");
-    setSnackbarSeverity("info");
-    setSnackbarOpen(true);
+    // setSnackbarMessage("Delete canceled"); // Removed
+    // setSnackbarSeverity("info"); // Removed
+    // setSnackbarOpen(true); // Removed
+    showSnackbar({ message: "Delete canceled", severity: "info" });
     setDeleteDialogOpen(false);
   };
 
@@ -311,15 +314,15 @@ const EditEmployeeForm: React.FC<{
     setDeleteDialogOpen(true);
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const DeleteDialog = () => {
     return (
@@ -976,22 +979,7 @@ const EditEmployeeForm: React.FC<{
           </Button>
         </Grid>
       </CardContent>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
 
       <DeleteDialog />
     </>

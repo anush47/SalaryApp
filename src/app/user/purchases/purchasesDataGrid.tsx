@@ -7,18 +7,19 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert,
+  Alert, // Keep for general error display
   CircularProgress,
   Button,
-  Snackbar,
-  Slide,
+  // Snackbar, // Removed
+  Slide, // Keep if used for other transitions
   Chip,
 } from "@mui/material";
-import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers"; // DatePicker seems unused, consider removing
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // AdapterDayjs seems unused if DatePicker is unused
 import Link from "next/link";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -36,12 +37,11 @@ const PurchasesDataGrid: React.FC<{
 }> = ({ user, isEditingPurchaseInHome }) => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const [error, setError] = useState<string | null>(null); // For general error display
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
 
   const columns: GridColDef[] = [
     {
@@ -189,19 +189,19 @@ const PurchasesDataGrid: React.FC<{
       );
 
       // Success feedback
-      setSnackbarMessage(`Purchase updated successfully!`);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Purchase updated successfully!`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Purchase updated successfully!", severity: "success" });
 
       return newPurchase;
     } catch (error: any) {
       console.error("Error updating purchase:", error);
-      setSnackbarMessage(
-        error.message || "Error updating purchase. Please try again."
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-      throw {
+      // setSnackbarMessage(error.message || "Error updating purchase. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      // Let onProcessRowUpdateError handle the snackbar for errors thrown here.
+      throw { // Re-throw for onProcessRowUpdateError
         message:
           error?.message || "An error occurred while updating the purchase.",
         error: error,
@@ -224,11 +224,10 @@ const PurchasesDataGrid: React.FC<{
     setPurchases(updatedPurchases); // Update state with reverted data
 
     // Display the error details in Snackbar
-    setSnackbarMessage(
-      params.error?.message || "An unexpected error occurred."
-    ); // Show detailed error message
-    setSnackbarSeverity("error"); // Set snackbar severity to error
-    setSnackbarOpen(true); // Open Snackbar
+    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
+    // setSnackbarSeverity("error"); // Removed
+    // setSnackbarOpen(true); // Removed
+    showSnackbar({ message: params.error?.message || "An unexpected error occurred.", severity: "error" });
   };
 
   useEffect(() => {
@@ -265,15 +264,15 @@ const PurchasesDataGrid: React.FC<{
     fetchPurchases();
   }, [user]);
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
@@ -350,22 +349,7 @@ const PurchasesDataGrid: React.FC<{
         />
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </Box>
   );
 };

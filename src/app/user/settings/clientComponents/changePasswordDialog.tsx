@@ -6,12 +6,13 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import { TransitionProps } from "@mui/material/transitions";
-import { Slide } from "@mui/material";
-import Alert from "@mui/material/Alert";
+// import { TransitionProps } from "@mui/material/transitions"; // Unused
+// import { Slide } from "@mui/material"; // Unused
+// import Alert from "@mui/material/Alert"; // Removed
 import Box from "@mui/material/Box";
 import { LoadingButton } from "@mui/lab";
 import IconButton from "@mui/material/IconButton";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
@@ -22,8 +23,9 @@ export default function ChangePasswordDialog({
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  const [error, setError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<string | null>(null);
+  // const [error, setError] = React.useState<string | null>(null); // Removed
+  // const [success, setSuccess] = React.useState<string | null>(null); // Removed
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [formVisible, setFormVisible] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
 
@@ -32,8 +34,8 @@ export default function ChangePasswordDialog({
 
   const handleClose = () => {
     setOpen(false);
-    setError(null);
-    setSuccess(null);
+    // setError(null); // Removed
+    // setSuccess(null); // Removed
     setFormVisible(true); // Reset form visibility for the next open
   };
 
@@ -60,10 +62,12 @@ export default function ChangePasswordDialog({
         throw new Error(data.error || "An error occurred");
       }
 
-      setSuccess("Password changed successfully!");
+      // setSuccess("Password changed successfully!"); // Removed
+      showSnackbar({ message: "Password changed successfully!", severity: "success" });
       setFormVisible(false); // Hide the form inputs
     } catch (error) {
-      setError((error as Error).message);
+      // setError((error as Error).message); // Removed
+      showSnackbar({ message: (error as Error).message, severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -79,16 +83,7 @@ export default function ChangePasswordDialog({
     >
       <DialogTitle>Change Password</DialogTitle>
       <DialogContent>
-        {success ? (
-          <>
-            <Box mb={2}>
-              <Alert severity="success">{success}</Alert>
-            </Box>
-            <DialogActions>
-              <Button onClick={handleClose}>OK</Button>
-            </DialogActions>
-          </>
-        ) : (
+        {formVisible ? (
           <>
             <DialogContentText>
               To change your password, please enter your current password and
@@ -97,11 +92,10 @@ export default function ChangePasswordDialog({
               If you have not changed your password after the google
               registration, Leave the current password field empty.
             </DialogContentText>
-            <Box mb={2}>{error && <Alert severity="error">{error}</Alert>}</Box>
-            {formVisible && (
-              <>
-                <TextField
-                  autoFocus
+            {/* <Box mb={2}>{error && <Alert severity="error">{error}</Alert>}</Box> */} {/* Removed error alert */}
+            {/* formVisible is already checked above */}
+            <TextField
+              autoFocus
                   margin="dense"
                   id="oldPassword"
                   name="oldPassword"
@@ -145,9 +139,16 @@ export default function ChangePasswordDialog({
               </>
             )}
           </>
+        ) : (
+          // This part is shown when formVisible is false (i.e., after success)
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
+            <DialogActions>
+              <Button onClick={handleClose}>OK</Button>
+            </DialogActions>
+          </Box>
         )}
       </DialogContent>
-      {!success && (
+      {formVisible && ( // Only show Cancel/Change Password if form is visible
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
           <LoadingButton

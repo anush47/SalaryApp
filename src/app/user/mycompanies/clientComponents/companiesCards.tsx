@@ -8,7 +8,7 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert,
+  // Alert, // Removed as error will be handled by snackbar
   CircularProgress,
   Button,
   Grid,
@@ -31,6 +31,7 @@ import {
   People,
   Search,
 } from "@mui/icons-material";
+import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export interface Company {
   shifts: any;
@@ -83,7 +84,8 @@ const CompaniesCards = ({
   const [companies, setCompanies] = useState<Company[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null); // Removed
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
@@ -125,18 +127,15 @@ const CompaniesCards = ({
 
         setCompanies(companiesData.companies);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
+        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: 'error' });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCompaniesAndUsers();
-  }, [user]);
+  }, [user, showSnackbar]); // Added showSnackbar to dependencies
 
   const CompanyCard = ({ company }: { company: Company }) => {
     return (
@@ -237,12 +236,12 @@ const CompaniesCards = ({
       }}
     >
       {loading && <CircularProgress />}
-      {error && (
+      {/* {error && ( // Removed inline error Alert
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
-      )}
-      {!loading && !error && (
+      )} */}
+      {!loading && ( // Removed !error from condition
         <>
           {totalCompanies > 1 && (
             <>
