@@ -10,7 +10,7 @@ import {
   Alert,
   CircularProgress,
   Button,
-  Snackbar,
+  // Snackbar, // Removed
   Slide,
   Chip,
   Dialog,
@@ -25,6 +25,7 @@ import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -68,11 +69,7 @@ const PaymentsDataGrid: React.FC<{
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const { showSnackbar } = useSnackbar();
 
   const columns: GridColDef[] = [
     {
@@ -294,16 +291,6 @@ const PaymentsDataGrid: React.FC<{
     fetchPayments();
   }, [user, companyId]);
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
-
   const handleRowUpdate = async (newPayment: any) => {
     try {
       console.log(newPayment);
@@ -317,17 +304,20 @@ const PaymentsDataGrid: React.FC<{
       if (!response.ok) {
         throw new Error("Failed to update payment");
       }
-      setSnackbarMessage("Payment updated successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message: "Payment updated successfully",
+        severity: "success",
+      });
       return newPayment;
     } catch (error) {
       console.error("Row update error:", error);
-      setSnackbarMessage(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
+        severity: "error",
+      });
     }
   };
 
@@ -346,11 +336,10 @@ const PaymentsDataGrid: React.FC<{
     setPayments(updatedPayments); // Update state with reverted data
 
     // Display the error details in Snackbar
-    setSnackbarMessage(
-      params.error?.message || "An unexpected error occurred." // Show detailed error message
-    );
-    setSnackbarSeverity("error"); // Set snackbar severity to error
-    setSnackbarOpen(true); // Open Snackbar
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.", // Show detailed error message
+      severity: "error", // Set snackbar severity to error
+    });
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -374,17 +363,20 @@ const PaymentsDataGrid: React.FC<{
       if (!response.ok) {
         throw new Error(result.message || "Failed to delete payments");
       }
-      setSnackbarMessage("Payments deleted successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message: "Payments deleted successfully",
+        severity: "success",
+      });
       setPayments(payments.filter((payment) => payment.id !== id));
     } catch (error) {
       console.error("Delete error:", error);
-      setSnackbarMessage(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -524,22 +516,7 @@ const PaymentsDataGrid: React.FC<{
         />
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
       <ConfirmationDialog
         open={dialogOpen}
         onClose={handleDialogClose}

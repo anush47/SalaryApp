@@ -11,8 +11,8 @@ import {
   Alert,
   CircularProgress,
   Chip,
-  Snackbar,
-  Slide,
+  // Snackbar, // Removed
+  // Slide, // Removed
   Button,
   Dialog,
   DialogContent,
@@ -624,22 +624,7 @@ const SalariesDataGrid: React.FC<{
         </div>
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
       <ConfirmationDialog
         open={dialogOpen}
         onClose={handleDialogClose}

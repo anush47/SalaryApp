@@ -1,8 +1,8 @@
 "use client";
 import {
   Button,
-  Snackbar,
-  Alert,
+  // Snackbar, // Removed
+  // Alert, // Removed
   TextField,
   Grid,
   Card,
@@ -27,6 +27,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { ArrowBack, ExpandMore, HorizontalRule } from "@mui/icons-material";
 import { LoadingButton } from "@mui/lab";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const AH: React.FC<{
   user: { id: string; name: string; email: string };
@@ -90,21 +91,7 @@ const AH: React.FC<{
     },
   });
 
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "warning" | "error"
-  >("success");
-
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  const { showSnackbar } = useSnackbar();
 
   function formatName(input: string) {
     // Normalize input to uppercase and trim whitespace
@@ -180,14 +167,13 @@ const AH: React.FC<{
             date: dayjs().format("DD-MM-YYYY"),
           }));
 
-          setSnackbarMessage("Data fetched successfully");
-          setSnackbarSeverity("success");
-          setSnackbarOpen(true);
+          showSnackbar({
+            message: "Data fetched successfully",
+            severity: "success",
+          });
         } catch (error) {
           console.error("Error fetching data:", error);
-          setSnackbarMessage("Error fetching data");
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
+          showSnackbar({ message: "Error fetching data", severity: "error" });
         } finally {
           setLoading(false);
         }
@@ -209,9 +195,10 @@ const AH: React.FC<{
       });
       if (!response.ok) {
         const data = await response.json();
-        setSnackbarMessage(data.message || "Error generating AH");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({
+          message: data.message || "Error generating AH",
+          severity: "error",
+        });
         return;
       }
       const blob = await response.blob();
@@ -223,14 +210,13 @@ const AH: React.FC<{
       link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
-      setSnackbarMessage("AH generated successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message: "AH generated successfully",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error generating AH:", error);
-      setSnackbarMessage("Error generating AH");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar({ message: "Error generating AH", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -930,21 +916,7 @@ const AH: React.FC<{
           </Grid>
         </Grid>
 
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={5000}
-          onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          <Alert
-            onClose={handleSnackbarClose}
-            severity={snackbarSeverity}
-            variant="filled"
-            sx={{ width: "100%" }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
+        {/* Snackbar component removed, global one will be used */}
       </CardContent>
     </Card>
   );
