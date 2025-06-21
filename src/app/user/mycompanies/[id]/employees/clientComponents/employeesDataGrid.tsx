@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -498,7 +498,13 @@ const EmployeesDataGrid: React.FC<{
         setEmployees(employeesWithId);
       } catch (error) {
         // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -581,15 +587,24 @@ const EmployeesDataGrid: React.FC<{
           // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
           // setSnackbarSeverity("error"); // Removed
           // setSnackbarOpen(true); // Removed
-          showSnackbar({ message: result.message || "Error saving employee. Please try again.", severity: "error" });
-          throw new Error(result.message || "Error saving employee. Please try again."); // Propagate error
+          showSnackbar({
+            message:
+              result.message || "Error saving employee. Please try again.",
+            severity: "error",
+          });
+          throw new Error(
+            result.message || "Error saving employee. Please try again."
+          ); // Propagate error
         }
       } catch (error) {
         console.error("Error saving employee:", error);
         // setSnackbarMessage("Error saving employee. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Error saving employee. Please try again.", severity: "error" });
+        showSnackbar({
+          message: "Error saving employee. Please try again.",
+          severity: "error",
+        });
         throw error; // Propagate error
       } finally {
         setLoading(false); // This might be problematic if error is thrown, but keeping original logic
@@ -601,7 +616,10 @@ const EmployeesDataGrid: React.FC<{
       // setSnackbarMessage(`Employee ${newEmployee.memberNo} - updated successfully!`); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: `Employee ${newEmployee.memberNo} - updated successfully!`, severity: "success" });
+      showSnackbar({
+        message: `Employee ${newEmployee.memberNo} - updated successfully!`,
+        severity: "success",
+      });
 
       return newEmployee;
     } catch (error: any) {
@@ -633,7 +651,10 @@ const EmployeesDataGrid: React.FC<{
     // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
     // setSnackbarSeverity("error"); // Removed
     // setSnackbarOpen(true); // Removed
-    showSnackbar({ message: params.error?.message || "An unexpected error occurred.", severity: "error" });
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
+    });
   };
 
   // const handleSnackbarClose = ( // Removed

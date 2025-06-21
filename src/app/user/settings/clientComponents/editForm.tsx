@@ -15,7 +15,7 @@ import React, { useState } from "react";
 import { useSession } from "next-auth/react";
 import ChangePasswordDialog from "./changePasswordDialog";
 import { LoadingButton } from "@mui/lab";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const EditForm = ({
   user,
@@ -71,7 +71,10 @@ const EditForm = ({
       // setAlertMessage("Name updated successfully!"); // Removed
       // setAlertSeverity("success"); // Removed
       // setAlertOpen(true); // Removed
-      showSnackbar({ message: "Name updated successfully!", severity: "success" });
+      showSnackbar({
+        message: "Name updated successfully!",
+        severity: "success",
+      });
       setDisabled(true);
 
       // Hide the alert after 3 seconds - Not needed for global snackbar
@@ -84,7 +87,10 @@ const EditForm = ({
       // setAlertMessage("Error updating name. Please try again."); // Removed
       // setAlertSeverity("error"); // Removed
       // setAlertOpen(true); // Removed
-      showSnackbar({ message: "Error updating name. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error updating name. Please try again.",
+        severity: "error",
+      });
 
       // Hide the alert after 3 seconds - Not needed for global snackbar
       // setTimeout(() => {

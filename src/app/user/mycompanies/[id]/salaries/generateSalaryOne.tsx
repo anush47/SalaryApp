@@ -23,7 +23,7 @@ import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const GenerateSalaryOne = ({
   period,
@@ -99,7 +99,11 @@ const GenerateSalaryOne = ({
         // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error ? error.message : "Error fetching company.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -156,7 +160,12 @@ const GenerateSalaryOne = ({
         // setSnackbarMessage(`InOut required for calculated OT of ${employee?.name || "employee"}`); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: `InOut required for calculated OT of ${employee?.name || "employee"}`, severity: "error" });
+        showSnackbar({
+          message: `InOut required for calculated OT of ${
+            employee?.name || "employee"
+          }`,
+          severity: "error",
+        });
         return;
       }
 
@@ -193,7 +202,10 @@ const GenerateSalaryOne = ({
         // setSnackbarMessage(`Salary for ${period} already exists.`); // Removed
         // setSnackbarSeverity("warning"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: `Salary for ${period} already exists.`, severity: "warning" });
+        showSnackbar({
+          message: `Salary for ${period} already exists.`,
+          severity: "warning",
+        });
         return;
       }
 
@@ -215,7 +227,11 @@ const GenerateSalaryOne = ({
       // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Salary."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error instanceof Error ? error.message : "Error fetching Salary.", severity: "error" });
+      showSnackbar({
+        message:
+          error instanceof Error ? error.message : "Error fetching Salary.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -373,7 +389,10 @@ const GenerateSalaryOne = ({
         // setSnackbarMessage("Salary record saved successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Salary record saved successfully!", severity: "success" });
+        showSnackbar({
+          message: "Salary record saved successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -412,14 +431,20 @@ const GenerateSalaryOne = ({
         // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving salary. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving salary:", error);
       // setSnackbarMessage("Error saving salary. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving salary. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }

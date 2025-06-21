@@ -12,7 +12,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
 import { LoadingButton } from "@mui/lab";
 import IconButton from "@mui/material/IconButton";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
@@ -63,7 +63,10 @@ export default function ChangePasswordDialog({
       }
 
       // setSuccess("Password changed successfully!"); // Removed
-      showSnackbar({ message: "Password changed successfully!", severity: "success" });
+      showSnackbar({
+        message: "Password changed successfully!",
+        severity: "success",
+      });
       setFormVisible(false); // Hide the form inputs
     } catch (error) {
       // setError((error as Error).message); // Removed
@@ -92,56 +95,62 @@ export default function ChangePasswordDialog({
               If you have not changed your password after the google
               registration, Leave the current password field empty.
             </DialogContentText>
-            {/* <Box mb={2}>{error && <Alert severity="error">{error}</Alert>}</Box> */} {/* Removed error alert */}
+            {/* <Box mb={2}>{error && <Alert severity="error">{error}</Alert>}</Box> */}{" "}
+            {/* Removed error alert */}
             {/* formVisible is already checked above */}
             <TextField
               autoFocus
-                  margin="dense"
-                  id="oldPassword"
-                  name="oldPassword"
-                  label="Current Password"
-                  type={showOldPassword ? "text" : "password"}
-                  fullWidth
-                  variant="standard"
-                  InputProps={{
-                    endAdornment: (
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={() => setShowOldPassword(!showOldPassword)}
-                        edge="end"
-                      >
-                        {showOldPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    ),
-                  }}
-                />
-                <TextField
-                  required
-                  margin="dense"
-                  id="newPassword"
-                  name="newPassword"
-                  label="New Password"
-                  type={showNewPassword ? "text" : "password"}
-                  fullWidth
-                  variant="standard"
-                  InputProps={{
-                    endAdornment: (
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        edge="end"
-                      >
-                        {showNewPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    ),
-                  }}
-                />
-              </>
-            )}
+              margin="dense"
+              id="oldPassword"
+              name="oldPassword"
+              label="Current Password"
+              type={showOldPassword ? "text" : "password"}
+              fullWidth
+              variant="standard"
+              InputProps={{
+                endAdornment: (
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    edge="end"
+                  >
+                    {showOldPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                ),
+              }}
+            />
+            <TextField
+              required
+              margin="dense"
+              id="newPassword"
+              name="newPassword"
+              label="New Password"
+              type={showNewPassword ? "text" : "password"}
+              fullWidth
+              variant="standard"
+              InputProps={{
+                endAdornment: (
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    edge="end"
+                  >
+                    {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                ),
+              }}
+            />
           </>
         ) : (
           // This part is shown when formVisible is false (i.e., after success)
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "100px",
+            }}
+          >
             <DialogActions>
               <Button onClick={handleClose}>OK</Button>
             </DialogActions>

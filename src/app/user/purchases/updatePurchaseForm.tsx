@@ -31,7 +31,7 @@ import { ArrowBack, ArrowForward, HideImage } from "@mui/icons-material";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
 import Image from "next/image";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 import Alert from "@mui/material/Alert"; // Keep for specific inline alerts if any, or remove if not used
 
 interface ChipData {
@@ -107,7 +107,10 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
         }
       } catch (err) {
         // setError("Failed to fetch purchase details"); // Removed
-        showSnackbar({ message: "Failed to fetch purchase details", severity: "error" });
+        showSnackbar({
+          message: "Failed to fetch purchase details",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -159,7 +162,10 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       // setSnackbarMessage("Purchase updated successfully"); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Purchase updated successfully", severity: "success" });
+      showSnackbar({
+        message: "Purchase updated successfully",
+        severity: "success",
+      });
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       handleBackClick();
     } catch (error: any) {
@@ -167,7 +173,10 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       // setSnackbarMessage(error.message); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error.message || "An error occurred", severity: "error" });
+      showSnackbar({
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -221,7 +230,10 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       // setSnackbarMessage("Purchase deleted successfully"); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Purchase deleted successfully", severity: "success" });
+      showSnackbar({
+        message: "Purchase deleted successfully",
+        severity: "success",
+      });
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       handleBackClick();
     } catch (error: any) {
@@ -229,7 +241,10 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       // setSnackbarMessage(error.message); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error.message || "An error occurred", severity: "error" });
+      showSnackbar({
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }

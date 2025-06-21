@@ -22,7 +22,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 interface ChipData {
   key: number;
@@ -110,7 +110,10 @@ const NewPurchaseForm: React.FC<{
         setPrice(data.companies[0].monthlyPrice);
       } catch (err) {
         // setError("Failed to fetch company details"); // Removed
-        showSnackbar({ message: "Failed to fetch company details", severity: "error" });
+        showSnackbar({
+          message: "Failed to fetch company details",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -131,7 +134,13 @@ const NewPurchaseForm: React.FC<{
         setPurchasedPeriods(purchases);
       } catch (error) {
         // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -165,7 +174,10 @@ const NewPurchaseForm: React.FC<{
         // setSnackbarMessage("Period already purchased " + formatPeriod(selectedPeriod)); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Period already purchased " + formatPeriod(selectedPeriod), severity: "error" });
+        showSnackbar({
+          message: "Period already purchased " + formatPeriod(selectedPeriod),
+          severity: "error",
+        });
         return;
       }
       // setError(""); // Removed
@@ -227,7 +239,10 @@ const NewPurchaseForm: React.FC<{
       // setSnackbarMessage("Purchase Requested successfully"); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Purchase Requested successfully", severity: "success" });
+      showSnackbar({
+        message: "Purchase Requested successfully",
+        severity: "success",
+      });
       //wait
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       handleBackClick();
@@ -236,7 +251,10 @@ const NewPurchaseForm: React.FC<{
       // setSnackbarMessage(error.message); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error.message || "An error occurred", severity: "error" });
+      showSnackbar({
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -287,7 +305,10 @@ const NewPurchaseForm: React.FC<{
         setTotalPrice(data.totalPrice); // Update with final total price
       } catch (err) {
         // setError("Failed to fetch price details"); // Removed
-        showSnackbar({ message: "Failed to fetch price details", severity: "error" });
+        showSnackbar({
+          message: "Failed to fetch price details",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }

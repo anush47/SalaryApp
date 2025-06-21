@@ -20,7 +20,7 @@ import EmployeesInclude from "./employeesInclude";
 import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const GenerateSalaryAll = ({
   period,
@@ -64,7 +64,13 @@ const GenerateSalaryAll = ({
         setEmployeeIds(activeEmployeeIds);
       } catch (error) {
         // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -112,7 +118,10 @@ const GenerateSalaryAll = ({
         // setSnackbarMessage("Salary records saved successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Salary records saved successfully!", severity: "success" });
+        showSnackbar({
+          message: "Salary records saved successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -127,14 +136,20 @@ const GenerateSalaryAll = ({
         // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving salary. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving salary:", error);
       // setSnackbarMessage("Error saving salary. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving salary. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -183,7 +198,10 @@ const GenerateSalaryAll = ({
         // setSnackbarMessage(`Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`); // Removed
         // setSnackbarSeverity("warning"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: `Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`, severity: "warning" });
+        showSnackbar({
+          message: `Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`,
+          severity: "warning",
+        });
         return;
       }
 
@@ -196,12 +214,12 @@ const GenerateSalaryAll = ({
         const calcEmployeeNames = calcEmployees
           .map((employee) => employee.name)
           .join(", ");
-        setSnackbarMessage(
-          `InOut required for calculated OT for employees: ${calcEmployeeNames}`
-        );
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: `InOut required for calculated OT for employees: ${calcEmployeeNames}`, severity: "error" });
+        showSnackbar({
+          message: `InOut required for calculated OT for employees: ${calcEmployeeNames}`,
+          severity: "error",
+        });
         return;
       }
 
@@ -300,7 +318,11 @@ const GenerateSalaryAll = ({
       // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Salary."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error instanceof Error ? error.message : "Error fetching Salary.", severity: "error" });
+      showSnackbar({
+        message:
+          error instanceof Error ? error.message : "Error fetching Salary.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -388,7 +410,7 @@ const GenerateSalaryAll = ({
               setGeneratedSalaries={setGeneratedSalaries}
               loading={loading}
               setLoading={setLoading}
-              error={error}
+              error={null}
             />
           )}
         </CardContent>

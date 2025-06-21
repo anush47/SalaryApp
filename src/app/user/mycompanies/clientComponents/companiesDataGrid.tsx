@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "next/link";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export interface Company {
   shifts: any;
@@ -146,7 +146,13 @@ const CompaniesDataGrid = ({
         setCompanies(companiesWithUserNames);
       } catch (error) {
         // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: 'error' });
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }

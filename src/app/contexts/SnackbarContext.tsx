@@ -1,18 +1,24 @@
-'use client';
+"use client";
 
-import React, { createContext, useState, useCallback, useContext, ReactNode } from 'react';
-import Snackbar from '@mui/material/Snackbar';
-import Alert, { AlertColor } from '@mui/material/Alert';
+import React, {
+  createContext,
+  useState,
+  useCallback,
+  useContext,
+  ReactNode,
+} from "react";
+import Snackbar from "@mui/material/Snackbar";
+import Alert, { AlertColor } from "@mui/material/Alert";
 
-export type Severity = 'success' | 'error' | 'info' | 'warning';
+export type Severity = "success" | "error" | "info" | "warning";
 
 export interface SnackbarConfig {
   message: string;
   severity?: Severity;
   duration?: number;
   position?: {
-    vertical: 'top' | 'bottom';
-    horizontal: 'left' | 'center' | 'right';
+    vertical: "top" | "bottom";
+    horizontal: "left" | "center" | "right";
   };
 }
 
@@ -20,12 +26,14 @@ interface SnackbarContextType {
   showSnackbar: (config: SnackbarConfig) => void;
 }
 
-const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
+const SnackbarContext = createContext<SnackbarContextType | undefined>(
+  undefined
+);
 
 export const useSnackbar = (): SnackbarContextType => {
   const context = useContext(SnackbarContext);
   if (!context) {
-    throw new Error('useSnackbar must be used within a SnackbarProvider');
+    throw new Error("useSnackbar must be used within a SnackbarProvider");
   }
   return context;
 };
@@ -40,14 +48,17 @@ interface SnackbarState extends SnackbarConfig {
 
 const initialState: SnackbarState = {
   open: false,
-  message: '',
-  severity: 'info',
+  message: "",
+  severity: "info",
   duration: 6000,
-  position: { vertical: 'bottom', horizontal: 'center' },
+  position: { vertical: "top", horizontal: "right" },
 };
 
-export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) => {
-  const [snackbarState, setSnackbarState] = useState<SnackbarState>(initialState);
+export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({
+  children,
+}) => {
+  const [snackbarState, setSnackbarState] =
+    useState<SnackbarState>(initialState);
 
   const showSnackbar = useCallback((config: SnackbarConfig) => {
     setSnackbarState({
@@ -61,8 +72,11 @@ export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) 
     setSnackbarState((prevState) => ({ ...prevState, open: false }));
   }, []);
 
-  const handleClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
+  const handleClose = (
+    event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === "clickaway") {
       return;
     }
     hideSnackbar();
@@ -80,7 +94,8 @@ export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) 
         <Alert
           onClose={handleClose}
           severity={snackbarState.severity as AlertColor}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
+          variant="filled"
         >
           {snackbarState.message}
         </Alert>

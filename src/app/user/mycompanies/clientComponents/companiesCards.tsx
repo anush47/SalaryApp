@@ -31,7 +31,7 @@ import {
   People,
   Search,
 } from "@mui/icons-material";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export interface Company {
   shifts: any;
@@ -128,7 +128,13 @@ const CompaniesCards = ({
         setCompanies(companiesData.companies);
       } catch (error) {
         // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: 'error' });
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }

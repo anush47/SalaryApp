@@ -27,7 +27,7 @@ import CreateHolidaysDialog from "./CreateHolidaysDialog";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   //if null return ""
@@ -210,17 +210,26 @@ const Users = ({
         method: "DELETE",
       });
       if (response.ok) {
-        showSnackbar({ message: `${user.name} deleted successfully`, severity: "success" });
+        showSnackbar({
+          message: `${user.name} deleted successfully`,
+          severity: "success",
+        });
         //wait for 2 seconds and reload the page
         setTimeout(() => {
           window.location.reload();
         }, 2000);
       } else {
-        showSnackbar({ message: `Failed to delete ${user.name}`, severity: "error" });
+        showSnackbar({
+          message: `Failed to delete ${user.name}`,
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error(error);
-      showSnackbar({ message: `Failed to delete ${user.name}`, severity: "error" });
+      showSnackbar({
+        message: `Failed to delete ${user.name}`,
+        severity: "error",
+      });
     } finally {
       setReqLoading(false);
     }
@@ -234,18 +243,27 @@ const Users = ({
       if (user) {
         //if admin
         if (user.role === "admin") {
-          showSnackbar({ message: `Cannot delete admin user ID: ${id}`, severity: "error" });
+          showSnackbar({
+            message: `Cannot delete admin user ID: ${id}`,
+            severity: "error",
+          });
           return;
         }
         //check if user has companies
         if (user.companies && user.companies.length > 0) {
-          showSnackbar({ message: `Cannot delete ${user.name} with companies assigned.`, severity: "error" });
+          showSnackbar({
+            message: `Cannot delete ${user.name} with companies assigned.`,
+            severity: "error",
+          });
           return;
         }
         //delete user
         await deleteUser(user);
       } else {
-        showSnackbar({ message: `User ID: ${id} not found`, severity: "error" });
+        showSnackbar({
+          message: `User ID: ${id} not found`,
+          severity: "error",
+        });
       }
     }
   };

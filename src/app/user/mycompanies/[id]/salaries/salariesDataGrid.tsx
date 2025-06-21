@@ -22,7 +22,7 @@ import {
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
 import { DeleteOutline } from "@mui/icons-material";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export interface Salary {
   id: string;
@@ -240,7 +240,13 @@ const SalariesDataGrid: React.FC<{
         setSalaries(salariesWithId);
       } catch (error) {
         // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Replaced
-        showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -353,8 +359,13 @@ const SalariesDataGrid: React.FC<{
           // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
           // setSnackbarSeverity("error"); // Removed
           // setSnackbarOpen(true); // Removed
-          showSnackbar({ message: result.message || "Error saving salary. Please try again.", severity: "error" });
-          throw new Error(result.message || "Error saving salary. Please try again."); // Propagate error
+          showSnackbar({
+            message: result.message || "Error saving salary. Please try again.",
+            severity: "error",
+          });
+          throw new Error(
+            result.message || "Error saving salary. Please try again."
+          ); // Propagate error
         }
         //reset newsalary
 
@@ -365,7 +376,10 @@ const SalariesDataGrid: React.FC<{
         // setSnackbarMessage("Error saving salary. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Error saving salary. Please try again.", severity: "error" });
+        showSnackbar({
+          message: "Error saving salary. Please try again.",
+          severity: "error",
+        });
         throw error; // Propagate error
       } finally {
         setLoading(false); // This might be problematic if error is thrown
@@ -377,7 +391,10 @@ const SalariesDataGrid: React.FC<{
       // setSnackbarMessage(`Employee ${newSalary.memberNo} - updated successfully!`); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: `Employee ${newSalary.memberNo} - updated successfully!`, severity: "success" });
+      showSnackbar({
+        message: `Employee ${newSalary.memberNo} - updated successfully!`,
+        severity: "success",
+      });
 
       return newSalary;
     } catch (error: any) {
@@ -409,7 +426,10 @@ const SalariesDataGrid: React.FC<{
     // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
     // setSnackbarSeverity("error"); // Removed
     // setSnackbarOpen(true); // Removed
-    showSnackbar({ message: params.error?.message || "An unexpected error occurred.", severity: "error" });
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
+    });
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -492,7 +512,10 @@ const SalariesDataGrid: React.FC<{
         // setSnackbarMessage("Salary record deleted successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Salary record deleted successfully!", severity: "success" });
+        showSnackbar({
+          message: "Salary record deleted successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 200)); // Keep or adjust delay
@@ -505,14 +528,20 @@ const SalariesDataGrid: React.FC<{
         // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error deleting salary. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error deleting salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting salary:", error);
       // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error deleting salary. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error deleting salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -612,21 +641,6 @@ const SalariesDataGrid: React.FC<{
         </div>
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        {/* Snackbar component removed, global one will be used */}
       <ConfirmationDialog
         open={dialogOpen}
         onClose={handleDialogClose}

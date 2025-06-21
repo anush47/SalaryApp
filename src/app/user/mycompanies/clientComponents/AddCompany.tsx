@@ -31,7 +31,7 @@ import { Company } from "./companiesDataGrid";
 import { CompanyValidation } from "./companyValidation";
 import dayjs from "dayjs";
 import { ddmmyyyy_to_mmddyyyy } from "../[id]/employees/clientComponents/employeesDataGrid";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const AddCompanyForm: React.FC<{
   user: { id: string; name: string; email: string };
@@ -155,7 +155,10 @@ const AddCompanyForm: React.FC<{
         // setSnackbarMessage("Company Added successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Company Added successfully!", severity: "success" });
+        showSnackbar({
+          message: "Company Added successfully!",
+          severity: "success",
+        });
 
         //wait
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter wait as snackbar is global
@@ -209,14 +212,20 @@ const AddCompanyForm: React.FC<{
         // setSnackbarMessage(result.message || "Error saving company. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving company. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving company. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving company:", error);
       // setSnackbarMessage("Error saving company. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving company. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving company. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -243,7 +252,10 @@ const AddCompanyForm: React.FC<{
         // setSnackbarMessage("Employer number not found. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Employer number not found. Please try again.", severity: "error" });
+        showSnackbar({
+          message: "Employer number not found. Please try again.",
+          severity: "error",
+        });
         return;
       }
       setFormFields((prevFields) => ({
@@ -261,7 +273,10 @@ const AddCompanyForm: React.FC<{
       // setSnackbarMessage("Error fetching company name. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error fetching company name. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error fetching company name. Please try again.",
+        severity: "error",
+      });
     } finally {
       setNameLoading(false);
     }

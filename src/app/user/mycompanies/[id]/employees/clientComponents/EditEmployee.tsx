@@ -61,7 +61,7 @@ import { WorkingDays } from "../../companyDetails/workingDays";
 import Link from "next/link";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { MenuItem } from "@mui/material";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -142,7 +142,11 @@ const EditEmployeeForm: React.FC<{
         // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error ? error.message : "Error fetching company.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -233,7 +237,10 @@ const EditEmployeeForm: React.FC<{
         // setSnackbarMessage("Employee updated successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Employee updated successfully!", severity: "success" });
+        showSnackbar({
+          message: "Employee updated successfully!",
+          severity: "success",
+        });
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -243,14 +250,20 @@ const EditEmployeeForm: React.FC<{
         // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving employee. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving employee. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving employee:", error);
       // setSnackbarMessage("Error saving employee. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving employee. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving employee. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -276,7 +289,10 @@ const EditEmployeeForm: React.FC<{
         // setSnackbarMessage("Employee deleted successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Employee deleted successfully!", severity: "success" });
+        showSnackbar({
+          message: "Employee deleted successfully!",
+          severity: "success",
+        });
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -287,14 +303,21 @@ const EditEmployeeForm: React.FC<{
         // setSnackbarMessage(result.message || "Error deleting employee. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error deleting employee. Please try again.", severity: "error" });
+        showSnackbar({
+          message:
+            result.message || "Error deleting employee. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting employee:", error);
       // setSnackbarMessage("Error deleting employee. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error deleting employee. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error deleting employee. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }

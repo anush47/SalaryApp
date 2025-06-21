@@ -46,7 +46,7 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
 import "dayjs/locale/en-gb";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const EditPaymentForm: React.FC<{
   user: { id: string; name: string; email: string };
@@ -110,7 +110,11 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Payment."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching Payment.", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error ? error.message : "Error fetching Payment.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -151,7 +155,10 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage("Payment not found. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Payment not found. Please try again.", severity: "error" });
+        showSnackbar({
+          message: "Payment not found. Please try again.",
+          severity: "error",
+        });
         return;
       }
       setFormFields({
@@ -164,7 +171,11 @@ const EditPaymentForm: React.FC<{
       // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching payments."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error instanceof Error ? error.message : "Error fetching payments.", severity: "error" });
+      showSnackbar({
+        message:
+          error instanceof Error ? error.message : "Error fetching payments.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -220,7 +231,10 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage("Payment saved successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Payment saved successfully!", severity: "success" });
+        showSnackbar({
+          message: "Payment saved successfully!",
+          severity: "success",
+        });
         setIsEditing(false);
 
         // Wait before clearing the form
@@ -235,14 +249,20 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage(result.message || "Error saving payment. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving payment. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving payment. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving payment:", error);
       // setSnackbarMessage("Error saving payment. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving payment. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving payment. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -326,7 +346,10 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage("Payment deleted successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Payment deleted successfully!", severity: "success" });
+        showSnackbar({
+          message: "Payment deleted successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -341,14 +364,21 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage(result.message || "Error deleting payment. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error deleting payment. Please try again.", severity: "error" });
+        showSnackbar({
+          message:
+            result.message || "Error deleting payment. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting payment:", error);
       // setSnackbarMessage("Error deleting payment. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error deleting payment. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error deleting payment. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -378,14 +408,20 @@ const EditPaymentForm: React.FC<{
         // setSnackbarMessage("Reference number not found. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Reference number not found. Please try again.", severity: "error" });
+        showSnackbar({
+          message: "Reference number not found. Please try again.",
+          severity: "error",
+        });
         return;
       }
       //show in snackbar
       // setSnackbarMessage(` Found EPF Reference No: ${referenceNo}`); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: `Found EPF Reference No: ${referenceNo}`, severity: "success" });
+      showSnackbar({
+        message: `Found EPF Reference No: ${referenceNo}`,
+        severity: "success",
+      });
       setFormFields((prevFields) => ({
         ...prevFields,
         epfReferenceNo: referenceNo,
@@ -395,7 +431,10 @@ const EditPaymentForm: React.FC<{
       // setSnackbarMessage("Error fetching EPF Reference No. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error fetching EPF Reference No. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error fetching EPF Reference No. Please try again.",
+        severity: "error",
+      });
     } finally {
       setReferenceLoading(false);
     }

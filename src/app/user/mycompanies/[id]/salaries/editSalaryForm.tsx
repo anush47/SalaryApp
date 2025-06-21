@@ -34,7 +34,7 @@ import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { salaryId } from "./salaries";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const EditSalaryForm: React.FC<{
   user: { id: string; name: string; email: string };
@@ -120,7 +120,11 @@ const EditSalaryForm: React.FC<{
         // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error ? error.message : "Error fetching company.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -195,7 +199,11 @@ const EditSalaryForm: React.FC<{
       // setSnackbarMessage(error instanceof Error ? error.message : "Error Updating Salary."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error instanceof Error ? error.message : "Error Updating Salary.", severity: "error" });
+      showSnackbar({
+        message:
+          error instanceof Error ? error.message : "Error Updating Salary.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -339,7 +347,10 @@ const EditSalaryForm: React.FC<{
         // setSnackbarMessage("Salary record saved successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Salary record saved successfully!", severity: "success" });
+        showSnackbar({
+          message: "Salary record saved successfully!",
+          severity: "success",
+        });
 
         setIsEditing(false);
 
@@ -355,14 +366,20 @@ const EditSalaryForm: React.FC<{
         // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving salary. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving salary:", error);
       // setSnackbarMessage("Error saving salary. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving salary. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -448,7 +465,10 @@ const EditSalaryForm: React.FC<{
         // setSnackbarMessage("Salary record deleted successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Salary record deleted successfully!", severity: "success" });
+        showSnackbar({
+          message: "Salary record deleted successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -463,14 +483,20 @@ const EditSalaryForm: React.FC<{
         // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error deleting salary. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error deleting salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting salary:", error);
       // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error deleting salary. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error deleting salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }

@@ -39,7 +39,7 @@ import {
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { defaultEmployee, Employee } from "./employeesDataGrid";
 import { LoadingButton } from "@mui/lab";
@@ -125,7 +125,11 @@ const AddEmployeeForm: React.FC<{
         // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: error instanceof Error ? error.message : "Error fetching company.", severity: "error" });
+        showSnackbar({
+          message:
+            error instanceof Error ? error.message : "Error fetching company.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -225,7 +229,10 @@ const AddEmployeeForm: React.FC<{
         // setSnackbarMessage("Employee saved successfully!"); // Removed
         // setSnackbarSeverity("success"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: "Employee saved successfully!", severity: "success" });
+        showSnackbar({
+          message: "Employee saved successfully!",
+          severity: "success",
+        });
 
         // Wait for 2 seconds before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Keep or adjust delay
@@ -238,14 +245,20 @@ const AddEmployeeForm: React.FC<{
         // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
         // setSnackbarSeverity("error"); // Removed
         // setSnackbarOpen(true); // Removed
-        showSnackbar({ message: result.message || "Error saving employee. Please try again.", severity: "error" });
+        showSnackbar({
+          message: result.message || "Error saving employee. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving employee:", error);
       // setSnackbarMessage("Error saving employee. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error saving employee. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error saving employee. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -273,13 +286,19 @@ const AddEmployeeForm: React.FC<{
       // setSnackbarMessage(`New Member No. - ${newMemberNo}`); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: `New Member No. - ${newMemberNo}`, severity: "success" });
+      showSnackbar({
+        message: `New Member No. - ${newMemberNo}`,
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error fetching Member No:", error);
       // setSnackbarMessage("Error fetching Member No. Please try again."); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Error fetching Member No. Please try again.", severity: "error" });
+      showSnackbar({
+        message: "Error fetching Member No. Please try again.",
+        severity: "error",
+      });
     } finally {
       setNameLoading(false);
       setLoading(false);

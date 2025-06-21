@@ -27,7 +27,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 // import { request } from "http"; // This import seems unused, consider removing if not needed.
 import { LoadingButton } from "@mui/lab";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -330,7 +330,10 @@ const PaymentsDataGrid: React.FC<{
       // setSnackbarMessage("Payment updated successfully"); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Payment updated successfully", severity: "success" });
+      showSnackbar({
+        message: "Payment updated successfully",
+        severity: "success",
+      });
       return newPayment;
     } catch (error) {
       console.error("Row update error:", error);
@@ -360,7 +363,10 @@ const PaymentsDataGrid: React.FC<{
     // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
     // setSnackbarSeverity("error"); // Removed
     // setSnackbarOpen(true); // Removed
-    showSnackbar({ message: params.error?.message || "An unexpected error occurred.", severity: "error" });
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
+    });
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -387,7 +393,10 @@ const PaymentsDataGrid: React.FC<{
       // setSnackbarMessage("Payments deleted successfully"); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Payments deleted successfully", severity: "success" });
+      showSnackbar({
+        message: "Payments deleted successfully",
+        severity: "success",
+      });
       setPayments(
         payments.filter((payment) => !paymentIds.includes(payment.id))
       );
@@ -396,7 +405,13 @@ const PaymentsDataGrid: React.FC<{
       // setSnackbarMessage(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: error instanceof Error ? error.message : "An unexpected error occurred", severity: "error" });
+      showSnackbar({
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }

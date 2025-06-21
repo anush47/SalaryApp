@@ -19,7 +19,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"; // AdapterDayjs seems unused if DatePicker is unused
 import Link from "next/link";
-import { useSnackbar } from "src/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -192,7 +192,10 @@ const PurchasesDataGrid: React.FC<{
       // setSnackbarMessage(`Purchase updated successfully!`); // Removed
       // setSnackbarSeverity("success"); // Removed
       // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Purchase updated successfully!", severity: "success" });
+      showSnackbar({
+        message: "Purchase updated successfully!",
+        severity: "success",
+      });
 
       return newPurchase;
     } catch (error: any) {
@@ -201,7 +204,8 @@ const PurchasesDataGrid: React.FC<{
       // setSnackbarSeverity("error"); // Removed
       // setSnackbarOpen(true); // Removed
       // Let onProcessRowUpdateError handle the snackbar for errors thrown here.
-      throw { // Re-throw for onProcessRowUpdateError
+      throw {
+        // Re-throw for onProcessRowUpdateError
         message:
           error?.message || "An error occurred while updating the purchase.",
         error: error,
@@ -227,7 +231,10 @@ const PurchasesDataGrid: React.FC<{
     // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
     // setSnackbarSeverity("error"); // Removed
     // setSnackbarOpen(true); // Removed
-    showSnackbar({ message: params.error?.message || "An unexpected error occurred.", severity: "error" });
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
+    });
   };
 
   useEffect(() => {
