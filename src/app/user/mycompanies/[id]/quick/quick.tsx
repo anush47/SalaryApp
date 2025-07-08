@@ -42,6 +42,7 @@ import SalariesDataGrid, { Salary } from "../salaries/salariesDataGrid";
 import PaymentsDataGrid from "../payments/paymentsDataGrid";
 import GeneratedSalaries from "../salaries/generatedSalaries";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const QuickTools = ({
   user,
@@ -63,21 +64,7 @@ const QuickTools = ({
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
   const [autoGenProgress, setAutoGenProgress] = useState<number>(0);
   const [autoGenStatus, setAutoGenStatus] = useState<string>("");
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "warning" | "error"
-  >("success");
-
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  const { showSnackbar } = useSnackbar();
 
   //fetch company & employees
   useEffect(() => {
@@ -94,9 +81,10 @@ const QuickTools = ({
         setCompany(companyData.companies[0]);
       } catch (error) {
         console.error("Error fetching company:", error);
-        setSnackbarMessage("Failed to fetch company data");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({
+          message: "Failed to fetch company data",
+          severity: "error",
+        });
         setCompany(null);
       }
     };
@@ -116,9 +104,10 @@ const QuickTools = ({
         );
       } catch (error) {
         console.error("Error fetching employees:", error);
-        setSnackbarMessage("Failed to fetch employee data");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({
+          message: "Failed to fetch employee data",
+          severity: "error",
+        });
         setEmployees([]);
       }
     };
@@ -182,8 +171,10 @@ const QuickTools = ({
         }
 
         if (data.salaries.length === 0) {
-          setSnackbarMessage(data.message || "No salaries to generate");
-          setSnackbarSeverity("warning");
+          showSnackbar({
+            message: data.message || "No salaries to generate",
+            severity: "warning",
+          });
           throw new Error("No salaries to generate");
         } else {
           const formattedSalaries = data.salaries.map((salary: Salary) => ({
@@ -198,26 +189,27 @@ const QuickTools = ({
             await saveSalaries(formattedSalaries);
           } else {
             setGeneratedSalaries(formattedSalaries);
-            setSnackbarMessage(
-              data.message || "Salaries generated successfully"
-            );
-            setSnackbarSeverity("success");
+            showSnackbar({
+              message: data.message || "Salaries generated successfully",
+              severity: "success",
+            });
           }
         }
       }
-      return true; // Return true if successful
+      return true; // Return true if successfull
     } catch (error) {
       console.error("Error handling salaries:", error);
-      setSnackbarMessage(
-        error instanceof Error
-          ? error.message
-          : "An error occurred while handling salaries"
-      );
-      setSnackbarSeverity("error");
+      showSnackbar({
+        message:
+          error instanceof Error
+            ? error.message
+            : "An error occurred while handling salaries",
+        severity: "error",
+      });
+
       return false; // Return false if an error occurs
     } finally {
       setLoading(false);
-      setSnackbarOpen(true);
     }
   };
 
@@ -230,16 +222,19 @@ const QuickTools = ({
     const data = await response.json();
     if (!response.ok)
       throw new Error(data.message || "Failed to save salaries");
-    setSnackbarMessage(data.message || "Salaries saved successfully");
-    setSnackbarSeverity("success");
+    showSnackbar({
+      message: data.message || "Failed to save salaries",
+      severity: "error",
+    });
     setGeneratedSalaries([]);
   };
 
   const handleDeleteSalaries = () => {
     setGeneratedSalaries([]);
-    setSnackbarMessage("Salaries deleted successfully");
-    setSnackbarSeverity("success");
-    setSnackbarOpen(true);
+    showSnackbar({
+      message: "Salaries deleted successfully",
+      severity: "success",
+    });
   };
 
   const handlePayments = async () => {
@@ -260,19 +255,20 @@ const QuickTools = ({
         const result = await response.json();
         const referenceNo = result.referenceNo;
         if (!referenceNo) {
-          setSnackbarMessage("Reference number not found. Please try again.");
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
+          showSnackbar({
+            message: "Reference number not found. Please try again.",
+            severity: "error",
+          });
+
           return;
         }
         return referenceNo;
       } catch (error) {
         console.error("Error fetching EPF Reference No:", error);
-        setSnackbarMessage(
-          "Error fetching EPF Reference No. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({
+          message: "Error fetching EPF Reference No. Please try again.",
+          severity: "error",
+        });
       }
     };
     setLoading(true);
@@ -311,20 +307,21 @@ const QuickTools = ({
       if (!saveResponse.ok) {
         throw new Error(saveData.message || "Failed to save payments");
       }
-
-      setSnackbarMessage("Payments generated and saved successfully");
-      setSnackbarSeverity("success");
+      showSnackbar({
+        message: "Payments generated and saved successfully",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error handling payments:", error);
-      setSnackbarMessage(
-        error instanceof Error
-          ? error.message
-          : "An error occurred while handling payments"
-      );
-      setSnackbarSeverity("error");
+      showSnackbar({
+        message:
+          error instanceof Error
+            ? error.message
+            : "An error occurred while handling payments",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
-      setSnackbarOpen(true);
     }
   };
 
@@ -356,14 +353,16 @@ const QuickTools = ({
         //if data . message and starts with payment data not found show it in snack bar
         if (data.message) {
           if (data.message.includes("data not found for")) {
-            setSnackbarMessage(data.message);
-            setSnackbarSeverity("error");
-            setSnackbarOpen(true);
+            showSnackbar({
+              message: data.message,
+              severity: "error",
+            });
             return;
           } else if (data.message.includes("not Purchased")) {
-            setSnackbarMessage(data.message);
-            setSnackbarSeverity("error");
-            setSnackbarOpen(true);
+            showSnackbar({
+              message: data.message,
+              severity: "error",
+            });
             return;
           }
         }
@@ -377,14 +376,16 @@ const QuickTools = ({
       a.download = `${company?.name} ${pdfType} ${period}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
-      setSnackbarMessage("PDF generated successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message: "PDF generated successfully",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error generating pdf:", error);
-      setSnackbarMessage("Error generating pdf");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message: "Error generating pdf",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -430,22 +431,24 @@ const QuickTools = ({
 
       setAutoGenStatus("Generation Complete!");
       setAutoGenProgress(100);
-      setSnackbarMessage("All documents generated successfully");
-      setSnackbarSeverity("success");
+      showSnackbar({
+        message: "All documents generated successfully",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error in GenerateAll:", error);
-      setSnackbarMessage(
-        error instanceof Error
-          ? `Generation failed: ${error.message}`
-          : "Generation failed: Unknown error"
-      );
-      setSnackbarSeverity("error");
+      showSnackbar({
+        message:
+          error instanceof Error
+            ? `Generation failed: ${error.message}`
+            : "Generation failed: Unknown error",
+        severity: "error",
+      });
     } finally {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Show completion state
       setLoading(false);
       setAutoGenProgress(0);
       setAutoGenStatus("");
-      setSnackbarOpen(true);
     }
   };
 
@@ -869,21 +872,6 @@ const QuickTools = ({
             </Grid>
           </Grid>
         </CardContent>
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={5000}
-          onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          <Alert
-            onClose={handleSnackbarClose}
-            severity={snackbarSeverity}
-            variant="filled"
-            sx={{ width: "100%" }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
       </Card>
     </motion.div>
   );

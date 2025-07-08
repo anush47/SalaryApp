@@ -7,10 +7,10 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert,
+  Alert, // Keep this for the general error display
   CircularProgress,
   Button,
-  Snackbar,
+  // Snackbar, // Remove Snackbar import
   FormControlLabel,
   Checkbox,
   Chip,
@@ -20,6 +20,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -72,12 +73,11 @@ const EmployeesDataGrid: React.FC<{
 }> = ({ user, isEditingEmployeeInHome }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const [error, setError] = useState<string | null>(null); // This is for the top-level error alert, keep it
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Remove
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Remove
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Remove
 
   const columns: GridColDef[] = [
     {
@@ -513,29 +513,44 @@ const EmployeesDataGrid: React.FC<{
         const result = await response.json();
 
         if (!response.ok) {
-          setSnackbarMessage(
+          // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Remove
+          // setSnackbarSeverity("error"); // Remove
+          // setSnackbarOpen(true); // Remove
+          // Instead, use showSnackbar:
+          showSnackbar({
+            message:
+              result.message || "Error saving employee. Please try again.",
+            severity: "error",
+          });
+          // Still might want to throw an error to be caught by onProcessRowUpdateError or to stop further processing
+          throw new Error(
             result.message || "Error saving employee. Please try again."
           );
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
         }
       } catch (error) {
         console.error("Error saving employee:", error);
-        setSnackbarMessage("Error saving employee. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Error saving employee. Please try again."); // Remove
+        // setSnackbarSeverity("error"); // Remove
+        // setSnackbarOpen(true); // Remove
+        showSnackbar({
+          message: "Error saving employee. Please try again.",
+          severity: "error",
+        });
+        throw error; // Re-throw to be caught by onProcessRowUpdateError
       } finally {
-        setLoading(false);
+        setLoading(false); // This seems out of place if error is thrown, but keeping original logic structure
       }
       // }
       //console.log(newEmployee);
 
       // Success feedback
-      setSnackbarMessage(
-        `Employee ${newEmployee.memberNo} - updated successfully!`
-      );
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Employee ${newEmployee.memberNo} - updated successfully!`); // Remove
+      // setSnackbarSeverity("success"); // Remove
+      // setSnackbarOpen(true); // Remove
+      showSnackbar({
+        message: `Employee ${newEmployee.memberNo} - updated successfully!`,
+        severity: "success",
+      });
 
       return newEmployee;
     } catch (error: any) {
@@ -564,22 +579,24 @@ const EmployeesDataGrid: React.FC<{
     setEmployees(updatedEmployees); // Update state with reverted data
 
     // Display the error details in Snackbar
-    setSnackbarMessage(
-      params.error?.message || "An unexpected error occurred." // Show detailed error message
-    );
-    setSnackbarSeverity("error"); // Set snackbar severity to error
-    setSnackbarOpen(true); // Open Snackbar
+    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Remove
+    // setSnackbarSeverity("error"); // Remove
+    // setSnackbarOpen(true); // Remove
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
+    });
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Remove
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
@@ -663,22 +680,7 @@ const EmployeesDataGrid: React.FC<{
         />
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </Box>
   );
 };

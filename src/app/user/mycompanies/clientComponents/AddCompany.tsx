@@ -16,9 +16,9 @@ import {
   InputAdornment,
   FormControl,
   FormHelperText,
-  Snackbar,
-  Alert,
-  Slide,
+  // Snackbar, // Removed
+  // Alert, // Removed (ensure it's not used for other purposes, if so, keep and alias)
+  Slide, // Keep Slide if used for other transitions, otherwise remove
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
@@ -31,6 +31,7 @@ import { Company } from "./companiesDataGrid";
 import { CompanyValidation } from "./companyValidation";
 import dayjs from "dayjs";
 import { ddmmyyyy_to_mmddyyyy } from "../[id]/employees/clientComponents/employeesDataGrid";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const AddCompanyForm: React.FC<{
   user: { id: string; name: string; email: string };
@@ -79,11 +80,10 @@ const AddCompanyForm: React.FC<{
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
   const [errors, setErrors] = useState<{ name?: string; employerNo?: string }>(
     {}
   );
@@ -152,12 +152,16 @@ const AddCompanyForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Company Added successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Company Added successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Company Added successfully!",
+          severity: "success",
+        });
 
         //wait
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter wait as snackbar is global
 
         // Clear the form after successful save
         setFormFields({
@@ -205,18 +209,23 @@ const AddCompanyForm: React.FC<{
         handleBackClick();
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error saving company. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving company. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: result.message || "Error saving company. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving company:", error);
-
-      setSnackbarMessage("Error saving company. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving company. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error saving company. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -240,9 +249,13 @@ const AddCompanyForm: React.FC<{
       //const name = await fetchCompanyName(formFields.employerNo);
       const name = result.name;
       if (!name) {
-        setSnackbarMessage("Employer number not found. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Employer number not found. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Employer number not found. Please try again.",
+          severity: "error",
+        });
         return;
       }
       setFormFields((prevFields) => ({
@@ -251,29 +264,33 @@ const AddCompanyForm: React.FC<{
       }));
 
       // Show success snackbar with the fetched name
-      setSnackbarMessage(`Name found: ${name}`);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Name found: ${name}`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
       console.error("Error fetching company name:", error);
-
-      setSnackbarMessage("Error fetching company name. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error fetching company name. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error fetching company name. Please try again.",
+        severity: "error",
+      });
     } finally {
       setNameLoading(false);
     }
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   return (
     <>
@@ -517,22 +534,7 @@ const AddCompanyForm: React.FC<{
         </Grid>
       </CardContent>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

@@ -11,8 +11,8 @@ import {
   CardHeader,
   CardContent,
   FormControl,
-  Snackbar,
-  Alert,
+  // Snackbar, // Removed
+  // Alert, // Removed
   Autocomplete,
   Stack, // Add Stack import
 } from "@mui/material";
@@ -25,6 +25,7 @@ import GenerateSalaryAll from "./generateSalaryAll";
 import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 export interface Salary {
   employee: string;
@@ -81,11 +82,7 @@ const AddSalaryForm: React.FC<{
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
   );
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const { showSnackbar } = useSnackbar();
   const [errors, setErrors] = useState<{
     employee?: string;
     basic?: string;
@@ -154,16 +151,6 @@ const AddSalaryForm: React.FC<{
 
     checkPurchased();
   }, [period]);
-
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
 
   return (
     <>
@@ -304,20 +291,7 @@ const AddSalaryForm: React.FC<{
         </Grid>
       </CardContent>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

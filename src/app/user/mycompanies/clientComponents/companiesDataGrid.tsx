@@ -7,12 +7,13 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert,
+  // Alert, // Removed as error will be handled by snackbar
   CircularProgress,
   Button,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export interface Company {
   shifts: any;
@@ -78,7 +79,8 @@ const CompaniesDataGrid = ({
   const [companies, setCompanies] = useState<Company[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null); // Removed
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
 
   const columns: GridColDef[] = [
     { field: "name", headerName: "Name", flex: 1 },
@@ -143,18 +145,21 @@ const CompaniesDataGrid = ({
 
         setCompanies(companiesWithUserNames);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCompaniesAndUsers();
-  }, [user]);
+  }, [user, showSnackbar]); // Added showSnackbar to dependencies
 
   useEffect(() => {
     setFilteredCompanies(
@@ -188,11 +193,11 @@ const CompaniesDataGrid = ({
     >
       {loading ? (
         <CircularProgress />
-      ) : error ? (
+      ) : /* error ? ( // Removed inline error Alert
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
-      ) : filteredCompanies.length > 0 ? (
+      ) : */ filteredCompanies.length > 0 ? ( // Adjusted conditional rendering
         <DataGrid
           rows={filteredCompanies}
           columns={columns}

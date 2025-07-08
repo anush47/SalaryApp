@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -12,7 +11,7 @@ import {
   FormHelperText,
   Grid,
   IconButton,
-  Snackbar,
+  // Snackbar, // Removed
   TextField,
   Typography,
   Tooltip,
@@ -30,6 +29,7 @@ import {
   AccordionDetails,
   Accordion,
   AccordionSummary,
+  Alert, // Keep Alert if used for non-snackbar purposes, otherwise remove
 } from "@mui/material";
 import {
   Save,
@@ -51,6 +51,7 @@ import dayjs from "dayjs";
 import { Shifts } from "./shifts";
 import { WorkingDays } from "./workingDays";
 import { LoadingButton } from "@mui/lab";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 const ChangeUser = React.lazy(() => import("./ChangeUser"));
 
 const CompanyDetails = ({
@@ -62,7 +63,8 @@ const CompanyDetails = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null); // Replaced by showSnackbar for general errors
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [company, setCompany] = useState<Company>();
   const [formFields, setFormFields] = useState<Company>({
     id: "",
@@ -110,15 +112,13 @@ const CompanyDetails = ({
   });
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
   const [companyUser, setCompanyUser] = useState<{
     userName: string;
     userEmail: string;
   }>();
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "info" | "warning"
-  >("success");
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error" | "info" | "warning">("success"); // Removed
   const [errors, setErrors] = useState<{ name?: string; employerNo?: string }>(
     {}
   );
@@ -183,11 +183,14 @@ const CompanyDetails = ({
         setCompany(companyWithId);
         setFormFields(companyWithId);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -197,9 +200,10 @@ const CompanyDetails = ({
     if (companyId?.length === 24) {
       fetchCompanyAndUser();
     } else {
-      setError("Invalid ID");
+      // setError("Invalid ID"); // Removed
+      showSnackbar({ message: "Invalid ID", severity: "error" });
     }
-  }, [companyId, user]);
+  }, [companyId, user, showSnackbar]); // Added showSnackbar to dependencies
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | any> | any
@@ -323,26 +327,37 @@ const CompanyDetails = ({
       });
 
       if (response.ok) {
-        setSnackbarMessage("Company updated successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Company updated successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Company updated successfully!",
+          severity: "success",
+        });
         setIsEditing(false);
         const updatedCompany = await response.json();
         setCompany(updatedCompany);
       } else {
         const result = await response.json();
-        setSnackbarMessage(
-          result.message || "Error updating company. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error updating company. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message:
+            result.message || "Error updating company. Please try again.",
+          severity: "error",
+        });
         setIsEditing(false);
       }
     } catch (error) {
       console.error("Error updating company:", error);
-      setSnackbarMessage("Error updating company. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error updating company. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error updating company. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -360,29 +375,45 @@ const CompanyDetails = ({
         }),
       });
       if (response.ok) {
-        setSnackbarMessage("Company deleted successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Company deleted successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Company deleted successfully!",
+          severity: "success",
+        });
         setDeleteDialogOpen(false);
         await new Promise((resolve) => setTimeout(resolve, 1000));
         //await
         // Redirect to the companies page
         window.location.href = "/user?userPageSelect=mycompanies";
+      } else {
+        const result = await response.json();
+        showSnackbar({
+          message:
+            result.message || "Error deleting company. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting company:", error);
-      setSnackbarMessage("Error deleting company. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error deleting company. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error deleting company. Please try again.",
+        severity: "error",
+      });
     }
   };
 
   //delete cancelation
   const handleDeleteCancelation = () => {
     //show snackbar
-    setSnackbarMessage("Delete canceled");
-    setSnackbarSeverity("info");
-    setSnackbarOpen(true);
+    // setSnackbarMessage("Delete canceled"); // Removed
+    // setSnackbarSeverity("info"); // Removed
+    // setSnackbarOpen(true); // Removed
+    showSnackbar({ message: "Delete canceled", severity: "info" });
     setDeleteDialogOpen(false);
   };
 
@@ -390,15 +421,15 @@ const CompanyDetails = ({
     setDeleteDialogOpen(true);
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const DeleteDialog = () => {
     return (
@@ -446,9 +477,13 @@ const CompanyDetails = ({
       //const name = await fetchCompanyName(formFields.employerNo);
       const name = result.name;
       if (!name) {
-        setSnackbarMessage("Employer number not found. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Employer number not found. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Employer number not found. Please try again.",
+          severity: "error",
+        });
         return;
       }
       setFormFields((prevFields) => ({
@@ -457,15 +492,19 @@ const CompanyDetails = ({
       }));
 
       // Show success snackbar with the fetched name
-      setSnackbarMessage(`Name found: ${name}`);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Name found: ${name}`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
       console.error("Error fetching company name:", error);
-
-      setSnackbarMessage("Error fetching company name. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error fetching company name. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error fetching company name. Please try again.",
+        severity: "error",
+      });
     } finally {
       setNameLoading(false);
     }
@@ -524,671 +563,664 @@ const CompanyDetails = ({
         sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
       >
         {loading && <CircularProgress />}
-        {error && (
+        {/* {error && ( // Removed general error display, handled by snackbar
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
-        )}
+        )} */}
         {
           // Display the company details with form controls if editing
-          !loading && !error && company && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={8}>
-                <FormControl fullWidth error={!!errors.name}>
-                  <TextField
-                    label="Name"
-                    name="name"
-                    value={formFields.name}
-                    onChange={handleChange}
-                    variant="filled"
-                    InputProps={{
-                      readOnly: !isEditing,
-                    }}
-                  />
-                  {errors.name && (
-                    <FormHelperText>{errors.name}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <FormControl fullWidth error={!!errors.employerNo}>
-                  <TextField
-                    label="Employer Number"
-                    name="employerNo"
-                    value={formFields.employerNo}
-                    onChange={handleChange}
-                    variant="filled"
-                    InputProps={{
-                      readOnly: !isEditing,
-                      endAdornment: isEditing && (
-                        <InputAdornment position="end">
-                          <LoadingButton
-                            variant="text"
-                            color="inherit"
-                            endIcon={<Search />}
-                            loading={nameLoading}
-                            loadingPosition="end"
-                            onClick={onFetchNameClick}
-                            disabled={nameLoading} // Disable button while loading
-                            sx={{ marginTop: 1 }}
-                          />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  {errors.employerNo && (
-                    <FormHelperText>{errors.employerNo}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <TextField
-                    label="Company Address"
-                    name="address"
-                    value={formFields.address}
-                    onChange={handleChange}
-                    variant="filled"
-                    size="small"
-                    multiline
-                    minRows={2}
-                    InputProps={{
-                      readOnly: !isEditing,
-                    }}
-                  />
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <TextField
-                    label="Payment Method"
-                    name="paymentMethod"
-                    value={formFields.paymentMethod}
-                    onChange={handleChange}
-                    variant="filled"
-                    size="small"
-                    InputProps={{
-                      readOnly: !isEditing,
-                    }}
-                  />
-                </FormControl>
-                <FormHelperText>
-                  Bank name, branch EPF/ETF is paid. you may use
-                  &quot;Cash&quot; as well
-                </FormHelperText>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl>
-                  <LocalizationProvider
-                    dateAdapter={AdapterDayjs}
-                    adapterLocale="en-gb"
-                  >
-                    <DatePicker
-                      readOnly={!isEditing}
-                      label="Started At"
-                      name="startedAt"
-                      openTo="year"
-                      value={
-                        formFields.startedAt
-                          ? dayjs(
-                              ddmmyyyy_to_mmddyyyy(
-                                formFields.startedAt as string
+          !loading &&
+            company && ( // Removed !error from condition
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={8}>
+                  <FormControl fullWidth error={!!errors.name}>
+                    <TextField
+                      label="Name"
+                      name="name"
+                      value={formFields.name}
+                      onChange={handleChange}
+                      variant="filled"
+                      InputProps={{
+                        readOnly: !isEditing,
+                      }}
+                    />
+                    {errors.name && (
+                      <FormHelperText>{errors.name}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth error={!!errors.employerNo}>
+                    <TextField
+                      label="Employer Number"
+                      name="employerNo"
+                      value={formFields.employerNo}
+                      onChange={handleChange}
+                      variant="filled"
+                      InputProps={{
+                        readOnly: !isEditing,
+                        endAdornment: isEditing && (
+                          <InputAdornment position="end">
+                            <LoadingButton
+                              variant="text"
+                              color="inherit"
+                              endIcon={<Search />}
+                              loading={nameLoading}
+                              loadingPosition="end"
+                              onClick={onFetchNameClick}
+                              disabled={nameLoading} // Disable button while loading
+                              sx={{ marginTop: 1 }}
+                            />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    {errors.employerNo && (
+                      <FormHelperText>{errors.employerNo}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <TextField
+                      label="Company Address"
+                      name="address"
+                      value={formFields.address}
+                      onChange={handleChange}
+                      variant="filled"
+                      size="small"
+                      multiline
+                      minRows={2}
+                      InputProps={{
+                        readOnly: !isEditing,
+                      }}
+                    />
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <TextField
+                      label="Payment Method"
+                      name="paymentMethod"
+                      value={formFields.paymentMethod}
+                      onChange={handleChange}
+                      variant="filled"
+                      size="small"
+                      InputProps={{
+                        readOnly: !isEditing,
+                      }}
+                    />
+                  </FormControl>
+                  <FormHelperText>
+                    Bank name, branch EPF/ETF is paid. you may use
+                    &quot;Cash&quot; as well
+                  </FormHelperText>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl>
+                    <LocalizationProvider
+                      dateAdapter={AdapterDayjs}
+                      adapterLocale="en-gb"
+                    >
+                      <DatePicker
+                        readOnly={!isEditing}
+                        label="Started At"
+                        name="startedAt"
+                        openTo="year"
+                        value={
+                          formFields.startedAt
+                            ? dayjs(
+                                ddmmyyyy_to_mmddyyyy(
+                                  formFields.startedAt as string
+                                )
                               )
-                            )
-                          : null
+                            : null
+                        }
+                        views={["year", "month", "day"]}
+                        onChange={(newDate) => {
+                          setFormFields((prevFields) => ({
+                            ...prevFields,
+                            startedAt: newDate?.format("DD-MM-YYYY") as
+                              | string
+                              | Date,
+                          }));
+                        }}
+                        slotProps={{
+                          field: { clearable: true },
+                        }}
+                      />
+                    </LocalizationProvider>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl>
+                    <LocalizationProvider
+                      dateAdapter={AdapterDayjs}
+                      adapterLocale="en-gb"
+                    >
+                      <DatePicker
+                        readOnly={!isEditing}
+                        label="Ended At"
+                        name="endedAt"
+                        openTo="year"
+                        value={
+                          formFields.endedAt
+                            ? dayjs(
+                                ddmmyyyy_to_mmddyyyy(
+                                  formFields.endedAt as string
+                                )
+                              )
+                            : null
+                        }
+                        views={["year", "month", "day"]}
+                        onChange={(newDate) => {
+                          setFormFields((prevFields) => ({
+                            ...prevFields,
+                            endedAt: newDate?.format("DD-MM-YYYY") as
+                              | string
+                              | Date,
+                          }));
+                        }}
+                        slotProps={{
+                          field: { clearable: true },
+                        }}
+                      />
+                    </LocalizationProvider>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formFields.active}
+                          size="large"
+                          name="active"
+                          color="success"
+                          value={formFields.active}
+                          onChange={handleChange}
+                          disabled={!isEditing || loading}
+                          sx={{
+                            "& .MuiSvgIcon-root": {
+                              color: formFields.active ? "green" : "red",
+                            },
+                          }}
+                        />
                       }
-                      views={["year", "month", "day"]}
-                      onChange={(newDate) => {
-                        setFormFields((prevFields) => ({
-                          ...prevFields,
-                          startedAt: newDate?.format("DD-MM-YYYY") as
-                            | string
-                            | Date,
-                        }));
-                      }}
-                      slotProps={{
-                        field: { clearable: true },
-                      }}
+                      label="Is Active ?"
                     />
-                  </LocalizationProvider>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl>
-                  <LocalizationProvider
-                    dateAdapter={AdapterDayjs}
-                    adapterLocale="en-gb"
-                  >
-                    <DatePicker
-                      readOnly={!isEditing}
-                      label="Ended At"
-                      name="endedAt"
-                      openTo="year"
-                      value={
-                        formFields.endedAt
-                          ? dayjs(
-                              ddmmyyyy_to_mmddyyyy(formFields.endedAt as string)
-                            )
-                          : null
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <FormControl fullWidth>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formFields?.openHours?.allDay}
+                          size="large"
+                          name="openHours.allDay"
+                          color="success"
+                          value={formFields?.openHours?.allDay}
+                          onChange={handleChange}
+                          disabled={!isEditing || loading}
+                        />
                       }
-                      views={["year", "month", "day"]}
-                      onChange={(newDate) => {
-                        setFormFields((prevFields) => ({
-                          ...prevFields,
-                          endedAt: newDate?.format("DD-MM-YYYY") as
-                            | string
-                            | Date,
-                        }));
-                      }}
-                      slotProps={{
-                        field: { clearable: true },
-                      }}
+                      label="Open 24h ?"
                     />
-                  </LocalizationProvider>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formFields.active}
-                        size="large"
-                        name="active"
-                        color="success"
-                        value={formFields.active}
-                        onChange={handleChange}
-                        disabled={!isEditing || loading}
-                        sx={{
-                          "& .MuiSvgIcon-root": {
-                            color: formFields.active ? "green" : "red",
-                          },
-                        }}
-                      />
-                    }
-                    label="Is Active ?"
-                  />
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={3}>
-                <FormControl fullWidth>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formFields?.openHours?.allDay}
-                        size="large"
-                        name="openHours.allDay"
-                        color="success"
-                        value={formFields?.openHours?.allDay}
-                        onChange={handleChange}
-                        disabled={!isEditing || loading}
-                      />
-                    }
-                    label="Open 24h ?"
-                  />
-                </FormControl>
-              </Grid>
-              {formFields?.openHours?.allDay ? null : (
-                <>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <TextField
-                        label="Start Time"
-                        type="time"
-                        variant="filled"
-                        name="openHours.start"
-                        value={formFields?.openHours?.start}
-                        onChange={handleChange}
-                        InputProps={{
-                          readOnly: !isEditing || loading,
-                        }}
-                      />
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <TextField
-                        label="Close Time"
-                        type="time"
-                        variant="filled"
-                        name="openHours.end"
-                        value={formFields?.openHours?.end}
-                        onChange={handleChange}
-                        InputProps={{
-                          readOnly: !isEditing || loading,
-                        }}
-                      />
-                    </FormControl>
-                  </Grid>
-                </>
-              )}
-
-              <Grid item xs={12}>
-                <PaymentStructure
-                  isEditing={isEditing}
-                  handleChange={handleChange}
-                  paymentStructure={formFields.paymentStructure}
-                  setPaymentStructure={(paymentStructure) => {
-                    //console.log("Setting payment structure:", paymentStructure); // Debugging
-                    setFormFields((prev) => ({
-                      ...prev,
-                      paymentStructure,
-                    }));
-                  }}
-                />
-              </Grid>
-
-              <div className="my-5" />
-
-              <Grid item xs={12}>
-                <WorkingDays
-                  isEditing={isEditing}
-                  workingDays={formFields.workingDays}
-                  setWorkingDays={(workingDays) => {
-                    setFormFields((prev) => ({
-                      ...prev,
-                      workingDays,
-                    }));
-                    //console.log("Setting working days:", formFields); // Debugging
-                  }}
-                />
-              </Grid>
-              <div className="my-5" />
-
-              <Grid item xs={12}>
-                <Shifts
-                  isEditing={isEditing}
-                  handleChange={handleChange}
-                  shifts={formFields.shifts}
-                  setShifts={(shifts: any) => {
-                    //console.log("Setting shifts:", shifts); // Debugging
-                    setFormFields((prev) => ({
-                      ...prev,
-                      shifts,
-                    }));
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <TextField
-                    label="Employer Name"
-                    name="employerName"
-                    value={formFields.employerName}
-                    onChange={handleChange}
-                    variant="filled"
-                    size="small"
-                    InputProps={{
-                      readOnly: !isEditing,
-                    }}
-                  />
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <TextField
-                    label="Employer Address"
-                    name="employerAddress"
-                    value={formFields.employerAddress}
-                    onChange={handleChange}
-                    variant="filled"
-                    multiline
-                    size="small"
-                    InputProps={{
-                      readOnly: !isEditing,
-                    }}
-                  />
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12}>
-                <div className="my-5" />
-
-                <Accordion>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h5">Calendar</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
+                  </FormControl>
+                </Grid>
+                {formFields?.openHours?.allDay ? null : (
+                  <>
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth>
-                        <InputLabel id="calendar-label">Calendar</InputLabel>
-                        <Select
-                          labelId="calendar-label"
-                          label="Calendar"
-                          name="calendar"
-                          value={formFields.calendar || "default"}
+                        <TextField
+                          label="Start Time"
+                          type="time"
+                          variant="filled"
+                          name="openHours.start"
+                          value={formFields?.openHours?.start}
                           onChange={handleChange}
-                          variant="outlined"
-                          readOnly={!isEditing}
-                        >
-                          <MenuItem value="default">Default</MenuItem>
-                          <MenuItem value="other">Other</MenuItem>
-                        </Select>
+                          InputProps={{
+                            readOnly: !isEditing || loading,
+                          }}
+                        />
                       </FormControl>
                     </Grid>
-                  </AccordionDetails>
-                </Accordion>
-
-                <hr className="my-5" />
-
-                <Typography variant="h5">User Info</Typography>
-                <br />
-
-                {user.role === "admin" ? (
-                  <Grid item xs={12}>
-                    {companyUser && (
-                      <>
-                        <Typography>Name: {companyUser.userName}</Typography>
-                        <Typography>Email: {companyUser.userEmail}</Typography>
-                      </>
-                    )}
-                    <div className="my-5" />
-
-                    <Accordion>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="h5">Change User</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Box mt={2}>
-                          <FormControl fullWidth>
-                            {isEditing && (
-                              <React.Suspense fallback={<CircularProgress />}>
-                                <ChangeUser
-                                  isEditing={isEditing}
-                                  user={formFields.user}
-                                  setUser={(user) => {
-                                    setFormFields((prevFields) => ({
-                                      ...prevFields,
-                                      user,
-                                    }));
-                                  }}
-                                />
-                              </React.Suspense>
-                            )}
-                          </FormControl>
-                        </Box>
-                      </AccordionDetails>
-                    </Accordion>
-
-                    <div className="my-5" />
-
-                    <Accordion>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="h5">Mode</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Box mt={2}>
-                          <FormControl fullWidth>
-                            <InputLabel id="mode-label">Mode</InputLabel>
-                            <Select
-                              labelId="mode-label"
-                              label="Mode"
-                              name="mode"
-                              value={formFields.mode}
-                              onChange={handleChange}
-                              variant="outlined"
-                              readOnly={!isEditing}
-                            >
-                              {modes}
-                            </Select>
-                          </FormControl>
-                        </Box>
-                      </AccordionDetails>
-                    </Accordion>
-
-                    <div className="my-5" />
-
-                    <Accordion>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="h5">Monthly Price</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Box mt={2}>
-                          <FormControl fullWidth>
-                            <TextField
-                              label="Monthly Price"
-                              name="monthlyPrice"
-                              type="number"
-                              value={formFields.monthlyPrice}
-                              onChange={handleChange}
-                              variant="filled"
-                              InputProps={{
-                                readOnly:
-                                  !isEditing ||
-                                  !formFields.monthlyPriceOverride,
-                              }}
-                            />
-                          </FormControl>
-                        </Box>
-                        <Box mt={2}>
-                          <FormControl>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={formFields.monthlyPriceOverride}
-                                  name="monthlyPriceOverride"
-                                  onChange={handleChange}
-                                  disabled={!isEditing}
-                                />
-                              }
-                              label="Monthly Price Override"
-                            />
-                          </FormControl>
-                        </Box>
-                      </AccordionDetails>
-                    </Accordion>
-
-                    <div className="my-5" />
-
-                    <Accordion>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="h5">Probabilities</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Grid container spacing={3} mt={2}>
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                              <TextField
-                                label="Work on Off Days (%)"
-                                name="probabilities.workOnOff"
-                                type="number"
-                                value={formFields.probabilities?.workOnOff}
-                                onChange={handleChange}
-                                variant="filled"
-                                InputProps={{
-                                  readOnly: !isEditing,
-                                }}
-                              />
-                            </FormControl>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                              <TextField
-                                label="Work on Holidays (%)"
-                                name="probabilities.workOnHoliday"
-                                type="number"
-                                value={formFields.probabilities?.workOnHoliday}
-                                onChange={handleChange}
-                                variant="filled"
-                                InputProps={{
-                                  readOnly: !isEditing,
-                                }}
-                              />
-                            </FormControl>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                              <TextField
-                                label="Absent (%)"
-                                name="probabilities.absent"
-                                type="number"
-                                value={formFields.probabilities?.absent}
-                                onChange={handleChange}
-                                variant="filled"
-                                InputProps={{
-                                  readOnly: !isEditing,
-                                }}
-                              />
-                            </FormControl>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                              <TextField
-                                label="Late (%)"
-                                name="probabilities.late"
-                                type="number"
-                                value={formFields.probabilities?.late}
-                                onChange={handleChange}
-                                variant="filled"
-                                InputProps={{
-                                  readOnly: !isEditing,
-                                }}
-                              />
-                            </FormControl>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                              <TextField
-                                label="OT (%)"
-                                name="probabilities.ot"
-                                type="number"
-                                value={formFields.probabilities?.ot}
-                                onChange={handleChange}
-                                variant="filled"
-                                InputProps={{
-                                  readOnly: !isEditing,
-                                }}
-                              />
-                            </FormControl>
-                          </Grid>
-                        </Grid>
-                      </AccordionDetails>
-                    </Accordion>
-
-                    <div className="my-5" />
-
-                    <Accordion>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="h5">Required Documents</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Box mt={2}>
-                          <FormControl>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={
-                                    formFields.requiredDocs?.epf || false
-                                  }
-                                  name="requiredDocs.epf"
-                                  onChange={handleChange}
-                                  disabled={!isEditing}
-                                />
-                              }
-                              label="EPF"
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={
-                                    formFields.requiredDocs?.etf || false
-                                  }
-                                  name="requiredDocs.etf"
-                                  onChange={handleChange}
-                                  disabled={!isEditing}
-                                />
-                              }
-                              label="ETF"
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={
-                                    formFields.requiredDocs?.salary || false
-                                  }
-                                  name="requiredDocs.salary"
-                                  onChange={handleChange}
-                                  disabled={!isEditing}
-                                />
-                              }
-                              label="Salary"
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={
-                                    formFields.requiredDocs?.paySlip || false
-                                  }
-                                  name="requiredDocs.paySlip"
-                                  onChange={handleChange}
-                                  disabled={!isEditing}
-                                />
-                              }
-                              label="Pay Slip"
-                            />
-                          </FormControl>
-                        </Box>
-                      </AccordionDetails>
-                    </Accordion>
-
-                    <div className="my-5" />
-                  </Grid>
-                ) : (
-                  <>
-                    <Typography>
-                      Mode: {modeTexts[company.mode as keyof typeof modeTexts]}
-                    </Typography>
-                    <Typography variant="h6" mt={3}>
-                      Monthly Price: LKR{" "}
-                      {company.monthlyPrice
-                        ? company.monthlyPrice.toLocaleString()
-                        : "N/A"}
-                    </Typography>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <TextField
+                          label="Close Time"
+                          type="time"
+                          variant="filled"
+                          name="openHours.end"
+                          value={formFields?.openHours?.end}
+                          onChange={handleChange}
+                          InputProps={{
+                            readOnly: !isEditing || loading,
+                          }}
+                        />
+                      </FormControl>
+                    </Grid>
                   </>
                 )}
+
+                <Grid item xs={12}>
+                  <PaymentStructure
+                    isEditing={isEditing}
+                    handleChange={handleChange}
+                    paymentStructure={formFields.paymentStructure}
+                    setPaymentStructure={(paymentStructure) => {
+                      //console.log("Setting payment structure:", paymentStructure); // Debugging
+                      setFormFields((prev) => ({
+                        ...prev,
+                        paymentStructure,
+                      }));
+                    }}
+                  />
+                </Grid>
+
+                <div className="my-5" />
+
+                <Grid item xs={12}>
+                  <WorkingDays
+                    isEditing={isEditing}
+                    workingDays={formFields.workingDays}
+                    setWorkingDays={(workingDays) => {
+                      setFormFields((prev) => ({
+                        ...prev,
+                        workingDays,
+                      }));
+                      //console.log("Setting working days:", formFields); // Debugging
+                    }}
+                  />
+                </Grid>
+                <div className="my-5" />
+
+                <Grid item xs={12}>
+                  <Shifts
+                    isEditing={isEditing}
+                    handleChange={handleChange}
+                    shifts={formFields.shifts}
+                    setShifts={(shifts: any) => {
+                      //console.log("Setting shifts:", shifts); // Debugging
+                      setFormFields((prev) => ({
+                        ...prev,
+                        shifts,
+                      }));
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <TextField
+                      label="Employer Name"
+                      name="employerName"
+                      value={formFields.employerName}
+                      onChange={handleChange}
+                      variant="filled"
+                      size="small"
+                      InputProps={{
+                        readOnly: !isEditing,
+                      }}
+                    />
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <TextField
+                      label="Employer Address"
+                      name="employerAddress"
+                      value={formFields.employerAddress}
+                      onChange={handleChange}
+                      variant="filled"
+                      multiline
+                      size="small"
+                      InputProps={{
+                        readOnly: !isEditing,
+                      }}
+                    />
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <div className="my-5" />
+
+                  <Accordion>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography variant="h5">Calendar</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel id="calendar-label">Calendar</InputLabel>
+                          <Select
+                            labelId="calendar-label"
+                            label="Calendar"
+                            name="calendar"
+                            value={formFields.calendar || "default"}
+                            onChange={handleChange}
+                            variant="outlined"
+                            readOnly={!isEditing}
+                          >
+                            <MenuItem value="default">Default</MenuItem>
+                            <MenuItem value="other">Other</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    </AccordionDetails>
+                  </Accordion>
+
+                  <hr className="my-5" />
+
+                  <Typography variant="h5">User Info</Typography>
+                  <br />
+
+                  {user.role === "admin" ? (
+                    <Grid item xs={12}>
+                      {companyUser && (
+                        <>
+                          <Typography>Name: {companyUser.userName}</Typography>
+                          <Typography>
+                            Email: {companyUser.userEmail}
+                          </Typography>
+                        </>
+                      )}
+                      <div className="my-5" />
+
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="h5">Change User</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Box mt={2}>
+                            <FormControl fullWidth>
+                              {isEditing && (
+                                <React.Suspense fallback={<CircularProgress />}>
+                                  <ChangeUser
+                                    isEditing={isEditing}
+                                    user={formFields.user}
+                                    setUser={(user) => {
+                                      setFormFields((prevFields) => ({
+                                        ...prevFields,
+                                        user,
+                                      }));
+                                    }}
+                                  />
+                                </React.Suspense>
+                              )}
+                            </FormControl>
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+
+                      <div className="my-5" />
+
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="h5">Mode</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Box mt={2}>
+                            <FormControl fullWidth>
+                              <InputLabel id="mode-label">Mode</InputLabel>
+                              <Select
+                                labelId="mode-label"
+                                label="Mode"
+                                name="mode"
+                                value={formFields.mode}
+                                onChange={handleChange}
+                                variant="outlined"
+                                readOnly={!isEditing}
+                              >
+                                {modes}
+                              </Select>
+                            </FormControl>
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+
+                      <div className="my-5" />
+
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="h5">Monthly Price</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Box mt={2}>
+                            <FormControl fullWidth>
+                              <TextField
+                                label="Monthly Price"
+                                name="monthlyPrice"
+                                type="number"
+                                value={formFields.monthlyPrice}
+                                onChange={handleChange}
+                                variant="filled"
+                                InputProps={{
+                                  readOnly:
+                                    !isEditing ||
+                                    !formFields.monthlyPriceOverride,
+                                }}
+                              />
+                            </FormControl>
+                          </Box>
+                          <Box mt={2}>
+                            <FormControl>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={formFields.monthlyPriceOverride}
+                                    name="monthlyPriceOverride"
+                                    onChange={handleChange}
+                                    disabled={!isEditing}
+                                  />
+                                }
+                                label="Monthly Price Override"
+                              />
+                            </FormControl>
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+
+                      <div className="my-5" />
+
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="h5">Probabilities</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Grid container spacing={3} mt={2}>
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth>
+                                <TextField
+                                  label="Work on Off Days (%)"
+                                  name="probabilities.workOnOff"
+                                  type="number"
+                                  value={formFields.probabilities?.workOnOff}
+                                  onChange={handleChange}
+                                  variant="filled"
+                                  InputProps={{
+                                    readOnly: !isEditing,
+                                  }}
+                                />
+                              </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth>
+                                <TextField
+                                  label="Work on Holidays (%)"
+                                  name="probabilities.workOnHoliday"
+                                  type="number"
+                                  value={
+                                    formFields.probabilities?.workOnHoliday
+                                  }
+                                  onChange={handleChange}
+                                  variant="filled"
+                                  InputProps={{
+                                    readOnly: !isEditing,
+                                  }}
+                                />
+                              </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth>
+                                <TextField
+                                  label="Absent (%)"
+                                  name="probabilities.absent"
+                                  type="number"
+                                  value={formFields.probabilities?.absent}
+                                  onChange={handleChange}
+                                  variant="filled"
+                                  InputProps={{
+                                    readOnly: !isEditing,
+                                  }}
+                                />
+                              </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth>
+                                <TextField
+                                  label="Late (%)"
+                                  name="probabilities.late"
+                                  type="number"
+                                  value={formFields.probabilities?.late}
+                                  onChange={handleChange}
+                                  variant="filled"
+                                  InputProps={{
+                                    readOnly: !isEditing,
+                                  }}
+                                />
+                              </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth>
+                                <TextField
+                                  label="OT (%)"
+                                  name="probabilities.ot"
+                                  type="number"
+                                  value={formFields.probabilities?.ot}
+                                  onChange={handleChange}
+                                  variant="filled"
+                                  InputProps={{
+                                    readOnly: !isEditing,
+                                  }}
+                                />
+                              </FormControl>
+                            </Grid>
+                          </Grid>
+                        </AccordionDetails>
+                      </Accordion>
+
+                      <div className="my-5" />
+
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="h5">
+                            Required Documents
+                          </Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Box mt={2}>
+                            <FormControl>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={
+                                      formFields.requiredDocs?.epf || false
+                                    }
+                                    name="requiredDocs.epf"
+                                    onChange={handleChange}
+                                    disabled={!isEditing}
+                                  />
+                                }
+                                label="EPF"
+                              />
+                            </FormControl>
+                            <FormControl>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={
+                                      formFields.requiredDocs?.etf || false
+                                    }
+                                    name="requiredDocs.etf"
+                                    onChange={handleChange}
+                                    disabled={!isEditing}
+                                  />
+                                }
+                                label="ETF"
+                              />
+                            </FormControl>
+                            <FormControl>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={
+                                      formFields.requiredDocs?.salary || false
+                                    }
+                                    name="requiredDocs.salary"
+                                    onChange={handleChange}
+                                    disabled={!isEditing}
+                                  />
+                                }
+                                label="Salary"
+                              />
+                            </FormControl>
+                            <FormControl>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={
+                                      formFields.requiredDocs?.paySlip || false
+                                    }
+                                    name="requiredDocs.paySlip"
+                                    onChange={handleChange}
+                                    disabled={!isEditing}
+                                  />
+                                }
+                                label="Pay Slip"
+                              />
+                            </FormControl>
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+
+                      <div className="my-5" />
+                    </Grid>
+                  ) : (
+                    <>
+                      <Typography>
+                        Mode:{" "}
+                        {modeTexts[company.mode as keyof typeof modeTexts]}
+                      </Typography>
+                      <Typography variant="h6" mt={3}>
+                        Monthly Price: LKR{" "}
+                        {company.monthlyPrice
+                          ? company.monthlyPrice.toLocaleString()
+                          : "N/A"}
+                      </Typography>
+                    </>
+                  )}
+                </Grid>
+                <Grid item xs={12}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<Delete />}
+                    onClick={onDeleteClick}
+                    disabled={!isEditing || loading}
+                  >
+                    Delete Company
+                  </Button>
+                  <DeleteDialog />
+                </Grid>
               </Grid>
-              <Grid item xs={12}>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Delete />}
-                  onClick={onDeleteClick}
-                  disabled={!isEditing || loading}
-                >
-                  Delete Company
-                </Button>
-                <DeleteDialog />
-              </Grid>
-            </Grid>
-          )
+            )
         }
       </CardContent>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Card>
   );
 };

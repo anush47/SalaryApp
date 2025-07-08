@@ -4,8 +4,8 @@ import {
   Button,
   Typography,
   CircularProgress,
-  Alert,
-  Snackbar,
+  // Alert, // Remove if only used for snackbar, or ensure it's not the general error one
+  // Snackbar, // Removed
   Grid,
   Paper,
   Chip,
@@ -31,6 +31,8 @@ import { ArrowBack, ArrowForward, HideImage } from "@mui/icons-material";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
 import Image from "next/image";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import Alert from "@mui/material/Alert"; // Keep for specific inline alerts if any, or remove if not used
 
 interface ChipData {
   key: number;
@@ -62,12 +64,11 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const [totalPrice, setTotalPrice] = useState<string>("");
 
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  // const [error, setError] = useState<string | null>(null); // To be replaced by showSnackbar for general errors
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | ArrayBuffer | null>(
     null
@@ -105,14 +106,18 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
           );
         }
       } catch (err) {
-        setError("Failed to fetch purchase details");
+        // setError("Failed to fetch purchase details"); // Removed
+        showSnackbar({
+          message: "Failed to fetch purchase details",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
     };
 
     if (!price) fetchPurchase();
-  }, [purchaseId, companyId]);
+  }, [purchaseId, companyId, showSnackbar, price]); // Added showSnackbar and price to dependencies
 
   useEffect(() => {
     if (image) {
@@ -129,7 +134,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setError(null);
+    // setError(null); // Removed
 
     const payload = {
       approvedStatus: status,
@@ -154,16 +159,24 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
         throw new Error(result.message || "Failed to update purchase");
       }
 
-      setSnackbarMessage("Purchase updated successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // setSnackbarMessage("Purchase updated successfully"); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Purchase updated successfully",
+        severity: "success",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       handleBackClick();
     } catch (error: any) {
-      setError(error.message);
-      setSnackbarMessage(error.message);
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setError(error.message); // Removed
+      // setSnackbarMessage(error.message); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -201,7 +214,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
     setLoading(true);
     //confirm using mui dialog
 
-    setError(null);
+    // setError(null); // Removed
 
     try {
       const response = await fetch(`/api/purchases/?purchaseId=${purchaseId}`, {
@@ -214,30 +227,38 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
         throw new Error(result.message || "Failed to delete purchase");
       }
 
-      setSnackbarMessage("Purchase deleted successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // setSnackbarMessage("Purchase deleted successfully"); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Purchase deleted successfully",
+        severity: "success",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       handleBackClick();
     } catch (error: any) {
-      setError(error.message);
-      setSnackbarMessage(error.message);
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setError(error.message); // Removed
+      // setSnackbarMessage(error.message); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const oneMonthPrice = price ?? 0;
 
@@ -512,26 +533,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
           </Grid>
         </Grid>
       </Box>
-      <Snackbar
-        open={snackbarOpen}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        action={
-          <Button color="inherit" onClick={handleSnackbarClose}>
-            Close
-          </Button>
-        }
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
       <DeleteDialog />
     </Box>
   );

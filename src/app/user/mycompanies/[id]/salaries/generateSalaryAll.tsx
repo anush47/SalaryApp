@@ -1,6 +1,6 @@
 import { Autorenew, Save } from "@mui/icons-material";
 import {
-  Alert,
+  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -9,7 +9,7 @@ import {
   CircularProgress,
   FormControl,
   Grid,
-  Snackbar,
+  // Snackbar, // Removed
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -20,6 +20,7 @@ import EmployeesInclude from "./employeesInclude";
 import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const GenerateSalaryAll = ({
   period,
@@ -29,17 +30,16 @@ const GenerateSalaryAll = ({
   companyId: string;
 }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null); // Removed, assuming general errors go to snackbar
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [inOut, setInOut] = useState<string>("");
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeIds, setEmployeeIds] = useState<String[]>([]);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "warning" | "info"
-  >("success");
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
+  const [errors, setErrors] = useState<{ [key: string]: string }>({}); // Keep for form field errors if any
   const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
@@ -63,18 +63,21 @@ const GenerateSalaryAll = ({
           .map((employee: any) => employee.id);
         setEmployeeIds(activeEmployeeIds);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchEmployees();
-  }, [companyId]);
+  }, [companyId, showSnackbar]); // Added showSnackbar
 
   const onSaveClick = async () => {
     const isValid = Object.keys(errors).length === 0;
@@ -112,12 +115,16 @@ const GenerateSalaryAll = ({
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Salary records saved successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Salary records saved successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Salary records saved successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         // setFormFields({
@@ -126,18 +133,23 @@ const GenerateSalaryAll = ({
         setGeneratedSalaries([]);
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error saving salary. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: result.message || "Error saving salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving salary:", error);
-
-      setSnackbarMessage("Error saving salary. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving salary. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error saving salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -158,7 +170,7 @@ const GenerateSalaryAll = ({
     if (reason === "clickaway") {
       return;
     }
-    setSnackbarOpen(false);
+    // setSnackbarOpen(false); // Removed
   };
 
   const onGenerateClick = async () => {
@@ -183,11 +195,13 @@ const GenerateSalaryAll = ({
           .filter(Boolean) // Remove undefined names
           .join(", ");
 
-        setSnackbarMessage(
-          `Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`
-        );
-        setSnackbarSeverity("warning");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(`Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`); // Removed
+        // setSnackbarSeverity("warning"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: `Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`,
+          severity: "warning",
+        });
         return;
       }
 
@@ -200,11 +214,12 @@ const GenerateSalaryAll = ({
         const calcEmployeeNames = calcEmployees
           .map((employee) => employee.name)
           .join(", ");
-        setSnackbarMessage(
-          `InOut required for calculated OT for employees: ${calcEmployeeNames}`
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: `InOut required for calculated OT for employees: ${calcEmployeeNames}`,
+          severity: "error",
+        });
         return;
       }
 
@@ -254,9 +269,10 @@ const GenerateSalaryAll = ({
           .filter(Boolean) // Remove undefined names
           .join(", ");
 
-        setSnackbarMessage(msg);
-        setSnackbarSeverity("warning");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(msg); // Removed
+        // setSnackbarSeverity("warning"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({ message: msg, severity: "warning" });
       }
 
       data.salaries.forEach(
@@ -299,11 +315,14 @@ const GenerateSalaryAll = ({
 
       setGeneratedSalaries([...generatedSalaries, ...data.salaries]);
     } catch (error) {
-      setSnackbarMessage(
-        error instanceof Error ? error.message : "Error fetching Salary."
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Salary."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message:
+          error instanceof Error ? error.message : "Error fetching Salary.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -391,27 +410,12 @@ const GenerateSalaryAll = ({
               setGeneratedSalaries={setGeneratedSalaries}
               loading={loading}
               setLoading={setLoading}
-              error={error}
+              error={null}
             />
           )}
         </CardContent>
       </Card>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

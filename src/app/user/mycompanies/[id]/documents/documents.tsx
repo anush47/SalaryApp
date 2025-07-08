@@ -13,7 +13,7 @@ import {
   FormControl,
   FormControlLabel,
   Grid,
-  Snackbar,
+  // Snackbar, // Removed
   Switch,
   Typography,
   Paper,
@@ -35,6 +35,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import PaymentsDataGrid from "../payments/paymentsDataGrid";
 import { GridRowSelectionModel } from "@mui/x-data-grid";
 import { Company } from "../../clientComponents/companiesDataGrid";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const Documents = ({
   user,
@@ -52,11 +53,7 @@ const Documents = ({
   const [customSalaries, setCustomSalaries] = useState<boolean>(false);
   const [rowSelectionModel, setRowSelectionModel] =
     React.useState<GridRowSelectionModel>([]);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "warning" | "error"
-  >("success");
+  const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
     const checkPurchased = async () => {
@@ -98,15 +95,14 @@ const Documents = ({
         } catch (error) {
           console.error("Error parsing JSON or updating state:", error);
           setCompany(undefined); // or handle the error state as needed
-          setSnackbarMessage("Error parsing company data");
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
+          showSnackbar({
+            message: "Error parsing company data",
+            severity: "error",
+          });
         }
       } catch (error) {
         console.error("Error fetching company:", error);
-        setSnackbarMessage("Error fetching company");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        showSnackbar({ message: "Error fetching company", severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -114,16 +110,6 @@ const Documents = ({
 
     getCompany();
   }, [companyId]);
-
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
 
   //handle pdf generation
   const handleGetPDF = async (
@@ -145,9 +131,10 @@ const Documents = ({
       if (customSalaries) {
         if (rowSelectionModel.length === 0) {
           //show snackbar error saying select at least one salary
-          setSnackbarMessage("Select at least one salary");
-          setSnackbarSeverity("warning");
-          setSnackbarOpen(true);
+          showSnackbar({
+            message: "Select at least one salary",
+            severity: "warning",
+          });
           return;
         }
         salaryIds = rowSelectionModel;
@@ -172,14 +159,10 @@ const Documents = ({
         //if data . message and starts with payment data not found show it in snack bar
         if (data.message) {
           if (data.message.includes("data not found for")) {
-            setSnackbarMessage(data.message);
-            setSnackbarSeverity("error");
-            setSnackbarOpen(true);
+            showSnackbar({ message: data.message, severity: "error" });
             return;
           } else if (data.message.includes("not Purchased")) {
-            setSnackbarMessage(data.message);
-            setSnackbarSeverity("error");
-            setSnackbarOpen(true);
+            showSnackbar({ message: data.message, severity: "error" });
             return;
           }
         }
@@ -193,14 +176,13 @@ const Documents = ({
       a.download = `${company?.name} ${pdfType} ${period}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
-      setSnackbarMessage("PDF generated successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar({
+        message: "PDF generated successfully",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error generating pdf:", error);
-      setSnackbarMessage("Error generating pdf");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar({ message: "Error generating pdf", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -544,22 +526,7 @@ const Documents = ({
           </Grid>
         </CardContent>
       </Card>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </motion.div>
   );
 };

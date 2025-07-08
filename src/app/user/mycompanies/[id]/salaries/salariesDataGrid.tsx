@@ -8,10 +8,10 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert,
+  Alert, // Keep for now, might remove if all errors go to snackbar
   CircularProgress,
   Chip,
-  Snackbar,
+  // Snackbar, // Removed
   Button,
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import {
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
 import { DeleteOutline } from "@mui/icons-material";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 export interface Salary {
   id: string;
@@ -71,12 +72,11 @@ const SalariesDataGrid: React.FC<{
 }> = ({ user, isEditing, period, companyId }) => {
   const [salaries, setSalaries] = useState<Salary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const [error, setError] = useState<string | null>(null); // Keep for now, might remove if all errors go to snackbar
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
 
   const columns: GridColDef[] = [
     {
@@ -239,28 +239,31 @@ const SalariesDataGrid: React.FC<{
         }));
         setSalaries(salariesWithId);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Replaced
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchSalaries();
-  }, [user, companyId]);
+  }, [user, companyId, period, showSnackbar]); // Added period and showSnackbar
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
@@ -353,11 +356,16 @@ const SalariesDataGrid: React.FC<{
         const result = await response.json();
 
         if (!response.ok) {
-          setSnackbarMessage(
+          // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
+          // setSnackbarSeverity("error"); // Removed
+          // setSnackbarOpen(true); // Removed
+          showSnackbar({
+            message: result.message || "Error saving salary. Please try again.",
+            severity: "error",
+          });
+          throw new Error(
             result.message || "Error saving salary. Please try again."
-          );
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
+          ); // Propagate error
         }
         //reset newsalary
 
@@ -365,21 +373,28 @@ const SalariesDataGrid: React.FC<{
         newSalary.noPay = newSalary.noPay.amount;
       } catch (error) {
         console.error("Error saving salary:", error);
-        setSnackbarMessage("Error saving salary. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Error saving salary. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Error saving salary. Please try again.",
+          severity: "error",
+        });
+        throw error; // Propagate error
       } finally {
-        setLoading(false);
+        setLoading(false); // This might be problematic if error is thrown
       }
       // }
       //console.log(newEmployee);
 
       // Success feedback
-      setSnackbarMessage(
-        `Employee ${newSalary.memberNo} - updated successfully!`
-      );
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Employee ${newSalary.memberNo} - updated successfully!`); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: `Employee ${newSalary.memberNo} - updated successfully!`,
+        severity: "success",
+      });
 
       return newSalary;
     } catch (error: any) {
@@ -408,11 +423,13 @@ const SalariesDataGrid: React.FC<{
     setSalaries(updatedSalaries); // Update state with reverted data
 
     // Display the error details in Snackbar
-    setSnackbarMessage(
-      params.error?.message || "An unexpected error occurred." // Show detailed error message
-    );
-    setSnackbarSeverity("error"); // Set snackbar severity to error
-    setSnackbarOpen(true); // Open Snackbar
+    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
+    // setSnackbarSeverity("error"); // Removed
+    // setSnackbarOpen(true); // Removed
+    showSnackbar({
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
+    });
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -492,30 +509,39 @@ const SalariesDataGrid: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Salary record deleted successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Salary record deleted successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Salary record deleted successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200)); // Keep or adjust delay
         //remove row
         setSalaries(
           salaries.filter((salary) => !salaryIds.includes(salary.id))
         );
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error deleting salary. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: result.message || "Error deleting salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting salary:", error);
-
-      setSnackbarMessage("Error deleting salary. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error deleting salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -535,12 +561,12 @@ const SalariesDataGrid: React.FC<{
       }}
     >
       {loading && <CircularProgress />}
-      {error && (
+      {/* {error && ( // Removing top-level error alert, relying on snackbar
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
-      )}
-      {!loading && !error && (
+      )} */}
+      {!loading && ( // Removed !error from condition
         <div>
           {isEditing && rowSelectionModel.length > 0 && (
             <Button
@@ -615,22 +641,6 @@ const SalariesDataGrid: React.FC<{
         </div>
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
       <ConfirmationDialog
         open={dialogOpen}
         onClose={handleDialogClose}

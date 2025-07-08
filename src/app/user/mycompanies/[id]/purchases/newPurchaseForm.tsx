@@ -4,8 +4,8 @@ import {
   Button,
   Typography,
   CircularProgress,
-  Alert,
-  Snackbar,
+  // Alert, // Removed if only for snackbar
+  // Snackbar, // Removed
   Grid,
   Paper,
   Chip,
@@ -22,6 +22,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 interface ChipData {
   key: number;
@@ -65,12 +66,11 @@ const NewPurchaseForm: React.FC<{
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
   const [price, setPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  // const [error, setError] = useState<string | null>(null); // Removed
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | ArrayBuffer | null>(
     null
@@ -109,7 +109,11 @@ const NewPurchaseForm: React.FC<{
         const data = await res.json();
         setPrice(data.companies[0].monthlyPrice);
       } catch (err) {
-        setError("Failed to fetch company details");
+        // setError("Failed to fetch company details"); // Removed
+        showSnackbar({
+          message: "Failed to fetch company details",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -129,11 +133,14 @@ const NewPurchaseForm: React.FC<{
           .flat();
         setPurchasedPeriods(purchases);
       } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
+        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
+        showSnackbar({
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -141,7 +148,7 @@ const NewPurchaseForm: React.FC<{
 
     fetchCompany();
     fetchPurchases();
-  }, []);
+  }, [companyId, showSnackbar]); // Added showSnackbar and companyId to dependencies
 
   useEffect(() => {
     if (image) {
@@ -162,16 +169,18 @@ const NewPurchaseForm: React.FC<{
       !periods.find((p) => p.label === formatPeriod(selectedPeriod))
     ) {
       if (purchasedPeriods.includes(formatPeriod(selectedPeriod))) {
-        setError("Period already purchased");
+        // setError("Period already purchased"); // Removed
         //show snackbar and status
-        setSnackbarMessage(
-          "Period already purchased " + formatPeriod(selectedPeriod)
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Period already purchased " + formatPeriod(selectedPeriod)); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Period already purchased " + formatPeriod(selectedPeriod),
+          severity: "error",
+        });
         return;
       }
-      setError("");
+      // setError(""); // Removed
       const formattedPeriod = formatPeriod(selectedPeriod);
       setPeriods([...periods, { key: periods.length, label: formattedPeriod }]);
 
@@ -198,7 +207,7 @@ const NewPurchaseForm: React.FC<{
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setError(null);
+    // setError(null); // Removed
 
     // Construct the payload object
     const payload = {
@@ -227,17 +236,25 @@ const NewPurchaseForm: React.FC<{
         throw new Error(result.message || "Failed to create purchase");
       }
 
-      setSnackbarMessage("Purchase Requested successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Purchase Requested successfully"); // Removed
+      // setSnackbarSeverity("success"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Purchase Requested successfully",
+        severity: "success",
+      });
       //wait
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       handleBackClick();
     } catch (error: any) {
-      setError(error.message);
-      setSnackbarMessage(error.message);
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setError(error.message); // Removed
+      // setSnackbarMessage(error.message); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -255,15 +272,15 @@ const NewPurchaseForm: React.FC<{
     });
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   useEffect(() => {
     async function fetchPrice() {
@@ -287,7 +304,11 @@ const NewPurchaseForm: React.FC<{
         setFinalTotalPrice(data.finalTotalPrice);
         setTotalPrice(data.totalPrice); // Update with final total price
       } catch (err) {
-        setError("Failed to fetch price details");
+        // setError("Failed to fetch price details"); // Removed
+        showSnackbar({
+          message: "Failed to fetch price details",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -295,7 +316,7 @@ const NewPurchaseForm: React.FC<{
 
     // Fetch price if periods and companyId exist
     if (periods && companyId) fetchPrice();
-  }, [companyId, periods]);
+  }, [companyId, periods, showSnackbar]); // Added showSnackbar
 
   const oneMonthPrice = price ?? 3000;
 
@@ -656,21 +677,7 @@ const NewPurchaseForm: React.FC<{
         </Grid>
       </Box>
 
-      <Snackbar
-        open={snackbarOpen}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-      >
-        <Alert
-          elevation={6}
-          variant="filled"
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </motion.div>
   );
 };

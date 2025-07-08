@@ -5,9 +5,10 @@ import {
   GridColumnVisibilityModel,
   GridToolbar,
 } from "@mui/x-data-grid";
-import { Box, Alert, CircularProgress, Snackbar, Chip } from "@mui/material";
+import { Box, Alert, CircularProgress, Chip } from "@mui/material";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -25,11 +26,7 @@ const PurchasesDataGrid: React.FC<{
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
-    "success"
-  );
+  const { showSnackbar } = useSnackbar();
 
   const columns: GridColDef[] = [
     {
@@ -130,16 +127,6 @@ const PurchasesDataGrid: React.FC<{
     fetchPurchases();
   }, [user, companyId]);
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
-
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
       id: false,
@@ -197,22 +184,7 @@ const PurchasesDataGrid: React.FC<{
         />
       )}
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={(props) => <Slide {...props} direction="up" />}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </Box>
   );
 };

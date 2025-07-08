@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { NextAuthProvider } from "./NextAuthProvider";
 import AppThemeProvider from "./theme-provider";
+import { SnackbarProvider } from "./contexts/SnackbarContext"; // Add this
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,8 +29,10 @@ export default function RootLayout({
         <NextAuthProvider>
           <AppRouterCacheProvider>
             <AppThemeProvider>
-              {children}
-              <SpeedInsights />
+              <SnackbarProvider>
+                {children}
+                <SpeedInsights />
+              </SnackbarProvider>
             </AppThemeProvider>
           </AppRouterCacheProvider>
         </NextAuthProvider>

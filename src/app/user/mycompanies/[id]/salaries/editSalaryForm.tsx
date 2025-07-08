@@ -2,7 +2,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Alert,
+  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -19,8 +19,8 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  Slide,
-  Snackbar,
+  Slide, // Keep if used for other transitions
+  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
@@ -34,6 +34,7 @@ import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { salaryId } from "./salaries";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
+import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
 
 const EditSalaryForm: React.FC<{
   user: { id: string; name: string; email: string };
@@ -50,11 +51,10 @@ const EditSalaryForm: React.FC<{
   }>();
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState<
-    "success" | "error" | "warning" | "info"
-  >("success");
+  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
+  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
 
   const [formFields, setFormFields] = useState<Salary>({
     _id: "",
@@ -117,11 +117,14 @@ const EditSalaryForm: React.FC<{
           divideBy: data.salary.divideBy,
         });
       } catch (error) {
-        setSnackbarMessage(
-          error instanceof Error ? error.message : "Error fetching company."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message:
+            error instanceof Error ? error.message : "Error fetching company.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -130,11 +133,12 @@ const EditSalaryForm: React.FC<{
     if (companyId?.length === 24) {
       fetchSalary();
     } else {
-      setSnackbarMessage("Invalid Company ID");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Invalid Company ID"); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [salaryId]);
+  }, [salaryId, companyId, showSnackbar]); // Added companyId and showSnackbar
 
   //gen salary
   const fetchSalary = async () => {
@@ -192,25 +196,28 @@ const EditSalaryForm: React.FC<{
         finalSalary: data.salaries[0].finalSalary,
       }));
     } catch (error) {
-      setSnackbarMessage(
-        error instanceof Error ? error.message : "Error Updating Salary."
-      );
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage(error instanceof Error ? error.message : "Error Updating Salary."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message:
+          error instanceof Error ? error.message : "Error Updating Salary.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = ( // Removed
+  //   event?: React.SyntheticEvent | Event,
+  //   reason?: string
+  // ) => {
+  //   if (reason === "clickaway") {
+  //     return;
+  //   }
+  //   setSnackbarOpen(false);
+  // };
 
   const calculateFinalSalary = () => {
     const basic = Number(formFields.basic);
@@ -337,14 +344,18 @@ const EditSalaryForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Salary record saved successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Salary record saved successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Salary record saved successfully!",
+          severity: "success",
+        });
 
         setIsEditing(false);
 
         // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         // setFormFields({
@@ -352,18 +363,23 @@ const EditSalaryForm: React.FC<{
         setErrors({});
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error saving salary. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: result.message || "Error saving salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error saving salary:", error);
-
-      setSnackbarMessage("Error saving salary. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error saving salary. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error saving salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -446,12 +462,16 @@ const EditSalaryForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        setSnackbarMessage("Salary record deleted successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
+        // setSnackbarMessage("Salary record deleted successfully!"); // Removed
+        // setSnackbarSeverity("success"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: "Salary record deleted successfully!",
+          severity: "success",
+        });
 
         // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         // setFormFields({
@@ -460,18 +480,23 @@ const EditSalaryForm: React.FC<{
         window.history.back();
       } else {
         // Handle validation or other errors returned by the API
-        setSnackbarMessage(
-          result.message || "Error deleting salary. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
+        // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
+        // setSnackbarSeverity("error"); // Removed
+        // setSnackbarOpen(true); // Removed
+        showSnackbar({
+          message: result.message || "Error deleting salary. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Error deleting salary:", error);
-
-      setSnackbarMessage("Error deleting salary. Please try again.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
+      // setSnackbarSeverity("error"); // Removed
+      // setSnackbarOpen(true); // Removed
+      showSnackbar({
+        message: "Error deleting salary. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -787,22 +812,7 @@ const EditSalaryForm: React.FC<{
         title="Confirm Deletion"
         message={`Are you sure you want to delete the salary of ${employeeName} for ${formFields.period}?`}
       />
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={5000}
-        onClose={handleSnackbarClose}
-        //TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };
