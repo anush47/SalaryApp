@@ -132,11 +132,14 @@ export const defaultEmployee: Employee = {
 };
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
-  //if null return ""
-  if (ddmmyyyy === null) {
-    return "";
+  if (!ddmmyyyy || typeof ddmmyyyy !== "string") {
+    return null; // Or handle the error appropriately
   }
-  const [dd, mm, yyyy] = ddmmyyyy.split("-");
+  const parts = ddmmyyyy.split("-");
+  if (parts.length !== 3) {
+    return null; // Or handle the error appropriately
+  }
+  const [dd, mm, yyyy] = parts;
   return `${mm}-${dd}-${yyyy}`;
 };
 
@@ -396,7 +399,9 @@ const EmployeesDataGrid: React.FC<{
             label="Started At"
             openTo="year"
             views={["year", "month", "day"]}
-            value={dayjs(ddmmyyyy_to_mmddyyyy(params.value))}
+            value={
+              params.value ? dayjs(ddmmyyyy_to_mmddyyyy(params.value)) : null
+            }
             onChange={(newDate) => {
               params.api.setEditCellValue({
                 id: params.id,
@@ -426,7 +431,9 @@ const EmployeesDataGrid: React.FC<{
             label="Resigned At"
             openTo="year"
             views={["year", "month", "day"]}
-            value={dayjs(ddmmyyyy_to_mmddyyyy(params.value))}
+            value={
+              params.value ? dayjs(ddmmyyyy_to_mmddyyyy(params.value)) : null
+            }
             onChange={(newDate) => {
               params.api.setEditCellValue({
                 id: params.id,
