@@ -1,14 +1,12 @@
 import { getServerSession } from "next-auth";
-import CompanySideBar from "./clientComponents/companySideBar";
 import React from "react";
 import { options } from "@/app/api/auth/[...nextauth]/options";
-import { Box } from "@mui/material";
-import MainBox from "./clientComponents/companyMainBox";
 import NavContainer from "./clientComponents/NavContainer";
 
-const UserPage = async () => {
+const UserPage = async ({ params }: { params: { id: string } }) => {
   const session = await getServerSession(options);
   const user = session?.user || null;
+  const companyId = params.id;
 
   return (
     <NavContainer
@@ -23,6 +21,7 @@ const UserPage = async () => {
             }
           : { name: "", email: "", image: "", role: "", id: "" }
       }
+      companyId={companyId}
     />
   );
 };

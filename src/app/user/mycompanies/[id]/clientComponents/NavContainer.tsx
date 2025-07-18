@@ -1,22 +1,22 @@
-"use client";
-import CompanySideBar from "./companySideBar";
-import React, { useEffect } from "react";
-import { Box } from "@mui/material";
-import CompanyMainBox from "./companyMainBox";
-import { useParams, useSearchParams } from "next/navigation";
+'use client';
+import CompanySideBar from './companySideBar';
+import React, { useEffect, useState } from 'react';
+import { Box } from '@mui/material';
+import CompanyMainBox from './companyMainBox';
+import { useSearchParams } from 'next/navigation';
 
-//export selected type
 export type Selected =
-  | "quick"
-  | "details"
-  | "employees"
-  | "payments"
-  | "salaries"
-  | "purchases"
-  | "documents";
+  | 'quick'
+  | 'details'
+  | 'employees'
+  | 'payments'
+  | 'salaries'
+  | 'purchases'
+  | 'documents';
 
 const NavContainer = ({
   user,
+  companyId,
 }: {
   user: {
     name: string;
@@ -25,63 +25,43 @@ const NavContainer = ({
     role: string;
     image: string;
   };
+  companyId: string;
 }) => {
-  const [selected, setSelected] = React.useState<Selected>("quick");
-  const [companyId, setCompanyId] = React.useState<string>("");
+  const [selected, setSelected] = useState<Selected>('quick');
   const searchParams = useSearchParams();
-  const params = useParams();
+
   useEffect(() => {
-    const selectedParam = searchParams?.get("companyPageSelect");
-    const companyIdParam = params.id.toString();
-    setCompanyId(companyIdParam ? companyIdParam : "");
+    const selectedParam = searchParams?.get('companyPageSelect');
     if (
       selectedParam &&
       [
-        "quick",
-        "details",
-        "employees",
-        "payments",
-        "salaries",
-        "purchases",
-        "documents",
+        'quick',
+        'details',
+        'employees',
+        'payments',
+        'salaries',
+        'purchases',
+        'documents',
       ].includes(selectedParam)
     ) {
       setSelected(selectedParam as Selected);
     } else {
-      setSelected("quick");
+      setSelected('quick');
     }
   }, [searchParams]);
+
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: 'flex' }}>
       <CompanySideBar
         selected={selected}
         setSelected={setSelected}
         companyId={companyId}
-        user={
-          user
-            ? {
-                name: user.name ?? "",
-                email: user.email ?? "",
-                role: user.role ?? "",
-                image: user.image ?? "",
-              }
-            : { name: "", email: "", role: "", image: "" }
-        }
+        user={user}
       />
       <CompanyMainBox
         selected={selected}
         companyId={companyId}
-        user={
-          user
-            ? {
-                name: user.name ?? "",
-                email: user.email ?? "",
-                id: user.id ?? "",
-                role: user.role ?? "",
-                image: user.image ?? "",
-              }
-            : { name: "", email: "", id: "", role: "", image: "" }
-        }
+        user={user}
       />
     </Box>
   );

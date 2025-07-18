@@ -480,7 +480,7 @@ const PaymentsDataGrid: React.FC<{
           initialState={{
             pagination: {
               paginationModel: {
-                pageSize: 5,
+                pageSize: 10,
               },
             },
             filter: {
@@ -490,7 +490,7 @@ const PaymentsDataGrid: React.FC<{
               },
             },
           }}
-          pageSizeOptions={[5]}
+          pageSizeOptions={[10, 20, 50]}
           slots={{
             toolbar: (props) => (
               <GridToolbar

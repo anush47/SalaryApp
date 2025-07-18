@@ -135,7 +135,7 @@ const NewPaymentForm = ({
       // setSnackbarOpen(true); // Removed
       showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [companyId, formFields, showSnackbar]); // Added formFields, showSnackbar to dependencies
+  }, [companyId]); // Added formFields, showSnackbar to dependencies
 
   useEffect(() => {
     const checkPurchased = async () => {

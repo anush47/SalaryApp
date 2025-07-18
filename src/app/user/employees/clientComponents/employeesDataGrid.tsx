@@ -421,6 +421,10 @@ const EmployeesDataGrid: React.FC<{
 
   useEffect(() => {
     const fetchEmployees = async () => {
+      if (!user || !user.id) {
+        // User is not yet available, so don't fetch data
+        return;
+      }
       try {
         setLoading(true);
 
