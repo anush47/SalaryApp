@@ -38,6 +38,7 @@ const AddCompanyForm: React.FC<{
   handleBackClick: () => void;
 }> = ({ user, handleBackClick }) => {
   const [formFields, setFormFields] = useState<Company>({
+    _id: "",
     id: "",
     name: "",
     employerNo: "",
@@ -165,6 +166,7 @@ const AddCompanyForm: React.FC<{
 
         // Clear the form after successful save
         setFormFields({
+          _id: "",
           id: "",
           name: "",
           user: "",

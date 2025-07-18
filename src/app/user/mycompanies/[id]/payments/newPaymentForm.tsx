@@ -40,6 +40,7 @@ import dayjs from "dayjs";
 import Link from "next/link";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQueryClient } from "@tanstack/react-query";
 
 const NewPaymentForm = ({
   handleBackClick,
@@ -57,10 +58,8 @@ const NewPaymentForm = ({
   );
   const [loading, setLoading] = useState(false);
   const [ReferenceLoading, setReferenceLoading] = useState(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
 
   const [formFields, setFormFields] = useState<{
     _id: string;
@@ -329,24 +328,20 @@ const NewPaymentForm = ({
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Payment record saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment record saved successfully!",
           severity: "success",
         });
 
+        queryClient.invalidateQueries({
+          queryKey: ["payments", companyId],
+        });
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         setErrors({});
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving payment. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error saving payment. Please try again.",
           severity: "error",
@@ -354,9 +349,6 @@ const NewPaymentForm = ({
       }
     } catch (error) {
       console.error("Error saving payment:", error);
-      // setSnackbarMessage("Error saving payment. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error saving payment. Please try again.",
         severity: "error",
