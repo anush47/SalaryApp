@@ -61,7 +61,10 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
-const fetchPayments = async (companyId: string, period?: string): Promise<Payment[]> => {
+const fetchPayments = async (
+  companyId: string,
+  period?: string
+): Promise<Payment[]> => {
   let url = `/api/payments/?companyId=${companyId}`;
   if (period) {
     url += `&period=${period}`;
@@ -78,7 +81,7 @@ const fetchPayments = async (companyId: string, period?: string): Promise<Paymen
 };
 
 const PaymentsDataGrid: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   isEditing: boolean;
   period?: string;
   companyId: string;
@@ -302,7 +305,11 @@ const PaymentsDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments", companyId, period] });
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
         message: "Payment updated successfully",
         severity: "success",
@@ -329,7 +336,11 @@ const PaymentsDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments", companyId, period] });
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
         message: "Payments deleted successfully",
         severity: "success",

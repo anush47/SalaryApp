@@ -56,7 +56,7 @@ export interface Salary {
 }
 
 const AddSalaryForm: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
@@ -297,12 +297,17 @@ const AddSalaryForm: React.FC<{
           </Grid>
           <Grid item xs={12}>
             {employeeSelection === "all" ? (
-              <GenerateSalaryAll companyId={companyId} period={period} />
+              <GenerateSalaryAll
+                companyId={companyId}
+                period={period}
+                user={user}
+              />
             ) : (
               <GenerateSalaryOne
                 companyId={companyId}
                 employeeId={employeeSelection}
                 period={period}
+                user={user}
               />
             )}
           </Grid>

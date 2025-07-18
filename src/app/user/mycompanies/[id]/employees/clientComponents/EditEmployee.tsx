@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import {
   Box,
   CircularProgress,
@@ -70,59 +72,80 @@ const EditEmployeeForm: React.FC<{
   employeeId: string | null;
 }> = ({ user, handleBackClick, employeeId, companyId }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
-  const [loading, setLoading] = useState<boolean>(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error" | "warning" | "info">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [errors, setErrors] = useState<Record<string, string | any>>({});
-  const [employee, setEmployee] = useState<Employee | null>(null);
-  const [company, setCompany] = useState<Company | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+  const fetchEmployeeData = async (): Promise<Employee> => {
+    const response = await fetch(`/api/employees?employeeId=${employeeId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Employee");
+    }
+    const data = await response.json();
+    return data.employees[0];
+  };
+
+  const fetchCompanyData = async (): Promise<Company> => {
+    const response = await fetch(`/api/companies?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch company");
+    }
+    const data = await response.json();
+    return data.companies[0];
+  };
+
+  const {
+    data: employeeData,
+    isLoading: isLoadingEmployee,
+    isError: isErrorEmployee,
+    error: errorEmployee,
+  } = useQuery<Employee, Error>({
+    queryKey: ["employees", companyId, employeeId],
+    queryFn: fetchEmployeeData,
+    enabled: !!employeeId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  const {
+    data: companyData,
+    isLoading: isLoadingCompany,
+    isError: isErrorCompany,
+    error: errorCompany,
+  } = useQuery<Company, Error>({
+    queryKey: ["company", companyId],
+    queryFn: fetchCompanyData,
+    enabled: !!companyId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
   useEffect(() => {
-    const fetchEmployee = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/employees?employeeId=${employeeId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch Employee");
-        }
-        const data = await response.json();
-        setEmployee(data.employees[0]);
-        //set working days if undefined
-        if (!data.employees[0].workingDays) {
-          data.employees[0].workingDays = {
-            mon: "off",
-            tue: "off",
-            wed: "off",
-            thu: "off",
-            fri: "off",
-            sat: "off",
-            sun: "off",
-          };
-        }
+    if (employeeData) {
+      const employee = { ...employeeData };
+      if (!employee.workingDays) {
+        employee.workingDays = {
+          mon: "off",
+          tue: "off",
+          wed: "off",
+          thu: "off",
+          fri: "off",
+          sat: "off",
+          sun: "off",
+        };
+      }
 
-        const overrides = data.employees[0]?.overrides || {};
-        if (
-          !overrides.shifts ||
-          !overrides.workingDays ||
-          !overrides.paymentStructure ||
-          !overrides.probabilities
-        ) {
-          const companyResponse = await fetch(
-            `/api/companies?companyId=${companyId}`
-          );
-          if (!companyResponse.ok) {
-            throw new Error("Failed to fetch company");
-          }
-          const companyData = await companyResponse.json();
-          setCompany(companyData.companies[0]);
-
-          const companyDefaults = companyData.companies[0];
-          const employee = data.employees[0];
-
+      const overrides = employee.overrides || {};
+      if (
+        !overrides.shifts ||
+        !overrides.workingDays ||
+        !overrides.paymentStructure ||
+        !overrides.probabilities
+      ) {
+        if (companyData) {
+          const companyDefaults = companyData;
           employee.shifts = overrides.shifts
             ? employee.shifts
             : companyDefaults.shifts;
@@ -136,31 +159,33 @@ const EditEmployeeForm: React.FC<{
             ? employee.probabilities
             : companyDefaults.probabilities;
         }
-
-        setFormFields(data.employees[0]);
-      } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error ? error.message : "Error fetching company.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
       }
-    };
-
-    if (companyId?.length === 24) {
-      fetchEmployee();
-    } else {
-      // setSnackbarMessage("Invalid Company ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Invalid Company ID", severity: "error" });
+      setFormFields(employee);
     }
-  }, [companyId, user, employeeId, showSnackbar]); // Added employeeId and showSnackbar
+  }, [employeeData, companyData]);
+
+  useEffect(() => {
+    if (isErrorEmployee) {
+      showSnackbar({
+        message: errorEmployee?.message || "Error fetching employee.",
+        severity: "error",
+      });
+    }
+    if (isErrorCompany) {
+      showSnackbar({
+        message: errorCompany?.message || "Error fetching company.",
+        severity: "error",
+      });
+    }
+  }, [
+    isErrorEmployee,
+    errorEmployee,
+    isErrorCompany,
+    errorCompany,
+    showSnackbar,
+  ]);
+
+  const loading = isLoadingEmployee || isLoadingCompany;
 
   // Unified handle change for all fields
   const handleChange = (
@@ -205,73 +230,47 @@ const EditEmployeeForm: React.FC<{
     setFormFields((prevFields) => ({ ...prevFields, [name]: value }));
   };
 
-  const onSaveClick = async () => {
-    if (!true) {
-      return;
-    }
-
-    setLoading(true);
-    //capitalize for name,nic
-    if (formFields.name) {
-      formFields.name = formFields.name.toUpperCase();
-    }
-    if (formFields.nic) {
-      formFields.nic = formFields.nic.toUpperCase();
-    }
-    try {
-      // Perform POST request to update the employee
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async (employeeData: Employee) => {
+      const body = { ...employeeData, userId: user.id };
+      if (body.name) {
+        body.name = body.name.toUpperCase();
+      }
+      if (body.nic) {
+        body.nic = body.nic.toUpperCase();
+      }
       const response = await fetch("/api/employees", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formFields,
-          userId: user.id, // Include user ID
-        }),
+        body: JSON.stringify(body),
       });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // setSnackbarMessage("Employee updated successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Employee updated successfully!",
-          severity: "success",
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        setErrors({});
-        handleBackClick();
-      } else {
-        // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: result.message || "Error saving employee. Please try again.",
-          severity: "error",
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update employee");
       }
-    } catch (error) {
-      console.error("Error saving employee:", error);
-      // setSnackbarMessage("Error saving employee. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "employees",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
-        message: "Error saving employee. Please try again.",
-        severity: "error",
+        message: "Employee updated successfully!",
+        severity: "success",
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+      handleBackClick();
+    },
+    onError: (error) => {
+      showSnackbar({ message: error.message, severity: "error" });
+    },
+  });
 
-  const handleDeleteConfirmation = async () => {
-    try {
-      // Perform DELETE request to delete the employee
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async () => {
       const response = await fetch("/api/employees", {
         method: "DELETE",
         headers: {
@@ -279,48 +278,41 @@ const EditEmployeeForm: React.FC<{
         },
         body: JSON.stringify({
           employeeId: employeeId,
-          userId: user.id, // Include user ID
+          userId: user.id,
         }),
       });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // setSnackbarMessage("Employee deleted successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Employee deleted successfully!",
-          severity: "success",
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        setFormFields(defaultEmployee);
-        setErrors({});
-        handleBackClick();
-      } else {
-        // setSnackbarMessage(result.message || "Error deleting employee. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message:
-            result.message || "Error deleting employee. Please try again.",
-          severity: "error",
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete employee");
       }
-    } catch (error) {
-      console.error("Error deleting employee:", error);
-      // setSnackbarMessage("Error deleting employee. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "employees",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
-        message: "Error deleting employee. Please try again.",
-        severity: "error",
+        message: "Employee deleted successfully!",
+        severity: "success",
       });
-    } finally {
-      setLoading(false);
+      handleBackClick();
+    },
+    onError: (error) => {
+      showSnackbar({ message: error.message, severity: "error" });
+    },
+  });
+
+  const onSaveClick = () => {
+    if (Object.keys(errors).length > 0) {
+      return;
     }
+    updateEmployeeMutation.mutate(formFields);
+  };
+
+  const handleDeleteConfirmation = () => {
+    deleteEmployeeMutation.mutate();
   };
 
   //delete cancelation

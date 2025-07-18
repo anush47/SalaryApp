@@ -92,7 +92,7 @@ const PaymentsDataGrid: React.FC<{
     isError,
     error,
   } = useQuery<Payment[], Error>({
-    queryKey: ["payments", period],
+    queryKey: ["payments"],
     queryFn: () => fetchPayments(period),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -294,16 +294,6 @@ const PaymentsDataGrid: React.FC<{
     },
   ];
 
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
-
   const handleRowUpdate = async (newPayment: any) => {
     try {
       console.log(newPayment);
@@ -319,14 +309,11 @@ const PaymentsDataGrid: React.FC<{
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to update payment");
       }
-      // setSnackbarMessage("Payment updated successfully"); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Payment updated successfully",
         severity: "success",
       });
-      queryClient.invalidateQueries({ queryKey: ["payments", period] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       return newPayment;
     } catch (error) {
       console.error("Row update error:", error);
@@ -375,7 +362,7 @@ const PaymentsDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments", period] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       showSnackbar({
         message: "Payments deleted successfully",
         severity: "success",

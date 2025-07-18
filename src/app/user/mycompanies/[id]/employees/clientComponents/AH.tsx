@@ -21,6 +21,8 @@ import {
   AccordionDetails,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -35,7 +37,6 @@ const AH: React.FC<{
   companyId: string;
   employeeId: string | null;
 }> = ({ user, handleBackClick, employeeId, companyId }) => {
-  const [loading, setLoading] = useState<boolean>(false);
   const [formDetails, setFormDetails] = useState({
     companyId: companyId,
     fullName: "",
@@ -43,7 +44,7 @@ const AH: React.FC<{
     nic: "",
     employerNo: "",
     memberNo: "",
-    startDate: "",
+    startDate: null as dayjs.Dayjs | null, // Changed to null for DatePicker
     designation: "",
     address: "",
     birthPlace: "",
@@ -91,6 +92,59 @@ const AH: React.FC<{
     },
   });
 
+  const fetchEmployeeAndCompanyData = async () => {
+    let employeeData = {};
+    if (employeeId) {
+      const employeeResponse = await fetch(
+        `/api/employees?employeeId=${employeeId}`
+      );
+      const employeeResult = await employeeResponse.json();
+      employeeData = {
+        fullName: employeeResult.employees[0].name,
+        nameWithInitials: formatName(employeeResult.employees[0].name),
+        nic: employeeResult.employees[0].nic,
+        memberNo: employeeResult.employees[0].memberNo,
+        designation: employeeResult.employees[0].designation,
+        mobileNumber: employeeResult.employees[0].phoneNumber,
+        email: employeeResult.employees[0].email,
+        address: employeeResult.employees[0].address,
+        nationality: "SRI LANKAN",
+        startDate: employeeResult.employees[0].startedAt
+          ? dayjs(employeeResult.employees[0].startedAt, "DD-MM-YYYY")
+          : null,
+      };
+    }
+
+    const companyResponse = await fetch(
+      `/api/companies?companyId=${companyId}`
+    );
+    const companyResult = await companyResponse.json();
+    return {
+      ...employeeData,
+      employerNo: companyResult.companies[0].employerNo,
+      employerName: companyResult.companies[0].employerName,
+      employerAddress: companyResult.companies[0].employerAddress,
+      date: dayjs().format("DD-MM-YYYY"),
+    };
+  };
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["employees", companyId, employeeId],
+    queryFn: fetchEmployeeAndCompanyData,
+    enabled: !!companyId, // Only run query if companyId is available
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setFormDetails((prevDetails) => ({
+        ...prevDetails,
+        ...data,
+      }));
+    }
+  }, [data]);
+
   const { showSnackbar } = useSnackbar();
 
   function formatName(input: string) {
@@ -129,69 +183,28 @@ const AH: React.FC<{
   }
 
   useEffect(() => {
-    if (companyId) {
-      setLoading(true);
-
-      const fetchEmployeeData = async () => {
-        try {
-          let employeeData = {};
-          if (employeeId) {
-            const employeeResponse = await fetch(
-              `/api/employees?employeeId=${employeeId}`
-            );
-            const employeeResult = await employeeResponse.json();
-            employeeData = {
-              fullName: employeeResult.employees[0].name,
-              nameWithInitials: formatName(employeeResult.employees[0].name),
-              nic: employeeResult.employees[0].nic,
-              memberNo: employeeResult.employees[0].memberNo,
-              designation: employeeResult.employees[0].designation,
-              mobileNumber: employeeResult.employees[0].phoneNumber,
-              email: employeeResult.employees[0].email,
-              address: employeeResult.employees[0].address,
-              nationality: "SRI LANKAN",
-              startDate: employeeResult.employees[0].startedAt,
-            };
-          }
-
-          const companyResponse = await fetch(
-            `/api/companies?companyId=${companyId}`
-          );
-          const companyResult = await companyResponse.json();
-          setFormDetails((prevDetails) => ({
-            ...prevDetails,
-            ...employeeData,
-            employerNo: companyResult.companies[0].employerNo,
-            employerName: companyResult.companies[0].employerName,
-            employerAddress: companyResult.companies[0].employerAddress,
-            date: dayjs().format("DD-MM-YYYY"),
-          }));
-
-          showSnackbar({
-            message: "Data fetched successfully",
-            severity: "success",
-          });
-        } catch (error) {
-          console.error("Error fetching data:", error);
-          showSnackbar({ message: "Error fetching data", severity: "error" });
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchEmployeeData();
+    if (data) {
+      setFormDetails((prevDetails) => ({
+        ...prevDetails,
+        ...data,
+      }));
     }
-  }, [employeeId, companyId]);
+  }, [data]);
 
   const handleGenerateAH = async () => {
     try {
-      setLoading(true);
+      const formattedFormDetails = {
+        ...formDetails,
+        startDate: formDetails.startDate
+          ? dayjs(formDetails.startDate).format("DD-MM-YYYY")
+          : "",
+      };
       const response = await fetch(`/api/employees/formA`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formDetails),
+        body: JSON.stringify(formattedFormDetails),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -217,8 +230,6 @@ const AH: React.FC<{
     } catch (error) {
       console.error("Error generating AH:", error);
       showSnackbar({ message: "Error generating AH", severity: "error" });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -282,7 +293,7 @@ const AH: React.FC<{
         }
       />
       <CardContent>
-        {loading && <CircularProgress sx={{ m: 3 }} />}
+        {isLoading && <CircularProgress sx={{ m: 3 }} />}
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
@@ -292,7 +303,7 @@ const AH: React.FC<{
                 value={formDetails.fullName}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -305,7 +316,7 @@ const AH: React.FC<{
                 onChange={handleChange}
                 helperText="Only add . after initials (no spaces)"
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -317,7 +328,7 @@ const AH: React.FC<{
                 value={formDetails.nic}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -329,7 +340,7 @@ const AH: React.FC<{
                 value={formDetails.employerNo}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -342,7 +353,7 @@ const AH: React.FC<{
                 onChange={handleChange}
                 type="number"
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -353,16 +364,16 @@ const AH: React.FC<{
                 adapterLocale="en-gb"
               >
                 <DatePicker
-                  readOnly={loading}
+                  readOnly={isLoading}
                   label="Start Date"
                   name="startDate"
                   openTo="year"
-                  value={dayjs(formDetails.startDate, "DD-MM-YYYY")}
+                  value={formDetails.startDate}
                   views={["year", "month", "day"]}
                   onChange={(newDate) => {
                     setFormDetails((prevDetails) => ({
                       ...prevDetails,
-                      startDate: newDate?.format("DD-MM-YYYY") as string,
+                      startDate: newDate || null,
                     }));
                   }}
                   slotProps={{
@@ -380,7 +391,7 @@ const AH: React.FC<{
                 value={formDetails.designation}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -392,7 +403,7 @@ const AH: React.FC<{
                 value={formDetails.address}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -404,7 +415,7 @@ const AH: React.FC<{
                 value={formDetails.birthPlace}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -416,7 +427,7 @@ const AH: React.FC<{
                 value={formDetails.nationality}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -427,7 +438,7 @@ const AH: React.FC<{
                   checked={formDetails.married}
                   name="married"
                   onChange={handleCheckboxChange}
-                  disabled={loading}
+                  disabled={isLoading}
                 />
               }
               label="Married"
@@ -443,7 +454,7 @@ const AH: React.FC<{
                   onChange={handleChange}
                   helperText="Only add . after initials (no spaces)"
                   variant="filled"
-                  disabled={loading || !formDetails.married}
+                  disabled={isLoading || !formDetails.married}
                 />
               </FormControl>
             )}
@@ -457,7 +468,7 @@ const AH: React.FC<{
                 helperText="Only add . after initials (no spaces)"
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -470,7 +481,7 @@ const AH: React.FC<{
                 onChange={handleChange}
                 helperText="Only add . after initials (no spaces)"
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -482,7 +493,7 @@ const AH: React.FC<{
                 value={formDetails.mobileNumber}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -494,7 +505,7 @@ const AH: React.FC<{
                 value={formDetails.email}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -506,7 +517,7 @@ const AH: React.FC<{
                 value={formDetails.employerName}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -518,7 +529,7 @@ const AH: React.FC<{
                 value={formDetails.employerAddress}
                 onChange={handleChange}
                 variant="filled"
-                disabled={loading}
+                disabled={isLoading}
               />
             </FormControl>
           </Grid>
@@ -529,16 +540,16 @@ const AH: React.FC<{
                 adapterLocale="en-gb"
               >
                 <DatePicker
-                  readOnly={loading}
+                  readOnly={isLoading}
                   label="Date"
                   name="date"
                   openTo="year"
-                  value={dayjs(formDetails.date, "DD-MM-YYYY")}
+                  value={formDetails.startDate}
                   views={["year", "month", "day"]}
                   onChange={(newDate) => {
                     setFormDetails((prevDetails) => ({
                       ...prevDetails,
-                      date: newDate?.format("DD-MM-YYYY") as string,
+                      startDate: newDate || null,
                     }));
                   }}
                   slotProps={{
@@ -581,7 +592,7 @@ const AH: React.FC<{
                               helperText="Add spaces after . in initials"
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -593,7 +604,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[0].nic}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -605,7 +616,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[0].relationship}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -618,7 +629,7 @@ const AH: React.FC<{
                               onChange={handleChange}
                               type="number"
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                               InputProps={{
                                 endAdornment: <>{"%"}</>,
                               }}
@@ -650,7 +661,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[1].name}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -662,7 +673,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[1].nic}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -674,7 +685,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[1].relationship}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -687,7 +698,7 @@ const AH: React.FC<{
                               onChange={handleChange}
                               type="number"
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -716,7 +727,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[2].name}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -728,7 +739,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[2].nic}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -740,7 +751,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[2].relationship}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -753,7 +764,7 @@ const AH: React.FC<{
                               onChange={handleChange}
                               type="number"
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -782,7 +793,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[3].name}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -794,7 +805,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[3].nic}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -806,7 +817,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[3].relationship}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -819,7 +830,7 @@ const AH: React.FC<{
                               onChange={handleChange}
                               type="number"
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -848,7 +859,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[4].name}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -860,7 +871,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[4].nic}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -872,7 +883,7 @@ const AH: React.FC<{
                               value={formDetails.nominees[4].relationship}
                               onChange={handleChange}
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -885,7 +896,7 @@ const AH: React.FC<{
                               onChange={handleChange}
                               type="number"
                               variant="filled"
-                              disabled={loading}
+                              disabled={isLoading}
                             />
                           </FormControl>
                         </Grid>
@@ -907,8 +918,8 @@ const AH: React.FC<{
               variant="contained"
               color="primary"
               onClick={handleGenerateAH}
-              disabled={loading}
-              loading={loading}
+              disabled={isLoading}
+              loading={isLoading}
               loadingPosition="center"
             >
               <span>Generate AH</span>
