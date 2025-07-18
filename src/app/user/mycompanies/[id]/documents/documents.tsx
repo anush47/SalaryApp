@@ -41,7 +41,7 @@ const Documents = ({
   user,
   companyId,
 }: {
-  user: { name: string; email: string; id: string };
+  user: { name: string; email: string; id: string; role: string };
   companyId: string;
 }) => {
   const [period, setPeriod] = useState<string>(
@@ -526,7 +526,6 @@ const Documents = ({
           </Grid>
         </CardContent>
       </Card>
-      {/* Snackbar component removed, global one will be used */}
     </motion.div>
   );
 };

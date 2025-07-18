@@ -67,6 +67,7 @@ const CompanyDetails = ({
   const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [company, setCompany] = useState<Company>();
   const [formFields, setFormFields] = useState<Company>({
+    _id: "",
     id: "",
     name: "",
     employerNo: "",
@@ -251,60 +252,6 @@ const CompanyDetails = ({
     setFormFields((prevFields) => ({ ...prevFields, [name]: value }));
   };
 
-  const handleEditClick = () => {
-    setIsEditing(true);
-  };
-
-  const handleCancelClick = () => {
-    setIsEditing(false);
-    setFormFields(
-      company || {
-        id: "",
-        name: "",
-        user: "",
-        employerNo: "",
-        monthlyPrice: "",
-        monthlyPriceOverride: false,
-        address: "",
-        mode: "",
-        paymentMethod: "",
-        startedAt: "",
-        employerName: "",
-        employerAddress: "",
-        requiredDocs: undefined,
-        openHours: {
-          start: "",
-          end: "",
-          allDay: false,
-        },
-        endedAt: "",
-        active: true,
-        probabilities: {
-          workOnOff: 0,
-          workOnHoliday: 0,
-          absent: 0,
-          late: 0,
-          ot: 0,
-        },
-        workingDays: {
-          mon: "full",
-          tue: "full",
-          wed: "full",
-          thu: "full",
-          fri: "full",
-          sat: "half",
-          sun: "off",
-        },
-        paymentStructure: {
-          additions: [],
-          deductions: [],
-        },
-        shifts: [],
-        calendar: "default",
-      }
-    );
-  };
-
   const handleSaveClick = async () => {
     const newErrors = CompanyValidation(formFields);
     setErrors(newErrors);
@@ -327,9 +274,6 @@ const CompanyDetails = ({
       });
 
       if (response.ok) {
-        // setSnackbarMessage("Company updated successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Company updated successfully!",
           severity: "success",
@@ -339,9 +283,6 @@ const CompanyDetails = ({
         setCompany(updatedCompany);
       } else {
         const result = await response.json();
-        // setSnackbarMessage(result.message || "Error updating company. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message:
             result.message || "Error updating company. Please try again.",
@@ -351,9 +292,6 @@ const CompanyDetails = ({
       }
     } catch (error) {
       console.error("Error updating company:", error);
-      // setSnackbarMessage("Error updating company. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error updating company. Please try again.",
         severity: "error",
@@ -563,11 +501,6 @@ const CompanyDetails = ({
         sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
       >
         {loading && <CircularProgress />}
-        {/* {error && ( // Removed general error display, handled by snackbar
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )} */}
         {
           // Display the company details with form controls if editing
           !loading &&
