@@ -24,6 +24,7 @@ import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQueryClient } from "@tanstack/react-query";
 
 const GenerateSalaryOne = ({
   period,
@@ -39,6 +40,7 @@ const GenerateSalaryOne = ({
   const [inOut, setInOut] = useState("");
   const [generated, setGenerated] = useState(false);
   const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  const queryClient = useQueryClient();
   // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
   const [openDialog, setOpenDialog] = useState(false);
   // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
@@ -125,7 +127,7 @@ const GenerateSalaryOne = ({
       id: "",
       _id: "",
       employee: "",
-      period,
+      period: "",
       basic: 0,
       holidayPay: 0,
       inOut: [],
@@ -426,6 +428,7 @@ const GenerateSalaryOne = ({
           remark: "",
         });
         setGenerated(false);
+        queryClient.invalidateQueries({ queryKey: ["salaries", companyId] });
       } else {
         // Handle validation or other errors returned by the API
         // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
@@ -754,3 +757,4 @@ const GenerateSalaryOne = ({
 };
 
 export default GenerateSalaryOne;
+

@@ -6,6 +6,7 @@ import "./globals.css";
 import { NextAuthProvider } from "./NextAuthProvider";
 import AppThemeProvider from "./theme-provider";
 import { SnackbarProvider } from "./contexts/SnackbarContext"; // Add this
+import QueryProvider from "./QueryProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,7 +31,7 @@ export default function RootLayout({
           <AppRouterCacheProvider>
             <AppThemeProvider>
               <SnackbarProvider>
-                {children}
+                <QueryProvider>{children}</QueryProvider>
                 <SpeedInsights />
               </SnackbarProvider>
             </AppThemeProvider>

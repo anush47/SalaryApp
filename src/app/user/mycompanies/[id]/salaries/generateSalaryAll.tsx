@@ -21,6 +21,7 @@ import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQueryClient } from "@tanstack/react-query";
 
 const GenerateSalaryAll = ({
   period,
@@ -30,16 +31,13 @@ const GenerateSalaryAll = ({
   companyId: string;
 }) => {
   const [loading, setLoading] = useState(false);
-  // const [error, setError] = useState<string | null>(null); // Removed, assuming general errors go to snackbar
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [inOut, setInOut] = useState<string>("");
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeIds, setEmployeeIds] = useState<String[]>([]);
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
-  const [errors, setErrors] = useState<{ [key: string]: string }>({}); // Keep for form field errors if any
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
@@ -63,7 +61,6 @@ const GenerateSalaryAll = ({
           .map((employee: any) => employee.id);
         setEmployeeIds(activeEmployeeIds);
       } catch (error) {
-        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
         showSnackbar({
           message:
             error instanceof Error
@@ -77,7 +74,7 @@ const GenerateSalaryAll = ({
     };
 
     fetchEmployees();
-  }, [companyId, showSnackbar]); // Added showSnackbar
+  }, [companyId, showSnackbar]);
 
   const onSaveClick = async () => {
     const isValid = Object.keys(errors).length === 0;
@@ -87,21 +84,19 @@ const GenerateSalaryAll = ({
     }
 
     setLoading(true);
-    // Transform generatedSalaries to match the desired format
     const transformedSalaries = generatedSalaries.map((salary: any) => ({
       ...salary,
       ot: {
         amount: salary.ot,
-        reason: salary.otReason, // Assuming you have otReason set in the generated salary
+        reason: salary.otReason,
       },
       noPay: {
         amount: salary.noPay,
-        reason: salary.noPayReason, // Assuming you have noPayReason set in the generated salary
+        reason: salary.noPayReason,
       },
     }));
     console.log(transformedSalaries);
     try {
-      // Perform POST request to add a new salary record
       const response = await fetch("/api/salaries", {
         method: "POST",
         headers: {
@@ -115,27 +110,16 @@ const GenerateSalaryAll = ({
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Salary records saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Salary records saved successfully!",
           severity: "success",
         });
+        queryClient.invalidateQueries({ queryKey: ["salaries", companyId] });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        // Clear the form after successful save
-        // setFormFields({
-        // });
         setErrors({});
         setGeneratedSalaries([]);
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error saving salary. Please try again.",
           severity: "error",
@@ -143,9 +127,6 @@ const GenerateSalaryAll = ({
       }
     } catch (error) {
       console.error("Error saving salary:", error);
-      // setSnackbarMessage("Error saving salary. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error saving salary. Please try again.",
         severity: "error",
@@ -170,13 +151,11 @@ const GenerateSalaryAll = ({
     if (reason === "clickaway") {
       return;
     }
-    // setSnackbarOpen(false); // Removed
   };
 
   const onGenerateClick = async () => {
     try {
       setLoading(true);
-      // Check for each employeeId if there is a salary with the same period and employeeId in generatedSalaries
       const alreadyGenerated = employeeIds.some((employeeId) =>
         generatedSalaries.some(
           (salary) => salary.employee === employeeId && salary.period === period
@@ -192,12 +171,9 @@ const GenerateSalaryAll = ({
             )
           )
           .map((employeeId) => employees.find((e) => e.id === employeeId)?.name)
-          .filter(Boolean) // Remove undefined names
+          .filter(Boolean)
           .join(", ");
 
-        // setSnackbarMessage(`Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`); // Removed
-        // setSnackbarSeverity("warning"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: `Salaries for employees (${alreadyGeneratedEmployeeNames}) have already been generated for this period.`,
           severity: "warning",
@@ -205,7 +181,6 @@ const GenerateSalaryAll = ({
         return;
       }
 
-      //check if inOut is available for calc employees who are included
       const calcEmployees = employees.filter(
         (employee) =>
           employee.otMethod === "calc" && employeeIds.includes(employee.id)
@@ -214,8 +189,6 @@ const GenerateSalaryAll = ({
         const calcEmployeeNames = calcEmployees
           .map((employee) => employee.name)
           .join(", ");
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: `InOut required for calculated OT for employees: ${calcEmployeeNames}`,
           severity: "error",
@@ -223,7 +196,6 @@ const GenerateSalaryAll = ({
         return;
       }
 
-      //use post method
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
         body: JSON.stringify({
@@ -246,7 +218,6 @@ const GenerateSalaryAll = ({
         }
       }
       const data = await response.json();
-      //check if data.salaries[0] is in correct form
       console.log(data);
       if (
         (!data.salaries[0] ||
@@ -260,18 +231,14 @@ const GenerateSalaryAll = ({
       if (data.exists && data.exists.length > 0) {
         let msg = "Salary already exists:\n";
 
-        // Use map to generate the list of names, and join to combine them into a single string
         msg += data.exists
           .map(
             (employeeId: string) =>
               employees.find((e) => e.id === employeeId)?.name
           )
-          .filter(Boolean) // Remove undefined names
+          .filter(Boolean)
           .join(", ");
 
-        // setSnackbarMessage(msg); // Removed
-        // setSnackbarSeverity("warning"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({ message: msg, severity: "warning" });
       }
 
@@ -314,10 +281,8 @@ const GenerateSalaryAll = ({
       );
 
       setGeneratedSalaries([...generatedSalaries, ...data.salaries]);
+      queryClient.invalidateQueries({ queryKey: ["salaries", companyId, period] });
     } catch (error) {
-      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Salary."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error fetching Salary.",

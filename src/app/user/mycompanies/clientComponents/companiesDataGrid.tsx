@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DataGrid,
   GridColDef,
@@ -11,13 +12,16 @@ import {
   CircularProgress,
   Button,
   Typography,
+  Alert,
 } from "@mui/material";
 import Link from "next/link";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 export interface Company {
   shifts: any;
   id: string;
+  _id: string;
   name: string;
   employerNo: string;
   address: string;
@@ -69,6 +73,21 @@ export interface Company {
   calendar: "default" | "other";
 }
 
+const fetchCompanies = async (): Promise<Company[]> => {
+  const companiesResponse = await fetch(`/api/companies?needUsers=true`);
+  if (!companiesResponse.ok) {
+    throw new Error("Failed to fetch companies");
+  }
+  const companiesData = await companiesResponse.json();
+
+  return companiesData.companies.map((company: any) => ({
+    ...company,
+    id: company._id,
+    userName: company.user.name,
+    userEmail: company.user.email,
+  }));
+};
+
 const CompaniesDataGrid = ({
   user,
   showActiveOnly,
@@ -76,11 +95,22 @@ const CompaniesDataGrid = ({
   user: { id: string; name: string; email: string; role: string };
   showActiveOnly: boolean;
 }) => {
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
+
+  const {
+    data: companies,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Company[], Error>({
+    queryKey: ["companies"],
+    queryFn: fetchCompanies,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  // const [error, setError] = useState<string | null>(null); // Removed
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
 
   const columns: GridColDef[] = [
     { field: "name", headerName: "Name", flex: 1 },
@@ -123,50 +153,13 @@ const CompaniesDataGrid = ({
   });
 
   useEffect(() => {
-    const fetchCompaniesAndUsers = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch companies
-        const companiesResponse = await fetch(`/api/companies?needUsers=true`);
-        if (!companiesResponse.ok) {
-          throw new Error("Failed to fetch companies");
-        }
-        const companiesData = await companiesResponse.json();
-
-        const companiesWithUserNames = companiesData.companies.map(
-          (company: any) => ({
-            ...company,
-            id: company._id,
-            userName: company.user.name,
-            userEmail: company.user.email,
-          })
-        );
-
-        setCompanies(companiesWithUserNames);
-      } catch (error) {
-        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCompaniesAndUsers();
-  }, [user, showSnackbar]); // Added showSnackbar to dependencies
-
-  useEffect(() => {
-    setFilteredCompanies(
-      companies.filter((company) => {
-        return !showActiveOnly || company.active;
-      })
-    );
+    if (companies) {
+      setFilteredCompanies(
+        companies.filter((company) => {
+          return !showActiveOnly || company.active;
+        })
+      );
+    }
   }, [companies, showActiveOnly]);
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
@@ -182,6 +175,40 @@ const CompaniesDataGrid = ({
       monthlyPriceOverride: false,
     });
 
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          height: "calc(100vh - 230px)",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          height: "calc(100vh - 230px)",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.message || "An unexpected error occurred"}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -191,16 +218,11 @@ const CompaniesDataGrid = ({
         alignItems: "center",
       }}
     >
-      {loading ? (
-        <CircularProgress />
-      ) : /* error ? ( // Removed inline error Alert
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      ) : */ filteredCompanies.length > 0 ? ( // Adjusted conditional rendering
+      {filteredCompanies.length > 0 ? (
         <DataGrid
           rows={filteredCompanies}
           columns={columns}
+          getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
           initialState={{
             pagination: {
               paginationModel: {

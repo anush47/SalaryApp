@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   DataGrid,
@@ -22,6 +23,7 @@ import {
   FormControlLabel,
   Switch,
   Tooltip,
+  Alert,
 } from "@mui/material";
 import Link from "next/link";
 import {
@@ -32,10 +34,12 @@ import {
   Search,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 export interface Company {
   shifts: any;
   _id: string;
+  id: string;
   name: string;
   employerNo: string;
   address: string;
@@ -74,6 +78,18 @@ export interface Company {
 const normalizeString = (str: string) =>
   str.replace(/[\s\W_]+/g, "").toLowerCase();
 
+const fetchCompanies = async (): Promise<Company[]> => {
+  const companiesResponse = await fetch(`/api/companies`);
+  if (!companiesResponse.ok) {
+    throw new Error("Failed to fetch companies");
+  }
+  const companiesData = await companiesResponse.json();
+  return companiesData.companies.map((company: any) => ({
+    ...company,
+    id: company._id,
+  }));
+};
+
 const CompaniesCards = ({
   user,
   showActiveOnly,
@@ -81,67 +97,52 @@ const CompaniesCards = ({
   user: { id: string; name: string; email: string; role: string };
   showActiveOnly: boolean;
 }) => {
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
+
+  const {
+    data: companies,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Company[], Error>({
+    queryKey: ["companies"],
+    queryFn: fetchCompanies,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  // const [error, setError] = useState<string | null>(null); // Removed
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
-    setFilteredCompanies(
-      companies.filter((company) => {
-        return (
-          (normalizeString(company.name).includes(
-            normalizeString(searchQuery)
-          ) ||
-            normalizeString(company.employerNo).includes(
+    if (companies) {
+      setFilteredCompanies(
+        companies.filter((company) => {
+          return (
+            (normalizeString(company.name).includes(
               normalizeString(searchQuery)
             ) ||
-            normalizeString(company.employerName).includes(
-              normalizeString(searchQuery)
-            ) ||
-            normalizeString(company.address).includes(
-              normalizeString(searchQuery)
-            )) &&
-          (!showActiveOnly || company.active)
-        );
-      })
-    );
+              normalizeString(company.employerNo).includes(
+                normalizeString(searchQuery)
+              ) ||
+              normalizeString(company.employerName).includes(
+                normalizeString(searchQuery)
+              ) ||
+              normalizeString(company.address).includes(
+                normalizeString(searchQuery)
+              )) &&
+            (!showActiveOnly || company.active)
+          );
+        })
+      );
+    }
   }, [companies, searchQuery, showActiveOnly]);
 
-  const totalCompanies = companies.length;
-  const activeCompanies = companies.filter((company) => company.active).length;
-
-  useEffect(() => {
-    const fetchCompaniesAndUsers = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch companies
-        const companiesResponse = await fetch(`/api/companies`);
-        if (!companiesResponse.ok) {
-          throw new Error("Failed to fetch companies");
-        }
-        const companiesData = await companiesResponse.json();
-
-        setCompanies(companiesData.companies);
-      } catch (error) {
-        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCompaniesAndUsers();
-  }, [user, showSnackbar]); // Added showSnackbar to dependencies
+  const totalCompanies = companies ? companies.length : 0;
+  const activeCompanies = companies
+    ? companies.filter((company) => company.active).length
+    : 0;
 
   const CompanyCard = ({ company }: { company: Company }) => {
     return (
@@ -232,6 +233,40 @@ const CompaniesCards = ({
     );
   };
 
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          height: "400",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          height: "400",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.message || "An unexpected error occurred"}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -241,77 +276,67 @@ const CompaniesCards = ({
         alignItems: "center",
       }}
     >
-      {loading && <CircularProgress />}
-      {/* {error && ( // Removed inline error Alert
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )} */}
-      {!loading && ( // Removed !error from condition
-        <>
-          {totalCompanies > 1 && (
-            <>
-              <Box
-                sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}
-              >
-                <TextField
-                  label="Search Companies..."
-                  variant="filled"
-                  fullWidth
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    endAdornment: (
-                      <Search sx={{ color: "action.active", mr: 1, my: 0.5 }} />
-                    ),
-                  }}
-                />
-              </Box>
-              <Box display="flex" gap={1} mb={2}>
+      <>
+        {totalCompanies > 1 && (
+          <>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
+              <TextField
+                label="Search Companies..."
+                variant="filled"
+                fullWidth
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <Search sx={{ color: "action.active", mr: 1, my: 0.5 }} />
+                  ),
+                }}
+              />
+            </Box>
+            <Box display="flex" gap={1} mb={2}>
+              <Chip
+                label={`Total: ${totalCompanies}`}
+                color="primary"
+                variant="outlined"
+              />
+              {totalCompanies !== activeCompanies && (
                 <Chip
-                  label={`Total: ${totalCompanies}`}
-                  color="primary"
+                  label={`Active: ${activeCompanies}`}
+                  color="success"
                   variant="outlined"
                 />
-                {totalCompanies !== activeCompanies && (
-                  <Chip
-                    label={`Active: ${activeCompanies}`}
-                    color="success"
-                    variant="outlined"
-                  />
-                )}
-              </Box>
-            </>
-          )}
-          {filteredCompanies.length > 0 ? (
-            <Grid container spacing={2}>
-              {filteredCompanies.map((company) => (
-                <Grid item xs={12} sm={6} md={4} key={company._id}>
-                  <Link
-                    href={`/user/mycompanies/${company._id}?companyPageSelect=quick`}
-                  >
-                    <CompanyCard company={company} />
-                  </Link>
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Box sx={{ textAlign: "left", mt: 4, mb: 4 }}>
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <Typography variant="h5" color="textSecondary">
-                  No companies to show 😟
-                </Typography>
-              </motion.div>
+              )}
             </Box>
-          )}
-        </>
-      )}
+          </>
+        )}
+        {filteredCompanies.length > 0 ? (
+          <Grid container spacing={2}>
+            {filteredCompanies.map((company) => (
+              <Grid item xs={12} sm={6} md={4} key={company._id}>
+                <Link
+                  href={`/user/mycompanies/${company._id}?companyPageSelect=quick`}
+                >
+                  <CompanyCard company={company} />
+                </Link>
+              </Grid>
+            ))}
+          </Grid>
+        ) : (
+          <Box sx={{ textAlign: "left", mt: 4, mb: 4 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+            >
+              <Typography variant="h5" color="textSecondary">
+                No companies to show 😟
+              </Typography>
+            </motion.div>
+          </Box>
+        )}
+      </>
     </Box>
   );
 };
