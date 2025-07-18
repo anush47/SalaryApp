@@ -120,7 +120,6 @@ const AddSalaryForm: React.FC<{
           nic: employee.nic,
         })
       ),
-      { memberNo: "all", _id: "all", name: "ALL", nic: "all" }, // add all option
     ];
   };
 
@@ -133,7 +132,10 @@ const AddSalaryForm: React.FC<{
 
   useEffect(() => {
     if (employeesData) {
-      setEmployees(employeesData);
+      setEmployees([
+        ...employeesData,
+        { memberNo: "all", _id: "all", name: "ALL", nic: "all" },
+      ]);
     }
   }, [employeesData]);
 
