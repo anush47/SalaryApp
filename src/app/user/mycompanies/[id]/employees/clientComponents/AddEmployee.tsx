@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import {
   Box,
   CircularProgress,
@@ -11,14 +13,9 @@ import {
   Typography,
   CardHeader,
   CardContent,
-  useMediaQuery,
-  useTheme,
   InputAdornment,
   FormControl,
   FormHelperText,
-  // Snackbar, // Removed
-  // Alert, // Removed (ensure it's not used for other purposes)
-  Slide, // Keep if used for other transitions
   Select,
   MenuItem,
   InputLabel,
@@ -39,7 +36,7 @@ import {
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { defaultEmployee, Employee } from "./employeesDataGrid";
 import { LoadingButton } from "@mui/lab";
@@ -58,93 +55,169 @@ const AddEmployeeForm: React.FC<{
   handleBackClick: () => void;
 }> = ({ user, companyId, handleBackClick }) => {
   const [formFields, setFormFields] = useState<Employee>(defaultEmployee);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [memberNoLoading, setNameLoading] = useState<boolean>(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [errors, setErrors] = useState<{
     [key: string]: string;
   }>({});
-  const [company, setCompany] = useState<Company | null>(null);
+
+  const fetchCompanyData = async (): Promise<Company> => {
+    const response = await fetch(`/api/companies?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch company");
+    }
+    const data = await response.json();
+    return data.companies[0];
+  };
+
+  const { data: companyData, isLoading: isLoadingCompany } = useQuery<
+    Company,
+    Error
+  >({
+    queryKey: ["company", companyId],
+    queryFn: fetchCompanyData,
+    enabled: !!companyId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  const fetchEmployeesForMemberNo = async (): Promise<Employee[]> => {
+    const response = await fetch(`/api/employees?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch employees");
+    }
+    const data = await response.json();
+    return data.employees;
+  };
+
+  const { data: employeesData, isLoading: isLoadingEmployees } = useQuery<
+    Employee[],
+    Error
+  >({
+    queryKey: ["employee", companyId],
+    queryFn: fetchEmployeesForMemberNo,
+    enabled: !!companyId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   useEffect(() => {
-    const fetchCompany = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/companies?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch company");
-        }
-        const data = await response.json();
-        setCompany(data.companies[0]);
-        // Set default payment structure to payments from company
-        setFormFields((prev) => ({
-          ...prev,
-          company: data.companies[0]._id,
-          otMethod: user.role === "admin" ? "random" : "noOt",
-          shifts:
-            data.companies[0].shifts && data.companies[0].shifts.length > 0
-              ? data.companies[0].shifts
-              : [{ start: "08:00", end: "17:00", break: 1 }],
-          workingDays: data.companies[0].workingDays
-            ? data.companies[0].workingDays
+    if (companyData) {
+      setFormFields((prev) => ({
+        ...prev,
+        company: companyData._id,
+        otMethod: user.role === "admin" ? "random" : "noOt",
+        shifts:
+          companyData.shifts && companyData.shifts.length > 0
+            ? companyData.shifts
+            : [{ start: "08:00", end: "17:00", break: 1 }],
+        workingDays: companyData.workingDays
+          ? companyData.workingDays
+          : {
+              mon: "full",
+              tue: "full",
+              wed: "full",
+              thu: "full",
+              fri: "full",
+              sat: "half",
+              sun: "off",
+            },
+        paymentStructure:
+          companyData.paymentStructure &&
+          companyData.paymentStructure.additions.length > 0 &&
+          companyData.paymentStructure.deductions.length > 0
+            ? companyData.paymentStructure
             : {
-                mon: "full",
-                tue: "full",
-                wed: "full",
-                thu: "full",
-                fri: "full",
-                sat: "half",
-                sun: "off",
+                additions: [
+                  { name: "incentive", amount: "", affectTotalEarnings: true },
+                  {
+                    name: "performance allowance",
+                    amount: "",
+                    affectTotalEarnings: true,
+                  },
+                ],
+                deductions: [],
               },
-          paymentStructure:
-            data.companies[0].paymentStructure &&
-            data.companies[0].paymentStructure.additions.length > 0 &&
-            data.companies[0].paymentStructure.deductions.length > 0
-              ? data.companies[0].paymentStructure
-              : {
-                  additions: [
-                    { name: "incentive", amount: "" },
-                    { name: "performance allowance", amount: "" },
-                  ],
-                  deductions: [],
-                },
-          probabilities: data.companies[0].probabilities
-            ? data.companies[0].probabilities
-            : {
-                workOnOff: 1,
-                workOnHoliday: 1,
-                absent: 5,
-                late: 2,
-                ot: 75,
-              },
-        }));
-      } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error ? error.message : "Error fetching company.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (companyId?.length === 24) {
-      fetchCompany();
-      onFetchMemberNoClick();
-    } else {
-      // setSnackbarMessage("Invalid Company ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Invalid Company ID", severity: "error" });
+        probabilities: companyData.probabilities
+          ? companyData.probabilities
+          : {
+              workOnOff: 1,
+              workOnHoliday: 1,
+              absent: 5,
+              late: 2,
+              ot: 75,
+            },
+      }));
     }
-  }, [companyId, user, showSnackbar]); // Added showSnackbar
+  }, [companyData, user]);
+
+  useEffect(() => {
+    if (employeesData) {
+      const sortedEmployees = [...employeesData].sort(
+        (a: Employee, b: Employee) => a.memberNo - b.memberNo
+      );
+      const lastEmployee = sortedEmployees[sortedEmployees.length - 1];
+      const newMemberNo = lastEmployee ? lastEmployee.memberNo + 1 : 1;
+      setFormFields((prevFields) => ({ ...prevFields, memberNo: newMemberNo }));
+      showSnackbar({
+        message: `New Member No. - ${newMemberNo}`,
+        severity: "success",
+      });
+    }
+  }, [employeesData]);
+
+  const addEmployeeMutation = useMutation({
+    mutationFn: async (employeeData: Employee) => {
+      const body = { ...employeeData, userId: user.id };
+      const fieldsToCheck = [
+        "shifts",
+        "workingDays",
+        "paymentStructure",
+        "probabilities",
+      ];
+
+      fieldsToCheck.forEach((field) => {
+        if (
+          !employeeData.overrides?.[
+            field as keyof typeof employeeData.overrides
+          ]
+        ) {
+          delete body[field as keyof typeof body];
+        }
+      });
+
+      const response = await fetch("/api/employees", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to add employee");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "employees",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      showSnackbar({
+        message: "Employee saved successfully!",
+        severity: "success",
+      });
+      handleBackClick();
+    },
+    onError: (error) => {
+      showSnackbar({ message: error.message, severity: "error" });
+    },
+  });
+
+  const loading =
+    isLoadingCompany || isLoadingEmployees || addEmployeeMutation.isPending;
 
   // Unified handle change for all fields
   const handleChange = (
@@ -189,119 +262,25 @@ const AddEmployeeForm: React.FC<{
     setFormFields((prevFields) => ({ ...prevFields, [name]: value }));
   };
 
-  const onSaveClick = async () => {
-    if (!true) {
-      // Placeholder for validation logic
+  const onSaveClick = () => {
+    if (Object.keys(errors).length > 0) {
       return;
     }
-    setLoading(true);
-    try {
-      // Perform POST request to add a new employee
-
-      const body = { ...formFields, userId: user.id }; // Include user ID
-      const fieldsToCheck = [
-        "shifts",
-        "workingDays",
-        "paymentStructure",
-        "probabilities",
-      ];
-
-      fieldsToCheck.forEach((field) => {
-        if (
-          !formFields.overrides?.[field as keyof typeof formFields.overrides]
-        ) {
-          delete body[field as keyof typeof body]; // Explicitly cast field to match the object keys
-        }
-      });
-
-      console.log(body);
-      const response = await fetch("/api/employees", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // setSnackbarMessage("Employee saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Employee saved successfully!",
-          severity: "success",
-        });
-
-        // Wait for 2 seconds before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Keep or adjust delay
-
-        // Clear the form after successful save
-        setErrors({});
-        handleBackClick();
-      } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: result.message || "Error saving employee. Please try again.",
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error("Error saving employee:", error);
-      // setSnackbarMessage("Error saving employee. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({
-        message: "Error saving employee. Please try again.",
-        severity: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
+    addEmployeeMutation.mutate(formFields);
   };
 
-  const onFetchMemberNoClick = async () => {
-    setNameLoading(true);
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/employees?companyId=${companyId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch employees");
-      }
-      const data = await response.json();
-      const employees = data.employees;
-
-      //sort employees from memberno and get last memberno
-      employees.sort((a: Employee, b: Employee) => a.memberNo - b.memberNo);
-      const lastEmployee = employees[employees.length - 1];
+  const onFetchMemberNoClick = () => {
+    if (employeesData) {
+      const sortedEmployees = [...employeesData].sort(
+        (a, b) => a.memberNo - b.memberNo
+      );
+      const lastEmployee = sortedEmployees[sortedEmployees.length - 1];
       const newMemberNo = lastEmployee ? lastEmployee.memberNo + 1 : 1;
-
       setFormFields((prevFields) => ({ ...prevFields, memberNo: newMemberNo }));
-
-      // Show success snackbar with the fetched name
-      // setSnackbarMessage(`New Member No. - ${newMemberNo}`); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: `New Member No. - ${newMemberNo}`,
         severity: "success",
       });
-    } catch (error) {
-      console.error("Error fetching Member No:", error);
-      // setSnackbarMessage("Error fetching Member No. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({
-        message: "Error fetching Member No. Please try again.",
-        severity: "error",
-      });
-    } finally {
-      setNameLoading(false);
-      setLoading(false);
     }
   };
 
@@ -387,10 +366,10 @@ const AddEmployeeForm: React.FC<{
                         variant="text"
                         color="inherit"
                         endIcon={<Search />}
-                        loading={memberNoLoading}
+                        loading={isLoadingEmployees}
                         loadingPosition="end"
                         onClick={onFetchMemberNoClick}
-                        disabled={memberNoLoading} // Disable button while loading
+                        disabled={isLoadingEmployees} // Disable button while loading
                         sx={{ marginTop: 1 }}
                       />
                     </InputAdornment>

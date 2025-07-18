@@ -48,7 +48,7 @@ const NewPaymentForm = ({
   companyId,
 }: {
   handleBackClick: () => void;
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   companyId: string;
 }) => {
   const [company, setCompany] = useState<any>();
@@ -113,9 +113,6 @@ const NewPaymentForm = ({
           etfPaymentMethod: data.companies[0].paymentMethod,
         });
       } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message:
             error instanceof Error ? error.message : "Error fetching company.",
@@ -129,9 +126,6 @@ const NewPaymentForm = ({
     if (companyId?.length === 24) {
       fetchCompany();
     } else {
-      // setSnackbarMessage("Invalid Company ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
   }, [companyId]); // Added formFields, showSnackbar to dependencies
@@ -185,9 +179,6 @@ const NewPaymentForm = ({
       }
       const paymentNew = data.payment;
       if (!paymentNew) {
-        // setSnackbarMessage("Payment generation failed. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment generation failed. Please try again.",
           severity: "error",
@@ -200,9 +191,6 @@ const NewPaymentForm = ({
         epfAmount: paymentNew.epfAmount,
         etfAmount: paymentNew.etfAmount,
       });
-      // setSnackbarMessage("Payment calculated successfully!"); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Payment calculated successfully!",
         severity: "success",
@@ -212,9 +200,6 @@ const NewPaymentForm = ({
       await fetchReferenceNo();
     } catch (error) {
       console.error("Error fetching payments:", error);
-      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching payments."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error fetching payments.",
@@ -333,9 +318,11 @@ const NewPaymentForm = ({
           severity: "success",
         });
 
-        queryClient.invalidateQueries({
-          queryKey: ["payments", companyId],
-        });
+        const queryKey = [
+          "payments",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 

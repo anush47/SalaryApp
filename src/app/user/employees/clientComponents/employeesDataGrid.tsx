@@ -106,9 +106,6 @@ const EmployeesDataGrid: React.FC<{
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Remove
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Remove
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Remove
 
   const columns: GridColDef[] = [
     {
@@ -525,7 +522,8 @@ const EmployeesDataGrid: React.FC<{
             result.message || "Error saving employee. Please try again."
           );
         }
-        queryClient.invalidateQueries({ queryKey: ["employees"] });
+        const queryKey = ["employees"];
+        queryClient.invalidateQueries({ queryKey: queryKey });
       } catch (error) {
         console.error("Error saving employee:", error);
         showSnackbar({

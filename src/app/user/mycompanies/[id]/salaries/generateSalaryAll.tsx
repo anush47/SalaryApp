@@ -21,60 +21,60 @@ import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { STALE_TIME, GC_TIME } from "@/app/lib/consts";
 
 const GenerateSalaryAll = ({
   period,
   companyId,
+  user,
 }: {
   period: string;
   companyId: string;
+  user: { id: string; name: string; email: string; role: string };
 }) => {
   const [loading, setLoading] = useState(false);
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const [inOut, setInOut] = useState<string>("");
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeIds, setEmployeeIds] = useState<String[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [openDialog, setOpenDialog] = useState(false);
 
+  const fetchEmployees = async (companyId: string): Promise<Employee[]> => {
+    const response = await fetch(`/api/employees?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch employees");
+    }
+    const data = await response.json();
+    return data.employees.map((employee: any) => ({
+      ...employee,
+      id: employee._id,
+      include: employee.active,
+    }));
+  };
+
+  const {
+    data: employees,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Employee[], Error>({
+    queryKey: ["employees", companyId],
+    queryFn: () => fetchEmployees(companyId),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/employees?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch employees");
-        }
-        const data = await response.json();
-        const employeesWithId = data.employees.map((employee: any) => ({
-          ...employee,
-          id: employee._id,
-          include: employee.active,
-        }));
-        setEmployees(employeesWithId);
-
-        const activeEmployeeIds = employeesWithId
-          .filter((employee: any) => employee.active)
-          .map((employee: any) => employee.id);
-        setEmployeeIds(activeEmployeeIds);
-      } catch (error) {
-        showSnackbar({
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEmployees();
-  }, [companyId, showSnackbar]);
+    if (employees) {
+      const activeEmployeeIds = employees
+        .filter((employee: any) => employee.active)
+        .map((employee: any) => employee.id);
+      setEmployeeIds(activeEmployeeIds);
+    }
+  }, [employees]);
 
   const onSaveClick = async () => {
     const isValid = Object.keys(errors).length === 0;
@@ -114,7 +114,11 @@ const GenerateSalaryAll = ({
           message: "Salary records saved successfully!",
           severity: "success",
         });
-        queryClient.invalidateQueries({ queryKey: ["salaries", companyId] });
+        const queryKey = [
+          "salaries",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         setErrors({});
@@ -170,7 +174,9 @@ const GenerateSalaryAll = ({
                 salary.employee === employeeId && salary.period === period
             )
           )
-          .map((employeeId) => employees.find((e) => e.id === employeeId)?.name)
+          .map(
+            (employeeId) => employees?.find((e) => e.id === employeeId)?.name
+          )
           .filter(Boolean)
           .join(", ");
 
@@ -181,10 +187,11 @@ const GenerateSalaryAll = ({
         return;
       }
 
-      const calcEmployees = employees.filter(
-        (employee) =>
-          employee.otMethod === "calc" && employeeIds.includes(employee.id)
-      );
+      const calcEmployees =
+        employees?.filter(
+          (employee) =>
+            employee.otMethod === "calc" && employeeIds.includes(employee.id)
+        ) ?? [];
       if (calcEmployees.length > 0 && !inOut) {
         const calcEmployeeNames = calcEmployees
           .map((employee) => employee.name)
@@ -234,7 +241,7 @@ const GenerateSalaryAll = ({
         msg += data.exists
           .map(
             (employeeId: string) =>
-              employees.find((e) => e.id === employeeId)?.name
+              employees?.find((e) => e.id === employeeId)?.name
           )
           .filter(Boolean)
           .join(", ");
@@ -267,7 +274,7 @@ const GenerateSalaryAll = ({
               }[]
             | undefined;
         }) => {
-          const employee = employees.find((e) => e.id === salary.employee);
+          const employee = employees?.find((e) => e.id === salary.employee);
 
           salary.id = salary._id;
           salary.otReason = salary.ot.reason;
@@ -281,7 +288,6 @@ const GenerateSalaryAll = ({
       );
 
       setGeneratedSalaries([...generatedSalaries, ...data.salaries]);
-      queryClient.invalidateQueries({ queryKey: ["salaries", companyId, period] });
     } catch (error) {
       showSnackbar({
         message:
@@ -316,6 +322,7 @@ const GenerateSalaryAll = ({
                     startIcon={<Save />}
                     onClick={onSaveClick}
                     disabled={
+                      isLoading ||
                       loading ||
                       (generatedSalaries && generatedSalaries.length <= 0)
                     }
@@ -323,7 +330,11 @@ const GenerateSalaryAll = ({
                       width: { xs: "100%", sm: "auto" },
                     }}
                   >
-                    {loading ? <CircularProgress size={24} /> : "Save"}
+                    {loading || isLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      "Save"
+                    )}
                   </Button>
                 </Tooltip>
               </Box>
@@ -351,7 +362,7 @@ const GenerateSalaryAll = ({
                 <LoadingButton
                   variant="contained"
                   color="primary"
-                  loading={loading}
+                  loading={loading || isLoading}
                   loadingPosition="center"
                   endIcon={<Autorenew />}
                   onClick={onGenerateClick}
@@ -364,7 +375,7 @@ const GenerateSalaryAll = ({
           <hr className="my-2" />
           <EmployeesInclude
             companyId={companyId}
-            employees={employees}
+            employees={employees || []}
             employeeIds={employeeIds}
             handleIncludeChange={handleIncludeChange}
           />
@@ -373,7 +384,7 @@ const GenerateSalaryAll = ({
             <GeneratedSalaries
               generatedSalaries={generatedSalaries}
               setGeneratedSalaries={setGeneratedSalaries}
-              loading={loading}
+              loading={loading || isLoading}
               setLoading={setLoading}
               error={null}
             />

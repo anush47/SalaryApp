@@ -65,7 +65,10 @@ export interface Salary {
   remark: string;
 }
 
-const fetchSalaries = async (companyId: string, period?: string): Promise<Salary[]> => {
+const fetchSalaries = async (
+  companyId: string,
+  period?: string
+): Promise<Salary[]> => {
   const fetchLink = period
     ? `/api/salaries/?companyId=${companyId}&period=${period}`
     : `/api/salaries/?companyId=${companyId}`;
@@ -85,7 +88,7 @@ const fetchSalaries = async (companyId: string, period?: string): Promise<Salary
 };
 
 const SalariesDataGrid: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   isEditing: boolean;
   period?: string;
   companyId: string;
@@ -263,7 +266,11 @@ const SalariesDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["salaries", companyId, period] });
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
         message: "Salary updated successfully!",
         severity: "success",
@@ -290,7 +297,11 @@ const SalariesDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["salaries", companyId, period] });
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
         message: "Salary record deleted successfully!",
         severity: "success",

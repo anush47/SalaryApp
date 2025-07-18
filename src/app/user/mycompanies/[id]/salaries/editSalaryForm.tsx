@@ -1,8 +1,4 @@
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -18,14 +14,9 @@ import {
   FormHelperText,
   Grid,
   IconButton,
-  InputAdornment,
-  Slide, // Keep if used for other transitions
-  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { Salary } from "./salariesDataGrid";
@@ -39,7 +30,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 const EditSalaryForm: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
@@ -193,9 +184,11 @@ const EditSalaryForm: React.FC<{
         advanceAmount: data.salaries[0].advanceAmount,
         finalSalary: data.salaries[0].finalSalary,
       }));
-      queryClient.invalidateQueries({
-        queryKey: ["salary", salaryId],
-      });
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       showSnackbar({
         message:
@@ -338,9 +331,11 @@ const EditSalaryForm: React.FC<{
         });
 
         setIsEditing(false);
-        queryClient.invalidateQueries({
-          queryKey: ["salaries", companyId],
-        });
+        const queryKey = [
+          "salaries",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -445,9 +440,11 @@ const EditSalaryForm: React.FC<{
           severity: "success",
         });
 
-        queryClient.invalidateQueries({
-          queryKey: ["salaries", companyId],
-        });
+        const queryKey = [
+          "salaries",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -455,10 +452,6 @@ const EditSalaryForm: React.FC<{
         setErrors({});
         window.history.back();
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error deleting salary. Please try again.",
           severity: "error",
@@ -466,9 +459,6 @@ const EditSalaryForm: React.FC<{
       }
     } catch (error) {
       console.error("Error deleting salary:", error);
-      // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error deleting salary. Please try again.",
         severity: "error",

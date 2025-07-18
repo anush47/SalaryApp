@@ -47,10 +47,11 @@ import dayjs from "dayjs";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
 import "dayjs/locale/en-gb";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 const EditPaymentForm: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
@@ -86,53 +87,44 @@ const EditPaymentForm: React.FC<{
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const queryClient = useQueryClient();
 
-  // Fetch salary
-  useEffect(() => {
-    const fetchPayment = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/payments/?paymentId=${paymentId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch Payment");
-        }
-        const data = await response.json();
-        //if not payment
-        if (!data.payments || data.payments.length === 0) {
-          throw new Error("Invalid Payment Data");
-        }
-        const paymentData = data.payments[0];
-        // Set all nulls to empty string
-        Object.keys(paymentData).forEach((key) => {
-          if (paymentData[key] === null) {
-            paymentData[key] = "";
-          }
-        });
-        setFormFields(paymentData);
-      } catch (error) {
-        showSnackbar({
-          message:
-            error instanceof Error ? error.message : "Error fetching Payment.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (companyId?.length === 24) {
-      fetchPayment();
-    } else {
-      // setSnackbarMessage("Invalid Payment ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Invalid Payment ID", severity: "error" });
+  const fetchPaymentData = async (): Promise<Payment> => {
+    const response = await fetch(`/api/payments/?paymentId=${paymentId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Payment");
     }
-  }, [paymentId, companyId, showSnackbar]); // Added companyId and showSnackbar to dependencies
+    const data = await response.json();
+    return data.payments[0];
+  };
+
+  const {
+    data: paymentData,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Payment, Error>({
+    queryKey: ["payments", companyId, formFields.period],
+    queryFn: fetchPaymentData,
+    enabled: !!paymentId, // Only run the query if paymentId is available
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  useEffect(() => {
+    if (paymentData) {
+      // Set all nulls to empty string in a type-safe way
+      const sanitizedPaymentData: Payment = Object.fromEntries(
+        Object.entries(paymentData).map(([key, value]) => [
+          key,
+          value === null ? "" : value,
+        ])
+      ) as Payment;
+      setFormFields(sanitizedPaymentData);
+    }
+  }, [paymentData]);
 
   //gen salary
   const generatePaymentUpdate = async () => {
     try {
-      setLoading(true);
       //post with period body
       const response = await fetch("/api/payments/generate", {
         method: "POST",
@@ -169,8 +161,6 @@ const EditPaymentForm: React.FC<{
           error instanceof Error ? error.message : "Error fetching payments.",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -192,7 +182,7 @@ const EditPaymentForm: React.FC<{
       return;
     }
 
-    console.log(formFields);
+    // console.log(formFields);
 
     setLoading(true);
     try {
@@ -215,9 +205,12 @@ const EditPaymentForm: React.FC<{
           severity: "success",
         });
         setIsEditing(false);
-        queryClient.invalidateQueries({
-          queryKey: ["payments", companyId],
-        });
+        console.log(user.role);
+        const queryKey = [
+          "payments",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -289,7 +282,7 @@ const EditPaymentForm: React.FC<{
             onClick={handleConfirm}
             color="primary"
             autoFocus
-            loading={loading}
+            loading={loading || isLoading}
           >
             Confirm
           </LoadingButton>
@@ -322,9 +315,11 @@ const EditPaymentForm: React.FC<{
           message: "Payment deleted successfully!",
           severity: "success",
         });
-        queryClient.invalidateQueries({
-          queryKey: ["payments", companyId],
-        });
+        const queryKey = [
+          "payments",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
@@ -430,9 +425,13 @@ const EditPaymentForm: React.FC<{
                         color="success"
                         startIcon={<Save />}
                         onClick={onSaveClick}
-                        disabled={loading} // Disable button while loading
+                        disabled={loading || isLoading} // Disable button while loading
                       >
-                        {loading ? <CircularProgress size={24} /> : "Save"}
+                        {loading || isLoading ? (
+                          <CircularProgress size={24} />
+                        ) : (
+                          "Save"
+                        )}
                       </Button>
                     </span>
                   </Tooltip>
@@ -456,7 +455,7 @@ const EditPaymentForm: React.FC<{
         >
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              {loading ? (
+              {loading || isLoading ? (
                 <CircularProgress size={20} />
               ) : (
                 <Box
@@ -522,7 +521,7 @@ const EditPaymentForm: React.FC<{
                   aria-controls="panel1-content"
                   id="panel1-header"
                 >
-                  {loading ? (
+                  {loading || isLoading ? (
                     <Typography variant="h6">
                       {`Salary Details loading...`}
                     </Typography>
@@ -554,8 +553,14 @@ const EditPaymentForm: React.FC<{
                 variant="contained"
                 color="success"
                 onClick={generatePaymentUpdate}
-                disabled={loading || !isEditing}
-                endIcon={loading ? <CircularProgress size={20} /> : <Sync />}
+                disabled={loading || isLoading || !isEditing}
+                endIcon={
+                  loading || isLoading ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <Sync />
+                  )
+                }
               >
                 Re-calculate
               </Button>
@@ -858,7 +863,7 @@ const EditPaymentForm: React.FC<{
                   variant="filled"
                   multiline
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.remark && (

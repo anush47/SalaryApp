@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import {
   DataGrid,
   GridColDef,
@@ -143,18 +145,37 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
+const fetchEmployees = async (companyId: string): Promise<Employee[]> => {
+  const response = await fetch(`/api/employees?companyId=${companyId}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch employees");
+  }
+  const data = await response.json();
+  return data.employees.map((employee: any) => ({
+    ...employee,
+    id: employee._id,
+  }));
+};
+
 const EmployeesDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   isEditingEmployeeInHome: boolean;
   companyId: string;
 }> = ({ user, isEditingEmployeeInHome, companyId }) => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null); // For general error display
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useSnackbar();
+
+  const {
+    data: employees,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Employee[], Error>({
+    queryKey: ["employees", companyId],
+    queryFn: () => fetchEmployees(companyId),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   const columns: GridColDef[] = [
     {
@@ -489,36 +510,39 @@ const EmployeesDataGrid: React.FC<{
     }
   );
 
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/employees?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch employees");
-        }
-        const data = await response.json();
-        const employeesWithId = data.employees.map((employee: any) => ({
-          ...employee,
-          id: employee._id,
-        }));
-        setEmployees(employeesWithId);
-      } catch (error) {
-        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async (newEmployee: Employee) => {
+      const response = await fetch("/api/employees", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...newEmployee,
+          userId: user.id, // Include user ID
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update employee");
       }
-    };
-
-    fetchEmployees();
-  }, [user, companyId, showSnackbar]); // Added showSnackbar
+      return response.json();
+    },
+    onSuccess: (data: any, newEmployee: Employee) => {
+      const queryKey = [
+        "employees",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      showSnackbar({
+        message: "Employee updated successfully!",
+        severity: "success",
+      });
+    },
+    onError: (err) => {
+      showSnackbar({ message: err.message, severity: "error" });
+    },
+  });
 
   const validate = (newEmployee: {
     id: string;
@@ -540,7 +564,7 @@ const EmployeesDataGrid: React.FC<{
       errors.memberNo = "Member number is required";
     } else {
       //check if number already exists except this one
-      const existingEmployee = employees.find((employee) => {
+      const existingEmployee = employees?.find((employee) => {
         return (
           employee.memberNo === parseInt(newEmployee.memberNo) &&
           employee.id !== newEmployee.id
@@ -575,58 +599,7 @@ const EmployeesDataGrid: React.FC<{
       newEmployee.name = newEmployee.name.toUpperCase();
       newEmployee.nic = newEmployee.nic.toUpperCase();
       newEmployee.basic = parseFloat(newEmployee.basic);
-      try {
-        // Perform POST request to update the employee
-        const response = await fetch("/api/employees", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...newEmployee,
-            userId: user.id, // Include user ID
-          }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Removed
-          // setSnackbarSeverity("error"); // Removed
-          // setSnackbarOpen(true); // Removed
-          showSnackbar({
-            message:
-              result.message || "Error saving employee. Please try again.",
-            severity: "error",
-          });
-          throw new Error(
-            result.message || "Error saving employee. Please try again."
-          ); // Propagate error
-        }
-      } catch (error) {
-        console.error("Error saving employee:", error);
-        // setSnackbarMessage("Error saving employee. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Error saving employee. Please try again.",
-          severity: "error",
-        });
-        throw error; // Propagate error
-      } finally {
-        setLoading(false); // This might be problematic if error is thrown, but keeping original logic
-      }
-      // }
-      //console.log(newEmployee);
-
-      // Success feedback
-      // setSnackbarMessage(`Employee ${newEmployee.memberNo} - updated successfully!`); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({
-        message: `Employee ${newEmployee.memberNo} - updated successfully!`,
-        severity: "success",
-      });
+      await updateEmployeeMutation.mutateAsync(newEmployee);
 
       return newEmployee;
     } catch (error: any) {
@@ -642,7 +615,7 @@ const EmployeesDataGrid: React.FC<{
 
   const handleRowUpdateError = (params: any) => {
     // Revert changes if necessary
-    const updatedEmployees = employees.map((employee) => {
+    const updatedEmployees = employees?.map((employee: Employee) => {
       if (employee.id === params.id) {
         return params.oldRow; // Revert to old row data
       }
@@ -651,8 +624,6 @@ const EmployeesDataGrid: React.FC<{
 
     // Log error and revert row updates
     console.error("Row update error:", params.error?.error || params.error);
-
-    setEmployees(updatedEmployees); // Update state with reverted data
 
     // Display the error details in Snackbar
     // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
@@ -696,6 +667,41 @@ const EmployeesDataGrid: React.FC<{
       address: false,
       probabilities: false,
     });
+  const [rowSelectionModel, setRowSelectionModel] = React.useState<string[]>(
+    []
+  );
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+          minHeight: "200px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.message || "An unexpected error occurred"}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -706,16 +712,11 @@ const EmployeesDataGrid: React.FC<{
         alignItems: "center",
       }}
     >
-      {loading && <CircularProgress />}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {!loading && !error && (
+      <div>
         <DataGrid
-          rows={employees}
+          rows={employees || []}
           columns={columns}
+          getRowId={(row) => row._id}
           editMode="row"
           initialState={{
             pagination: {
@@ -756,9 +757,7 @@ const EmployeesDataGrid: React.FC<{
             setColumnVisibilityModel(newModel)
           }
         />
-      )}
-
-      {/* Snackbar component removed, global one will be used */}
+      </div>
     </Box>
   );
 };
