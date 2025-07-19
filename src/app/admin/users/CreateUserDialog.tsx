@@ -8,9 +8,10 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
 import { LoadingButton } from "@mui/lab";
 import IconButton from "@mui/material/IconButton";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function CreateUserDialog({
   open,
@@ -19,66 +20,58 @@ export default function CreateUserDialog({
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  const [formVisible, setFormVisible] = React.useState(true); // Keep to hide form on success
-  const [loading, setLoading] = React.useState(false);
-  // const [error, setError] = React.useState<string | null>(null); // Removed
-  // const [success, setSuccess] = React.useState<string | null>(null); // Removed
-
-  const [showOldPassword, setShowOldPassword] = React.useState(false);
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
+  const [formVisible, setFormVisible] = React.useState(true);
   const [showPassword, setShowPassword] = React.useState(false);
 
-  const handleClose = () => {
-    setOpen(false);
-    // setError(null); // Removed
-    // setSuccess(null); // Removed
-    if (formVisible === false) {
-      // if form was hidden due to success
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000); // Shorter delay as snackbar is already shown
-    }
-    setFormVisible(true); // Reset form visibility for the next open
-  };
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
-    const formData = new FormData(event.currentTarget);
-    const formJson = Object.fromEntries(formData.entries());
-    const password = formJson.password as string;
-    const email = formJson.email as string;
-    const name = formJson.name as string;
-
-    try {
+  const createUserMutation = useMutation({
+    mutationFn: async (newUser: any) => {
       const response = await fetch("/api/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify(newUser),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         if (data.message && data.message.startsWith("E11000")) {
           throw new Error("Email already exists");
         }
         throw new Error(data.message || "An error occurred");
       }
-
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       showSnackbar({
         message: `${data.user.name} created successfully`,
         severity: "success",
       });
-      setFormVisible(false); // Hide the form inputs, dialog can be closed or will reload
-      // No need to call handleClose here, user will click OK or Cancel
-    } catch (error) {
-      showSnackbar({ message: (error as Error).message, severity: "error" });
-    } finally {
-      setLoading(false);
+      setFormVisible(false);
+    },
+    onError: (error: Error) => {
+      showSnackbar({ message: error.message, severity: "error" });
+    },
+  });
+
+  const handleClose = () => {
+    setOpen(false);
+    if (formVisible === false) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
+    setFormVisible(true);
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const formJson = Object.fromEntries(formData.entries());
+    const { name, email, password } = formJson;
+    await createUserMutation.mutateAsync({ name, email, password });
   };
 
   return (
@@ -144,19 +137,17 @@ export default function CreateUserDialog({
               minHeight: "100px",
             }}
           >
-            {/* Optionally, keep a simple text message or a placeholder if form is hidden post-success */}
-            {/* For now, assume dialog will be closed or reloaded */}
             <DialogActions>
               <Button onClick={handleClose}>OK</Button>
             </DialogActions>
           </Box>
         )}
       </DialogContent>
-      {formVisible && ( // Only show Cancel/Create if form is visible
+      {formVisible && (
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
           <LoadingButton
-            loading={loading}
+            loading={createUserMutation.isPending}
             type="submit"
             loadingPosition="center"
           >

@@ -78,7 +78,7 @@ const Documents = ({
     boolean,
     Error
   >({
-    queryKey: ["purchases", companyId, period],
+    queryKey: ["purchases", "check", companyId, period],
     queryFn: () => fetchPurchased(companyId, period),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,

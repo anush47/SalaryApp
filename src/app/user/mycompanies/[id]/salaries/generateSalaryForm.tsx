@@ -154,7 +154,7 @@ const AddSalaryForm: React.FC<{
   };
 
   const { data: purchasedStatus, isLoading: isLoadingPurchased } = useQuery({
-    queryKey: ["purchasedStatus", companyId, period],
+    queryKey: ["purchases", "check", companyId, period],
     queryFn: checkPurchasedStatus,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,

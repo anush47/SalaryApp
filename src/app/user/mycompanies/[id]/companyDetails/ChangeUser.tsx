@@ -23,8 +23,13 @@ const ChangeUser = ({
   user: string;
   setUser: (user: string) => void;
 }) => {
-  const { data: users, isLoading, isError, error } = useQuery<any[], Error>({
-    queryKey: ["users"],
+  const {
+    data: users,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<any[], Error>({
+    queryKey: ["users", "list"],
     queryFn: fetchUsers,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
