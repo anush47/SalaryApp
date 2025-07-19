@@ -34,16 +34,8 @@ const EditSalaryForm: React.FC<{
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
-  const [employee, setEmployee] = useState<{
-    memberNo: string;
-    name: string;
-    nic: string;
-    companyName: string;
-    companyEmployerNo: string;
-    divideBy: number;
-  }>();
-  const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [employeeData, setEmployeeData] = useState<any>(null);
   const { showSnackbar } = useSnackbar();
   const [formFields, setFormFields] = useState<Salary>({
     _id: "",
@@ -72,7 +64,7 @@ const EditSalaryForm: React.FC<{
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const queryClient = useQueryClient();
 
-  const fetchSalaryData = async (): Promise<Salary> => {
+  const fetchSalaryData = async (): Promise<any> => {
     const response = await fetch(`/api/salaries/?salaryId=${salaryId}`);
     if (!response.ok) {
       throw new Error("Failed to fetch Salary");
@@ -83,10 +75,10 @@ const EditSalaryForm: React.FC<{
 
   const {
     data: salaryData,
-    isLoading,
-    isError,
-    error,
-  } = useQuery<Salary, Error>({
+    isLoading: isSalaryLoading,
+    isError: isSalaryError,
+    error: salaryError,
+  } = useQuery<any, Error>({
     queryKey: ["salaries", companyId, formFields.period, salaryId],
     queryFn: fetchSalaryData,
     enabled: !!salaryId, // Only run the query if salaryId is available
@@ -111,26 +103,32 @@ const EditSalaryForm: React.FC<{
         finalSalary: salaryData.finalSalary,
         remark: salaryData.remark,
       });
+      console.log("Salary Data:", salaryData);
+      setEmployeeData({
+        memberNo: salaryData.memberNo,
+        name: salaryData.name,
+        nic: salaryData.nic,
+        companyName: salaryData.companyName,
+        companyEmployerNo: salaryData.companyEmployerNo,
+        divideBy: salaryData.divideBy,
+      });
     }
   }, [salaryData]);
 
   useEffect(() => {
-    if (isError) {
+    if (isSalaryError) {
       showSnackbar({
-        message: error?.message || "Error fetching salary.",
+        message: salaryError?.message || "Error fetching salary.",
         severity: "error",
       });
     }
-  }, [isError, error, showSnackbar]);
+  }, [isSalaryError, salaryError, showSnackbar]);
 
-  useEffect(() => {
-    setLoading(isLoading);
-  }, [isLoading]);
+  const loading = isSalaryLoading;
 
   //gen salary
   const fetchSalary = async () => {
     try {
-      setLoading(true);
       //use post method
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
@@ -184,19 +182,17 @@ const EditSalaryForm: React.FC<{
         advanceAmount: data.salaries[0].advanceAmount,
         finalSalary: data.salaries[0].finalSalary,
       }));
-      const queryKey = [
-        "salaries",
-        ...(user.role === "admin" ? [companyId] : []),
-      ];
-      queryClient.invalidateQueries({ queryKey });
+      // const queryKey = [
+      //   "salaries",
+      //   ...(user.role === "admin" ? [companyId] : []),
+      // ];
+      // queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error Updating Salary.",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -309,7 +305,6 @@ const EditSalaryForm: React.FC<{
 
     console.log(formFields);
 
-    setLoading(true);
     try {
       // Perform POST request to add a new salary record
       const response = await fetch("/api/salaries", {
@@ -353,8 +348,6 @@ const EditSalaryForm: React.FC<{
         message: "Error saving salary. Please try again.",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -419,7 +412,6 @@ const EditSalaryForm: React.FC<{
   };
 
   const onDeleteClick = async () => {
-    setLoading(true);
     try {
       // Perform DELETE request to delete the salary record
       const response = await fetch(`/api/salaries/`, {
@@ -463,8 +455,6 @@ const EditSalaryForm: React.FC<{
         message: "Error deleting salary. Please try again.",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -545,19 +535,19 @@ const EditSalaryForm: React.FC<{
                     variant="h6"
                     sx={{ fontWeight: "bold", color: "primary.main" }}
                   >
-                    Employee: {employee?.memberNo} - {employee?.name}
+                    Employee: {employeeData?.memberNo} - {employeeData?.name}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    NIC: {employee?.nic}
+                    NIC: {employeeData?.nic}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
                     Period: {formFields?.period}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    Company: {employee?.companyName}
+                    Company: {employeeData?.companyName}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    Employer No: {employee?.companyEmployerNo}
+                    Employer No: {employeeData?.companyEmployerNo}
                   </Typography>
                 </Box>
               )}
@@ -566,10 +556,10 @@ const EditSalaryForm: React.FC<{
               <InOutTable
                 inOuts={formFields.inOut.map((inOut, index) => ({
                   id: inOut._id || index + 1,
-                  employeeName: employee?.name,
-                  employeeNIC: employee?.nic,
+                  employeeName: employeeData?.name,
+                  employeeNIC: employeeData?.nic,
                   basic: formFields.basic,
-                  divideBy: employee?.divideBy ?? 240,
+                  divideBy: employeeData?.divideBy ?? 240,
                   ...inOut,
                 }))}
                 setInOuts={(inOuts: any) => {
@@ -763,7 +753,7 @@ const EditSalaryForm: React.FC<{
               <Button
                 variant="outlined"
                 color="error"
-                onClick={() => handleDeleteClick(employee?.name || "")}
+                onClick={() => handleDeleteClick(employeeData?.name || "")}
                 disabled={loading || !isEditing}
               >
                 Delete

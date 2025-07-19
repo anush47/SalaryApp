@@ -1,3 +1,4 @@
+"use client";
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -9,7 +10,6 @@ import {
   FormControl,
   FormHelperText,
   Grid,
-  IconButton,
   TextField,
   Typography,
   Tooltip,
@@ -55,7 +55,7 @@ import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 const ChangeUser = React.lazy(() => import("./ChangeUser"));
 
-const fetchCompanyAndUser = async (companyId: string, user: any) => {
+const fetchCompany = async (companyId: string) => {
   const companyResponse = await fetch(`/api/companies?companyId=${companyId}`);
   if (!companyResponse.ok) {
     throw new Error("Failed to fetch company");
@@ -65,21 +65,23 @@ const fetchCompanyAndUser = async (companyId: string, user: any) => {
     ...companyData.companies[0],
     id: companyData.companies[0]._id,
   };
+  return companyWithId;
+};
 
-  let companyUser;
-  if (companyWithId.user && user.role === "admin") {
-    const userResponse = await fetch(`/api/users?userId=${companyWithId.user}`);
-    if (!userResponse.ok) {
-      throw new Error("Failed to fetch user details");
-    }
-    const userData = await userResponse.json();
-    companyUser = userData.users[0] && {
+const fetchUser = async (userId: string) => {
+  if (!userId) return null;
+  const userResponse = await fetch(`/api/users?userId=${userId}`);
+  if (!userResponse.ok) {
+    throw new Error("Failed to fetch user details");
+  }
+  const userData = await userResponse.json();
+  if (userData.users[0]) {
+    return {
       userName: userData.users[0].name,
       userEmail: userData.users[0].email,
     };
   }
-
-  return { company: companyWithId, companyUser };
+  return null;
 };
 
 const CompanyDetails = ({
@@ -92,15 +94,33 @@ const CompanyDetails = ({
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, error } = useQuery<any, Error>({
+  const {
+    data: company,
+    isLoading: isCompanyLoading,
+    isError: isCompanyError,
+    error: companyError,
+  } = useQuery<Company, Error>({
     queryKey: ["companies", companyId],
-    queryFn: () => fetchCompanyAndUser(companyId, user),
+    queryFn: () => fetchCompany(companyId),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     enabled: !!companyId && companyId.length === 24,
   });
 
-  const [formFields, setFormFields] = useState<Company>(data?.company);
+  const {
+    data: companyUser,
+    isLoading: isUserLoading,
+    isError: isUserError,
+    error: userError,
+  } = useQuery<any, Error>({
+    queryKey: ["users", company?.user],
+    queryFn: () => fetchUser(company?.user as string),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    enabled: !!company?.user && user.role === "admin",
+  });
+
+  const [formFields, setFormFields] = useState<Company | undefined>(company);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -109,10 +129,10 @@ const CompanyDetails = ({
   );
 
   useEffect(() => {
-    if (data) {
-      setFormFields(data.company);
+    if (company) {
+      setFormFields(company);
     }
-  }, [data]);
+  }, [company]);
 
   const updateCompanyMutation = useMutation({
     mutationFn: async (updatedCompany: Company) => {
@@ -188,22 +208,28 @@ const CompanyDetails = ({
       value = event.target.checked;
     } else if (name.startsWith("requiredDocs")) {
       const requiredDocs = {
-        ...formFields.requiredDocs,
+        ...formFields?.requiredDocs,
         [name.split(".")[1]]: event.target.checked,
       };
-      setFormFields((prevFields) => ({
-        ...prevFields,
-        requiredDocs: requiredDocs as NonNullable<Company["requiredDocs"]>,
-      }));
+      setFormFields(
+        (prevFields) =>
+          ({
+            ...prevFields,
+            requiredDocs: requiredDocs,
+          } as Company)
+      );
       return;
     } else if (name.startsWith("probabilities")) {
-      setFormFields((prevFields) => ({
-        ...prevFields,
-        probabilities: {
-          ...prevFields.probabilities,
-          [name.split(".")[1]]: parseInt(value),
-        },
-      }));
+      setFormFields(
+        (prevFields) =>
+          ({
+            ...prevFields,
+            probabilities: {
+              ...prevFields?.probabilities,
+              [name.split(".")[1]]: parseInt(value),
+            },
+          } as Company)
+      );
       return;
     } else if (name.startsWith("openHours")) {
       const [_, subName] = name.split(".");
@@ -212,20 +238,24 @@ const CompanyDetails = ({
       } else {
         value = formatTime(value);
       }
-      setFormFields((prevFields) => ({
-        ...prevFields,
-        openHours: {
-          ...prevFields.openHours,
-          [subName]: value,
-        },
-      }));
+      setFormFields(
+        (prevFields) =>
+          ({
+            ...prevFields,
+            openHours: {
+              ...prevFields?.openHours,
+              [subName]: value,
+            },
+          } as Company)
+      );
       return;
     }
 
-    setFormFields((prevFields) => ({ ...prevFields, [name]: value }));
+    setFormFields((prevFields) => ({ ...prevFields, [name]: value } as Company));
   };
 
   const handleSaveClick = async () => {
+    if (!formFields) return;
     const newErrors = CompanyValidation(formFields);
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
@@ -258,7 +288,7 @@ const CompanyDetails = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          employerNo: formFields.employerNo,
+          employerNo: formFields?.employerNo,
         }),
       });
       const result = await response.json();
@@ -271,10 +301,13 @@ const CompanyDetails = ({
         });
         return;
       }
-      setFormFields((prevFields) => ({
-        ...prevFields,
-        name: name.toUpperCase(),
-      }));
+      setFormFields(
+        (prevFields) =>
+          ({
+            ...prevFields,
+            name: name.toUpperCase(),
+          } as Company)
+      );
 
       showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
@@ -308,12 +341,16 @@ const CompanyDetails = ({
     return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
   };
 
-  if (isLoading) {
+  if (isCompanyLoading || isUserLoading) {
     return <CircularProgress />;
   }
 
-  if (isError) {
-    return <Alert severity="error">{error.message}</Alert>;
+  if (isCompanyError) {
+    return <Alert severity="error">{companyError.message}</Alert>;
+  }
+
+  if (isUserError) {
+    return <Alert severity="error">{userError.message}</Alert>;
   }
 
   return (
@@ -358,10 +395,10 @@ const CompanyDetails = ({
                 <Button
                   variant="outlined"
                   startIcon={<Edit />}
-                  disabled={isLoading}
+                  disabled={isCompanyLoading}
                   onClick={() => setIsEditing(true)}
                 >
-                  {isLoading ? <CircularProgress size={24} /> : "Edit"}
+                  {isCompanyLoading ? <CircularProgress size={24} /> : "Edit"}
                 </Button>
               )}
             </Box>
@@ -475,12 +512,13 @@ const CompanyDetails = ({
                     }
                     views={["year", "month", "day"]}
                     onChange={(newDate) => {
-                      setFormFields((prevFields) => ({
-                        ...prevFields,
-                        startedAt: newDate?.format("DD-MM-YYYY") as
-                          | string
-                          | Date,
-                      }));
+                      setFormFields(
+                        (prevFields) =>
+                          ({
+                            ...prevFields,
+                            startedAt: newDate?.format("DD-MM-YYYY"),
+                          } as Company)
+                      );
                     }}
                     slotProps={{
                       field: { clearable: true },
@@ -509,10 +547,13 @@ const CompanyDetails = ({
                     }
                     views={["year", "month", "day"]}
                     onChange={(newDate) => {
-                      setFormFields((prevFields) => ({
-                        ...prevFields,
-                        endedAt: newDate?.format("DD-MM-YYYY") as string | Date,
-                      }));
+                      setFormFields(
+                        (prevFields) =>
+                          ({
+                            ...prevFields,
+                            endedAt: newDate?.format("DD-MM-YYYY"),
+                          } as Company)
+                      );
                     }}
                     slotProps={{
                       field: { clearable: true },
@@ -533,7 +574,7 @@ const CompanyDetails = ({
                       color="success"
                       value={formFields.active}
                       onChange={handleChange}
-                      disabled={!isEditing || isLoading}
+                      disabled={!isEditing || isCompanyLoading}
                       sx={{
                         "& .MuiSvgIcon-root": {
                           color: formFields.active ? "green" : "red",
@@ -556,7 +597,7 @@ const CompanyDetails = ({
                       color="success"
                       value={formFields?.openHours?.allDay}
                       onChange={handleChange}
-                      disabled={!isEditing || isLoading}
+                      disabled={!isEditing || isCompanyLoading}
                     />
                   }
                   label="Open 24h ?"
@@ -575,7 +616,7 @@ const CompanyDetails = ({
                       value={formFields?.openHours?.start}
                       onChange={handleChange}
                       InputProps={{
-                        readOnly: !isEditing || isLoading,
+                        readOnly: !isEditing || isCompanyLoading,
                       }}
                     />
                   </FormControl>
@@ -590,7 +631,7 @@ const CompanyDetails = ({
                       value={formFields?.openHours?.end}
                       onChange={handleChange}
                       InputProps={{
-                        readOnly: !isEditing || isLoading,
+                        readOnly: !isEditing || isCompanyLoading,
                       }}
                     />
                   </FormControl>
@@ -604,10 +645,13 @@ const CompanyDetails = ({
                 handleChange={handleChange}
                 paymentStructure={formFields.paymentStructure}
                 setPaymentStructure={(paymentStructure) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    paymentStructure,
-                  }));
+                  setFormFields(
+                    (prev) =>
+                      ({
+                        ...prev,
+                        paymentStructure,
+                      } as Company)
+                  );
                 }}
               />
             </Grid>
@@ -619,10 +663,13 @@ const CompanyDetails = ({
                 isEditing={isEditing}
                 workingDays={formFields.workingDays}
                 setWorkingDays={(workingDays) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    workingDays,
-                  }));
+                  setFormFields(
+                    (prev) =>
+                      ({
+                        ...prev,
+                        workingDays,
+                      } as Company)
+                  );
                 }}
               />
             </Grid>
@@ -634,10 +681,13 @@ const CompanyDetails = ({
                 handleChange={handleChange}
                 shifts={formFields.shifts}
                 setShifts={(shifts: any) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    shifts,
-                  }));
+                  setFormFields(
+                    (prev) =>
+                      ({
+                        ...prev,
+                        shifts,
+                      } as Company)
+                  );
                 }}
               />
             </Grid>
@@ -710,12 +760,10 @@ const CompanyDetails = ({
 
               {user.role === "admin" ? (
                 <Grid item xs={12}>
-                  {data?.companyUser && (
+                  {companyUser && (
                     <>
-                      <Typography>Name: {data.companyUser.userName}</Typography>
-                      <Typography>
-                        Email: {data.companyUser.userEmail}
-                      </Typography>
+                      <Typography>Name: {companyUser.userName}</Typography>
+                      <Typography>Email: {companyUser.userEmail}</Typography>
                     </>
                   )}
                   <div className="my-5" />
@@ -733,10 +781,13 @@ const CompanyDetails = ({
                                 isEditing={isEditing}
                                 user={formFields.user}
                                 setUser={(user) => {
-                                  setFormFields((prevFields) => ({
-                                    ...prevFields,
-                                    user,
-                                  }));
+                                  setFormFields(
+                                    (prevFields) =>
+                                      ({
+                                        ...prevFields,
+                                        user,
+                                      } as Company)
+                                  );
                                 }}
                               />
                             </React.Suspense>
@@ -974,12 +1025,13 @@ const CompanyDetails = ({
                 <>
                   <Typography>
                     Mode:{" "}
-                    {modeTexts[data?.company.mode as keyof typeof modeTexts]}
+                    {company &&
+                      modeTexts[company.mode as keyof typeof modeTexts]}
                   </Typography>
                   <Typography variant="h6" mt={3}>
                     Monthly Price: LKR{" "}
-                    {data?.company.monthlyPrice
-                      ? data?.company.monthlyPrice.toLocaleString()
+                    {company?.monthlyPrice
+                      ? company?.monthlyPrice.toLocaleString()
                       : "N/A"}
                   </Typography>
                 </>
@@ -991,7 +1043,7 @@ const CompanyDetails = ({
                 color="error"
                 startIcon={<Delete />}
                 onClick={onDeleteClick}
-                disabled={!isEditing || isLoading}
+                disabled={!isEditing || isCompanyLoading}
               >
                 Delete Company
               </Button>
