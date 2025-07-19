@@ -1,10 +1,4 @@
 "use client";
-
-"use client";
-
-"use client";
-
-"use client";
 import React, { useState, useCallback } from "react";
 import {
   DataGrid,
