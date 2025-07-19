@@ -4,8 +4,6 @@ import {
   Button,
   Typography,
   CircularProgress,
-  // Alert, // Remove if only used for snackbar, or ensure it's not the general error one
-  // Snackbar, // Removed
   Grid,
   Paper,
   Chip,
@@ -20,7 +18,6 @@ import {
   MenuItem,
   Slide,
   TextField,
-  useTheme,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -31,8 +28,9 @@ import { ArrowBack, ArrowForward, HideImage } from "@mui/icons-material";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
 import Image from "next/image";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
-import Alert from "@mui/material/Alert"; // Keep for specific inline alerts if any, or remove if not used
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 interface ChipData {
   key: number;
@@ -53,6 +51,14 @@ interface UpdatePurchaseFormProps {
   purchaseId: string;
 }
 
+const fetchPurchase = async (purchaseId: string) => {
+  const res = await fetch(`/api/purchases/?purchaseId=${purchaseId}`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch purchase details");
+  }
+  return res.json();
+};
+
 const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   handleBackClick,
   purchaseId,
@@ -64,11 +70,8 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const [totalPrice, setTotalPrice] = useState<string>("");
 
   const [loading, setLoading] = useState<boolean>(false);
-  // const [error, setError] = useState<string | null>(null); // To be replaced by showSnackbar for general errors
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | ArrayBuffer | null>(
     null
@@ -78,46 +81,44 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const [employerNo, setEmployerNo] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
 
+  const { data: purchase, isLoading: isFetchingPurchase } = useQuery<
+    any,
+    Error
+  >({
+    queryKey: ["purchases", companyId, purchaseId],
+    queryFn: () => fetchPurchase(purchaseId),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    enabled: !!purchaseId,
+  });
+
   useEffect(() => {
-    const fetchPurchase = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/purchases/?purchaseId=${purchaseId}`);
-        const data = await res.json();
-        console.log(data);
-        setPrice(data.purchase.price);
-        setPeriods(
-          data.purchase.periods.map((period: string, index: number) => ({
-            key: index,
-            label: period,
-          }))
-        );
-        setStatus(data.purchase.approvedStatus);
-        setRemark(data.purchase.remark);
-        setCompanyId(data.purchase.company);
-        setCompanyName(data.purchase.companyName);
-        setEmployerNo(data.purchase.companyEmployerNo);
-        setTotalPrice(data.purchase.totalPrice);
-        if (data.purchase.request) {
-          const imageResponse = await fetch(data.purchase.request);
+    if (purchase) {
+      setPrice(purchase.purchase.price);
+      setPeriods(
+        purchase.purchase.periods.map((period: string, index: number) => ({
+          key: index,
+          label: period,
+        }))
+      );
+      setStatus(purchase.purchase.approvedStatus);
+      setRemark(purchase.purchase.remark);
+      setCompanyId(purchase.purchase.company);
+      setCompanyName(purchase.purchase.companyName);
+      setEmployerNo(purchase.purchase.companyEmployerNo);
+      setTotalPrice(purchase.purchase.totalPrice);
+      if (purchase.purchase.request) {
+        const fetchImage = async () => {
+          const imageResponse = await fetch(purchase.purchase.request);
           const imageBlob = await imageResponse.blob();
           setImage(
             new File([imageBlob], "image.jpg", { type: imageBlob.type })
           );
-        }
-      } catch (err) {
-        // setError("Failed to fetch purchase details"); // Removed
-        showSnackbar({
-          message: "Failed to fetch purchase details",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
+        };
+        fetchImage();
       }
-    };
-
-    if (!price) fetchPurchase();
-  }, [purchaseId, companyId, showSnackbar, price]); // Added showSnackbar and price to dependencies
+    }
+  }, [purchase]);
 
   useEffect(() => {
     if (image) {
@@ -134,7 +135,6 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    // setError(null); // Removed
 
     const payload = {
       approvedStatus: status,
@@ -158,21 +158,14 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       if (!response.ok) {
         throw new Error(result.message || "Failed to update purchase");
       }
-
-      // setSnackbarMessage("Purchase updated successfully"); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
       showSnackbar({
         message: "Purchase updated successfully",
         severity: "success",
       });
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       handleBackClick();
     } catch (error: any) {
-      // setError(error.message); // Removed
-      // setSnackbarMessage(error.message); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: error.message || "An error occurred",
         severity: "error",
@@ -212,9 +205,6 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
 
   const handleDeleteEntry = async () => {
     setLoading(true);
-    //confirm using mui dialog
-
-    // setError(null); // Removed
 
     try {
       const response = await fetch(`/api/purchases/?purchaseId=${purchaseId}`, {
@@ -226,21 +216,14 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       if (!response.ok) {
         throw new Error(result.message || "Failed to delete purchase");
       }
-
-      // setSnackbarMessage("Purchase deleted successfully"); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
       showSnackbar({
         message: "Purchase deleted successfully",
         severity: "success",
       });
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       handleBackClick();
     } catch (error: any) {
-      // setError(error.message); // Removed
-      // setSnackbarMessage(error.message); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: error.message || "An error occurred",
         severity: "error",
@@ -250,21 +233,15 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
     }
   };
 
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
-
   const oneMonthPrice = price ?? 0;
 
   function handleImageDelete(event: React.MouseEvent<HTMLButtonElement>): void {
     event.preventDefault();
     setImage(null);
+  }
+
+  if (isFetchingPurchase) {
+    return <CircularProgress />;
   }
 
   return (
@@ -533,7 +510,6 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
           </Grid>
         </Grid>
       </Box>
-      {/* Snackbar component removed, global one will be used */}
       <DeleteDialog />
     </Box>
   );
