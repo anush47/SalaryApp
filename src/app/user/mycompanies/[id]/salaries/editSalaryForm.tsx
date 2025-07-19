@@ -87,7 +87,7 @@ const EditSalaryForm: React.FC<{
     isError,
     error,
   } = useQuery<Salary, Error>({
-    queryKey: ["salary", salaryId],
+    queryKey: ["salaries", companyId, formFields.period],
     queryFn: fetchSalaryData,
     enabled: !!salaryId, // Only run the query if salaryId is available
     staleTime: STALE_TIME,
