@@ -300,7 +300,7 @@ export async function PUT(req: NextRequest) {
 
     // Parse request body
     const body = await req.json();
-    const companyId = body.id;
+    const companyId = body._id;
     const companyData = body;
 
     // Validate companyId
