@@ -4,8 +4,6 @@ import {
   Button,
   Typography,
   CircularProgress,
-  // Alert, // Removed if only for snackbar
-  // Snackbar, // Removed
   Grid,
   Paper,
   Chip,
@@ -22,42 +20,32 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
-
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useQueryClient } from "@tanstack/react-query";
 interface ChipData {
   key: number;
   label: string;
 }
-
 const validatePeriod = (value: string) => {
   const regex = /^(0?[1-9]|1[0-2])-(19|20)\d\d$/;
   return regex.test(value);
 };
-
 const isValidMonthYear = (value: string) => {
   if (!validatePeriod(value)) return false;
-
   const [monthStr, yearStr] = value.split("-");
   const month = parseInt(monthStr, 10);
   const year = parseInt(yearStr, 10);
-
   return year >= 1990 && year <= 2026 && month >= 1 && month <= 12;
 };
-
 const formatPeriod = (value: string) => {
   const [monthStr, yearStr] = value.split("-");
-  const month = monthStr.padStart(2, "0"); // Add leading zero if necessary
-  const year = yearStr.padStart(4, "0"); // Ensure year is 4 digits
+  const month = monthStr.padStart(2, "0");
+  const year = yearStr.padStart(4, "0");
   return `${month}-${year}`;
 };
-
 const formatPrice = (price: number) => {
-  return price.toLocaleString("en-LK", {
-    style: "currency",
-    currency: "LKR",
-  });
+  return price.toLocaleString("en-LK", { style: "currency", currency: "LKR" });
 };
-
 const NewPurchaseForm: React.FC<{
   handleBackClick: () => void;
   companyId: String;
@@ -66,26 +54,20 @@ const NewPurchaseForm: React.FC<{
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
   const [price, setPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  // const [error, setError] = useState<string | null>(null); // Removed
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | ArrayBuffer | null>(
     null
   );
-  const [purchasedPeriods, setPurchasedPeriods] = useState<string[]>([]); // New state for purchased periods
-  const [totalPrice, setTotalPrice] = useState<number | null>(null); // New state for total price
-  const [finalTotalPrice, setFinalTotalPrice] = useState<number | null>(null); // New state for final total price
-
+  const [purchasedPeriods, setPurchasedPeriods] = useState<string[]>([]);
+  const [totalPrice, setTotalPrice] = useState<number | null>(null);
+  const [finalTotalPrice, setFinalTotalPrice] = useState<number | null>(null);
   const searchParams = useSearchParams();
   const periodsInitial = searchParams ? searchParams.get("periods") : null;
-
   useEffect(() => {
     if (periodsInitial) {
       const periods = periodsInitial.split(" ");
-      //validate and add
       const validPeriods = periods.filter((period) => isValidMonthYear(period));
       setPeriods(
         validPeriods.map((period, index) => ({
@@ -95,13 +77,10 @@ const NewPurchaseForm: React.FC<{
       );
     }
   }, [periodsInitial]);
-
   useEffect(() => {
-    // Set the default month to the current month in "MM-YYYY" format
     const currentMonth = dayjs().format("MM");
     const currentYear = dayjs().format("YYYY");
     setSelectedPeriod(`${currentMonth}-${currentYear}`);
-
     const fetchCompany = async () => {
       setLoading(true);
       try {
@@ -109,7 +88,6 @@ const NewPurchaseForm: React.FC<{
         const data = await res.json();
         setPrice(data.companies[0].monthlyPrice);
       } catch (err) {
-        // setError("Failed to fetch company details"); // Removed
         showSnackbar({
           message: "Failed to fetch company details",
           severity: "error",
@@ -118,7 +96,6 @@ const NewPurchaseForm: React.FC<{
         setLoading(false);
       }
     };
-
     const fetchPurchases = async () => {
       try {
         setLoading(true);
@@ -133,7 +110,6 @@ const NewPurchaseForm: React.FC<{
           .flat();
         setPurchasedPeriods(purchases);
       } catch (error) {
-        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Removed
         showSnackbar({
           message:
             error instanceof Error
@@ -145,11 +121,9 @@ const NewPurchaseForm: React.FC<{
         setLoading(false);
       }
     };
-
     fetchCompany();
     fetchPurchases();
-  }, [companyId, showSnackbar]); // Added showSnackbar and companyId to dependencies
-
+  }, [companyId, showSnackbar]);
   useEffect(() => {
     if (image) {
       const reader = new FileReader();
@@ -161,7 +135,6 @@ const NewPurchaseForm: React.FC<{
       setImagePreview(null);
     }
   }, [image]);
-
   const handleAddPeriod = () => {
     if (
       selectedPeriod &&
@@ -169,88 +142,57 @@ const NewPurchaseForm: React.FC<{
       !periods.find((p) => p.label === formatPeriod(selectedPeriod))
     ) {
       if (purchasedPeriods.includes(formatPeriod(selectedPeriod))) {
-        // setError("Period already purchased"); // Removed
-        //show snackbar and status
-        // setSnackbarMessage("Period already purchased " + formatPeriod(selectedPeriod)); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Period already purchased " + formatPeriod(selectedPeriod),
           severity: "error",
         });
         return;
       }
-      // setError(""); // Removed
       const formattedPeriod = formatPeriod(selectedPeriod);
       setPeriods([...periods, { key: periods.length, label: formattedPeriod }]);
-
-      // Automatically select next month
       const [month, year] = selectedPeriod.split("-");
       const date = dayjs(`${year}-${month}-01`);
       const nextMonth = date.add(1, "month");
       setSelectedPeriod(nextMonth.format("MM-YYYY"));
     }
   };
-
   const handleDeletePeriod = (chipToDelete: ChipData) => () => {
     setPeriods((chips) =>
       chips.filter((chip) => chip.key !== chipToDelete.key)
     );
   };
-
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setImage(event.target.files[0]);
     }
   };
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    // setError(null); // Removed
-
-    // Construct the payload object
     const payload = {
       periods: periods.map((p) => p.label),
       price: price ?? 0,
       company: companyId,
-      // Convert image to base64 if you want to include it in the JSON payload
-      // Note: Handling large files as base64 can be inefficient
-      // If you want to avoid using base64, you need to handle image separately
       request: image ? await convertImageToBase64(image) : null,
     };
-
     try {
-      // Send JSON payload in the request
       const response = await fetch("/api/purchases", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const result = await response.json();
-
       if (!response.ok) {
         throw new Error(result.message || "Failed to create purchase");
       }
-
-      // setSnackbarMessage("Purchase Requested successfully"); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
       showSnackbar({
         message: "Purchase Requested successfully",
         severity: "success",
       });
-      //wait
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       handleBackClick();
     } catch (error: any) {
-      // setError(error.message); // Removed
-      // setSnackbarMessage(error.message); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: error.message || "An error occurred",
         severity: "error",
@@ -259,8 +201,6 @@ const NewPurchaseForm: React.FC<{
       setLoading(false);
     }
   };
-
-  // Function to convert image to base64
   const convertImageToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -271,40 +211,22 @@ const NewPurchaseForm: React.FC<{
       reader.readAsDataURL(file);
     });
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
-
   useEffect(() => {
     async function fetchPrice() {
       setLoading(true);
       try {
-        // Ensure periods and companyId are valid
         if (!companyId || periods.length === 0) return;
-
-        // Construct the query parameter string for months
         const monthsParam = periods.map((p) => p.label).join("+");
-
-        // Fetch price details from the API
         const res = await fetch(
           `/api/purchases/price?companyId=${companyId}&months=${monthsParam}`
         );
         if (!res.ok) {
           throw new Error("Failed to fetch price details");
         }
-
         const data = await res.json();
         setFinalTotalPrice(data.finalTotalPrice);
-        setTotalPrice(data.totalPrice); // Update with final total price
+        setTotalPrice(data.totalPrice);
       } catch (err) {
-        // setError("Failed to fetch price details"); // Removed
         showSnackbar({
           message: "Failed to fetch price details",
           severity: "error",
@@ -313,19 +235,14 @@ const NewPurchaseForm: React.FC<{
         setLoading(false);
       }
     }
-
-    // Fetch price if periods and companyId exist
     if (periods && companyId) fetchPrice();
-  }, [companyId, periods, showSnackbar]); // Added showSnackbar
-
+  }, [companyId, periods, showSnackbar]);
   const oneMonthPrice = price ?? 3000;
-
   const handleDateChange = (newDate: any) => {
     if (newDate) {
       setSelectedPeriod(newDate.format("MM-YYYY"));
     }
   };
-
   const periodChip = (data: ChipData) => {
     return (
       <AnimatePresence>
@@ -363,9 +280,7 @@ const NewPurchaseForm: React.FC<{
               "& .MuiChip-deleteIcon": {
                 color: "error.main",
                 transition: "color 0.3s ease",
-                "&:hover": {
-                  color: "error.dark",
-                },
+                "&:hover": { color: "error.dark" },
               },
             }}
           />
@@ -373,7 +288,6 @@ const NewPurchaseForm: React.FC<{
       </AnimatePresence>
     );
   };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -407,10 +321,8 @@ const NewPurchaseForm: React.FC<{
           }
         />
       </Card>
-
       <Box component="form" onSubmit={handleSubmit}>
         <Grid container spacing={3}>
-          {/* Period Selection Section */}
           <Grid item xs={12} md={6}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -454,9 +366,7 @@ const NewPurchaseForm: React.FC<{
                       onChange={handleDateChange}
                       views={["month", "year"]}
                       format="MM-YYYY"
-                      sx={{
-                        minWidth: 80,
-                      }}
+                      sx={{ minWidth: 80 }}
                       minDate={dayjs("1990-01-01")}
                       maxDate={dayjs("2026-12-31")}
                     />
@@ -474,8 +384,6 @@ const NewPurchaseForm: React.FC<{
               </Card>
             </motion.div>
           </Grid>
-
-          {/* Price Details Section */}
           <Grid item xs={12} md={6}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -539,8 +447,6 @@ const NewPurchaseForm: React.FC<{
               </Card>
             </motion.div>
           </Grid>
-
-          {/* Payment Details Section */}
           <Grid item xs={12} md={6}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -582,8 +488,6 @@ const NewPurchaseForm: React.FC<{
               </Card>
             </motion.div>
           </Grid>
-
-          {/* Upload Section */}
           <Grid item xs={12} md={6}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -625,7 +529,6 @@ const NewPurchaseForm: React.FC<{
                       onChange={handleImageChange}
                     />
                   </Button>
-
                   {imagePreview && (
                     <Box
                       sx={{
@@ -652,7 +555,6 @@ const NewPurchaseForm: React.FC<{
                       )}
                     </Box>
                   )}
-
                   <Button
                     variant="contained"
                     color="success"
@@ -662,11 +564,7 @@ const NewPurchaseForm: React.FC<{
                     startIcon={
                       loading ? <CircularProgress size={20} /> : <ShoppingBag />
                     }
-                    sx={{
-                      mt: "auto",
-                      fontWeight: "bold",
-                      py: 1.5,
-                    }}
+                    sx={{ mt: "auto", fontWeight: "bold", py: 1.5 }}
                   >
                     {loading ? "Processing..." : "Confirm Purchase"}
                   </Button>
@@ -676,10 +574,7 @@ const NewPurchaseForm: React.FC<{
           </Grid>
         </Grid>
       </Box>
-
-      {/* Snackbar component removed, global one will be used */}
     </motion.div>
   );
 };
-
 export default NewPurchaseForm;

@@ -9,10 +9,8 @@ import {
   Button,
   Box,
   CircularProgress,
-  useTheme,
-  useMediaQuery,
 } from "@mui/material";
-import { Add, ArrowBack } from "@mui/icons-material";
+import { Add } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import NewPurchaseForm from "./newPurchaseForm";
 import Link from "next/link";
@@ -27,7 +25,7 @@ const Purchases = ({
   user,
   companyId,
 }: {
-  user: { name: string; email: string; id: string };
+  user: { name: string; email: string; id: string; role: string };
   companyId: string;
 }) => {
   const [isAdding, setIsAdding] = useState(false);
