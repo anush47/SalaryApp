@@ -416,6 +416,7 @@ export async function generateSalaryForOneEmployee(
   try {
     const source = salary || employee;
 
+    source.divideBy = employee.divideBy || 240;
     source.totalSalary = parseValue("totalSalary", employee.totalSalary, 0);
 
     //if totalSalary then parse totalSalary to number
