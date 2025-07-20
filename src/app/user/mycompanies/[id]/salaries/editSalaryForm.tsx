@@ -1,8 +1,4 @@
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -18,14 +14,9 @@ import {
   FormHelperText,
   Grid,
   IconButton,
-  InputAdornment,
-  Slide, // Keep if used for other transitions
-  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { Salary } from "./salariesDataGrid";
@@ -35,27 +26,18 @@ import { salaryId } from "./salaries";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 const EditSalaryForm: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
-  const [employee, setEmployee] = useState<{
-    memberNo: string;
-    name: string;
-    nic: string;
-    companyName: string;
-    companyEmployerNo: string;
-    divideBy: number;
-  }>();
-  const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [employeeData, setEmployeeData] = useState<any>(null);
+  const { showSnackbar } = useSnackbar();
   const [formFields, setFormFields] = useState<Salary>({
     _id: "",
     id: "",
@@ -81,72 +63,78 @@ const EditSalaryForm: React.FC<{
     remark: "",
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const queryClient = useQueryClient();
 
-  // Fetch salary
-  useEffect(() => {
-    const fetchSalary = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/salaries/?salaryId=${salaryId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch Salary");
-        }
-        const data = await response.json();
-        console.log(data);
-        setFormFields({
-          id: data.salary._id,
-          _id: data.salary._id,
-          employee: data.salary.employee,
-          period: data.salary.period,
-          inOut: data.salary.inOut,
-          basic: data.salary.basic,
-          holidayPay: data.salary.holidayPay,
-          noPay: data.salary.noPay,
-          ot: data.salary.ot,
-          paymentStructure: data.salary.paymentStructure,
-          advanceAmount: data.salary.advanceAmount,
-          finalSalary: data.salary.finalSalary,
-          remark: data.salary.remark,
-        });
-        setEmployee({
-          memberNo: data.salary.memberNo,
-          name: data.salary.name,
-          nic: data.salary.nic,
-          companyName: data.salary.companyName,
-          companyEmployerNo: data.salary.companyEmployerNo,
-          divideBy: data.salary.divideBy,
-        });
-      } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error ? error.message : "Error fetching company.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (companyId?.length === 24) {
-      fetchSalary();
-    } else {
-      // setSnackbarMessage("Invalid Company ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Invalid Company ID", severity: "error" });
+  const fetchSalaryData = async (): Promise<any> => {
+    const response = await fetch(`/api/salaries/?salaryId=${salaryId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Salary");
     }
-  }, [salaryId, companyId, showSnackbar]); // Added companyId and showSnackbar
+    const data = await response.json();
+    return data.salary;
+  };
+
+  const {
+    data: salaryData,
+    isLoading: isSalaryLoading,
+    isError: isSalaryError,
+    error: salaryError,
+  } = useQuery<any, Error>({
+    queryKey: ["salaries", companyId, formFields.period, salaryId],
+    queryFn: fetchSalaryData,
+    enabled: !!salaryId, // Only run the query if salaryId is available
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  useEffect(() => {
+    if (salaryData) {
+      setFormFields({
+        id: salaryData._id,
+        _id: salaryData._id,
+        employee: salaryData.employee,
+        period: salaryData.period,
+        inOut: salaryData.inOut,
+        basic: salaryData.basic,
+        holidayPay: salaryData.holidayPay,
+        noPay: salaryData.noPay,
+        ot: salaryData.ot,
+        paymentStructure: salaryData.paymentStructure,
+        advanceAmount: salaryData.advanceAmount,
+        finalSalary: salaryData.finalSalary,
+        remark: salaryData.remark,
+      });
+      setEmployeeData({
+        memberNo: salaryData.memberNo,
+        name: salaryData.name,
+        nic: salaryData.nic,
+        companyName: salaryData.companyName,
+        companyEmployerNo: salaryData.companyEmployerNo,
+        divideBy: salaryData.divideBy,
+      });
+    }
+  }, [salaryData]);
+
+  useEffect(() => {
+    if (isSalaryError) {
+      showSnackbar({
+        message: salaryError?.message || "Error fetching salary.",
+        severity: "error",
+      });
+    }
+  }, [isSalaryError, salaryError, showSnackbar]);
+
+  const loading = isSalaryLoading || isLoading;
 
   //gen salary
   const fetchSalary = async () => {
     try {
-      setLoading(true);
       //use post method
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           companyId,
           employees: [formFields.employee ?? ""],
@@ -173,7 +161,6 @@ const EditSalaryForm: React.FC<{
       const data = await response.json();
 
       console.log(data.salaries[0]);
-      //check if data.salaries[0] is in correct form
       if (
         !data.salaries[0] ||
         !data.salaries[0].employee ||
@@ -196,28 +183,13 @@ const EditSalaryForm: React.FC<{
         finalSalary: data.salaries[0].finalSalary,
       }));
     } catch (error) {
-      // setSnackbarMessage(error instanceof Error ? error.message : "Error Updating Salary."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error Updating Salary.",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const calculateFinalSalary = () => {
     const basic = Number(formFields.basic);
@@ -328,9 +300,9 @@ const EditSalaryForm: React.FC<{
 
     console.log(formFields);
 
-    setLoading(true);
     try {
       // Perform POST request to add a new salary record
+      setIsLoading(true);
       const response = await fetch("/api/salaries", {
         method: "PUT",
         headers: {
@@ -344,28 +316,23 @@ const EditSalaryForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Salary record saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Salary record saved successfully!",
           severity: "success",
         });
 
         setIsEditing(false);
+        const queryKey = [
+          "salaries",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-        // Clear the form after successful save
-        // setFormFields({
-        // });
         setErrors({});
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error saving salary. Please try again.",
           severity: "error",
@@ -373,15 +340,12 @@ const EditSalaryForm: React.FC<{
       }
     } catch (error) {
       console.error("Error saving salary:", error);
-      // setSnackbarMessage("Error saving salary. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error saving salary. Please try again.",
         severity: "error",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -446,8 +410,8 @@ const EditSalaryForm: React.FC<{
   };
 
   const onDeleteClick = async () => {
-    setLoading(true);
     try {
+      setIsLoading(true);
       // Perform DELETE request to delete the salary record
       const response = await fetch(`/api/salaries/`, {
         method: "DELETE",
@@ -462,27 +426,23 @@ const EditSalaryForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Salary record deleted successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Salary record deleted successfully!",
           severity: "success",
         });
 
+        const queryKey = [
+          "salaries",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
+
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-        // Clear the form after successful save
-        // setFormFields({
-        // });
         setErrors({});
         window.history.back();
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error deleting salary. Please try again.",
           severity: "error",
@@ -490,15 +450,12 @@ const EditSalaryForm: React.FC<{
       }
     } catch (error) {
       console.error("Error deleting salary:", error);
-      // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error deleting salary. Please try again.",
         severity: "error",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -579,19 +536,19 @@ const EditSalaryForm: React.FC<{
                     variant="h6"
                     sx={{ fontWeight: "bold", color: "primary.main" }}
                   >
-                    Employee: {employee?.memberNo} - {employee?.name}
+                    Employee: {employeeData?.memberNo} - {employeeData?.name}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    NIC: {employee?.nic}
+                    NIC: {employeeData?.nic}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
                     Period: {formFields?.period}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    Company: {employee?.companyName}
+                    Company: {employeeData?.companyName}
                   </Typography>
                   <Typography variant="subtitle1" sx={{ mt: 1 }}>
-                    Employer No: {employee?.companyEmployerNo}
+                    Employer No: {employeeData?.companyEmployerNo}
                   </Typography>
                 </Box>
               )}
@@ -600,10 +557,10 @@ const EditSalaryForm: React.FC<{
               <InOutTable
                 inOuts={formFields.inOut.map((inOut, index) => ({
                   id: inOut._id || index + 1,
-                  employeeName: employee?.name,
-                  employeeNIC: employee?.nic,
+                  employeeName: employeeData?.name,
+                  employeeNIC: employeeData?.nic,
                   basic: formFields.basic,
-                  divideBy: employee?.divideBy ?? 240,
+                  divideBy: employeeData?.divideBy ?? 240,
                   ...inOut,
                 }))}
                 setInOuts={(inOuts: any) => {
@@ -797,7 +754,7 @@ const EditSalaryForm: React.FC<{
               <Button
                 variant="outlined"
                 color="error"
-                onClick={() => handleDeleteClick(employee?.name || "")}
+                onClick={() => handleDeleteClick(employeeData?.name || "")}
                 disabled={loading || !isEditing}
               >
                 Delete

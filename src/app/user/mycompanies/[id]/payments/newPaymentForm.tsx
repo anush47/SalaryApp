@@ -40,6 +40,7 @@ import dayjs from "dayjs";
 import Link from "next/link";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQueryClient } from "@tanstack/react-query";
 
 const NewPaymentForm = ({
   handleBackClick,
@@ -47,7 +48,7 @@ const NewPaymentForm = ({
   companyId,
 }: {
   handleBackClick: () => void;
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   companyId: string;
 }) => {
   const [company, setCompany] = useState<any>();
@@ -57,10 +58,8 @@ const NewPaymentForm = ({
   );
   const [loading, setLoading] = useState(false);
   const [ReferenceLoading, setReferenceLoading] = useState(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
 
   const [formFields, setFormFields] = useState<{
     _id: string;
@@ -114,9 +113,6 @@ const NewPaymentForm = ({
           etfPaymentMethod: data.companies[0].paymentMethod,
         });
       } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message:
             error instanceof Error ? error.message : "Error fetching company.",
@@ -130,9 +126,6 @@ const NewPaymentForm = ({
     if (companyId?.length === 24) {
       fetchCompany();
     } else {
-      // setSnackbarMessage("Invalid Company ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
   }, [companyId]); // Added formFields, showSnackbar to dependencies
@@ -186,9 +179,6 @@ const NewPaymentForm = ({
       }
       const paymentNew = data.payment;
       if (!paymentNew) {
-        // setSnackbarMessage("Payment generation failed. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment generation failed. Please try again.",
           severity: "error",
@@ -201,9 +191,6 @@ const NewPaymentForm = ({
         epfAmount: paymentNew.epfAmount,
         etfAmount: paymentNew.etfAmount,
       });
-      // setSnackbarMessage("Payment calculated successfully!"); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Payment calculated successfully!",
         severity: "success",
@@ -213,9 +200,6 @@ const NewPaymentForm = ({
       await fetchReferenceNo();
     } catch (error) {
       console.error("Error fetching payments:", error);
-      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching payments."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error fetching payments.",
@@ -329,24 +313,22 @@ const NewPaymentForm = ({
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Payment record saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment record saved successfully!",
           severity: "success",
         });
 
+        const queryKey = [
+          "payments",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
         // Clear the form after successful save
         setErrors({});
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving payment. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error saving payment. Please try again.",
           severity: "error",
@@ -354,9 +336,6 @@ const NewPaymentForm = ({
       }
     } catch (error) {
       console.error("Error saving payment:", error);
-      // setSnackbarMessage("Error saving payment. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error saving payment. Please try again.",
         severity: "error",

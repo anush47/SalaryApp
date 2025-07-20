@@ -19,6 +19,7 @@
     "@mui/material-nextjs": "^5.16.4",
     "@mui/x-data-grid": "^7.11.0",
     "@mui/x-date-pickers": "^7.13.0",
+    "@tanstack/react-query": "^5.83.0",
     "@vercel/speed-insights": "^1.1.0",
     "bcrypt": "^5.1.1",
     "dayjs": "^1.11.12",

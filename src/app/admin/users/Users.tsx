@@ -1,5 +1,4 @@
-"use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   DataGrid,
   GridColDef,
@@ -24,7 +23,18 @@ import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
 import { Add, Delete } from "@mui/icons-material";
 import CreateUserDialog from "./CreateUserDialog";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+
+const fetchUsers = async () => {
+  const response = await fetch("/api/users?needCompanies=true");
+  if (!response.ok) {
+    throw new Error("Failed to fetch users");
+  }
+  const data = await response.json();
+  return data.users.map((user: any) => ({ ...user, id: user._id }));
+};
 
 const Users = ({
   user,
@@ -32,37 +42,74 @@ const Users = ({
   user: { name: string; email: string; role: string; image: string };
 }) => {
   const theme = useTheme();
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  const [users, setUsers] = useState<
-    {
-      id: string;
-      name: string;
-      email: string;
-      role: string;
-      companies?: string[];
-    }[]
-  >([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [reqLoading, setReqLoading] = useState<boolean>(false);
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch("/api/users?needCompanies=true");
+  const {
+    data: users,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<any[], Error>({
+    queryKey: ["users"],
+    queryFn: fetchUsers,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch(`api/users?userId=${userId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
         const data = await response.json();
-        data.users.forEach((user: any) => {
-          user.id = user._id;
-        });
-        setUsers(data.users);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      } finally {
-        setLoading(false);
+        throw new Error(data.message || "Failed to delete user");
       }
-    };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      showSnackbar({
+        message: "User deleted successfully",
+        severity: "success",
+      });
+    },
+    onError: (error: Error) => {
+      showSnackbar({ message: error.message, severity: "error" });
+    },
+  });
 
-    fetchUsers();
-  }, []);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [userId, setUserId] = useState<string>("");
+
+  const onDeleteClick = async (id: string) => {
+    const userToDelete = users?.find((user) => user.id === id);
+    if (userToDelete) {
+      if (userToDelete.role === "admin") {
+        showSnackbar({
+          message: `Cannot delete admin user ID: ${id}`,
+          severity: "error",
+        });
+        return;
+      }
+      if (userToDelete.companies && userToDelete.companies.length > 0) {
+        showSnackbar({
+          message: `Cannot delete ${userToDelete.name} with companies assigned.`,
+          severity: "error",
+        });
+        return;
+      }
+      await deleteUserMutation.mutateAsync(id);
+    }
+  };
+
+  const handleDeleteDialogClose = async (confirmed: boolean) => {
+    if (confirmed) {
+      await onDeleteClick(userId);
+    }
+    setDeleteDialogOpen(false);
+  };
 
   const columns: GridColDef[] = [
     { field: "id", headerName: "ID", flex: 1 },
@@ -82,7 +129,7 @@ const Users = ({
               overflowX: "auto",
               whiteSpace: "nowrap",
               p: 1,
-              maxWidth: "100%", // Ensures it doesn’t exceed the column width
+              maxWidth: "100%",
             }}
           >
             {params.value?.map((company: any) => (
@@ -116,7 +163,7 @@ const Users = ({
                   setUserId(params.row.id);
                   setDeleteDialogOpen(true);
                 }}
-                disabled={loading || reqLoading}
+                disabled={deleteUserMutation.isPending}
               >
                 Delete
               </Button>
@@ -128,126 +175,6 @@ const Users = ({
     },
   ];
 
-  interface ConfirmationDialogProps {
-    open: boolean;
-    onClose: (confirmed: boolean) => void;
-    title: string;
-    message: string;
-  }
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-
-  const [userId, setUserId] = useState<string>("");
-
-  const deleteUser = async (user: { name: string; id: string }) => {
-    try {
-      setReqLoading(true);
-      const response = await fetch(`api/users?userId=${user.id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        showSnackbar({
-          message: `${user.name} deleted successfully`,
-          severity: "success",
-        });
-        //wait for 2 seconds and reload the page
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-      } else {
-        showSnackbar({
-          message: `Failed to delete ${user.name}`,
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error(error);
-      showSnackbar({
-        message: `Failed to delete ${user.name}`,
-        severity: "error",
-      });
-    } finally {
-      setReqLoading(false);
-    }
-  };
-
-  const onDeleteClick = async (id: string) => {
-    // Perform the delete action here
-    if (id !== null) {
-      //find user
-      const user = users.find((user) => user.id === id);
-      if (user) {
-        //if admin
-        if (user.role === "admin") {
-          showSnackbar({
-            message: `Cannot delete admin user ID: ${id}`,
-            severity: "error",
-          });
-          return;
-        }
-        //check if user has companies
-        if (user.companies && user.companies.length > 0) {
-          showSnackbar({
-            message: `Cannot delete ${user.name} with companies assigned.`,
-            severity: "error",
-          });
-          return;
-        }
-        //delete user
-        await deleteUser(user);
-      } else {
-        showSnackbar({
-          message: `User ID: ${id} not found`,
-          severity: "error",
-        });
-      }
-    }
-  };
-
-  const handleDeleteDialogClose = async (confirmed: boolean) => {
-    if (confirmed) {
-      // Perform the delete action here
-      await onDeleteClick(userId);
-    }
-    setDeleteDialogOpen(false);
-  };
-
-  const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
-    open,
-    onClose,
-    title,
-    message,
-  }) => {
-    const handleConfirm = () => {
-      onClose(true);
-    };
-
-    const handleCancel = () => {
-      onClose(false);
-    };
-
-    return (
-      <Dialog open={open} onClose={() => onClose(false)}>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogContent>{message}</DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancel} color="primary">
-            Cancel
-          </Button>
-          <LoadingButton
-            onClick={handleConfirm}
-            color="error"
-            loading={loading || reqLoading}
-            startIcon={<Delete />}
-          >
-            Delete
-          </LoadingButton>
-        </DialogActions>
-      </Dialog>
-    );
-  };
-
   const [columnVisibilityModel, setColumnVisibilityModel] =
     useState<GridColumnVisibilityModel>({
       id: false,
@@ -255,7 +182,7 @@ const Users = ({
       delete: false,
     });
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-screen">
         <CircularProgress color="primary" size={60} />
@@ -295,7 +222,7 @@ const Users = ({
         <CardContent>
           <Box sx={{ height: 450, width: "100%" }}>
             <DataGrid
-              rows={users}
+              rows={users || []}
               columns={columns}
               editMode="row"
               sx={{
@@ -323,12 +250,28 @@ const Users = ({
           </Box>
         </CardContent>
       </Card>
-      <ConfirmationDialog
+      <Dialog
         open={deleteDialogOpen}
-        onClose={handleDeleteDialogClose}
-        title="Confirm Deletion"
-        message="Are you sure you want to delete this user?"
-      />
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this user?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <LoadingButton
+            onClick={() => handleDeleteDialogClose(true)}
+            color="error"
+            loading={deleteUserMutation.isPending}
+            startIcon={<Delete />}
+          >
+            Delete
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
       <CreateUserDialog open={createDialogOpen} setOpen={setCreateDialogOpen} />
     </Box>
   );

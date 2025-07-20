@@ -13,7 +13,6 @@ import {
   FormControl,
   FormControlLabel,
   Grid,
-  // Snackbar, // Removed
   Switch,
   Typography,
   Paper,
@@ -36,80 +35,64 @@ import PaymentsDataGrid from "../payments/paymentsDataGrid";
 import { GridRowSelectionModel } from "@mui/x-data-grid";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useQuery } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+
+const fetchPurchased = async (companyId: string, period: string) => {
+  const response = await fetch(
+    `/api/purchases/check?companyId=${companyId}&month=${period}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to check purchase status");
+  }
+  const data = await response.json();
+  return data?.purchased === "approved";
+};
+
+const fetchCompany = async (companyId: string) => {
+  const response = await fetch(`/api/companies?companyId=${companyId}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch company details");
+  }
+  const data = await response.json();
+  return data.companies[0];
+};
 
 const Documents = ({
   user,
   companyId,
 }: {
-  user: { name: string; email: string; id: string };
+  user: { name: string; email: string; id: string; role: string };
   companyId: string;
 }) => {
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
   );
-  const [purchased, setPurchased] = useState<boolean>(false);
-  const [company, setCompany] = useState<Company>();
   const [loading, setLoading] = useState<boolean>(false);
   const [customSalaries, setCustomSalaries] = useState<boolean>(false);
   const [rowSelectionModel, setRowSelectionModel] =
     React.useState<GridRowSelectionModel>([]);
   const { showSnackbar } = useSnackbar();
 
-  useEffect(() => {
-    const checkPurchased = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/purchases/check?companyId=${companyId}&month=${period}`,
-          {
-            method: "GET",
-          }
-        );
-        try {
-          const result = await response.json();
-          setPurchased(result?.purchased === "approved");
-        } catch (error) {
-          console.error("Error parsing JSON or updating state:", error);
-          setPurchased(false); // or handle the error state as needed
-        }
-      } catch (error) {
-        console.error("Error fetching salaries:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data: purchased, isLoading: isCheckingPurchase } = useQuery<
+    boolean,
+    Error
+  >({
+    queryKey: ["purchases", "check", companyId, period],
+    queryFn: () => fetchPurchased(companyId, period),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
-    checkPurchased();
-  }, [period]);
-
-  useEffect(() => {
-    const getCompany = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/companies?companyId=${companyId}`, {
-          method: "GET",
-        });
-        try {
-          const result = await response.json();
-          setCompany(result.companies[0]);
-        } catch (error) {
-          console.error("Error parsing JSON or updating state:", error);
-          setCompany(undefined); // or handle the error state as needed
-          showSnackbar({
-            message: "Error parsing company data",
-            severity: "error",
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching company:", error);
-        showSnackbar({ message: "Error fetching company", severity: "error" });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getCompany();
-  }, [companyId]);
+  const { data: company, isLoading: isFetchingCompany } = useQuery<
+    Company,
+    Error
+  >({
+    queryKey: ["companies", companyId],
+    queryFn: () => fetchCompany(companyId),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   //handle pdf generation
   const handleGetPDF = async (
@@ -246,7 +229,7 @@ const Documents = ({
                     borderColor: "divider",
                   }}
                 >
-                  {loading ? (
+                  {isFetchingCompany ? (
                     <CircularProgress size={20} />
                   ) : (
                     <Box>
@@ -454,7 +437,7 @@ const Documents = ({
                       aria-controls="panel1-content"
                       id="panel1-header"
                     >
-                      {loading ? (
+                      {isCheckingPurchase || isFetchingCompany ? (
                         <Typography variant="h6">
                           {`Salary Details loading...`}
                         </Typography>
@@ -496,7 +479,7 @@ const Documents = ({
                       aria-controls="panel1-content"
                       id="panel1-header"
                     >
-                      {loading ? (
+                      {isCheckingPurchase || isFetchingCompany ? (
                         <Typography variant="h6">
                           {`Payment Details loading...`}
                         </Typography>
@@ -526,7 +509,6 @@ const Documents = ({
           </Grid>
         </CardContent>
       </Card>
-      {/* Snackbar component removed, global one will be used */}
     </motion.div>
   );
 };

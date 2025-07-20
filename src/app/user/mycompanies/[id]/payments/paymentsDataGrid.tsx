@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   DataGrid,
   GridColDef,
@@ -10,7 +10,6 @@ import {
   Alert,
   CircularProgress,
   Button,
-  // Snackbar, // Removed
   Slide,
   Chip,
   Dialog,
@@ -25,7 +24,9 @@ import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -60,16 +61,45 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
+const fetchPayments = async (
+  companyId: string,
+  period?: string
+): Promise<Payment[]> => {
+  let url = `/api/payments/?companyId=${companyId}`;
+  if (period) {
+    url += `&period=${period}`;
+  }
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Failed to fetch payments");
+  }
+  const data = await response.json();
+  return data.payments.map((payment: any) => ({
+    ...payment,
+    id: payment._id,
+  }));
+};
+
 const PaymentsDataGrid: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   isEditing: boolean;
   period?: string;
   companyId: string;
 }> = ({ user, isEditing, period, companyId }) => {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
+
+  const {
+    data: payments,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Payment[], Error>({
+    queryKey: ["payments", companyId, period],
+    queryFn: () => fetchPayments(companyId, period),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   const columns: GridColDef[] = [
     {
@@ -259,41 +289,8 @@ const PaymentsDataGrid: React.FC<{
     },
   ];
 
-  useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        setLoading(true);
-        let url = `/api/payments/?companyId=${companyId}`;
-        if (period) {
-          url += `&period=${period}`;
-        }
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error("Failed to fetch payments");
-        }
-        const data = await response.json();
-        const paymentsWithId = data.payments.map((payment: any) => ({
-          ...payment,
-          id: payment._id,
-        }));
-        setPayments(paymentsWithId);
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPayments();
-  }, [user, companyId]);
-
-  const handleRowUpdate = async (newPayment: any) => {
-    try {
-      console.log(newPayment);
+  const updatePaymentMutation = useMutation({
+    mutationFn: async (newPayment: Payment) => {
       const response = await fetch(`/api/payments/`, {
         method: "PUT",
         headers: {
@@ -302,12 +299,79 @@ const PaymentsDataGrid: React.FC<{
         body: JSON.stringify({ payment: newPayment }),
       });
       if (!response.ok) {
-        throw new Error("Failed to update payment");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update payment");
       }
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
       showSnackbar({
         message: "Payment updated successfully",
         severity: "success",
       });
+    },
+    onError: (err) => {
+      showSnackbar({ message: err.message, severity: "error" });
+    },
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentIds: string[]) => {
+      const response = await fetch(`/api/payments/`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paymentIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete payments");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      showSnackbar({
+        message: "Payments deleted successfully",
+        severity: "success",
+      });
+    },
+    onError: (err) => {
+      showSnackbar({ message: err.message, severity: "error" });
+    },
+  });
+
+  const [columnVisibilityModel, setColumnVisibilityModel] =
+    React.useState<GridColumnVisibilityModel>({
+      id: false,
+      companyName: false,
+      companyEmployerNo: false,
+      companyPaymentMethod: false,
+      period: true,
+      company: false,
+      epfReferenceNo: true,
+      epfAmount: false,
+      etfAmount: false,
+      epfPaymentMethod: false,
+      etfPaymentMethod: false,
+      epfChequeNo: false,
+      etfChequeNo: false,
+    });
+
+  const handleRowUpdate = async (newPayment: any) => {
+    try {
+      console.log(newPayment);
+      await updatePaymentMutation.mutateAsync(newPayment);
       return newPayment;
     } catch (error) {
       console.error("Row update error:", error);
@@ -318,69 +382,20 @@ const PaymentsDataGrid: React.FC<{
             : "An unexpected error occurred",
         severity: "error",
       });
+      throw error; // Re-throw to ensure DataGrid handles the error
     }
   };
 
   const handleRowUpdateError = (params: any) => {
-    // Revert changes if necessary
-    const updatedPayments = payments.map((payment) => {
-      if (payment.id === params.id) {
-        return params.oldRow; // Revert to old row data
-      }
-      return payment;
-    });
-
-    // Log error and revert row updates
     console.error("Row update error:", params.error?.error || params.error);
-
-    setPayments(updatedPayments); // Update state with reverted data
-
-    // Display the error details in Snackbar
     showSnackbar({
-      message: params.error?.message || "An unexpected error occurred.", // Show detailed error message
-      severity: "error", // Set snackbar severity to error
+      message: params.error?.message || "An unexpected error occurred.",
+      severity: "error",
     });
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | undefined>(undefined);
-
-  const onDeleteClick = async (id: string) => {
-    try {
-      setLoading(true);
-      // Perform DELETE request to delete the salary record
-      const response = await fetch(`/api/payments/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          paymentIds: [deleteId],
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to delete payments");
-      }
-      showSnackbar({
-        message: "Payments deleted successfully",
-        severity: "success",
-      });
-      setPayments(payments.filter((payment) => payment.id !== id));
-    } catch (error) {
-      console.error("Delete error:", error);
-      showSnackbar({
-        message:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred",
-        severity: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDeleteClick = (delId: string) => {
     setDialogOpen(true);
@@ -389,9 +404,8 @@ const PaymentsDataGrid: React.FC<{
 
   const handleDialogClose = async (confirm: boolean) => {
     if (confirm && deleteId) {
-      // Perform the delete action here
-      console.log(`Deleting salary record`);
-      await onDeleteClick(deleteId);
+      console.log(`Deleting payment record`);
+      await deletePaymentMutation.mutateAsync([deleteId]);
     }
     setDialogOpen(false);
     setDeleteId(undefined);
@@ -431,7 +445,7 @@ const PaymentsDataGrid: React.FC<{
           <LoadingButton
             onClick={handleConfirm}
             color="primary"
-            loading={loading}
+            loading={deletePaymentMutation.isPending}
           >
             Confirm
           </LoadingButton>
@@ -440,22 +454,37 @@ const PaymentsDataGrid: React.FC<{
     );
   };
 
-  const [columnVisibilityModel, setColumnVisibilityModel] =
-    React.useState<GridColumnVisibilityModel>({
-      id: false,
-      companyName: false,
-      companyEmployerNo: false,
-      companyPaymentMethod: false,
-      period: true,
-      company: false,
-      epfReferenceNo: true,
-      epfAmount: false,
-      etfAmount: false,
-      epfPaymentMethod: false,
-      etfPaymentMethod: false,
-      epfChequeNo: false,
-      etfChequeNo: false,
-    });
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+          minHeight: "200px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.message || "An unexpected error occurred"}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -466,57 +495,48 @@ const PaymentsDataGrid: React.FC<{
         alignItems: "center",
       }}
     >
-      {loading && <CircularProgress />}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {!loading && !error && (
-        <DataGrid
-          rows={payments}
-          columns={columns}
-          editMode="row"
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 10,
-              },
+      <DataGrid
+        rows={payments || []}
+        columns={columns}
+        editMode="row"
+        initialState={{
+          pagination: {
+            paginationModel: {
+              pageSize: 10,
             },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
+          },
+          filter: {
+            filterModel: {
+              items: [],
+              quickFilterExcludeHiddenColumns: false,
             },
-          }}
-          pageSizeOptions={[10, 20, 50]}
-          slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
-          }}
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-            },
-          }}
-          disableRowSelectionOnClick
-          disableDensitySelector
-          columnVisibilityModel={columnVisibilityModel}
-          onColumnVisibilityModelChange={(newModel) =>
-            setColumnVisibilityModel(newModel)
-          }
-          processRowUpdate={handleRowUpdate}
-          onProcessRowUpdateError={handleRowUpdateError}
-        />
-      )}
+          },
+        }}
+        pageSizeOptions={[10, 20, 50]}
+        slots={{
+          toolbar: (props) => (
+            <GridToolbar
+              {...props}
+              csvOptions={{ disableToolbarButton: true }}
+              printOptions={{ disableToolbarButton: true }}
+            />
+          ),
+        }}
+        slotProps={{
+          toolbar: {
+            showQuickFilter: true,
+          },
+        }}
+        disableRowSelectionOnClick
+        disableDensitySelector
+        columnVisibilityModel={columnVisibilityModel}
+        onColumnVisibilityModelChange={(newModel) =>
+          setColumnVisibilityModel(newModel)
+        }
+        processRowUpdate={handleRowUpdate}
+        onProcessRowUpdateError={handleRowUpdateError}
+      />
 
-      {/* Snackbar component removed, global one will be used */}
       <ConfirmationDialog
         open={dialogOpen}
         onClose={handleDialogClose}

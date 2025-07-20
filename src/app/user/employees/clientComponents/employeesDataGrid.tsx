@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DataGrid,
   GridColDef,
@@ -21,6 +22,7 @@ import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -74,17 +76,36 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
+const fetchEmployees = async (): Promise<Employee[]> => {
+  const response = await fetch(`/api/employees?companyId=all`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch employees");
+  }
+  const data = await response.json();
+  return data.employees.map((employee: any) => ({
+    ...employee,
+    id: employee._id,
+  }));
+};
+
 const EmployeesDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   isEditingEmployeeInHome: boolean;
 }> = ({ user, isEditingEmployeeInHome }) => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null); // This is for the top-level error alert, keep it
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Remove
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Remove
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Remove
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
+
+  const {
+    data: employees,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Employee[], Error>({
+    queryKey: ["employees"],
+    queryFn: fetchEmployees,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   const columns: GridColDef[] = [
     {
@@ -100,7 +121,7 @@ const EmployeesDataGrid: React.FC<{
         <Link
           href={`user/mycompanies/${
             //companyId of the given params
-            employees.find((employee) => employee.id === params.id)?.company
+            employees?.find((employee) => employee.id === params.id)?.company
           }?companyPageSelect=details`}
         >
           <Button variant="text">{params.value}</Button>
@@ -410,7 +431,7 @@ const EmployeesDataGrid: React.FC<{
       renderCell: (params) => (
         <Link
           href={`/user/mycompanies/${
-            employees.find((employee) => employee.id === params.id)?.company
+            employees?.find((employee) => employee.id === params.id)?.company
           }?companyPageSelect=employees&employeeId=${params.id}`}
         >
           <Button variant="text">View</Button>
@@ -418,42 +439,6 @@ const EmployeesDataGrid: React.FC<{
       ),
     }
   );
-
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      if (!user || !user.id) {
-        // User is not yet available, so don't fetch data
-        return;
-      }
-      try {
-        setLoading(true);
-
-        // Fetch employees data
-        const response = await fetch(`/api/employees?companyId=all`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch employees");
-        }
-        const data = await response.json();
-
-        setEmployees(
-          data.employees.map((employee: Employee) => ({
-            ...employee,
-            id: employee._id,
-          }))
-        );
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEmployees();
-  }, [user]);
 
   const validate = (newEmployee: {
     id: string;
@@ -476,7 +461,7 @@ const EmployeesDataGrid: React.FC<{
       errors.memberNo = "Member number is required";
     } else {
       //check if number already exists except this one
-      const existingEmployee = employees.find((employee) => {
+      const existingEmployee = employees?.find((employee) => {
         return (
           employee.memberNo === parseInt(newEmployee.memberNo) &&
           employee.id !== newEmployee.id &&
@@ -528,40 +513,25 @@ const EmployeesDataGrid: React.FC<{
         const result = await response.json();
 
         if (!response.ok) {
-          // setSnackbarMessage(result.message || "Error saving employee. Please try again."); // Remove
-          // setSnackbarSeverity("error"); // Remove
-          // setSnackbarOpen(true); // Remove
-          // Instead, use showSnackbar:
           showSnackbar({
             message:
               result.message || "Error saving employee. Please try again.",
             severity: "error",
           });
-          // Still might want to throw an error to be caught by onProcessRowUpdateError or to stop further processing
           throw new Error(
             result.message || "Error saving employee. Please try again."
           );
         }
+        const queryKey = ["employees"];
+        queryClient.invalidateQueries({ queryKey: queryKey });
       } catch (error) {
         console.error("Error saving employee:", error);
-        // setSnackbarMessage("Error saving employee. Please try again."); // Remove
-        // setSnackbarSeverity("error"); // Remove
-        // setSnackbarOpen(true); // Remove
         showSnackbar({
           message: "Error saving employee. Please try again.",
           severity: "error",
         });
         throw error; // Re-throw to be caught by onProcessRowUpdateError
-      } finally {
-        setLoading(false); // This seems out of place if error is thrown, but keeping original logic structure
       }
-      // }
-      //console.log(newEmployee);
-
-      // Success feedback
-      // setSnackbarMessage(`Employee ${newEmployee.memberNo} - updated successfully!`); // Remove
-      // setSnackbarSeverity("success"); // Remove
-      // setSnackbarOpen(true); // Remove
       showSnackbar({
         message: `Employee ${newEmployee.memberNo} - updated successfully!`,
         severity: "success",
@@ -569,8 +539,6 @@ const EmployeesDataGrid: React.FC<{
 
       return newEmployee;
     } catch (error: any) {
-      // Add type 'any' to the 'error' object
-      // Pass the error details along
       throw {
         message:
           error?.message || "An error occurred while updating the employee.",
@@ -581,7 +549,7 @@ const EmployeesDataGrid: React.FC<{
 
   const handleRowUpdateError = (params: any) => {
     // Revert changes if necessary
-    const updatedEmployees = employees.map((employee) => {
+    const updatedEmployees = employees?.map((employee) => {
       if (employee.id === params.id) {
         return params.oldRow; // Revert to old row data
       }
@@ -591,7 +559,7 @@ const EmployeesDataGrid: React.FC<{
     // Log error and revert row updates
     console.error("Row update error:", params.error?.error || params.error);
 
-    setEmployees(updatedEmployees); // Update state with reverted data
+    //setEmployees(updatedEmployees); // Update state with reverted data
 
     // Display the error details in Snackbar
     // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Remove
@@ -634,6 +602,38 @@ const EmployeesDataGrid: React.FC<{
       overrides: false,
     });
 
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+          minHeight: "200px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.message || "An unexpected error occurred"}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -643,59 +643,50 @@ const EmployeesDataGrid: React.FC<{
         alignItems: "center",
       }}
     >
-      {loading && <CircularProgress />}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {!loading && !error && (
-        <DataGrid
-          rows={employees}
-          columns={columns}
-          editMode="row"
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 20,
-              },
+      <DataGrid
+        rows={employees || []}
+        columns={columns}
+        getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
+        editMode="row"
+        initialState={{
+          pagination: {
+            paginationModel: {
+              pageSize: 20,
             },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
+          },
+          filter: {
+            filterModel: {
+              items: [],
+              quickFilterExcludeHiddenColumns: false,
             },
-          }}
-          pageSizeOptions={[10, 20, 50]}
-          slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
-          }}
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-            },
-          }}
-          //checkboxSelection
-          disableRowSelectionOnClick
-          //disableColumnFilter
-          disableDensitySelector
-          processRowUpdate={handleRowUpdate}
-          onProcessRowUpdateError={handleRowUpdateError}
-          columnVisibilityModel={columnVisibilityModel}
-          onColumnVisibilityModelChange={(newModel) =>
-            setColumnVisibilityModel(newModel)
-          }
-        />
-      )}
-
-      {/* Snackbar component removed, global one will be used */}
+          },
+        }}
+        pageSizeOptions={[10, 20, 50]}
+        slots={{
+          toolbar: (props) => (
+            <GridToolbar
+              {...props}
+              csvOptions={{ disableToolbarButton: true }}
+              printOptions={{ disableToolbarButton: true }}
+            />
+          ),
+        }}
+        slotProps={{
+          toolbar: {
+            showQuickFilter: true,
+          },
+        }}
+        //checkboxSelection
+        disableRowSelectionOnClick
+        //disableColumnFilter
+        disableDensitySelector
+        processRowUpdate={handleRowUpdate}
+        onProcessRowUpdateError={handleRowUpdateError}
+        columnVisibilityModel={columnVisibilityModel}
+        onColumnVisibilityModelChange={(newModel) =>
+          setColumnVisibilityModel(newModel)
+        }
+      />
     </Box>
   );
 };

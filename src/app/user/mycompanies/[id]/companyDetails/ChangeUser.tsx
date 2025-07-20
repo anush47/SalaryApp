@@ -1,5 +1,18 @@
 import { Autocomplete, TextField } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+
+const fetchUsers = async () => {
+  const response = await fetch("/api/users");
+  if (!response.ok) {
+    throw new Error("Failed to fetch users");
+  }
+  const data = await response.json();
+  return data.users.map((user: any) => ({
+    value: user._id,
+    label: `${user.name} - ${user.email}`,
+  }));
+};
 
 const ChangeUser = ({
   isEditing,
@@ -10,29 +23,17 @@ const ChangeUser = ({
   user: string;
   setUser: (user: string) => void;
 }) => {
-  const [users, setUsers] = useState<{ value: string; label: string }[]>([]);
-  // Fetch users from API
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch("/api/users");
-        const data = await response.json();
-        data.users.forEach((_user: any) => {
-          _user.id = _user._id;
-        });
-        setUsers(
-          data.users.map((user: any) => ({
-            value: user.id,
-            label: user.name + " - " + user.email,
-          }))
-        );
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      }
-    };
-
-    fetchUsers();
-  }, []);
+  const {
+    data: users,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<any[], Error>({
+    queryKey: ["users", "list"],
+    queryFn: fetchUsers,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   const handleChange = (e: any, newValue: any) => {
     if (newValue !== null && newValue.value !== null) setUser(newValue.value);
@@ -42,12 +43,20 @@ const ChangeUser = ({
     <Autocomplete
       disablePortal
       autoComplete
-      options={users}
+      options={users || []}
       onChange={handleChange}
-      value={users.find((_user) => _user.value === user) || null}
+      value={users?.find((_user: any) => _user.value === user) || null}
       clearIcon={null}
       readOnly={!isEditing}
-      renderInput={(params) => <TextField {...params} label="User" />}
+      loading={isLoading}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label="User"
+          error={isError}
+          helperText={isError ? error.message : ""}
+        />
+      )}
     />
   );
 };

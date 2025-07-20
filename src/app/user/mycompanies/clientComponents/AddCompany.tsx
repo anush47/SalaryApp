@@ -1,4 +1,3 @@
-"use client";
 import React, { useState } from "react";
 import {
   Box,
@@ -16,9 +15,7 @@ import {
   InputAdornment,
   FormControl,
   FormHelperText,
-  // Snackbar, // Removed
-  // Alert, // Removed (ensure it's not used for other purposes, if so, keep and alias)
-  Slide, // Keep Slide if used for other transitions, otherwise remove
+  Slide,
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
@@ -32,12 +29,14 @@ import { CompanyValidation } from "./companyValidation";
 import dayjs from "dayjs";
 import { ddmmyyyy_to_mmddyyyy } from "../[id]/employees/clientComponents/employeesDataGrid";
 import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const AddCompanyForm: React.FC<{
   user: { id: string; name: string; email: string };
   handleBackClick: () => void;
 }> = ({ user, handleBackClick }) => {
   const [formFields, setFormFields] = useState<Company>({
+    _id: "",
     id: "",
     name: "",
     employerNo: "",
@@ -78,29 +77,54 @@ const AddCompanyForm: React.FC<{
     shifts: [],
     calendar: "default",
   });
-  const [loading, setLoading] = useState<boolean>(false);
   const [nameLoading, setNameLoading] = useState<boolean>(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [errors, setErrors] = useState<{ name?: string; employerNo?: string }>(
     {}
   );
 
+  const addCompanyMutation = useMutation({
+    mutationFn: async (newCompany: any) => {
+      const response = await fetch("/api/companies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newCompany),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Error saving company. Please try again.");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      showSnackbar({
+        message: "Company Added successfully!",
+        severity: "success",
+      });
+      handleBackClick();
+    },
+    onError: (error: Error) => {
+      showSnackbar({
+        message: error.message,
+        severity: "error",
+      });
+    },
+  });
+
   const formatTime = (value: string) => {
-    // Format time to HH:MM if necessary
     const [hours, minutes] = value.split(":");
     return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
   };
 
-  // Unified handle change for all fields
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | any>
   ) => {
     let { name, value } = event.target;
     if (name.startsWith("openHours")) {
-      //split
       const [_, subName] = name.split(".");
       if (subName === "allDay") {
         value = event.target.checked;
@@ -115,7 +139,6 @@ const AddCompanyForm: React.FC<{
         },
       }));
     } else {
-      //capitalize name
       if (name === "name" || name === "employerNo") {
         value = value.toUpperCase();
       }
@@ -135,100 +158,7 @@ const AddCompanyForm: React.FC<{
       return;
     }
 
-    setLoading(true);
-    try {
-      // Perform POST request to add a new company
-      const response = await fetch("/api/companies", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formFields,
-          userId: user.id, // Include user ID
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // setSnackbarMessage("Company Added successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Company Added successfully!",
-          severity: "success",
-        });
-
-        //wait
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter wait as snackbar is global
-
-        // Clear the form after successful save
-        setFormFields({
-          id: "",
-          name: "",
-          user: "",
-          employerNo: "",
-          address: "",
-          startedAt: "",
-          active: true,
-          endedAt: "",
-          paymentMethod: "",
-          monthlyPrice: "",
-          monthlyPriceOverride: false,
-          mode: "",
-          workingDays: {},
-          employerName: "",
-          employerAddress: "",
-          openHours: {
-            start: "09:00",
-            end: "17:00",
-            allDay: true,
-          },
-          probabilities: {
-            workOnOff: 1,
-            workOnHoliday: 1,
-            absent: 5,
-            late: 2,
-            ot: 75,
-          },
-          shifts: [],
-          paymentStructure: {
-            additions: [],
-            deductions: [],
-          },
-          requiredDocs: {
-            epf: true,
-            etf: true,
-            salary: true,
-            paySlip: true,
-          },
-          calendar: "default",
-        });
-        setErrors({});
-        handleBackClick();
-      } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving company. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: result.message || "Error saving company. Please try again.",
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error("Error saving company:", error);
-      // setSnackbarMessage("Error saving company. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({
-        message: "Error saving company. Please try again.",
-        severity: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
+    await addCompanyMutation.mutateAsync({ ...formFields, userId: user.id });
   };
 
   const onFetchNameClick = async () => {
@@ -245,13 +175,8 @@ const AddCompanyForm: React.FC<{
       });
       const result = await response.json();
 
-      // Simulate fetching company name
-      //const name = await fetchCompanyName(formFields.employerNo);
       const name = result.name;
       if (!name) {
-        // setSnackbarMessage("Employer number not found. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Employer number not found. Please try again.",
           severity: "error",
@@ -263,16 +188,9 @@ const AddCompanyForm: React.FC<{
         name: name.toUpperCase(),
       }));
 
-      // Show success snackbar with the fetched name
-      // setSnackbarMessage(`Name found: ${name}`); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
       console.error("Error fetching company name:", error);
-      // setSnackbarMessage("Error fetching company name. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error fetching company name. Please try again.",
         severity: "error",
@@ -281,16 +199,6 @@ const AddCompanyForm: React.FC<{
       setNameLoading(false);
     }
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   return (
     <>
@@ -325,9 +233,13 @@ const AddCompanyForm: React.FC<{
                     ml: 2,
                   }}
                   onClick={onSaveClick}
-                  disabled={loading}
+                  disabled={addCompanyMutation.isPending}
                 >
-                  {loading ? <CircularProgress size={24} /> : "Add"}
+                  {addCompanyMutation.isPending ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "Add"
+                  )}
                 </Button>
               </Tooltip>
             </Box>
@@ -367,7 +279,7 @@ const AddCompanyForm: React.FC<{
                         loading={nameLoading}
                         loadingPosition="end"
                         onClick={onFetchNameClick}
-                        disabled={nameLoading} // Disable button while loading
+                        disabled={nameLoading}
                         sx={{ marginTop: 1 }}
                       />
                     </InputAdornment>
@@ -435,7 +347,7 @@ const AddCompanyForm: React.FC<{
                     color="success"
                     value={formFields.active}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={addCompanyMutation.isPending}
                   />
                 }
                 label="Is Active ?"
@@ -453,7 +365,7 @@ const AddCompanyForm: React.FC<{
                     color="success"
                     value={formFields.openHours.allDay}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={addCompanyMutation.isPending}
                   />
                 }
                 label="Open 24h ?"
@@ -471,7 +383,7 @@ const AddCompanyForm: React.FC<{
                     name="openHours.start"
                     value={formFields.openHours.start}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={addCompanyMutation.isPending}
                   />
                 </FormControl>
               </Grid>
@@ -484,7 +396,7 @@ const AddCompanyForm: React.FC<{
                     name="openHours.end"
                     value={formFields.openHours.end}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={addCompanyMutation.isPending}
                   />
                 </FormControl>
               </Grid>
@@ -533,8 +445,6 @@ const AddCompanyForm: React.FC<{
           </Grid>
         </Grid>
       </CardContent>
-
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

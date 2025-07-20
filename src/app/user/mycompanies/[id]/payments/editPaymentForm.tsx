@@ -47,9 +47,11 @@ import dayjs from "dayjs";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
 import "dayjs/locale/en-gb";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 const EditPaymentForm: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
@@ -83,57 +85,46 @@ const EditPaymentForm: React.FC<{
     remark: "",
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const queryClient = useQueryClient();
 
-  // Fetch salary
-  useEffect(() => {
-    const fetchPayment = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/payments/?paymentId=${paymentId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch Payment");
-        }
-        const data = await response.json();
-        //if not payment
-        if (!data.payments || data.payments.length === 0) {
-          throw new Error("Invalid Payment Data");
-        }
-        const paymentData = data.payments[0];
-        // Set all nulls to empty string
-        Object.keys(paymentData).forEach((key) => {
-          if (paymentData[key] === null) {
-            paymentData[key] = "";
-          }
-        });
-        setFormFields(paymentData);
-      } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Payment."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error ? error.message : "Error fetching Payment.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (companyId?.length === 24) {
-      fetchPayment();
-    } else {
-      // setSnackbarMessage("Invalid Payment ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Invalid Payment ID", severity: "error" });
+  const fetchPaymentData = async (): Promise<Payment> => {
+    const response = await fetch(`/api/payments/?paymentId=${paymentId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Payment");
     }
-  }, [paymentId, companyId, showSnackbar]); // Added companyId and showSnackbar to dependencies
+    const data = await response.json();
+    return data.payments[0];
+  };
+
+  const {
+    data: paymentData,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Payment, Error>({
+    queryKey: ["payments", companyId, formFields.period],
+    queryFn: fetchPaymentData,
+    enabled: !!paymentId, // Only run the query if paymentId is available
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  useEffect(() => {
+    if (paymentData) {
+      // Set all nulls to empty string in a type-safe way
+      const sanitizedPaymentData: Payment = Object.fromEntries(
+        Object.entries(paymentData).map(([key, value]) => [
+          key,
+          value === null ? "" : value,
+        ])
+      ) as Payment;
+      setFormFields(sanitizedPaymentData);
+    }
+  }, [paymentData]);
 
   //gen salary
   const generatePaymentUpdate = async () => {
     try {
-      setLoading(true);
       //post with period body
       const response = await fetch("/api/payments/generate", {
         method: "POST",
@@ -152,9 +143,6 @@ const EditPaymentForm: React.FC<{
       const data = await response.json();
       const paymentNew = data.payment;
       if (!paymentNew) {
-        // setSnackbarMessage("Payment not found. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment not found. Please try again.",
           severity: "error",
@@ -168,28 +156,13 @@ const EditPaymentForm: React.FC<{
       });
       await fetchReferenceNo();
     } catch (error) {
-      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching payments."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error fetching payments.",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -203,14 +176,13 @@ const EditPaymentForm: React.FC<{
   };
 
   const onSaveClick = async () => {
-    //const newErrors = SalaryValidation(formFields);
     const isValid = Object.keys(errors).length === 0;
 
     if (!isValid) {
       return;
     }
 
-    console.log(formFields);
+    // console.log(formFields);
 
     setLoading(true);
     try {
@@ -228,27 +200,23 @@ const EditPaymentForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Payment saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment saved successfully!",
           severity: "success",
         });
         setIsEditing(false);
+        console.log(user.role);
+        const queryKey = [
+          "payments",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-        // Clear the form after successful save
-        // setFormFields({
-        // });
         setErrors({});
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving payment. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error saving payment. Please try again.",
           severity: "error",
@@ -256,9 +224,6 @@ const EditPaymentForm: React.FC<{
       }
     } catch (error) {
       console.error("Error saving payment:", error);
-      // setSnackbarMessage("Error saving payment. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error saving payment. Please try again.",
         severity: "error",
@@ -317,7 +282,7 @@ const EditPaymentForm: React.FC<{
             onClick={handleConfirm}
             color="primary"
             autoFocus
-            loading={loading}
+            loading={loading || isLoading}
           >
             Confirm
           </LoadingButton>
@@ -350,20 +315,17 @@ const EditPaymentForm: React.FC<{
           message: "Payment deleted successfully!",
           severity: "success",
         });
+        const queryKey = [
+          "payments",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
 
         // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        // Clear the form after successful save
-        // setFormFields({
-        // });
         setErrors({});
         window.history.back();
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error deleting payment. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message:
             result.message || "Error deleting payment. Please try again.",
@@ -372,9 +334,6 @@ const EditPaymentForm: React.FC<{
       }
     } catch (error) {
       console.error("Error deleting payment:", error);
-      // setSnackbarMessage("Error deleting payment. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error deleting payment. Please try again.",
         severity: "error",
@@ -401,23 +360,14 @@ const EditPaymentForm: React.FC<{
       });
       const result = await response.json();
 
-      // Simulate fetching company name
-      //const name = await fetchCompanyName(formFields.employerNo);
       const referenceNo = result.referenceNo;
       if (!referenceNo) {
-        // setSnackbarMessage("Reference number not found. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Reference number not found. Please try again.",
           severity: "error",
         });
         return;
       }
-      //show in snackbar
-      // setSnackbarMessage(` Found EPF Reference No: ${referenceNo}`); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: `Found EPF Reference No: ${referenceNo}`,
         severity: "success",
@@ -428,9 +378,6 @@ const EditPaymentForm: React.FC<{
       }));
     } catch (error) {
       console.error("Error fetching EPF Reference No:", error);
-      // setSnackbarMessage("Error fetching EPF Reference No. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error fetching EPF Reference No. Please try again.",
         severity: "error",
@@ -478,9 +425,13 @@ const EditPaymentForm: React.FC<{
                         color="success"
                         startIcon={<Save />}
                         onClick={onSaveClick}
-                        disabled={loading} // Disable button while loading
+                        disabled={loading || isLoading} // Disable button while loading
                       >
-                        {loading ? <CircularProgress size={24} /> : "Save"}
+                        {loading || isLoading ? (
+                          <CircularProgress size={24} />
+                        ) : (
+                          "Save"
+                        )}
                       </Button>
                     </span>
                   </Tooltip>
@@ -504,7 +455,7 @@ const EditPaymentForm: React.FC<{
         >
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              {loading ? (
+              {loading || isLoading ? (
                 <CircularProgress size={20} />
               ) : (
                 <Box
@@ -570,7 +521,7 @@ const EditPaymentForm: React.FC<{
                   aria-controls="panel1-content"
                   id="panel1-header"
                 >
-                  {loading ? (
+                  {loading || isLoading ? (
                     <Typography variant="h6">
                       {`Salary Details loading...`}
                     </Typography>
@@ -602,8 +553,14 @@ const EditPaymentForm: React.FC<{
                 variant="contained"
                 color="success"
                 onClick={generatePaymentUpdate}
-                disabled={loading || !isEditing}
-                endIcon={loading ? <CircularProgress size={20} /> : <Sync />}
+                disabled={loading || isLoading || !isEditing}
+                endIcon={
+                  loading || isLoading ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <Sync />
+                  )
+                }
               >
                 Re-calculate
               </Button>
@@ -906,7 +863,7 @@ const EditPaymentForm: React.FC<{
                   variant="filled"
                   multiline
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.remark && (

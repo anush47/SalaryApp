@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   DataGrid,
   GridColDef,
@@ -8,10 +8,9 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert, // Keep for now, might remove if all errors go to snackbar
+  Alert,
   CircularProgress,
   Chip,
-  // Snackbar, // Removed
   Button,
   Dialog,
   DialogContent,
@@ -22,7 +21,9 @@ import {
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
 import { DeleteOutline } from "@mui/icons-material";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 export interface Salary {
   id: string;
@@ -64,19 +65,48 @@ export interface Salary {
   remark: string;
 }
 
+const fetchSalaries = async (
+  companyId: string,
+  period?: string
+): Promise<Salary[]> => {
+  const fetchLink = period
+    ? `/api/salaries/?companyId=${companyId}&period=${period}`
+    : `/api/salaries/?companyId=${companyId}`;
+  const response = await fetch(fetchLink);
+  if (!response.ok) {
+    throw new Error("Failed to fetch salaries");
+  }
+  const data = await response.json();
+  return data.salaries.map((salary: any) => ({
+    ...salary,
+    id: salary._id,
+    ot: salary.ot.amount,
+    otReason: salary.ot.reason,
+    noPay: salary.noPay.amount,
+    noPayReason: salary.noPay.reason,
+  }));
+};
+
 const SalariesDataGrid: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   isEditing: boolean;
   period?: string;
   companyId: string;
 }> = ({ user, isEditing, period, companyId }) => {
-  const [salaries, setSalaries] = useState<Salary[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null); // Keep for now, might remove if all errors go to snackbar
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success"); // Removed
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useSnackbar();
+
+  const {
+    data: salaries,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Salary[], Error>({
+    queryKey: ["salaries", companyId, period],
+    queryFn: () => fetchSalaries(companyId, period),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   const columns: GridColDef[] = [
     {
@@ -118,6 +148,7 @@ const SalariesDataGrid: React.FC<{
       align: "left",
       type: "number",
       headerAlign: "left",
+      editable: isEditing,
     },
     {
       field: "holidayPay",
@@ -134,6 +165,7 @@ const SalariesDataGrid: React.FC<{
       flex: 1,
       align: "left",
       headerAlign: "left",
+      editable: isEditing,
     },
     {
       field: "otReason",
@@ -148,6 +180,7 @@ const SalariesDataGrid: React.FC<{
       flex: 1,
       align: "left",
       headerAlign: "left",
+      editable: isEditing,
     },
     {
       field: "noPayReason",
@@ -217,53 +250,67 @@ const SalariesDataGrid: React.FC<{
     },
   ];
 
-  useEffect(() => {
-    const fetchSalaries = async () => {
-      try {
-        setLoading(true);
-        const fetchLink = period
-          ? `/api/salaries/?companyId=${companyId}&period=${period}`
-          : `/api/salaries/?companyId=${companyId}`;
-        const response = await fetch(fetchLink);
-        if (!response.ok) {
-          throw new Error("Failed to fetch salaries");
-        }
-        const data = await response.json();
-        const salariesWithId = data.salaries.map((salary: any) => ({
-          ...salary,
-          id: salary._id,
-          ot: salary.ot.amount,
-          otReason: salary.ot.reason,
-          noPay: salary.noPay.amount,
-          noPayReason: salary.noPay.reason,
-        }));
-        setSalaries(salariesWithId);
-      } catch (error) {
-        // setError(error instanceof Error ? error.message : "An unexpected error occurred"); // Replaced
-        showSnackbar({
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
+  const updateSalaryMutation = useMutation({
+    mutationFn: async (newSalary: Salary) => {
+      const response = await fetch("/api/salaries", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newSalary),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update salary");
       }
-    };
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      showSnackbar({
+        message: "Salary updated successfully!",
+        severity: "success",
+      });
+    },
+    onError: (err) => {
+      showSnackbar({ message: err.message, severity: "error" });
+    },
+  });
 
-    fetchSalaries();
-  }, [user, companyId, period, showSnackbar]); // Added period and showSnackbar
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
+  const deleteSalaryMutation = useMutation({
+    mutationFn: async (salaryIds: string[]) => {
+      const response = await fetch(`/api/salaries/`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ salaryIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete salary");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      showSnackbar({
+        message: "Salary record deleted successfully!",
+        severity: "success",
+      });
+    },
+    onError: (err) => {
+      showSnackbar({ message: err.message, severity: "error" });
+    },
+  });
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
@@ -343,63 +390,13 @@ const SalariesDataGrid: React.FC<{
         noPay: newSalary.noPay,
       };
 
-      try {
-        // Perform POST request to update the employee
-        const response = await fetch("/api/salaries", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        });
+      await updateSalaryMutation.mutateAsync(body);
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
-          // setSnackbarSeverity("error"); // Removed
-          // setSnackbarOpen(true); // Removed
-          showSnackbar({
-            message: result.message || "Error saving salary. Please try again.",
-            severity: "error",
-          });
-          throw new Error(
-            result.message || "Error saving salary. Please try again."
-          ); // Propagate error
-        }
-        //reset newsalary
-
-        newSalary.ot = newSalary.ot.amount;
-        newSalary.noPay = newSalary.noPay.amount;
-      } catch (error) {
-        console.error("Error saving salary:", error);
-        // setSnackbarMessage("Error saving salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Error saving salary. Please try again.",
-          severity: "error",
-        });
-        throw error; // Propagate error
-      } finally {
-        setLoading(false); // This might be problematic if error is thrown
-      }
-      // }
-      //console.log(newEmployee);
-
-      // Success feedback
-      // setSnackbarMessage(`Employee ${newSalary.memberNo} - updated successfully!`); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({
-        message: `Employee ${newSalary.memberNo} - updated successfully!`,
-        severity: "success",
-      });
+      newSalary.ot = newSalary.ot.amount;
+      newSalary.noPay = newSalary.noPay.amount;
 
       return newSalary;
     } catch (error: any) {
-      // Add type 'any' to the 'error' object
-      // Pass the error details along
       throw {
         message:
           error?.message || "An error occurred while updating the employee.",
@@ -409,23 +406,7 @@ const SalariesDataGrid: React.FC<{
   };
 
   const handleRowUpdateError = (params: any) => {
-    // Revert changes if necessary
-    const updatedSalaries = salaries.map((salary) => {
-      if (salary.id === params.id) {
-        return params.oldRow; // Revert to old row data
-      }
-      return salary;
-    });
-
-    // Log error and revert row updates
     console.error("Row update error:", params.error?.error || params.error);
-
-    setSalaries(updatedSalaries); // Update state with reverted data
-
-    // Display the error details in Snackbar
-    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
-    // setSnackbarSeverity("error"); // Removed
-    // setSnackbarOpen(true); // Removed
     showSnackbar({
       message: params.error?.message || "An unexpected error occurred.",
       severity: "error",
@@ -442,9 +423,8 @@ const SalariesDataGrid: React.FC<{
 
   const handleDialogClose = async (confirmed: boolean) => {
     if (confirmed) {
-      // Perform the delete action here
       console.log(`Deleting salary record`);
-      await onDeleteClick(salaryIds);
+      await deleteSalaryMutation.mutateAsync(salaryIds);
     }
     setDialogOpen(false);
   };
@@ -483,7 +463,7 @@ const SalariesDataGrid: React.FC<{
           <LoadingButton
             onClick={handleConfirm}
             color="primary"
-            loading={loading}
+            loading={deleteSalaryMutation.isPending}
           >
             Confirm
           </LoadingButton>
@@ -492,65 +472,42 @@ const SalariesDataGrid: React.FC<{
     );
   };
 
-  const onDeleteClick = async (salaryIds: string[]) => {
-    setLoading(true);
-    try {
-      // Perform DELETE request to delete the salary record
-      const response = await fetch(`/api/salaries/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          salaryIds: salaryIds,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // setSnackbarMessage("Salary record deleted successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: "Salary record deleted successfully!",
-          severity: "success",
-        });
-
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 200)); // Keep or adjust delay
-        //remove row
-        setSalaries(
-          salaries.filter((salary) => !salaryIds.includes(salary.id))
-        );
-      } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error deleting salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message: result.message || "Error deleting salary. Please try again.",
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error("Error deleting salary:", error);
-      // setSnackbarMessage("Error deleting salary. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({
-        message: "Error deleting salary. Please try again.",
-        severity: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const deleteSelected = async () => {
     setSalaryIds(rowSelectionModel as string[]);
     setDialogOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+          minHeight: "200px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.message || "An unexpected error occurred"}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -560,86 +517,78 @@ const SalariesDataGrid: React.FC<{
         alignItems: "center",
       }}
     >
-      {loading && <CircularProgress />}
-      {/* {error && ( // Removing top-level error alert, relying on snackbar
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )} */}
-      {!loading && ( // Removed !error from condition
-        <div>
-          {isEditing && rowSelectionModel.length > 0 && (
-            <Button
-              sx={{
-                mb: 1,
-              }}
-              variant="outlined"
-              color="error"
-              onClick={deleteSelected}
-              startIcon={
-                <DeleteOutline
-                  style={{ marginRight: "8px" }}
-                  color="error"
-                  fontSize="small"
-                />
-              }
-            >
-              Delete Selected
-            </Button>
-          )}
-
-          <DataGrid
-            rows={salaries}
-            columns={columns}
+      <div>
+        {isEditing && rowSelectionModel.length > 0 && (
+          <Button
             sx={{
-              height: period ? 400 : "calc(100vh - 230px)",
+              mb: 1,
             }}
-            //autoPageSize
-            editMode="row"
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  pageSize: 10,
-                },
-              },
-              filter: {
-                filterModel: {
-                  items: [],
-                  quickFilterExcludeHiddenColumns: false,
-                },
-              },
-            }}
-            pageSizeOptions={[5, 10]}
-            slots={{
-              toolbar: (props) => (
-                <GridToolbar
-                  {...props}
-                  csvOptions={{ disableToolbarButton: true }}
-                  printOptions={{ disableToolbarButton: true }}
-                />
-              ),
-            }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-              },
-            }}
-            disableRowSelectionOnClick
-            checkboxSelection={isEditing}
-            //disableColumnFilter
-            disableDensitySelector
-            processRowUpdate={handleRowUpdate}
-            onProcessRowUpdateError={handleRowUpdateError}
-            columnVisibilityModel={columnVisibilityModel}
-            onColumnVisibilityModelChange={(newModel) =>
-              setColumnVisibilityModel(newModel)
+            variant="outlined"
+            color="error"
+            onClick={deleteSelected}
+            startIcon={
+              <DeleteOutline
+                style={{ marginRight: "8px" }}
+                color="error"
+                fontSize="small"
+              />
             }
-            onRowSelectionModelChange={(newModel) =>
-              setRowSelectionModel(newModel)
-            }
-          />
-        </div>
-      )}
+          >
+            Delete Selected
+          </Button>
+        )}
+
+        <DataGrid
+          rows={salaries || []}
+          columns={columns}
+          sx={{
+            height: period ? 400 : "calc(100vh - 230px)",
+          }}
+          //autoPageSize
+          editMode="row"
+          initialState={{
+            pagination: {
+              paginationModel: {
+                pageSize: 10,
+              },
+            },
+            filter: {
+              filterModel: {
+                items: [],
+                quickFilterExcludeHiddenColumns: false,
+              },
+            },
+          }}
+          pageSizeOptions={[5, 10]}
+          slots={{
+            toolbar: (props) => (
+              <GridToolbar
+                {...props}
+                csvOptions={{ disableToolbarButton: true }}
+                printOptions={{ disableToolbarButton: true }}
+              />
+            ),
+          }}
+          slotProps={{
+            toolbar: {
+              showQuickFilter: true,
+            },
+          }}
+          disableRowSelectionOnClick
+          checkboxSelection={isEditing}
+          //disableColumnFilter
+          disableDensitySelector
+          processRowUpdate={handleRowUpdate}
+          onProcessRowUpdateError={handleRowUpdateError}
+          columnVisibilityModel={columnVisibilityModel}
+          onColumnVisibilityModelChange={(newModel) =>
+            setColumnVisibilityModel(newModel)
+          }
+          onRowSelectionModelChange={(newModel) =>
+            setRowSelectionModel(newModel)
+          }
+        />
+      </div>
 
       <ConfirmationDialog
         open={dialogOpen}

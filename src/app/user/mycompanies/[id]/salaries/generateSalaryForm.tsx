@@ -26,6 +26,8 @@ import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useQuery } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 export interface Salary {
   employee: string;
@@ -54,7 +56,7 @@ export interface Salary {
 }
 
 const AddSalaryForm: React.FC<{
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
@@ -89,68 +91,84 @@ const AddSalaryForm: React.FC<{
   }>({});
   const [purchased, setPurchased] = useState<boolean>(true);
 
-  // Fetch employees from the API
+  const fetchEmployees = async (): Promise<
+    {
+      _id: string;
+      memberNo: string;
+      name: string;
+      nic: string;
+    }[]
+  > => {
+    const response = await fetch(`/api/employees?companyId=${companyId}`, {
+      method: "GET",
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch employees");
+    }
+    const result = await response.json();
+    return [
+      ...result.employees.map(
+        (employee: {
+          _id: string;
+          memberNo: string;
+          name: string;
+          nic: string;
+        }) => ({
+          _id: employee._id,
+          memberNo: employee.memberNo,
+          name: employee.name,
+          nic: employee.nic,
+        })
+      ),
+    ];
+  };
+
+  const { data: employeesData, isLoading: isLoadingEmployees } = useQuery({
+    queryKey: ["employees", companyId],
+    queryFn: fetchEmployees,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/employees?companyId=${companyId}`, {
-          method: "GET",
-        });
-        const result = await response.json();
+    if (employeesData) {
+      setEmployees([
+        ...employeesData,
+        { memberNo: "all", _id: "all", name: "ALL", nic: "all" },
+      ]);
+    }
+  }, [employeesData]);
 
-        setEmployees([
-          ...result.employees.map(
-            (employee: {
-              _id: string;
-              memberNo: string;
-              name: string;
-              nic: string;
-            }) => ({
-              _id: employee._id,
-              memberNo: employee.memberNo,
-              name: employee.name,
-              nic: employee.nic,
-            })
-          ),
-          { memberNo: "all", _id: "all", name: "ALL", nic: "all" }, // add all option
-        ]);
-      } catch (error) {
-        console.error("Error fetching employees:", error);
-      } finally {
-        setLoading(false);
+  const checkPurchasedStatus = async (): Promise<boolean> => {
+    const response = await fetch(
+      `/api/purchases/check?companyId=${companyId}&month=${period}`,
+      {
+        method: "GET",
       }
-    };
+    );
+    if (!response.ok) {
+      throw new Error("Failed to check purchase status");
+    }
+    const result = await response.json();
+    return result?.purchased === "approved";
+  };
 
-    fetchEmployees();
-  }, []);
+  const { data: purchasedStatus, isLoading: isLoadingPurchased } = useQuery({
+    queryKey: ["purchases", "check", companyId, period],
+    queryFn: checkPurchasedStatus,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   useEffect(() => {
-    const checkPurchased = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/purchases/check?companyId=${companyId}&month=${period}`,
-          {
-            method: "GET",
-          }
-        );
-        try {
-          const result = await response.json();
-          setPurchased(result?.purchased === "approved");
-        } catch (error) {
-          console.error("Error parsing JSON or updating state:", error);
-          setPurchased(false); // or handle the error state as needed
-        }
-      } catch (error) {
-        console.error("Error fetching salaries:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (purchasedStatus !== undefined) {
+      setPurchased(purchasedStatus);
+    }
+  }, [purchasedStatus]);
 
-    checkPurchased();
-  }, [period]);
+  useEffect(() => {
+    setLoading(isLoadingEmployees || isLoadingPurchased);
+  }, [isLoadingEmployees, isLoadingPurchased]);
 
   return (
     <>
@@ -279,12 +297,17 @@ const AddSalaryForm: React.FC<{
           </Grid>
           <Grid item xs={12}>
             {employeeSelection === "all" ? (
-              <GenerateSalaryAll companyId={companyId} period={period} />
+              <GenerateSalaryAll
+                companyId={companyId}
+                period={period}
+                user={user}
+              />
             ) : (
               <GenerateSalaryOne
                 companyId={companyId}
                 employeeId={employeeSelection}
                 period={period}
+                user={user}
               />
             )}
           </Grid>

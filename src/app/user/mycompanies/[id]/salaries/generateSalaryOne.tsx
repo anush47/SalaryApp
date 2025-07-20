@@ -1,5 +1,4 @@
 import {
-  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -9,11 +8,9 @@ import {
   FormControl,
   FormHelperText,
   Grid,
-  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
-  useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
@@ -24,25 +21,26 @@ import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
 import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 const GenerateSalaryOne = ({
   period,
   employeeId,
   companyId,
+  user,
 }: {
   period: string;
   employeeId: string;
   companyId: string;
+  user: { id: string; name: string; email: string; role: string };
 }) => {
-  const [employee, setEmployee] = useState<Employee>();
   const [loading, setLoading] = useState(false);
   const [inOut, setInOut] = useState("");
   const [generated, setGenerated] = useState(false);
   const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
+  const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
 
   const [formFields, setFormFields] = useState<Salary>({
     id: "",
@@ -69,55 +67,48 @@ const GenerateSalaryOne = ({
     remark: "",
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const theme = useTheme();
 
-  // Fetch employee
-  useEffect(() => {
-    const fetchEmployee = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/employees?employeeId=${employeeId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch Employee");
-        }
-        const data = await response.json();
-        setEmployee(data.employees[0]);
-        // Set working days if undefined
-        if (!data.employees[0].workingDays) {
-          data.employees[0].workingDays = {
-            mon: "off",
-            tue: "off",
-            wed: "off",
-            thu: "off",
-            fri: "off",
-            sat: "off",
-            sun: "off",
-          };
-        }
-        setGenerated(false);
-      } catch (error) {
-        // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching company."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
-        showSnackbar({
-          message:
-            error instanceof Error ? error.message : "Error fetching company.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (companyId?.length === 24) {
-      fetchEmployee();
-    } else {
-      // setSnackbarMessage("Invalid Company ID"); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
-      showSnackbar({ message: "Invalid Company ID", severity: "error" });
+  const fetchEmployee = async (): Promise<Employee> => {
+    const response = await fetch(`/api/employees?employeeId=${employeeId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Employee");
     }
-  }, [employeeId, companyId, showSnackbar]); // Added companyId and showSnackbar
+    const data = await response.json();
+    // Set working days if undefined
+    if (!data.employees[0].workingDays) {
+      data.employees[0].workingDays = {
+        mon: "off",
+        tue: "off",
+        wed: "off",
+        thu: "off",
+        fri: "off",
+        sat: "off",
+        sun: "off",
+      };
+    }
+    setGenerated(false);
+    return data.employees[0];
+  };
+
+  const {
+    data: employee,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Employee, Error>({
+    queryKey: ["employees", companyId, employeeId],
+    queryFn: fetchEmployee,
+    enabled: !!employeeId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  if (isError) {
+    showSnackbar({
+      message: "Error fetching employee",
+      severity: "error",
+    });
+  }
 
   //when period or employee changed
   useEffect(() => {
@@ -125,7 +116,7 @@ const GenerateSalaryOne = ({
       id: "",
       _id: "",
       employee: "",
-      period,
+      period: "",
       basic: 0,
       holidayPay: 0,
       inOut: [],
@@ -157,9 +148,6 @@ const GenerateSalaryOne = ({
         !inOut &&
         formFields.inOut.length === 0
       ) {
-        // setSnackbarMessage(`InOut required for calculated OT of ${employee?.name || "employee"}`); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: `InOut required for calculated OT of ${
             employee?.name || "employee"
@@ -224,9 +212,6 @@ const GenerateSalaryOne = ({
         setGenerated(true);
       }
     } catch (error) {
-      // setSnackbarMessage(error instanceof Error ? error.message : "Error fetching Salary."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error fetching Salary.",
@@ -236,27 +221,6 @@ const GenerateSalaryOne = ({
       setLoading(false);
     }
   };
-  // Fetch salary
-  // useEffect(() => {
-  //   if (employeeId?.length === 24) {
-  //     fetchSalary();
-  //   } else {
-  //     // setSnackbarMessage("Invalid Employee ID"); // Removed
-  //     // setSnackbarSeverity("error"); // Removed
-  //     // setSnackbarOpen(true); // Removed
-  //     showSnackbar({ message: "Invalid Employee ID", severity: "error" });
-  //   }
-  // }, [employeeId, period, inOut, showSnackbar]); // Added showSnackbar
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const calculateFinalSalary = () => {
     const basic = Number(formFields.basic);
@@ -386,20 +350,13 @@ const GenerateSalaryOne = ({
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Salary record saved successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Salary record saved successfully!",
           severity: "success",
         });
 
-        // Wait before clearing the form
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-        // Clear the form after successful save
-        // setFormFields({
-        // });
         setErrors({});
         setFormFields({
           id: "",
@@ -426,11 +383,12 @@ const GenerateSalaryOne = ({
           remark: "",
         });
         setGenerated(false);
+        const queryKey = [
+          "salaries",
+          ...(user.role === "admin" ? [companyId] : []),
+        ];
+        queryClient.invalidateQueries({ queryKey });
       } else {
-        // Handle validation or other errors returned by the API
-        // setSnackbarMessage(result.message || "Error saving salary. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: result.message || "Error saving salary. Please try again.",
           severity: "error",
@@ -438,9 +396,6 @@ const GenerateSalaryOne = ({
       }
     } catch (error) {
       console.error("Error saving salary:", error);
-      // setSnackbarMessage("Error saving salary. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error saving salary. Please try again.",
         severity: "error",
@@ -472,12 +427,16 @@ const GenerateSalaryOne = ({
                     color="success"
                     startIcon={<Save />}
                     onClick={onSaveClick}
-                    disabled={loading || !formFields.employee}
+                    disabled={loading || isLoading || !formFields.employee}
                     sx={{
                       width: { xs: "100%", sm: "auto" },
                     }}
                   >
-                    {loading ? <CircularProgress size={24} /> : "Save"}
+                    {loading || isLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      "Save"
+                    )}
                   </Button>
                 </Tooltip>
               </Box>
@@ -488,7 +447,7 @@ const GenerateSalaryOne = ({
         <CardContent>
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              {loading ? (
+              {loading || isLoading ? (
                 <CircularProgress size={20} />
               ) : (
                 <Box
@@ -532,7 +491,7 @@ const GenerateSalaryOne = ({
                       variant="contained"
                       color="success"
                       component="label"
-                      loading={loading}
+                      loading={loading || isLoading}
                       loadingPosition="center"
                       startIcon={<Autorenew />}
                       onClick={async () => {
@@ -586,7 +545,7 @@ const GenerateSalaryOne = ({
                   onChange={handleChange}
                   variant="filled"
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
@@ -636,7 +595,7 @@ const GenerateSalaryOne = ({
                   variant="filled"
                   multiline
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.ot && <FormHelperText>{errors.ot}</FormHelperText>}
@@ -701,7 +660,7 @@ const GenerateSalaryOne = ({
                   variant="filled"
                   multiline
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.noPay && (
@@ -719,7 +678,7 @@ const GenerateSalaryOne = ({
                   onChange={handleChange}
                   variant="filled"
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.advanceAmount && (
@@ -737,7 +696,7 @@ const GenerateSalaryOne = ({
                   variant="filled"
                   multiline
                   InputProps={{
-                    readOnly: loading,
+                    readOnly: loading || isLoading,
                   }}
                 />
                 {errors.remark && (

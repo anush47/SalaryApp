@@ -28,7 +28,7 @@ const Payments = ({
   user,
   companyId,
 }: {
-  user: { name: string; email: string; id: string };
+  user: { name: string; email: string; id: string; role: string };
   companyId: string;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
