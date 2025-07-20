@@ -220,7 +220,7 @@ export const InOutTable = ({
       headerName: "Working Hours",
       flex: 1,
       renderCell(params) {
-        return params.value.toFixed(2);
+        return (params.value ?? 0).toFixed(2);
       },
     },
     {
@@ -229,7 +229,7 @@ export const InOutTable = ({
       type: "number",
       flex: 1,
       renderCell(params) {
-        return params.value.toFixed(2);
+        return (params.value ?? 0).toFixed(2);
       },
     },
     {
@@ -238,7 +238,7 @@ export const InOutTable = ({
       flex: 1,
       type: "number",
       renderCell(params) {
-        return params.value.toFixed(2);
+        return (params.value ?? 0).toFixed(2);
       },
     },
     {
@@ -248,7 +248,7 @@ export const InOutTable = ({
       editable,
       type: "number",
       renderCell(params) {
-        return params.value.toFixed(2);
+        return (params.value ?? 0).toFixed(2);
       },
     },
     {
