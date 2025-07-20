@@ -1,4 +1,5 @@
 import { Add, Autorenew, DeleteOutline, ExpandMore } from "@mui/icons-material";
+import { LoadingButton } from "@mui/lab";
 import {
   Accordion,
   AccordionDetails,
@@ -129,6 +130,7 @@ export const InOutTable = ({
           remark: "",
         }
   );
+  const [loading, setLoading] = useState(false);
 
   const columns: GridColDef[] = [
     { field: "employeeName", headerName: "Employee", flex: 1 },
@@ -316,23 +318,6 @@ export const InOutTable = ({
     }
   };
 
-  // const handleRowUpdateError = (params: any) => {
-  //   // Revert changes if necessary
-  //   const updatedInOuts = inOuts.map((inOut) => {
-  //     if (inOut.id === params.id) {
-  //       return params.oldRow; // Revert to old row data
-  //     }
-  //     return inOut;
-  //   });
-
-  //   // Log error and revert row updates
-  //   console.error("Row update error:", params.error?.error || params.error);
-
-  //   //setInOuts(updatedInOuts); // Update state with reverted data
-  // };
-
-  // State for managing dialog visibility
-
   const [openDelete, setOpenDelete] = useState(false);
   const [openAdd, setOpenAdd] = useState(false);
 
@@ -389,10 +374,13 @@ export const InOutTable = ({
   //calculate function
   const handleCalculate = async () => {
     try {
+      setLoading(true);
       await fetchSalary(true);
       setEdited(false);
     } catch (error) {
       console.error("Error during calculation:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -434,16 +422,18 @@ export const InOutTable = ({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {edited && (
               <Tooltip title="Calculate Salary based on In-Outs" arrow>
-                <Button
+                <LoadingButton
                   variant="contained"
                   onClick={async () => {
                     await handleCalculate();
                   }}
                   disabled={!editable}
                   startIcon={<Autorenew />}
+                  loading={loading}
+                  loadingPosition="start"
                 >
                   Calculate
-                </Button>
+                </LoadingButton>
               </Tooltip>
             )}
             <Tooltip title="Add new In-Out record" arrow>

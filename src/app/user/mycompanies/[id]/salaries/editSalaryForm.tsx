@@ -35,6 +35,7 @@ const EditSalaryForm: React.FC<{
   companyId: string;
 }> = ({ user, handleBackClick, companyId }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [employeeData, setEmployeeData] = useState<any>(null);
   const { showSnackbar } = useSnackbar();
   const [formFields, setFormFields] = useState<Salary>({
@@ -103,7 +104,6 @@ const EditSalaryForm: React.FC<{
         finalSalary: salaryData.finalSalary,
         remark: salaryData.remark,
       });
-      console.log("Salary Data:", salaryData);
       setEmployeeData({
         memberNo: salaryData.memberNo,
         name: salaryData.name,
@@ -124,7 +124,7 @@ const EditSalaryForm: React.FC<{
     }
   }, [isSalaryError, salaryError, showSnackbar]);
 
-  const loading = isSalaryLoading;
+  const loading = isSalaryLoading || isLoading;
 
   //gen salary
   const fetchSalary = async () => {
@@ -182,11 +182,6 @@ const EditSalaryForm: React.FC<{
         advanceAmount: data.salaries[0].advanceAmount,
         finalSalary: data.salaries[0].finalSalary,
       }));
-      // const queryKey = [
-      //   "salaries",
-      //   ...(user.role === "admin" ? [companyId] : []),
-      // ];
-      // queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       showSnackbar({
         message:
@@ -307,6 +302,7 @@ const EditSalaryForm: React.FC<{
 
     try {
       // Perform POST request to add a new salary record
+      setIsLoading(true);
       const response = await fetch("/api/salaries", {
         method: "PUT",
         headers: {
@@ -348,6 +344,8 @@ const EditSalaryForm: React.FC<{
         message: "Error saving salary. Please try again.",
         severity: "error",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -413,6 +411,7 @@ const EditSalaryForm: React.FC<{
 
   const onDeleteClick = async () => {
     try {
+      setIsLoading(true);
       // Perform DELETE request to delete the salary record
       const response = await fetch(`/api/salaries/`, {
         method: "DELETE",
@@ -455,6 +454,8 @@ const EditSalaryForm: React.FC<{
         message: "Error deleting salary. Please try again.",
         severity: "error",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

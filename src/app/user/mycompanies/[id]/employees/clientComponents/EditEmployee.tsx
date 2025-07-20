@@ -76,6 +76,7 @@ const EditEmployeeForm: React.FC<{
   const queryClient = useQueryClient();
   const [errors, setErrors] = useState<Record<string, string | any>>({});
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const fetchEmployeeData = async (): Promise<Employee> => {
@@ -185,7 +186,7 @@ const EditEmployeeForm: React.FC<{
     showSnackbar,
   ]);
 
-  const loading = isLoadingEmployee || isLoadingCompany;
+  const loading = isLoadingEmployee || isLoadingCompany || isLoading;
 
   // Unified handle change for all fields
   const handleChange = (
@@ -239,6 +240,7 @@ const EditEmployeeForm: React.FC<{
       if (body.nic) {
         body.nic = body.nic.toUpperCase();
       }
+      setIsLoading(true);
       const response = await fetch("/api/employees", {
         method: "PUT",
         headers: {
@@ -267,10 +269,14 @@ const EditEmployeeForm: React.FC<{
     onError: (error) => {
       showSnackbar({ message: error.message, severity: "error" });
     },
+    onSettled: () => {
+      setIsLoading(false);
+    },
   });
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async () => {
+      setIsLoading(true);
       const response = await fetch("/api/employees", {
         method: "DELETE",
         headers: {
@@ -301,6 +307,9 @@ const EditEmployeeForm: React.FC<{
     },
     onError: (error) => {
       showSnackbar({ message: error.message, severity: "error" });
+    },
+    onSettled: () => {
+      setIsLoading(false);
     },
   });
 
