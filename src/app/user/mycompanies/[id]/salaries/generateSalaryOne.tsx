@@ -479,6 +479,7 @@ const GenerateSalaryOne = ({
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
                     <ViewUploadedInOutBtn
+                      companyId={companyId}
                       inOut={inOut}
                       openDialog={openDialog}
                       setOpenDialog={setOpenDialog}
