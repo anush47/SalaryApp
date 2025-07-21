@@ -354,6 +354,7 @@ const GenerateSalaryAll = ({
                   inOut={inOut}
                   openDialog={openDialog}
                   setOpenDialog={setOpenDialog}
+                  companyId={companyId}
                 />
               </FormControl>
             </Grid>
