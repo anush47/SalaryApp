@@ -94,6 +94,7 @@ const QuickTools = ({
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isAutoGenInProgress, setIsAutoGenInProgress] = useState(false);
 
   const { data: company, isLoading: companyLoading } = useQuery<Company, Error>(
     {
@@ -377,6 +378,7 @@ const QuickTools = ({
   });
 
   const handleGenerateAll = async () => {
+    setIsAutoGenInProgress(true);
     setAutoGenProgress(0);
     setAutoGenStatus("Starting generation process...");
 
@@ -421,6 +423,7 @@ const QuickTools = ({
       });
     } finally {
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsAutoGenInProgress(false);
       setAutoGenProgress(0);
       setAutoGenStatus("");
     }
@@ -433,7 +436,8 @@ const QuickTools = ({
     saveSalariesMutation.isPending ||
     generatePaymentsMutation.isPending ||
     generatePdfMutation.isPending ||
-    isPreviewLoading;
+    isPreviewLoading ||
+    isAutoGenInProgress;
 
   return (
     <motion.div

@@ -51,3 +51,5 @@ next-env.d.ts
 src/app/api/test/route.tsx
 src/app/api/test/a.tsx
 src/app/test/page.tsx
+
+docs/
