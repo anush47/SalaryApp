@@ -94,7 +94,7 @@ const AddEmployeeForm: React.FC<{
     Employee[],
     Error
   >({
-    queryKey: ["employee", companyId],
+    queryKey: ["employees", companyId],
     queryFn: fetchEmployeesForMemberNo,
     enabled: !!companyId,
     staleTime: STALE_TIME,
