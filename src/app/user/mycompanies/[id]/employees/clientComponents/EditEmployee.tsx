@@ -207,10 +207,10 @@ const EditEmployeeForm: React.FC<{
           totalSalary: "Invalid salary format",
         }));
       } else {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          totalSalary: "",
-        }));
+        setErrors((prevErrors) => {
+          const { totalSalary, ...rest } = prevErrors;
+          return rest;
+        });
       }
     }
 
@@ -315,6 +315,12 @@ const EditEmployeeForm: React.FC<{
 
   const onSaveClick = () => {
     if (Object.keys(errors).length > 0) {
+      showSnackbar({
+        message: `Please fix the errors in ${Object.keys(
+          errors
+        )} before saving.`,
+        severity: "error",
+      });
       return;
     }
     updateEmployeeMutation.mutate(formFields);
@@ -324,12 +330,7 @@ const EditEmployeeForm: React.FC<{
     deleteEmployeeMutation.mutate();
   };
 
-  //delete cancelation
   const handleDeleteCancelation = () => {
-    //show snackbar
-    // setSnackbarMessage("Delete canceled"); // Removed
-    // setSnackbarSeverity("info"); // Removed
-    // setSnackbarOpen(true); // Removed
     showSnackbar({ message: "Delete canceled", severity: "info" });
     setDeleteDialogOpen(false);
   };
@@ -337,16 +338,6 @@ const EditEmployeeForm: React.FC<{
   const onDeleteClick = async () => {
     setDeleteDialogOpen(true);
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const DeleteDialog = () => {
     return (
