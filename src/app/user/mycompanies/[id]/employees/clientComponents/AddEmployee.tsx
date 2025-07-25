@@ -238,10 +238,10 @@ const AddEmployeeForm: React.FC<{
           totalSalary: "Invalid salary format",
         }));
       } else {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          totalSalary: "",
-        }));
+        setErrors((prevErrors) => {
+          const { totalSalary, ...rest } = prevErrors;
+          return rest;
+        });
       }
     }
 
