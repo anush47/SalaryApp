@@ -129,7 +129,7 @@ const AH: React.FC<{
   };
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["employees", companyId, employeeId],
+    queryKey: ["employees", companyId, employeeId, "AH"],
     queryFn: fetchEmployeeAndCompanyData,
     enabled: !!companyId, // Only run query if companyId is available
     staleTime: STALE_TIME,
