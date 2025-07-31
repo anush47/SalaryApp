@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    console.time("Generating salaries");
+
     // Find all active employees of the company if employees are not given
     if (!employees) {
       employees = await Employee.find({
@@ -103,59 +105,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate salary for all employees
-    const salaries = [];
-    const exists = [];
-
     const inOutInitial = initialInOutProcess(inOut);
-
-    // check if company has openHours
     const openHours = company.openHours;
 
-    for (const [index, employee] of employees.entries()) {
-      //add index to employee
-      employee.index = index;
-      //if openHours is available add to employee
-      if (openHours) {
-        employee.openHours = openHours;
-      }
-
-      // Set individual properties if no overrides, otherwise use overrides
-      if (!employee.overrides?.shifts) {
-        employee.shifts = company.shifts;
-      }
-
-      if (!employee.overrides?.probabilities) {
-        employee.probabilities = company.probabilities;
-      }
-
-      if (!employee.overrides?.workingDays) {
-        employee.workingDays = company.workingDays;
-      }
-
-      if (!employee.overrides?.paymentStructure) {
-        employee.paymentStructure = company.paymentStructure;
-      }
-
-      if (!employee.overrides?.calendar) {
-        employee.calendar = company.calendar;
-      }
-
-      const existingSalary = await Salary.findOne({
-        employee: employee._id,
-        period: period,
-      });
-
-      if (existingSalary && !update) {
-        exists.push(employee._id);
-        continue; // Skip this employee if salary already exists and update is not requested
-      }
-
-      // Check if the `inOutInitial` for the employee is RawInOut or ProcessedInOut
+    // Pre-check for employees with calculated OT but no InOut data
+    for (const employee of employees) {
       const employeeInOut = update
         ? (inOutInitial as ProcessedInOut)
         : (inOutInitial as { [employeeId: string]: RawInOut })[employee._id];
 
-      //if employee otMethod is calc and inOut is not available return error
       if (employee.otMethod === "calc" && !employeeInOut) {
         return NextResponse.json(
           {
@@ -164,31 +122,102 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-
-      if (!update) {
-        // If inOutInitial is RawInOut (array of Dates), generate salary using RawInOut
-        const generatedSalary = await generateSalaryForOneEmployee(
-          employee,
-          period,
-          employeeInOut as RawInOut
-        );
-        salaries.push(generatedSalary);
-      } else if (update) {
-        const existingSalary = existingSalaries?.find(
-          (s: { employee: any }) =>
-            s.employee.toString() === employee._id.toString()
-        );
-
-        // If update is true and inOutInitial is ProcessedInOut, generate salary using ProcessedInOut
-        const generatedSalary = await generateSalaryForOneEmployee(
-          employee,
-          period,
-          employeeInOut as ProcessedInOut,
-          existingSalary
-        );
-        salaries.push(generatedSalary);
-      }
     }
+
+    const employeeIds = employees.map((e: { _id: any }) => e._id);
+    const existingSalariesFromDB = await Salary.find({
+      employee: { $in: employeeIds },
+      period: period,
+    });
+    const existingSalariesMap = new Map(
+      existingSalariesFromDB.map((s: { employee: { toString: () => any } }) => [
+        s.employee.toString(),
+        s,
+      ])
+    );
+
+    const salaryPromises = employees.map(
+      async (
+        employee: {
+          index: any;
+          openHours: any;
+          overrides: {
+            shifts: any;
+            probabilities: any;
+            workingDays: any;
+            paymentStructure: any;
+            calendar: any;
+          };
+          shifts: any;
+          probabilities: any;
+          workingDays: any;
+          paymentStructure: any;
+          calendar: any;
+          _id: string | number;
+        },
+        index: any
+      ) => {
+        employee.index = index;
+        if (openHours) {
+          employee.openHours = openHours;
+        }
+
+        // Set individual properties if no overrides, otherwise use overrides
+        if (!employee.overrides?.shifts) {
+          employee.shifts = company.shifts;
+        }
+        if (!employee.overrides?.probabilities) {
+          employee.probabilities = company.probabilities;
+        }
+        if (!employee.overrides?.workingDays) {
+          employee.workingDays = company.workingDays;
+        }
+        if (!employee.overrides?.paymentStructure) {
+          employee.paymentStructure = company.paymentStructure;
+        }
+        if (!employee.overrides?.calendar) {
+          employee.calendar = company.calendar;
+        }
+
+        const existingSalary = existingSalariesMap.get(employee._id.toString());
+
+        if (existingSalary && !update) {
+          return { exists: employee._id, salary: null };
+        }
+
+        const employeeInOut = update
+          ? (inOutInitial as ProcessedInOut)
+          : (inOutInitial as { [employeeId: string]: RawInOut })[employee._id];
+
+        if (!update) {
+          const generatedSalary = await generateSalaryForOneEmployee(
+            employee,
+            period,
+            employeeInOut as RawInOut
+          );
+          return { salary: generatedSalary, exists: null };
+        } else {
+          const existingSalaryForUpdate = existingSalaries?.find(
+            (s: { employee: any }) =>
+              s.employee.toString() === employee._id.toString()
+          );
+          const generatedSalary = await generateSalaryForOneEmployee(
+            employee,
+            period,
+            employeeInOut as ProcessedInOut,
+            existingSalaryForUpdate
+          );
+          return { salary: generatedSalary, exists: null };
+        }
+      }
+    );
+
+    const results = await Promise.all(salaryPromises);
+
+    const salaries = results.filter((r) => r && r.salary).map((r) => r.salary);
+    const exists = results.filter((r) => r && r.exists).map((r) => r.exists);
+
+    console.timeEnd("Generating salaries");
 
     return NextResponse.json({ salaries, exists });
   } catch (error) {
