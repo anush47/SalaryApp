@@ -187,9 +187,6 @@ const GenerateSalaryOne = ({
 
       //if data.exists then show salary for this month already exists
       if (data.exists && data.exists.length > 0) {
-        // setSnackbarMessage(`Salary for ${period} already exists.`); // Removed
-        // setSnackbarSeverity("warning"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: `Salary for ${period} already exists.`,
           severity: "warning",
@@ -207,7 +204,6 @@ const GenerateSalaryOne = ({
       }
 
       setFormFields(data.salaries[0]);
-      console.log("Generated Salary:", data.salaries[0]);
       if (!update) {
         setGenerated(true);
       }
@@ -395,7 +391,6 @@ const GenerateSalaryOne = ({
         });
       }
     } catch (error) {
-      console.error("Error saving salary:", error);
       showSnackbar({
         message: "Error saving salary. Please try again.",
         severity: "error",
@@ -624,7 +619,6 @@ const GenerateSalaryOne = ({
                 handleChange={handleChange}
                 paymentStructure={formFields.paymentStructure}
                 setPaymentStructure={(paymentStructure) => {
-                  //console.log("Setting payment structure:", paymentStructure); // Debugging
                   setFormFields((prev) => ({
                     ...prev,
                     paymentStructure,
@@ -708,7 +702,6 @@ const GenerateSalaryOne = ({
           </Grid>
         </CardContent>
       </Card>
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

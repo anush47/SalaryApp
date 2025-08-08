@@ -2,7 +2,6 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -19,13 +18,9 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  Slide, // Keep if used for other transitions
-  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import {
@@ -58,10 +53,7 @@ const EditPaymentForm: React.FC<{
   const [loading, setLoading] = useState(false);
   const [ReferenceLoading, setReferenceLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false); // Removed
-  // const [snackbarMessage, setSnackbarMessage] = useState<string>(""); // Removed
-  // const [snackbarSeverity, setSnackbarSeverity] = useState< "success" | "error" | "warning" | "info">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
 
   const [formFields, setFormFields] = useState<Payment>({
     _id: "",
@@ -182,8 +174,6 @@ const EditPaymentForm: React.FC<{
       return;
     }
 
-    // console.log(formFields);
-
     setLoading(true);
     try {
       // Perform POST request to add a new payment record
@@ -205,7 +195,6 @@ const EditPaymentForm: React.FC<{
           severity: "success",
         });
         setIsEditing(false);
-        console.log(user.role);
         const queryKey = [
           "payments",
           ...(user.role === "admin" ? [companyId] : []),
@@ -223,7 +212,6 @@ const EditPaymentForm: React.FC<{
         });
       }
     } catch (error) {
-      console.error("Error saving payment:", error);
       showSnackbar({
         message: "Error saving payment. Please try again.",
         severity: "error",
@@ -241,7 +229,6 @@ const EditPaymentForm: React.FC<{
   const handleDialogClose = async (confirmed: boolean) => {
     if (confirmed) {
       // Perform the delete action here
-      console.log(`Deleting payment record for ${formFields.period}`);
       await onDeleteClick();
     }
     setDialogOpenDelete(false);
@@ -308,9 +295,6 @@ const EditPaymentForm: React.FC<{
       const result = await response.json();
 
       if (response.ok) {
-        // setSnackbarMessage("Payment deleted successfully!"); // Removed
-        // setSnackbarSeverity("success"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Payment deleted successfully!",
           severity: "success",
@@ -333,7 +317,6 @@ const EditPaymentForm: React.FC<{
         });
       }
     } catch (error) {
-      console.error("Error deleting payment:", error);
       showSnackbar({
         message: "Error deleting payment. Please try again.",
         severity: "error",
@@ -377,7 +360,6 @@ const EditPaymentForm: React.FC<{
         epfReferenceNo: referenceNo,
       }));
     } catch (error) {
-      console.error("Error fetching EPF Reference No:", error);
       showSnackbar({
         message: "Error fetching EPF Reference No. Please try again.",
         severity: "error",
@@ -899,7 +881,6 @@ const EditPaymentForm: React.FC<{
         title="Confirm Deletion"
         message={`Are you sure you want to delete the payment for ${formFields.period}?`}
       />
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

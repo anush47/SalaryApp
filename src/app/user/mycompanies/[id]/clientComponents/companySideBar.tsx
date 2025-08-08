@@ -41,6 +41,7 @@ import { Link as LinkM } from "@mui/material";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import { ThemeSwitch } from "@/app/theme-provider";
 import { Selected } from "./NavContainer";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const drawerWidth = 300;
 
@@ -62,6 +63,7 @@ const CompanySideBar: React.FC<Props> = ({
   const [company, setCompany] = React.useState<Company | null>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme();
+  const { showSnackbar } = useSnackbar();
 
   const handleDrawerToggle = () => {
     setMobileOpen((prevState) => !prevState);
@@ -178,7 +180,10 @@ const CompanySideBar: React.FC<Props> = ({
         const data = await response.json();
         setCompany(data.companies[0]);
       } catch (error) {
-        console.error(error);
+        showSnackbar({
+          message: "Error fetching company.",
+          severity: "error",
+        });
       }
     };
 

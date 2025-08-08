@@ -284,16 +284,6 @@ const AddEmployeeForm: React.FC<{
     }
   };
 
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
-
   return (
     <>
       <CardHeader
@@ -640,7 +630,6 @@ const AddEmployeeForm: React.FC<{
                 handleChange={handleChange}
                 paymentStructure={formFields.paymentStructure}
                 setPaymentStructure={(paymentStructure) => {
-                  //console.log("Setting payment structure:", paymentStructure); // Debugging
                   setFormFields((prev) => ({
                     ...prev,
                     paymentStructure,
@@ -660,7 +649,6 @@ const AddEmployeeForm: React.FC<{
                 handleChange={handleChange}
                 shifts={formFields.shifts}
                 setShifts={(shifts) => {
-                  //console.log("Setting shifts:", shifts); // Debugging
                   setFormFields((prev) => ({
                     ...prev,
                     shifts,
@@ -683,7 +671,6 @@ const AddEmployeeForm: React.FC<{
                     ...prev,
                     workingDays,
                   }));
-                  //console.log("Setting working days:", formFields); // Debugging
                 }}
               />
             </Grid>
@@ -809,8 +796,6 @@ const AddEmployeeForm: React.FC<{
             )
         }
       </CardContent>
-
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

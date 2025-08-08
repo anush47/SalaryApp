@@ -347,7 +347,6 @@ const SalariesDataGrid: React.FC<{
           ).join(", ")}`
         );
       }
-      //console.log(newSalary);
 
       // Format data
       newSalary.basic = parseFloat(newSalary.basic);
@@ -360,7 +359,6 @@ const SalariesDataGrid: React.FC<{
         reason: newSalary.noPayReason,
       };
       newSalary.advanceAmount = parseFloat(newSalary.advanceAmount);
-      //console.log(newSalary);
       // Calculate total additions
       const totalAdditions = newSalary.paymentStructure.additions.reduce(
         (total: number, addition: { amount: number }) =>
@@ -406,7 +404,6 @@ const SalariesDataGrid: React.FC<{
   };
 
   const handleRowUpdateError = (params: any) => {
-    console.error("Row update error:", params.error?.error || params.error);
     showSnackbar({
       message: params.error?.message || "An unexpected error occurred.",
       severity: "error",
@@ -423,7 +420,6 @@ const SalariesDataGrid: React.FC<{
 
   const handleDialogClose = async (confirmed: boolean) => {
     if (confirmed) {
-      console.log(`Deleting salary record`);
       await deleteSalaryMutation.mutateAsync(salaryIds);
     }
     setDialogOpen(false);

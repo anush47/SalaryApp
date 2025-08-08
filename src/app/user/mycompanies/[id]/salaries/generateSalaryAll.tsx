@@ -1,6 +1,5 @@
 import { Autorenew, Save } from "@mui/icons-material";
 import {
-  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -9,7 +8,6 @@ import {
   CircularProgress,
   FormControl,
   Grid,
-  // Snackbar, // Removed
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -95,7 +93,6 @@ const GenerateSalaryAll = ({
         reason: salary.noPayReason,
       },
     }));
-    console.log(transformedSalaries);
     try {
       const response = await fetch("/api/salaries", {
         method: "POST",
@@ -130,7 +127,6 @@ const GenerateSalaryAll = ({
         });
       }
     } catch (error) {
-      console.error("Error saving salary:", error);
       showSnackbar({
         message: "Error saving salary. Please try again.",
         severity: "error",
@@ -212,7 +208,6 @@ const GenerateSalaryAll = ({
           inOut,
         }),
       });
-      console.log(response);
       if (!response.ok) {
         const data = await response.json();
         if (
@@ -225,7 +220,6 @@ const GenerateSalaryAll = ({
         }
       }
       const data = await response.json();
-      console.log(data);
       if (
         (!data.salaries[0] ||
           !data.salaries[0].employee ||
@@ -392,7 +386,6 @@ const GenerateSalaryAll = ({
           )}
         </CardContent>
       </Card>
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

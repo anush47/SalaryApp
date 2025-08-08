@@ -95,7 +95,9 @@ const AddCompanyForm: React.FC<{
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Error saving company. Please try again.");
+        throw new Error(
+          result.message || "Error saving company. Please try again."
+        );
       }
       return result;
     },
@@ -190,7 +192,6 @@ const AddCompanyForm: React.FC<{
 
       showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
-      console.error("Error fetching company name:", error);
       showSnackbar({
         message: "Error fetching company name. Please try again.",
         severity: "error",

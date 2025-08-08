@@ -251,7 +251,9 @@ const CompanyDetails = ({
       return;
     }
 
-    setFormFields((prevFields) => ({ ...prevFields, [name]: value } as Company));
+    setFormFields(
+      (prevFields) => ({ ...prevFields, [name]: value } as Company)
+    );
   };
 
   const handleSaveClick = async () => {
@@ -311,7 +313,6 @@ const CompanyDetails = ({
 
       showSnackbar({ message: `Name found: ${name}`, severity: "success" });
     } catch (error) {
-      console.error("Error fetching company name:", error);
       showSnackbar({
         message: "Error fetching company name. Please try again.",
         severity: "error",

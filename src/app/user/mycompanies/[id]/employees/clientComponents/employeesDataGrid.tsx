@@ -9,11 +9,9 @@ import {
 } from "@mui/x-data-grid";
 import {
   Box,
-  Alert, // Keep for general error display at top
+  Alert,
   CircularProgress,
   Button,
-  // Snackbar, // Removed
-  Slide, // Keep if used for other transitions
   FormControlLabel,
   Checkbox,
   Chip,
@@ -621,29 +619,11 @@ const EmployeesDataGrid: React.FC<{
       }
       return employee;
     });
-
-    // Log error and revert row updates
-    console.error("Row update error:", params.error?.error || params.error);
-
-    // Display the error details in Snackbar
-    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
-    // setSnackbarSeverity("error"); // Removed
-    // setSnackbarOpen(true); // Removed
     showSnackbar({
       message: params.error?.message || "An unexpected error occurred.",
       severity: "error",
     });
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({

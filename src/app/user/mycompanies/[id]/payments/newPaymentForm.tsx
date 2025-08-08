@@ -2,7 +2,6 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  // Alert, // Removed if only for snackbar
   Box,
   Button,
   Card,
@@ -14,13 +13,9 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  Slide, // Keep if used for other transitions
-  // Snackbar, // Removed
   TextField,
   Tooltip,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import {
@@ -144,11 +139,13 @@ const NewPaymentForm = ({
           const result = await response.json();
           setPurchased(result?.purchased === "approved");
         } catch (error) {
-          console.error("Error parsing JSON or updating state:", error);
           setPurchased(false); // or handle the error state as needed
         }
       } catch (error) {
-        console.error("Error fetching salaries:", error);
+        showSnackbar({
+          message: "Error checking purchase.",
+          severity: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -199,7 +196,6 @@ const NewPaymentForm = ({
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
       await fetchReferenceNo();
     } catch (error) {
-      console.error("Error fetching payments:", error);
       showSnackbar({
         message:
           error instanceof Error ? error.message : "Error fetching payments.",
@@ -209,16 +205,6 @@ const NewPaymentForm = ({
       setLoading(false);
     }
   };
-
-  // const handleSnackbarClose = ( // Removed
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -251,19 +237,12 @@ const NewPaymentForm = ({
       //const name = await fetchCompanyName(formFields.employerNo);
       const referenceNo = result.referenceNo;
       if (!referenceNo) {
-        // setSnackbarMessage("Reference number not found. Please try again."); // Removed
-        // setSnackbarSeverity("error"); // Removed
-        // setSnackbarOpen(true); // Removed
         showSnackbar({
           message: "Reference number not found. Please try again.",
           severity: "error",
         });
         return;
       }
-      //show in snackbar
-      // setSnackbarMessage(` Found EPF Reference No: ${referenceNo}`); // Removed
-      // setSnackbarSeverity("success"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: `Found EPF Reference No: ${referenceNo}`,
         severity: "success",
@@ -273,10 +252,6 @@ const NewPaymentForm = ({
         epfReferenceNo: referenceNo,
       }));
     } catch (error) {
-      console.error("Error fetching EPF Reference No:", error);
-      // setSnackbarMessage("Error fetching EPF Reference No. Please try again."); // Removed
-      // setSnackbarSeverity("error"); // Removed
-      // setSnackbarOpen(true); // Removed
       showSnackbar({
         message: "Error fetching EPF Reference No. Please try again.",
         severity: "error",
@@ -335,7 +310,6 @@ const NewPaymentForm = ({
         });
       }
     } catch (error) {
-      console.error("Error saving payment:", error);
       showSnackbar({
         message: "Error saving payment. Please try again.",
         severity: "error",
@@ -833,7 +807,6 @@ const NewPaymentForm = ({
           </Grid>
         </CardContent>
       </Card>
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

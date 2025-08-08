@@ -138,7 +138,6 @@ const Documents = ({
       });
       if (!response.ok) {
         const data = await response.json();
-        console.log(data.message);
         //if data . message and starts with payment data not found show it in snack bar
         if (data.message) {
           if (data.message.includes("data not found for")) {
@@ -164,7 +163,6 @@ const Documents = ({
         severity: "success",
       });
     } catch (error) {
-      console.error("Error generating pdf:", error);
       showSnackbar({ message: "Error generating pdf", severity: "error" });
     } finally {
       setLoading(false);

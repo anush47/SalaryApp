@@ -11,10 +11,8 @@ import {
   CardHeader,
   CardContent,
   FormControl,
-  // Snackbar, // Removed
-  // Alert, // Removed
   Autocomplete,
-  Stack, // Add Stack import
+  Stack,
 } from "@mui/material";
 import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
@@ -216,7 +214,6 @@ const AddSalaryForm: React.FC<{
                       : `${option.memberNo} - ${option.name} - ${option.nic}`
                   }
                   onChange={(_, newValue) => {
-                    // Removed 'event' parameter
                     if (newValue) {
                       setFormFields((prevFields) => ({
                         ...prevFields,
@@ -313,8 +310,6 @@ const AddSalaryForm: React.FC<{
           </Grid>
         </Grid>
       </CardContent>
-
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

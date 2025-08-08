@@ -59,7 +59,6 @@ export const handleCsvUpload = async (file: File): Promise<string> => {
 
     return result;
   } catch (error) {
-    console.error("Error during file upload or processing:", error);
     throw new Error(
       error instanceof Error
         ? error.message

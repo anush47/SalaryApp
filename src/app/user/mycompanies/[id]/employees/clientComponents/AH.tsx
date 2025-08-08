@@ -1,8 +1,5 @@
 "use client";
 import {
-  Button,
-  // Snackbar, // Removed
-  // Alert, // Removed
   TextField,
   Grid,
   Card,
@@ -21,7 +18,7 @@ import {
   AccordionDetails,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -228,7 +225,6 @@ const AH: React.FC<{
         severity: "success",
       });
     } catch (error) {
-      console.error("Error generating AH:", error);
       showSnackbar({ message: "Error generating AH", severity: "error" });
     }
   };
@@ -926,8 +922,6 @@ const AH: React.FC<{
             </LoadingButton>
           </Grid>
         </Grid>
-
-        {/* Snackbar component removed, global one will be used */}
       </CardContent>
     </Card>
   );

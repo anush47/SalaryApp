@@ -370,11 +370,9 @@ const PaymentsDataGrid: React.FC<{
 
   const handleRowUpdate = async (newPayment: any) => {
     try {
-      console.log(newPayment);
       await updatePaymentMutation.mutateAsync(newPayment);
       return newPayment;
     } catch (error) {
-      console.error("Row update error:", error);
       showSnackbar({
         message:
           error instanceof Error
@@ -387,7 +385,6 @@ const PaymentsDataGrid: React.FC<{
   };
 
   const handleRowUpdateError = (params: any) => {
-    console.error("Row update error:", params.error?.error || params.error);
     showSnackbar({
       message: params.error?.message || "An unexpected error occurred.",
       severity: "error",
@@ -404,7 +401,6 @@ const PaymentsDataGrid: React.FC<{
 
   const handleDialogClose = async (confirm: boolean) => {
     if (confirm && deleteId) {
-      console.log(`Deleting payment record`);
       await deletePaymentMutation.mutateAsync([deleteId]);
     }
     setDialogOpen(false);

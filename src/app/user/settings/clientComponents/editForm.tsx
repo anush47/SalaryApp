@@ -5,11 +5,7 @@ import {
   TextField,
   InputAdornment,
   IconButton,
-  // Alert, // Removed if only for snackbar
-  // Collapse, // Removed if only for snackbar
-  Box, // Keep Box if used for other layout
   Button,
-  Typography,
 } from "@mui/material";
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
@@ -24,10 +20,7 @@ const EditForm = ({
 }) => {
   const [name, setName] = useState(user.name);
   const [disabled, setDisabled] = useState(true);
-  const { showSnackbar } = useSnackbar(); // Use the snackbar hook
-  // const [alertOpen, setAlertOpen] = useState(false); // Removed
-  // const [alertMessage, setAlertMessage] = useState(""); // Removed
-  // const [alertSeverity, setAlertSeverity] = useState<"success" | "error">("success"); // Removed
+  const { showSnackbar } = useSnackbar();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -63,39 +56,19 @@ const EditForm = ({
 
       const data = await response.json();
 
-      console.log("Name updated successfully:", data);
-
       // Update the session
       update({ user: { ...session?.user, name: data.user.name } });
 
-      // setAlertMessage("Name updated successfully!"); // Removed
-      // setAlertSeverity("success"); // Removed
-      // setAlertOpen(true); // Removed
       showSnackbar({
         message: "Name updated successfully!",
         severity: "success",
       });
       setDisabled(true);
-
-      // Hide the alert after 3 seconds - Not needed for global snackbar
-      // setTimeout(() => {
-      //   setAlertOpen(false);
-      // }, 3000);
     } catch (error) {
-      console.error("Error updating name:", error);
-
-      // setAlertMessage("Error updating name. Please try again."); // Removed
-      // setAlertSeverity("error"); // Removed
-      // setAlertOpen(true); // Removed
       showSnackbar({
         message: "Error updating name. Please try again.",
         severity: "error",
       });
-
-      // Hide the alert after 3 seconds - Not needed for global snackbar
-      // setTimeout(() => {
-      //   setAlertOpen(false);
-      // }, 3000);
     } finally {
       setLoading(false);
     }
@@ -104,12 +77,6 @@ const EditForm = ({
   return (
     <>
       <FormControl fullWidth sx={{ mb: 3, gap: 3 }}>
-        {/* Removed Alert and Collapse */}
-        {/* <Box sx={{ mb: 2 }}>
-          <Collapse in={alertOpen}>
-            <Alert severity={alertSeverity}>{alertMessage}</Alert>
-          </Collapse>
-        </Box> */}
         <TextField
           fullWidth
           error={name === ""}

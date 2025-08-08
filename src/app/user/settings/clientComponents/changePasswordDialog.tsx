@@ -6,9 +6,6 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-// import { TransitionProps } from "@mui/material/transitions"; // Unused
-// import { Slide } from "@mui/material"; // Unused
-// import Alert from "@mui/material/Alert"; // Removed
 import Box from "@mui/material/Box";
 import { LoadingButton } from "@mui/lab";
 import IconButton from "@mui/material/IconButton";
@@ -23,8 +20,6 @@ export default function ChangePasswordDialog({
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  // const [error, setError] = React.useState<string | null>(null); // Removed
-  // const [success, setSuccess] = React.useState<string | null>(null); // Removed
   const { showSnackbar } = useSnackbar(); // Use the snackbar hook
   const [formVisible, setFormVisible] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
@@ -34,8 +29,6 @@ export default function ChangePasswordDialog({
 
   const handleClose = () => {
     setOpen(false);
-    // setError(null); // Removed
-    // setSuccess(null); // Removed
     setFormVisible(true); // Reset form visibility for the next open
   };
 
@@ -61,15 +54,12 @@ export default function ChangePasswordDialog({
       if (!response.ok) {
         throw new Error(data.error || "An error occurred");
       }
-
-      // setSuccess("Password changed successfully!"); // Removed
       showSnackbar({
         message: "Password changed successfully!",
         severity: "success",
       });
       setFormVisible(false); // Hide the form inputs
     } catch (error) {
-      // setError((error as Error).message); // Removed
       showSnackbar({ message: (error as Error).message, severity: "error" });
     } finally {
       setLoading(false);
@@ -95,9 +85,6 @@ export default function ChangePasswordDialog({
               If you have not changed your password after the google
               registration, Leave the current password field empty.
             </DialogContentText>
-            {/* <Box mb={2}>{error && <Alert severity="error">{error}</Alert>}</Box> */}{" "}
-            {/* Removed error alert */}
-            {/* formVisible is already checked above */}
             <TextField
               autoFocus
               margin="dense"
