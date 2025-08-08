@@ -31,11 +31,7 @@ import {
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { LoadingButton } from "@mui/lab";
-import {
-  UploadInOutBtn,
-  ViewUploadedInOutBtn,
-  transformInOutCsv,
-} from "../salaries/csvUpload";
+import { UploadInOutBtn, ViewUploadedInOutBtn } from "../salaries/csvUpload";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Company } from "../../clientComponents/companiesDataGrid";
@@ -132,13 +128,10 @@ const QuickTools = ({
   const handleGenerateSalariesForPreview = async () => {
     setIsPreviewLoading(true);
     try {
-      const transformedInOut = employees
-        ? transformInOutCsv(inOut, employees)
-        : inOut;
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period, inOut: transformedInOut }),
+        body: JSON.stringify({ companyId, period, inOut }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -211,13 +204,10 @@ const QuickTools = ({
 
   const generateAndSaveSalariesMutation = useMutation({
     mutationFn: async () => {
-      const transformedInOut = employees
-        ? transformInOutCsv(inOut, employees)
-        : inOut;
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period, inOut: transformedInOut }),
+        body: JSON.stringify({ companyId, period, inOut }),
       });
       const data = await response.json();
       if (!response.ok) {

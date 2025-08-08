@@ -136,15 +136,18 @@ const NewPurchaseForm: React.FC<{
     }
   }, [image]);
   const handleAddPeriod = () => {
-    if (
-      selectedPeriod &&
-      isValidMonthYear(selectedPeriod) &&
-      !periods.find((p) => p.label === formatPeriod(selectedPeriod))
-    ) {
+    if (selectedPeriod && isValidMonthYear(selectedPeriod)) {
       if (purchasedPeriods.includes(formatPeriod(selectedPeriod))) {
         showSnackbar({
-          message: "Period already purchased " + formatPeriod(selectedPeriod),
-          severity: "error",
+          message: "Period already purchased: " + formatPeriod(selectedPeriod),
+          severity: "warning",
+        });
+        return;
+      }
+      if (periods.find((p) => p.label === formatPeriod(selectedPeriod))) {
+        showSnackbar({
+          message: "Period already added: " + formatPeriod(selectedPeriod),
+          severity: "warning",
         });
         return;
       }
@@ -156,7 +159,12 @@ const NewPurchaseForm: React.FC<{
       setSelectedPeriod(nextMonth.format("MM-YYYY"));
     }
   };
+
   const handleDeletePeriod = (chipToDelete: ChipData) => () => {
+    if (periods.length == 1) {
+      setFinalTotalPrice(0);
+      setTotalPrice(0);
+    }
     setPeriods((chips) =>
       chips.filter((chip) => chip.key !== chipToDelete.key)
     );

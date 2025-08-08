@@ -144,15 +144,6 @@ const GenerateSalaryAll = ({
     );
   };
 
-  const handleSnackbarClose = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
-      return;
-    }
-  };
-
   const onGenerateClick = async () => {
     try {
       setLoading(true);
