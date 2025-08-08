@@ -241,8 +241,8 @@ export const processSalaryWithInOut = async (
 
         const shift = shifts.find((shift: { start: string; end: string }) => {
           return (
-            Math.abs(getTimeDifferenceInMinutes(shift.start, inDate)) <= 3 * 60
-          ); // Allow 3 hours variation in minutes
+            Math.abs(getTimeDifferenceInMinutes(shift.start, inDate)) <= 6 * 60
+          ); // Allow 6 hours variation
         });
 
         if (!shift) {
@@ -266,9 +266,9 @@ export const processSalaryWithInOut = async (
               getTimeDifferenceInMinutes(shift.start, outDate) > 0 &&
               timeDifference >= -3 * 60) // Allow before shift end up to shift start
           ) {
-            outDate = getShiftEnd(shift.end, inDate); // Default to shift end time
-          } else {
             inOutIndex++;
+          } else {
+            outDate = getShiftEnd(shift.end, inDate); // Default to shift end time
           }
         }
 
@@ -552,7 +552,7 @@ export const generateSalaryWithInOut = async (
     };
   };
 
-  let inOutProcessed: {
+  const inOutProcessed: {
     in: string;
     out: string;
     workingHours: number;
@@ -583,7 +583,7 @@ export const generateSalaryWithInOut = async (
     inOut as Date[],
     employee.calendar
   );
-  let day = new Date(startDate);
+  const day = new Date(startDate);
 
   // Generate records for missing days in parallel
   const generationPromises = [];

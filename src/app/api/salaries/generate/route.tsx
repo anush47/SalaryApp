@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.time("Generating salaries");
+    //console.time("Generating salaries");
 
     // Find all active employees of the company if employees are not given
     if (!employees) {
@@ -105,7 +105,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate salary for all employees
-    const inOutInitial = initialInOutProcess(inOut);
+    const inOutInitial = initialInOutProcess(inOut, employees);
+
     const openHours = company.openHours;
 
     // Pre-check for employees with calculated OT but no InOut data
@@ -217,7 +218,7 @@ export async function POST(req: NextRequest) {
     const salaries = results.filter((r) => r && r.salary).map((r) => r.salary);
     const exists = results.filter((r) => r && r.exists).map((r) => r.exists);
 
-    console.timeEnd("Generating salaries");
+    //console.timeEnd("Generating salaries");
 
     return NextResponse.json({ salaries, exists });
   } catch (error) {
