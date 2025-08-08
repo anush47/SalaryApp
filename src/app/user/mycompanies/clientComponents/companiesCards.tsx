@@ -25,6 +25,14 @@ import Link from "next/link";
 import { Business, Cancel, People, Search } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import dayjs from "dayjs";
+import { useRouter } from "next/navigation";
+import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
+import {
+  fetchCompany,
+  fetchEmployees,
+  fetchPurchased,
+} from "../[id]/quick/quick";
 
 export interface Company {
   shifts: any;
@@ -68,7 +76,7 @@ export interface Company {
 const normalizeString = (str: string) =>
   str.replace(/[\s\W_]+/g, "").toLowerCase();
 
-const fetchCompanies = async (): Promise<Company[]> => {
+export const fetchCompanies = async (): Promise<Company[]> => {
   const companiesResponse = await fetch(`/api/companies`);
   if (!companiesResponse.ok) {
     throw new Error("Failed to fetch companies");
@@ -88,7 +96,6 @@ const CompaniesCards = ({
   showActiveOnly: boolean;
 }) => {
   const { showSnackbar } = useSnackbar();
-  const queryClient = useQueryClient();
 
   const {
     data: companies,
@@ -104,6 +111,44 @@ const CompaniesCards = ({
 
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (companies && companies.length === 1) {
+      const companyId = companies[0]._id;
+      const period = dayjs().subtract(1, "month").format("YYYY-MM");
+
+      router.prefetch(
+        `/user/mycompanies/${companyId}?companyPageSelect=quick`,
+        {
+          kind: PrefetchKind.FULL,
+        }
+      );
+
+      queryClient.prefetchQuery({
+        queryKey: ["companies", companyId],
+        queryFn: () => fetchCompany(companyId),
+        staleTime: STALE_TIME,
+        gcTime: GC_TIME,
+      });
+
+      queryClient.prefetchQuery({
+        queryKey: ["employees", companyId],
+        queryFn: () => fetchEmployees(companyId),
+        staleTime: STALE_TIME,
+        gcTime: GC_TIME,
+      });
+
+      queryClient.prefetchQuery({
+        queryKey: ["purchases", "check", companyId, period],
+        queryFn: () => fetchPurchased(companyId, period),
+        staleTime: STALE_TIME,
+        gcTime: GC_TIME,
+      });
+    }
+  }, [companies, router, queryClient]);
 
   useEffect(() => {
     if (companies) {
@@ -128,6 +173,15 @@ const CompaniesCards = ({
       );
     }
   }, [companies, searchQuery, showActiveOnly]);
+
+  useEffect(() => {
+    if (isError) {
+      showSnackbar({
+        message: error?.message || "An unexpected error occurred",
+        severity: "error",
+      });
+    }
+  }, [isError, error]);
 
   const totalCompanies = companies ? companies.length : 0;
   const activeCompanies = companies

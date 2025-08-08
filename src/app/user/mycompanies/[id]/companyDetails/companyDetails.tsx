@@ -52,21 +52,9 @@ import { LoadingButton } from "@mui/lab";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchCompany } from "../quick/quick";
 
 const ChangeUser = React.lazy(() => import("./ChangeUser"));
-
-const fetchCompany = async (companyId: string) => {
-  const companyResponse = await fetch(`/api/companies?companyId=${companyId}`);
-  if (!companyResponse.ok) {
-    throw new Error("Failed to fetch company");
-  }
-  const companyData = await companyResponse.json();
-  const companyWithId = {
-    ...companyData.companies[0],
-    id: companyData.companies[0]._id,
-  };
-  return companyWithId;
-};
 
 const fetchUser = async (userId: string) => {
   if (!userId) return null;

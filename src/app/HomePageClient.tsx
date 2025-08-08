@@ -43,6 +43,14 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { Session } from "next-auth";
+import { useRouter } from "next/navigation";
+import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Company,
+  fetchCompanies,
+} from "./user/mycompanies/clientComponents/companiesCards";
+import { GC_TIME, STALE_TIME } from "./lib/consts";
 const LazyDemoContent = lazy(() => import("./help/DemoContent"));
 
 export default function HomePageClient({
@@ -54,6 +62,7 @@ export default function HomePageClient({
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { data: sessionFromHook, status } = useSession();
   const session = sessionFromHook ?? initialSession;
+  const router = useRouter();
   const heroControls = useAnimation();
   const statsControls = useAnimation();
   const featuresControls = useAnimation();
@@ -76,6 +85,24 @@ export default function HomePageClient({
 
   const handleOpenDemoModal = () => setOpenDemoModal(true);
   const handleCloseDemoModal = () => setOpenDemoModal(false);
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (session) {
+      router.prefetch("/user?userPageSelect=mycompanies", {
+        kind: PrefetchKind.FULL,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["companies"],
+        queryFn: fetchCompanies,
+        staleTime: STALE_TIME,
+        gcTime: GC_TIME,
+      });
+    } else if (status === "unauthenticated") {
+      router.prefetch("/api/auth/signin");
+    }
+  }, [session, router]);
 
   useEffect(() => {
     if (isHeroInView) heroControls.start("visible");

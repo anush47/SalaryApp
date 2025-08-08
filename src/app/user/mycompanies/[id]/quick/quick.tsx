@@ -43,7 +43,7 @@ import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
-const fetchCompany = async (companyId: string) => {
+export const fetchCompany = async (companyId: string) => {
   const response = await fetch(`/api/companies?companyId=${companyId}`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -52,10 +52,14 @@ const fetchCompany = async (companyId: string) => {
   if (!companyData.companies[0]) {
     throw new Error("Company data not found in the response");
   }
-  return companyData.companies[0];
+  const companyWithId = {
+    ...companyData.companies[0],
+    id: companyData.companies[0]._id,
+  };
+  return companyWithId;
 };
 
-const fetchEmployees = async (companyId: string) => {
+export const fetchEmployees = async (companyId: string) => {
   const response = await fetch(`/api/employees?companyId=${companyId}`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -67,7 +71,7 @@ const fetchEmployees = async (companyId: string) => {
   }));
 };
 
-const fetchPurchased = async (companyId: string, period: string) => {
+export const fetchPurchased = async (companyId: string, period: string) => {
   const response = await fetch(
     `/api/purchases/check?companyId=${companyId}&month=${period}`
   );
