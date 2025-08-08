@@ -113,14 +113,7 @@ const PaymentsDataGrid: React.FC<{
               payments?.find((payment) => payment.id === params.id)?.company
             }`}
           >
-            <Button
-              variant="text"
-              color="primary"
-              size="small"
-              onClick={() => {
-                console.log(params);
-              }}
-            >
+            <Button variant="text" color="primary" size="small">
               {params.value}
             </Button>
           </Link>
@@ -296,7 +289,6 @@ const PaymentsDataGrid: React.FC<{
 
   const handleRowUpdate = async (newPayment: any) => {
     try {
-      console.log(newPayment);
       const response = await fetch(`/api/payments/`, {
         method: "PUT",
         headers: {
@@ -316,7 +308,6 @@ const PaymentsDataGrid: React.FC<{
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       return newPayment;
     } catch (error) {
-      console.error("Row update error:", error);
       throw error; // Re-throw to be caught by onProcessRowUpdateError
     }
   };
@@ -329,14 +320,6 @@ const PaymentsDataGrid: React.FC<{
       }
       return payment;
     });
-
-    // Log error and revert row updates
-    console.error("Row update error:", params.error?.error || params.error);
-
-    // Display the error details in Snackbar
-    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Removed
-    // setSnackbarSeverity("error"); // Removed
-    // setSnackbarOpen(true); // Removed
     showSnackbar({
       message: params.error?.message || "An unexpected error occurred.",
       severity: "error",
@@ -385,7 +368,6 @@ const PaymentsDataGrid: React.FC<{
   const handleDialogClose = async (confirmed: boolean) => {
     if (confirmed) {
       // Perform the delete action here
-      console.log(`Deleting salary record`);
       await onDeleteClick(salaryIds);
     }
     setDialogOpen(false);
@@ -562,8 +544,6 @@ const PaymentsDataGrid: React.FC<{
         title="Confirm Deletion"
         message={`Are you sure you want to delete the payment record(s) ?`}
       />
-
-      {/* Snackbar component removed, global one will be used */}
     </Box>
   );
 };

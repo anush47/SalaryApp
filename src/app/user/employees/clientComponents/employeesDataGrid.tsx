@@ -525,7 +525,6 @@ const EmployeesDataGrid: React.FC<{
         const queryKey = ["employees"];
         queryClient.invalidateQueries({ queryKey: queryKey });
       } catch (error) {
-        console.error("Error saving employee:", error);
         showSnackbar({
           message: "Error saving employee. Please try again.",
           severity: "error",
@@ -555,31 +554,11 @@ const EmployeesDataGrid: React.FC<{
       }
       return employee;
     });
-
-    // Log error and revert row updates
-    console.error("Row update error:", params.error?.error || params.error);
-
-    //setEmployees(updatedEmployees); // Update state with reverted data
-
-    // Display the error details in Snackbar
-    // setSnackbarMessage(params.error?.message || "An unexpected error occurred."); // Remove
-    // setSnackbarSeverity("error"); // Remove
-    // setSnackbarOpen(true); // Remove
     showSnackbar({
       message: params.error?.message || "An unexpected error occurred.",
       severity: "error",
     });
   };
-
-  // const handleSnackbarClose = ( // Remove
-  //   event?: React.SyntheticEvent | Event,
-  //   reason?: string
-  // ) => {
-  //   if (reason === "clickaway") {
-  //     return;
-  //   }
-  //   setSnackbarOpen(false);
-  // };
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({

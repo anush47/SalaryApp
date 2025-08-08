@@ -31,7 +31,11 @@ import {
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { LoadingButton } from "@mui/lab";
-import { UploadInOutBtn, ViewUploadedInOutBtn } from "../salaries/csvUpload";
+import {
+  UploadInOutBtn,
+  ViewUploadedInOutBtn,
+  transformInOutCsv,
+} from "../salaries/csvUpload";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Company } from "../../clientComponents/companiesDataGrid";
@@ -86,7 +90,7 @@ const QuickTools = ({
     dayjs().subtract(1, "month").format("YYYY-MM")
   );
   const [isEditingInHome, setIsEditingInHome] = useState<boolean>(false);
-  const [inOut, setInOut] = useState("");
+  const [inOut, setInOut] = useState<string>("");
   const [openDialog, setOpenDialog] = useState(false);
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
   const [autoGenProgress, setAutoGenProgress] = useState<number>(0);
@@ -128,10 +132,13 @@ const QuickTools = ({
   const handleGenerateSalariesForPreview = async () => {
     setIsPreviewLoading(true);
     try {
+      const transformedInOut = employees
+        ? transformInOutCsv(inOut, employees)
+        : inOut;
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period, inOut }),
+        body: JSON.stringify({ companyId, period, inOut: transformedInOut }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -204,10 +211,13 @@ const QuickTools = ({
 
   const generateAndSaveSalariesMutation = useMutation({
     mutationFn: async () => {
+      const transformedInOut = employees
+        ? transformInOutCsv(inOut, employees)
+        : inOut;
       const response = await fetch(`/api/salaries/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period, inOut }),
+        body: JSON.stringify({ companyId, period, inOut: transformedInOut }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -570,6 +580,7 @@ const QuickTools = ({
                         inOut={inOut}
                         openDialog={openDialog}
                         setOpenDialog={setOpenDialog}
+                        companyId={companyId}
                       />
                     </FormControl>
                   </Stack>

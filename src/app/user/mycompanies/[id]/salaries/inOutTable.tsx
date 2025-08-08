@@ -30,6 +30,7 @@ import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
+import { useSnackbar } from "@/app/contexts/SnackbarContext";
 
 const DateTimeFormat = ({ date }: { date: string }) => {
   const dateObj = dayjs(date.slice(0, 23), "YYYY-MM-DDTHH:mm:ss.SSS");
@@ -80,6 +81,7 @@ export const InOutTable = ({
   fetchSalary: any;
   editable: boolean;
 }) => {
+  const { showSnackbar } = useSnackbar();
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
       id: false,
@@ -378,7 +380,10 @@ export const InOutTable = ({
       await fetchSalary(true);
       setEdited(false);
     } catch (error) {
-      console.error("Error during calculation:", error);
+      showSnackbar({
+        message: "Error calculating salary",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }

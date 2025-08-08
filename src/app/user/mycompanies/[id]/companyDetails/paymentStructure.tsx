@@ -52,7 +52,6 @@ export const validateAmountNumberString = (
   const regex = isSalary
     ? /^\d+$/
     : /^(\d+(\.\d{2})?|\d+(\.\d{2})?-\d+(\.\d{2})?)?$/;
-  //console.log(value);
   if (!regex.test(value)) {
     //if undefined
     if (value === "") return true;

@@ -160,7 +160,6 @@ const EditSalaryForm: React.FC<{
       }
       const data = await response.json();
 
-      console.log(data.salaries[0]);
       if (
         !data.salaries[0] ||
         !data.salaries[0].employee ||
@@ -298,8 +297,6 @@ const EditSalaryForm: React.FC<{
       return;
     }
 
-    console.log(formFields);
-
     try {
       // Perform POST request to add a new salary record
       setIsLoading(true);
@@ -339,7 +336,6 @@ const EditSalaryForm: React.FC<{
         });
       }
     } catch (error) {
-      console.error("Error saving salary:", error);
       showSnackbar({
         message: "Error saving salary. Please try again.",
         severity: "error",
@@ -359,7 +355,6 @@ const EditSalaryForm: React.FC<{
   const handleDialogClose = async (confirmed: boolean) => {
     if (confirmed) {
       // Perform the delete action here
-      console.log(`Deleting salary record for ${employeeName}`);
       await onDeleteClick();
     }
     setDialogOpenDelete(false);
@@ -449,7 +444,6 @@ const EditSalaryForm: React.FC<{
         });
       }
     } catch (error) {
-      console.error("Error deleting salary:", error);
       showSnackbar({
         message: "Error deleting salary. Please try again.",
         severity: "error",
@@ -661,7 +655,6 @@ const EditSalaryForm: React.FC<{
                 handleChange={handleChange}
                 paymentStructure={formFields.paymentStructure}
                 setPaymentStructure={(paymentStructure) => {
-                  //console.log("Setting payment structure:", paymentStructure); // Debugging
                   setFormFields((prev) => ({
                     ...prev,
                     paymentStructure,
@@ -769,7 +762,6 @@ const EditSalaryForm: React.FC<{
         title="Confirm Deletion"
         message={`Are you sure you want to delete the salary of ${employeeName} for ${formFields.period}?`}
       />
-      {/* Snackbar component removed, global one will be used */}
     </>
   );
 };

@@ -17,6 +17,182 @@ export type ProcessedInOut = {
   remark: string;
 }[];
 
+function getFilteredAdditionsAndDeductions(paymentStructure: {
+  additions: any[];
+  deductions: any[];
+}) {
+  const additionsWithRanges = paymentStructure.additions.filter(
+    (addition) =>
+      typeof addition.amount === "string" && addition.amount.includes("-")
+  );
+  const additionsWithNull = paymentStructure.additions.filter(
+    (addition) => addition.amount === null || addition.amount === ""
+  );
+  const deductionsWithRanges = paymentStructure.deductions.filter(
+    (deduction) =>
+      typeof deduction.amount === "string" &&
+      deduction.amount.includes("-") &&
+      deduction.name !== "EPF 8%"
+  );
+  const deductionsWithNull = paymentStructure.deductions.filter(
+    (deduction) =>
+      (deduction.amount === null || deduction.amount === "") &&
+      deduction.name !== "EPF 8%"
+  );
+
+  return {
+    additionsWithRanges,
+    additionsWithNull,
+    deductionsWithRanges,
+    deductionsWithNull,
+  };
+}
+
+function adjustDeductionsWithRanges(
+  deductionsWithRanges: any[],
+  parsedDeductions: any[],
+  adjustmentRequired: number
+) {
+  deductionsWithRanges.forEach((deduction) => {
+    const [min, max] = deduction.amount.split("-").map(Number);
+    const parsedDeduction = parsedDeductions.find(
+      (d) => d.name === deduction.name
+    );
+
+    if (parsedDeduction && Math.abs(adjustmentRequired) >= 100) {
+      const optimalAdjustment = Math.max(
+        min - parsedDeduction.amount,
+        Math.round(-adjustmentRequired / 100) * 100
+      );
+      const newAmount = calculateOptimalValue(
+        parsedDeduction.amount,
+        optimalAdjustment,
+        min,
+        max
+      );
+      adjustmentRequired -= parsedDeduction.amount - newAmount;
+      parsedDeduction.amount = newAmount;
+    }
+  });
+}
+
+function adjustAdditionsWithRanges(
+  additionsWithRanges: any[],
+  parsedAdditions: any[],
+  adjustmentRequired: number
+) {
+  additionsWithRanges.forEach((addition) => {
+    const [min, max] = addition.amount.split("-").map(Number);
+    const parsedAddition = parsedAdditions.find((a) => a.name === addition.name);
+
+    if (parsedAddition && Math.abs(adjustmentRequired) >= 100) {
+      const optimalAdjustment = Math.min(
+        max - parsedAddition.amount,
+        Math.round(adjustmentRequired / 100) * 100
+      );
+      const newAmount = calculateOptimalValue(
+        parsedAddition.amount,
+        optimalAdjustment,
+        min,
+        max
+      );
+      adjustmentRequired -= newAmount - parsedAddition.amount;
+      parsedAddition.amount = newAmount;
+    }
+  });
+}
+
+function adjustAdditionsWithNull(
+  additionsWithNull: any[],
+  parsedAdditions: any[],
+  valuesToAdjust: any[],
+  adjustmentRequired: number
+) {
+  additionsWithNull.forEach((addition) => {
+    const parsedAddition = parsedAdditions.find((a) => a.name === addition.name);
+    if (parsedAddition && Math.abs(adjustmentRequired) >= 100) {
+      const newAmount = valuesToAdjust.shift() || 0;
+      adjustmentRequired -= newAmount - parsedAddition.amount;
+      parsedAddition.amount = newAmount;
+    }
+  });
+}
+
+function adjustDeductionsWithNull(
+  deductionsWithNull: any[],
+  parsedDeductions: any[],
+  valuesToAdjust: any[],
+  adjustmentRequired: number
+) {
+  deductionsWithNull.forEach((deduction) => {
+    const parsedDeduction = parsedDeductions.find(
+      (d) => d.name === deduction.name
+    );
+    if (parsedDeduction) {
+      const [min, max] = deduction.amount.split("-").map(Number);
+      const newAmount = calculateOptimalValue(
+        parsedDeduction.amount,
+        valuesToAdjust.shift() || 0,
+        min,
+        max
+      );
+      adjustmentRequired += parsedDeduction.amount - newAmount;
+      parsedDeduction.amount = newAmount;
+    }
+  });
+}
+
+function calculateBasicForSalary(
+  source: { basic: number },
+  salary: { noPay: { amount: number } },
+  holidayPay: number,
+  parsedAdditions: any[],
+  parsedDeductions: any[]
+) {
+  const totalAffectingAdditions = parsedAdditions.reduce((acc, curr) => {
+    if (curr.affectTotalEarnings) {
+      return acc + curr.amount;
+    }
+    return acc;
+  }, 0);
+
+  const totalAffectingDeductions = parsedDeductions.reduce((acc, curr) => {
+    if (curr.affectTotalEarnings) {
+      return acc + curr.amount;
+    }
+    return acc;
+  }, 0);
+
+  if (salary) {
+    return (
+      source.basic +
+      salary.noPay.amount +
+      holidayPay +
+      totalAffectingAdditions -
+      totalAffectingDeductions
+    );
+  }
+  return source.basic + holidayPay + totalAffectingAdditions - totalAffectingDeductions;
+}
+
+function calculateOptimalValue(
+  currentAmount: number,
+  adjustment: number,
+  min: number,
+  max: number
+) {
+  let newAmount = currentAmount + adjustment;
+  return Math.min(max, Math.max(min, newAmount));
+}
+
+function generateCenteredSequence(total: number) {
+  return Array.from(
+    { length: total },
+    (_, i) =>
+      i - Math.floor(total / 2) + (total % 2 === 0 && i >= total / 2 ? 1 : 0)
+  );
+}
+
 // Helper function to check if inOut is already processed
 function isProcessed(
   inOut: RawInOut | ProcessedInOut
@@ -64,76 +240,27 @@ function calculateSalaryDetails(
   ot: number,
   holidayPay: number
 ) {
-  let parsedAdditions = source.paymentStructure.additions.map(
-    (addition: {
-      name: string;
-      amount: string;
-      affectTotalEarnings: boolean;
-    }) => ({
-      name: addition.name,
-      amount: parseValue(addition.name, addition.amount, source.basic),
-      affectTotalEarnings: addition.affectTotalEarnings,
-    })
-  );
+  const parsedAdditions = source.paymentStructure.additions.map((addition) => ({
+    name: addition.name,
+    amount: parseValue(addition.name, addition.amount, source.basic),
+    affectTotalEarnings: addition.affectTotalEarnings,
+  }));
 
-  let parsedDeductions = source.paymentStructure.deductions.reduce(
-    (
-      acc: { name: string; amount: number; affectTotalEarnings: boolean }[],
-      deduction: { name: string; amount: string; affectTotalEarnings: boolean }
-    ) => {
-      if (deduction && deduction.name !== "EPF 8%") {
-        acc.push({
-          name: deduction.name,
-          amount: parseValue(deduction.name, deduction.amount, source.basic),
-          affectTotalEarnings: deduction.affectTotalEarnings,
-        });
-      }
-      return acc;
-    },
-    []
-  );
+  const parsedDeductions = source.paymentStructure.deductions
+    .filter((deduction) => deduction.name !== "EPF 8%")
+    .map((deduction) => ({
+      name: deduction.name,
+      amount: parseValue(deduction.name, deduction.amount, source.basic),
+      affectTotalEarnings: deduction.affectTotalEarnings,
+    }));
 
   if (source.totalSalary > 0) {
-    const getFilteredAdditionsAndDeductions = () => {
-      const additionsWithRanges = source.paymentStructure.additions.filter(
-        (addition) =>
-          typeof addition.amount === "string" && addition.amount.includes("-")
-      );
-
-      // get the additions with null or ""
-      const additionsWithNull = source.paymentStructure.additions.filter(
-        (addition) => addition.amount === null || addition.amount === ""
-      );
-
-      // get the deductions with ranges
-      const deductionsWithRanges = source.paymentStructure.deductions.filter(
-        (deduction) =>
-          typeof deduction.amount === "string" &&
-          deduction.amount.includes("-") &&
-          deduction.name !== "EPF 8%"
-      );
-
-      // get the deductions with null or ""
-      const deductionsWithNull = source.paymentStructure.deductions.filter(
-        (deduction) =>
-          (deduction.amount === null || deduction.amount === "") &&
-          deduction.name !== "EPF 8%"
-      );
-
-      return {
-        additionsWithRanges,
-        additionsWithNull,
-        deductionsWithRanges,
-        deductionsWithNull,
-      };
-    };
-
     const {
       additionsWithRanges,
       additionsWithNull,
       deductionsWithRanges,
       deductionsWithNull,
-    } = getFilteredAdditionsAndDeductions();
+    } = getFilteredAdditionsAndDeductions(source.paymentStructure);
 
     const amountNeeded =
       Number(source.totalSalary) -
@@ -142,120 +269,50 @@ function calculateSalaryDetails(
       source.basic +
       (source.basic + holidayPay) * 0.08;
 
-    //change the  parsedAdditions and parsedDeductions in additions with range, null to 0
-    parsedAdditions = parsedAdditions.map((addition) => {
+    // Reset amounts for ranged and null additions/deductions
+    parsedAdditions.forEach((addition) => {
       if (
         additionsWithRanges.some((range) => range.name === addition.name) ||
-        additionsWithNull.some(
-          (nullAddition) => nullAddition.name === addition.name
-        )
+        additionsWithNull.some((nullAdd) => nullAdd.name === addition.name)
       ) {
-        return { ...addition, amount: 0 };
+        addition.amount = 0;
       }
-      return addition;
     });
-    parsedDeductions = parsedDeductions.map((deduction) => {
+    parsedDeductions.forEach((deduction) => {
       if (
         deductionsWithRanges.some((range) => range.name === deduction.name) ||
-        deductionsWithNull.some(
-          (nullDeduction) => nullDeduction.name === deduction.name
-        )
+        deductionsWithNull.some((nullDed) => nullDed.name === deduction.name)
       ) {
-        return { ...deduction, amount: 0 };
+        deduction.amount = 0;
       }
-      return deduction;
     });
 
-    //calculate additions and deductions to
     const totalAdditions = parsedAdditions.reduce(
-      (total: number, addition: { amount: number }) => total + addition.amount,
+      (total, addition) => total + addition.amount,
       0
     );
     const totalDeductions = parsedDeductions.reduce(
-      (total: number, deduction: { amount: number } | undefined) =>
-        total + (deduction ? deduction.amount : 0),
+      (total, deduction) => total + deduction.amount,
       0
     );
 
     let adjustmentRequired = amountNeeded - (totalAdditions - totalDeductions);
 
     if (adjustmentRequired !== 0) {
-      // Helper to calculate optimal value within range
-      const calculateOptimalValue = (
-        currentAmount: number,
-        adjustment: number,
-        min: number,
-        max: number
-      ) => {
-        let newAmount = currentAmount + adjustment;
-        return Math.min(max, Math.max(min, newAmount));
-      };
+      adjustDeductionsWithRanges(
+        deductionsWithRanges,
+        parsedDeductions,
+        adjustmentRequired
+      );
+      adjustAdditionsWithRanges(
+        additionsWithRanges,
+        parsedAdditions,
+        adjustmentRequired
+      );
 
-      // Adjust deductions with specified ranges
-      deductionsWithRanges.forEach((deduction) => {
-        const [min, max] = deduction.amount.split("-").map(Number);
-
-        parsedDeductions.forEach((parsedDeduction) => {
-          if (parsedDeduction.name === deduction.name) {
-            if (Math.abs(adjustmentRequired) < 100) return;
-
-            const optimalAdjustment = Math.max(
-              min - parsedDeduction.amount,
-              Math.round(-adjustmentRequired / 100) * 100
-            );
-            const newAmount = calculateOptimalValue(
-              parsedDeduction.amount,
-              optimalAdjustment,
-              min,
-              max
-            );
-
-            adjustmentRequired -= parsedDeduction.amount - newAmount;
-            parsedDeduction.amount = newAmount;
-          }
-        });
-      });
-
-      // Adjust additions with specified ranges
-      additionsWithRanges.forEach((addition) => {
-        const [min, max] = addition.amount.split("-").map(Number);
-
-        parsedAdditions.forEach((parsedAddition) => {
-          if (parsedAddition.name === addition.name) {
-            if (Math.abs(adjustmentRequired) < 100) return;
-
-            const optimalAdjustment = Math.min(
-              max - parsedAddition.amount,
-              Math.round(adjustmentRequired / 100) * 100
-            );
-            const newAmount = calculateOptimalValue(
-              parsedAddition.amount,
-              optimalAdjustment,
-              min,
-              max
-            );
-
-            adjustmentRequired -= newAmount - parsedAddition.amount;
-            parsedAddition.amount = newAmount;
-          }
-        });
-      });
-
-      // Calculate total number of null additions/deductions to adjust
       const totalNullToAdjust =
         additionsWithNull.length + deductionsWithNull.length;
-
-      // Generate values for adjustment
       const baseValue = adjustmentRequired / totalNullToAdjust;
-      const generateCenteredSequence = (total: number) =>
-        Array.from(
-          { length: total },
-          (_, i) =>
-            i -
-            Math.floor(total / 2) +
-            (total % 2 === 0 && i >= total / 2 ? 1 : 0)
-        );
-
       const valuesToAdjust = generateCenteredSequence(totalNullToAdjust).map(
         (i) => {
           const variation = i * (baseValue * 0.1); // 10% variation
@@ -263,79 +320,28 @@ function calculateSalaryDetails(
         }
       );
 
-      // Adjust additions with null values
-      additionsWithNull.forEach((addition) => {
-        parsedAdditions.forEach((parsedAddition) => {
-          if (parsedAddition.name === addition.name) {
-            if (Math.abs(adjustmentRequired) < 100) return;
-
-            const newAmount = valuesToAdjust.shift() || 0;
-            adjustmentRequired -= newAmount - Number(parsedAddition.amount);
-            parsedAddition.amount = newAmount;
-          }
-        });
-      });
-
-      // Adjust deductions with null values
-      deductionsWithNull.forEach((deduction) => {
-        parsedDeductions.forEach((parsedDeduction) => {
-          if (parsedDeduction.name === deduction.name) {
-            const [min, max] = deduction.amount.split("-").map(Number);
-            const newAmount = calculateOptimalValue(
-              parsedDeduction.amount,
-              valuesToAdjust.shift() || 0,
-              min,
-              max
-            );
-
-            adjustmentRequired += parsedDeduction.amount - newAmount;
-            parsedDeduction.amount = newAmount;
-          }
-        });
-      });
-
-      // Final debugging logs
-      // console.log("Remaining adjustmentRequired:", adjustmentRequired);
-      // console.log("Final parsedAdditions:", parsedAdditions);
-      // console.log("Final parsedDeductions:", parsedDeductions);
+      adjustAdditionsWithNull(
+        additionsWithNull,
+        parsedAdditions,
+        valuesToAdjust,
+        adjustmentRequired
+      );
+      adjustDeductionsWithNull(
+        deductionsWithNull,
+        parsedDeductions,
+        valuesToAdjust,
+        adjustmentRequired
+      );
     }
   }
 
-  let basicForSalary = 0;
-  if (salary) {
-    basicForSalary =
-      source.basic +
-      salary.noPay.amount +
-      holidayPay +
-      parsedAdditions.reduce((acc, curr) => {
-        if (curr.affectTotalEarnings) {
-          return acc + curr.amount;
-        }
-        return acc;
-      }, 0) -
-      parsedDeductions.reduce((acc, curr) => {
-        if (curr.affectTotalEarnings) {
-          return acc + curr.amount;
-        }
-        return acc;
-      }, 0);
-  } else {
-    basicForSalary =
-      source.basic +
-      holidayPay +
-      parsedAdditions.reduce((acc, curr) => {
-        if (curr.affectTotalEarnings) {
-          return acc + curr.amount;
-        }
-        return acc;
-      }, 0) -
-      parsedDeductions.reduce((acc, curr) => {
-        if (curr.affectTotalEarnings) {
-          return acc + curr.amount;
-        }
-        return acc;
-      }, 0);
-  }
+  let basicForSalary = calculateBasicForSalary(
+    source,
+    salary,
+    holidayPay,
+    parsedAdditions,
+    parsedDeductions
+  );
 
   parsedDeductions.push({
     name: "EPF 8%",
@@ -343,29 +349,18 @@ function calculateSalaryDetails(
     affectTotalEarnings: false,
   });
 
-  //remove undefined
-  parsedDeductions = parsedDeductions.filter(
-    (deduction: { name: string; amount: number } | undefined) => deduction
-  );
-
-  parsedAdditions = parsedAdditions.filter(
-    (addition: { name: string; amount: number }) => addition
-  );
-
   const totalAdditions = parsedAdditions.reduce(
-    (total: number, addition: { amount: number }) => total + addition.amount,
+    (total, addition) => total + addition.amount,
     0
   );
-
   const totalDeductions = parsedDeductions.reduce(
-    (total: number, deduction: { amount: number } | undefined) =>
-      total + (deduction ? deduction.amount : 0),
+    (total, deduction) => total + deduction.amount,
     0
   );
 
   return {
-    parsedAdditions,
-    parsedDeductions,
+    parsedAdditions: parsedAdditions.filter(Boolean),
+    parsedDeductions: parsedDeductions.filter(Boolean),
     totalAdditions,
     totalDeductions,
   };

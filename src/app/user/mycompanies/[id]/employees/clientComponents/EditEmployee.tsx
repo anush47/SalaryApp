@@ -13,13 +13,9 @@ import {
   Typography,
   CardHeader,
   CardContent,
-  useMediaQuery,
-  useTheme,
   InputAdornment,
   FormControl,
   FormHelperText,
-  // Snackbar, // Removed
-  // Alert, // Removed (ensure it's not used for other purposes)
   Select,
   InputLabel,
   FormControlLabel,
@@ -793,7 +789,6 @@ const EditEmployeeForm: React.FC<{
                 handleChange={handleChange}
                 paymentStructure={formFields.paymentStructure}
                 setPaymentStructure={(paymentStructure) => {
-                  //console.log("Setting payment structure:", paymentStructure); // Debugging
                   setFormFields((prev) => ({
                     ...prev,
                     paymentStructure,
@@ -813,7 +808,6 @@ const EditEmployeeForm: React.FC<{
                 handleChange={handleChange}
                 shifts={formFields.shifts}
                 setShifts={(shifts) => {
-                  //console.log("Setting shifts:", shifts); // Debugging
                   setFormFields((prev) => ({
                     ...prev,
                     shifts,
@@ -837,7 +831,6 @@ const EditEmployeeForm: React.FC<{
                     ...prev,
                     workingDays,
                   }));
-                  //console.log("Setting working days:", formFields); // Debugging
                 }}
               />
             </Grid>
@@ -994,7 +987,6 @@ const EditEmployeeForm: React.FC<{
           </Button>
         </Grid>
       </CardContent>
-      {/* Snackbar component removed, global one will be used */}
 
       <DeleteDialog />
     </>

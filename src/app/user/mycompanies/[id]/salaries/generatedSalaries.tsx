@@ -218,9 +218,6 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
       return salary;
     });
 
-    // Log error and revert row updates
-    console.error("Row update error:", params);
-
     setGeneratedSalaries(updatedSalaries); // Update state with reverted data
   };
 
@@ -235,7 +232,6 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
   const handleDialogClose = async (confirmed: boolean) => {
     if (confirmed) {
       // Perform the delete action here
-      console.log(`Deleting salary record`);
       await onDeleteClick(salaryId);
     }
     setDialogOpen(false);
