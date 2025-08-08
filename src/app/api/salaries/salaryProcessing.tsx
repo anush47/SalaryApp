@@ -632,17 +632,18 @@ const startEndDates = async (
   calendar: string = "default"
 ) => {
   const periodStartDate = new Date(period);
-  const inOutStartDate = inOut ? new Date(inOut[0]) : undefined;
-  let startDate = new Date();
-  const halfMonthInMillis = (30 * 24 * 60 * 60 * 1000) / 2; // Approximate half month in milliseconds
-  if (
-    inOutStartDate &&
-    inOutStartDate < periodStartDate &&
-    periodStartDate.getTime() - inOutStartDate.getTime() <= halfMonthInMillis
-  ) {
-    startDate = inOutStartDate;
-  } else {
-    startDate = periodStartDate;
+  const inOutStartDate = inOut && inOut.length > 0 ? new Date(inOut[0]) : undefined;
+
+  let startDate = new Date(periodStartDate);
+
+  if (inOutStartDate && inOutStartDate < periodStartDate) {
+    const prevMonth = new Date(periodStartDate);
+    prevMonth.setMonth(prevMonth.getMonth() - 1);
+    prevMonth.setDate(15);
+
+    if (inOutStartDate >= prevMonth) {
+      startDate = inOutStartDate;
+    }
   }
   const endDate = new Date(startDate);
   endDate.setMonth(endDate.getMonth() + 1);

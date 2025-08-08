@@ -468,7 +468,7 @@ const GenerateSalaryOne = ({
               <>
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
-                    <UploadInOutBtn inOut={inOut} setInOut={setInOut} />
+                    <UploadInOutBtn inOut={inOut} setInOut={setInOut} employees={employee ? [employee] : []} period={period} />
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={4}>

@@ -353,7 +353,7 @@ const QuickTools = ({
             throw new Error(data.message);
           }
         }
-        throw new Error("Failed to generate PDF");
+        throw new Error("Failed. Please check if you have purchased and generated salaries for the selected period.");
       }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -563,7 +563,7 @@ const QuickTools = ({
                     </FormControl>
 
                     <FormControl fullWidth>
-                      <UploadInOutBtn inOut={inOut} setInOut={setInOut} />
+                      <UploadInOutBtn inOut={inOut} setInOut={setInOut} employees={employees || []} period={period} />
                     </FormControl>
                     <FormControl fullWidth>
                       <ViewUploadedInOutBtn

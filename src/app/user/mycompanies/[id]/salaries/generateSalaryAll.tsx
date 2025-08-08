@@ -330,7 +330,7 @@ const GenerateSalaryAll = ({
           <Grid container spacing={3}>
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
-                <UploadInOutBtn inOut={inOut} setInOut={setInOut} />
+                <UploadInOutBtn inOut={inOut} setInOut={setInOut} employees={employees || []} period={period} />
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={4}>
