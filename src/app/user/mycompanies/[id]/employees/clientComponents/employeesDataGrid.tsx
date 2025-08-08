@@ -22,6 +22,7 @@ import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { fetchEmployees } from "../../quick/quick";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -141,18 +142,6 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   }
   const [dd, mm, yyyy] = parts;
   return `${mm}-${dd}-${yyyy}`;
-};
-
-const fetchEmployees = async (companyId: string): Promise<Employee[]> => {
-  const response = await fetch(`/api/employees?companyId=${companyId}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch employees");
-  }
-  const data = await response.json();
-  return data.employees.map((employee: any) => ({
-    ...employee,
-    id: employee._id,
-  }));
 };
 
 const EmployeesDataGrid: React.FC<{
