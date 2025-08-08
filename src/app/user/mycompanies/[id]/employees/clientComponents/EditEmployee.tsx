@@ -59,7 +59,7 @@ import { WorkingDays } from "../../companyDetails/workingDays";
 import Link from "next/link";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { MenuItem } from "@mui/material";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };

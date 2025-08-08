@@ -5,17 +5,11 @@ import {
   GridColumnVisibilityModel,
   GridToolbar,
 } from "@mui/x-data-grid";
-import {
-  Box,
-  Alert,
-  CircularProgress,
-  Button,
-  Chip,
-} from "@mui/material";
+import { Box, Alert, CircularProgress, Button, Chip } from "@mui/material";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import Link from "next/link";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 

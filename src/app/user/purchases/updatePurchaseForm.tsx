@@ -28,7 +28,7 @@ import { ArrowBack, ArrowForward, HideImage } from "@mui/icons-material";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
 import Image from "next/image";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 

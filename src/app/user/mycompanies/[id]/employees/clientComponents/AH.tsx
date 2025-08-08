@@ -26,7 +26,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { ArrowBack, ExpandMore, HorizontalRule } from "@mui/icons-material";
 import { LoadingButton } from "@mui/lab";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 
 const AH: React.FC<{
   user: { id: string; name: string; email: string };

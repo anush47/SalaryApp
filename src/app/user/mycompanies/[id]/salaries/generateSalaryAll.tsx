@@ -18,7 +18,7 @@ import EmployeesInclude from "./employeesInclude";
 import GeneratedSalaries from "./generatedSalaries";
 import { LoadingButton } from "@mui/lab";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { STALE_TIME, GC_TIME } from "@/app/lib/consts";
 

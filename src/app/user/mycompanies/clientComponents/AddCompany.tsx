@@ -28,7 +28,7 @@ import { Company } from "./companiesDataGrid";
 import { CompanyValidation } from "./companyValidation";
 import dayjs from "dayjs";
 import { ddmmyyyy_to_mmddyyyy } from "../[id]/employees/clientComponents/employeesDataGrid";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const AddCompanyForm: React.FC<{

@@ -13,6 +13,10 @@
 - **tsconfig.json**: Configuration file for TypeScript.
 - **run.bat**: A batch script to run the application.
 
+## src Directory
+
+- **middleware.ts**: The middleware for the application.
+
 ## src/app Directory
 
 - **globals.css**: Global CSS file for the application.
@@ -108,10 +112,12 @@
 ## src/app/api/purchases/check Directory
 
 - **checkPurchased.tsx**: A helper function to check if a period has been purchased for a company.
+- **route.tsx**: The route for checking if a period has been purchased for a company.
 
 ## src/app/api/purchases/price Directory
 
 - **priceUtils.tsx**: Utility functions for calculating prices.
+- **route.tsx**: The route for calculating prices.
 
 ## src/app/api/salaries Directory
 
@@ -136,9 +142,6 @@
 ## src/app/context Directory
 
 - **LanguageContext.tsx**: Provides language context to the application.
-
-## src/app/contexts Directory
-
 - **SnackbarContext.tsx**: Provides a snackbar context for displaying messages.
 
 ## src/app/help Directory
@@ -179,17 +182,34 @@
 
 - **page.tsx**: The page displaying the terms of service.
 
+## src/app/user Directory
+
+- **page.tsx**: The main page for the user section.
+
+### src/app/user/clientComponents Directory
+
+- **NavContainer.tsx**: The navigation container for the user section.
+- **userMainBox.tsx**: The main content box for the user section.
+- **userSideBar.tsx**: The sidebar for the user section.
+
 ## src/app/user/employees Directory
 
 - **employees.tsx**: The main component for managing employees.
 
-## src/app/user/employees/clientComponents Directory
+### src/app/user/employees/clientComponents Directory
 
 - **employeesDataGrid.tsx**: Displays a data grid of employees.
 
 ## src/app/user/mycompanies Directory
 
 - **myCompanies.tsx**: The main component for managing user companies.
+
+### src/app/user/mycompanies/clientComponents Directory
+
+- **AddCompany.tsx**: A form for adding new companies.
+- **companiesCards.tsx**: Displays companies as cards.
+- **companiesDataGrid.tsx**: Displays companies in a data grid.
+- **companyValidation.tsx**: Contains validation logic for company forms.
 
 ## src/app/user/mycompanies/[id] Directory
 
@@ -210,58 +230,56 @@
 - **shifts.tsx**: A component for managing the shifts of a company.
 - **workingDays.tsx**: A component for managing the working days of a company.
 
+### src/app/user/mycompanies/[id]/documents Directory
+
+- **documents.tsx**: The main component for generating documents.
+- **salariesIncludeDataGrid.tsx**: Displays a data grid of salaries to be included in documents.
+
 ### src/app/user/mycompanies/[id]/employees Directory
 
 - **employees.tsx**: The main component for managing employees within a specific company.
 
-### src/app/user/mycompanies/[id]/employees/clientComponents Directory
+#### src/app/user/mycompanies/[id]/employees/clientComponents Directory
 
 - **AH.tsx**: A component for generating Form A for an employee.
 - **AddEmployee.tsx**: A form for adding new employees.
 - **EditEmployee.tsx**: A form for editing existing employee details.
 - **employeesDataGrid.tsx**: Displays a data grid of employees for a specific company.
 
-### src/app/user/mycompanies/[id]/documents Directory
-
-- **documents.tsx**: The main component for generating documents.
-- **salariesIncludeDataGrid.tsx**: Displays a data grid of salaries to be included in documents.
-
 ### src/app/user/mycompanies/[id]/payments Directory
 
 - **payments.tsx**: The main component for managing payments within a specific company.
-
-### src/app/user/mycompanies/[id]/purchases Directory
-
-- **purchases.tsx**: The main component for managing purchases within a specific company.
-
-- **newPurchaseForm.tsx**: A form for adding new purchase details.
-- **purchasesDataGrid.tsx**: Displays a data grid of purchases for a specific company.
-
 - **editPaymentForm.tsx**: A form for editing existing payment details.
 - **newPaymentForm.tsx**: A form for adding new payment details.
 - **paymentsDataGrid.tsx**: Displays a data grid of payments for a specific company.
 
+### src/app/user/mycompanies/[id]/purchases Directory
+
+- **purchases.tsx**: The main component for managing purchases within a specific company.
+- **newPurchaseForm.tsx**: A form for adding new purchase details.
+- **purchasesDataGrid.tsx**: Displays a data grid of purchases for a specific company.
+
+### src/app/user/mycompanies/[id]/quick Directory
+
+- **quick.tsx**: Provides quick tools for managing salaries and payments.
+
 ### src/app/user/mycompanies/[id]/salaries Directory
 
 - **salaries.tsx**: The main component for managing salaries within a specific company.
-
-- **editSalaryForm.tsx**: A form for editing existing salary details.
-- **generateSalaryForm.tsx**: A form for generating new salary records.
-- **generatedSalaries.tsx**: Displays a data grid of generated salaries.
-- **salariesDataGrid.tsx**: Displays a data grid of salaries for a specific company.
-
 - **csvUpload.tsx**: Utility functions for handling CSV file uploads.
+- **editSalaryForm.tsx**: A form for editing existing salary details.
 - **employeesInclude.tsx**: A component for selecting employees to include in salary generation.
 - **generateSalaryAll.tsx**: Generates salaries for all employees in a company.
+- **generateSalaryForm.tsx**: A form for generating new salary records.
 - **generateSalaryOne.tsx**: Generates salary for a single employee.
+- **generatedSalaries.tsx**: Displays a data grid of generated salaries.
 - **inOutTable.tsx**: Displays and allows editing of in/out records.
+- **salariesDataGrid.tsx**: Displays a data grid of salaries for a specific company.
 
-## src/app/user/mycompanies/clientComponents Directory
+## src/app/user/payments Directory
 
-- **AddCompany.tsx**: A form for adding new companies.
-- **companiesCards.tsx**: Displays companies as cards.
-- **companiesDataGrid.tsx**: Displays companies in a data grid.
-- **companyValidation.tsx**: Contains validation logic for company forms.
+- **payments.tsx**: The main component for managing payments.
+- **paymentsDataGrid.tsx**: Displays a data grid of payments.
 
 ## src/app/user/purchases Directory
 
@@ -286,22 +304,3 @@
 
 - **changePasswordDialog.tsx**: A dialog for changing user password.
 - **editForm.tsx**: A form for editing user profile information.
-
-## src/app/user/payments Directory
-
-- **payments.tsx**: The main component for managing payments.
-- **paymentsDataGrid.tsx**: Displays a data grid of payments.
-
-### src/app/user/mycompanies/[id]/quick Directory
-
-- **quick.tsx**: Provides quick tools for managing salaries and payments.
-
-## src/app/user Directory
-
-- **page.tsx**: The main page for the user section.
-
-## src/app/user/clientComponents Directory
-
-- **NavContainer.tsx**: The navigation container for the user section.
-- **userMainBox.tsx**: The main content box for the user section.
-- **userSideBar.tsx**: The sidebar for the user section.

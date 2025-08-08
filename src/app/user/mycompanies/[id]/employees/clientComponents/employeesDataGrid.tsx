@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");

@@ -14,7 +14,7 @@ import {
   Alert,
 } from "@mui/material";
 import Link from "next/link";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 export interface Company {

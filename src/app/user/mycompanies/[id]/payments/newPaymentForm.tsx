@@ -34,7 +34,7 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import Link from "next/link";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQueryClient } from "@tanstack/react-query";
 
 const NewPaymentForm = ({

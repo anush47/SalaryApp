@@ -5,7 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { NextAuthProvider } from "./NextAuthProvider";
 import AppThemeProvider from "./theme-provider";
-import { SnackbarProvider } from "./contexts/SnackbarContext"; // Add this
+import { SnackbarProvider } from "./context/SnackbarContext"; // Add this
 import QueryProvider from "./QueryProvider";
 
 const inter = Inter({ subsets: ["latin"] });

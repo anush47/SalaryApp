@@ -27,7 +27,7 @@ import CreateHolidaysDialog from "./CreateHolidaysDialog";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   //if null return ""

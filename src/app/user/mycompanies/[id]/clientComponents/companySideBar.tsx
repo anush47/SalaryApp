@@ -41,7 +41,7 @@ import { Link as LinkM } from "@mui/material";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import { ThemeSwitch } from "@/app/theme-provider";
 import { Selected } from "./NavContainer";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 
 const drawerWidth = 300;
 

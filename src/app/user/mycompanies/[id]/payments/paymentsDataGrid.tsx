@@ -25,7 +25,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 // Set dayjs format for consistency

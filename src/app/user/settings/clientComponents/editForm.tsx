@@ -11,7 +11,7 @@ import React, { useState } from "react";
 import { useSession } from "next-auth/react";
 import ChangePasswordDialog from "./changePasswordDialog";
 import { LoadingButton } from "@mui/lab";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 
 const EditForm = ({
   user,

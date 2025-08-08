@@ -30,7 +30,7 @@ import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 
 const DateTimeFormat = ({ date }: { date: string }) => {
   const dateObj = dayjs(date.slice(0, 23), "YYYY-MM-DDTHH:mm:ss.SSS");

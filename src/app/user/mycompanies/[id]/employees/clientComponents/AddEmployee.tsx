@@ -36,7 +36,7 @@ import {
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { defaultEmployee, Employee } from "./employeesDataGrid";
 import { LoadingButton } from "@mui/lab";

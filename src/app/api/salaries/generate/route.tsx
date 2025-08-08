@@ -81,8 +81,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    //console.time("Generating salaries");
-
     // Find all active employees of the company if employees are not given
     if (!employees) {
       employees = await Employee.find({
@@ -217,8 +215,6 @@ export async function POST(req: NextRequest) {
 
     const salaries = results.filter((r) => r && r.salary).map((r) => r.salary);
     const exists = results.filter((r) => r && r.exists).map((r) => r.exists);
-
-    //console.timeEnd("Generating salaries");
 
     return NextResponse.json({ salaries, exists });
   } catch (error) {

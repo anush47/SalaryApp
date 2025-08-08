@@ -49,7 +49,7 @@ import dayjs from "dayjs";
 import { Shifts } from "./shifts";
 import { WorkingDays } from "./workingDays";
 import { LoadingButton } from "@mui/lab";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 

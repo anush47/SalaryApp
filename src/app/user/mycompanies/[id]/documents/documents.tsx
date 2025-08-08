@@ -34,7 +34,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import PaymentsDataGrid from "../payments/paymentsDataGrid";
 import { GridRowSelectionModel } from "@mui/x-data-grid";
 import { Company } from "../../clientComponents/companiesDataGrid";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 

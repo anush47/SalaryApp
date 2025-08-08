@@ -23,7 +23,7 @@ import GenerateSalaryAll from "./generateSalaryAll";
 import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { useSnackbar } from "@/app/contexts/SnackbarContext";
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 

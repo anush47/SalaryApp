@@ -27,7 +27,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 // import { request } from "http"; // This import seems unused, consider removing if not needed.
 import { LoadingButton } from "@mui/lab";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 // Set dayjs format for consistency

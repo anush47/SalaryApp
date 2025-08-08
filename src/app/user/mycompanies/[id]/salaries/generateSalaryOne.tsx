@@ -20,7 +20,7 @@ import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
-import { useSnackbar } from "@/app/contexts/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
