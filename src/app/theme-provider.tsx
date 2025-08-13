@@ -78,10 +78,8 @@ const AppThemeProvider: React.FC<AppThemeProviderProps> = ({ children }) => {
       prevTheme.palette.mode === "dark" ? lightTheme : darkTheme
     );
     // Save the new theme to localStorage
-    localStorage.setItem(
-      "theme",
-      theme.palette.mode === "dark" ? "light" : "dark"
-    );
+    const newTheme = theme.palette.mode === "dark" ? "light" : "dark";
+    localStorage.setItem("theme", newTheme);
   };
 
   return (
