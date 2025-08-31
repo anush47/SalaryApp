@@ -111,7 +111,7 @@ export const getPaySlipDoc = (
   doc.setFont("Courier", "normal");
   doc.setFontSize(14);
   //address start
-  const numberOfLines = 3;
+  const numberOfLines = 2;
   lines
     .slice(0, numberOfLines - 1)
     .forEach((line: string | number, index: number) => {
