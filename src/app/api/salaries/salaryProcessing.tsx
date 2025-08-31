@@ -97,6 +97,24 @@ export const processSalaryWithInOut = async (
       workingHoursTreshold,
       halfDayTreshold
     );
+
+    const holidayTexts: String[] = [];
+    if (holiday.categories.public) holidayTexts.push("Public");
+    if (holiday.categories.mercantile) holidayTexts.push("Mercantile");
+    if (holiday.categories.bank) holidayTexts.push("Bank");
+    if (workingDayStatus === "off") holidayTexts.push("Off");
+    else if (workingDayStatus === "half") holidayTexts.push("Half");
+
+    const holidayText =
+      holidayTexts.length > 0 ? holidayTexts.join(", ").trim() : "";
+
+    const { holidayPay: recordHolidayPay } = calculateHolidayPay(
+      holidayText,
+      workingHours,
+      workingHoursTreshold,
+      source.basic,
+      source.divideBy
+    );
     const workingText = (() => {
       const texts = [];
 
@@ -114,11 +132,19 @@ export const processSalaryWithInOut = async (
           workingDayStatus === "off" &&
           (holiday.categories.public || holiday.categories.mercantile)
         ) {
-          texts.push("Worked on Off Day and Holiday (Holiday Pay)");
+          texts.push(
+            `Worked on Off Day and Holiday (Holiday Pay: ${recordHolidayPay.toFixed(
+              2
+            )})`
+          );
         } else if (workingDayStatus === "off") {
-          texts.push("Worked on Off Day (Holiday Pay)");
+          texts.push(
+            `Worked on Off Day (Holiday Pay: ${recordHolidayPay.toFixed(2)})`
+          );
         } else if (holiday.categories.public || holiday.categories.mercantile) {
-          texts.push("Worked on Holiday (Holiday Pay)");
+          texts.push(
+            `Worked on Holiday (Holiday Pay: ${recordHolidayPay.toFixed(2)})`
+          );
         } else if (
           workingDayStatus === "full" &&
           workingHours < workingHoursTreshold
@@ -154,16 +180,6 @@ export const processSalaryWithInOut = async (
       return texts.join(", ");
     })();
     const newDescription = [holiday.summary.trim(), workingText].join(" ");
-
-    const holidayTexts: String[] = [];
-    if (holiday.categories.public) holidayTexts.push("Public");
-    if (holiday.categories.mercantile) holidayTexts.push("Mercantile");
-    if (holiday.categories.bank) holidayTexts.push("Bank");
-    if (workingDayStatus === "off") holidayTexts.push("Off");
-    else if (workingDayStatus === "half") holidayTexts.push("Half");
-
-    const holidayText =
-      holidayTexts.length > 0 ? holidayTexts.join(", ").trim() : "";
 
     records.push({
       in: inDate.toISOString(),
@@ -239,11 +255,27 @@ export const processSalaryWithInOut = async (
 
         dayHasRecord = true; // Mark that this day has a record
 
-        const shift = shifts.find((shift: { start: string; end: string }) => {
-          return (
-            Math.abs(getTimeDifferenceInMinutes(shift.start, inDate)) <= 6 * 60
-          ); // Allow 6 hours variation
-        });
+        const closestShiftData = shifts.reduce(
+          (
+            acc: {
+              shift: { start: string; end: string } | null;
+              minDiff: number;
+            },
+            currentShift: { start: string; end: string }
+          ) => {
+            const currentDiff = Math.abs(
+              getTimeDifferenceInMinutes(currentShift.start, inDate)
+            );
+            if (currentDiff < acc.minDiff) {
+              return { shift: currentShift, minDiff: currentDiff };
+            }
+            return acc;
+          },
+          { shift: null, minDiff: Infinity }
+        );
+
+        const shift =
+          closestShiftData.minDiff <= 6 * 60 ? closestShiftData.shift : null;
 
         if (!shift) {
           //console.log("No shift found for the given time:", inDate);
@@ -259,12 +291,17 @@ export const processSalaryWithInOut = async (
           outDate = getShiftEnd(shift.end, inDate); // Default to shift end time
         } else {
           outDate = inOut[inOutIndex] as Date;
-          const timeDifference = getTimeDifferenceInMinutes(shift.end, outDate);
+          const shiftEndDate = getShiftEnd(shift.end, inDate);
+          const timeDifference =
+            (outDate.getTime() - shiftEndDate.getTime()) / (1000 * 60);
+
+          const shiftStartDate = getShiftStart(shift.start, inDate);
+
           if (
-            (timeDifference >= 0 && timeDifference < 6 * 60) || // Allow 6 hours after shift end
+            (timeDifference >= 0 && timeDifference < 12 * 60) || // Allow 12 hours after shift end
             (timeDifference < 0 &&
-              getTimeDifferenceInMinutes(shift.start, outDate) > 0 &&
-              timeDifference >= -3 * 60) // Allow before shift end up to shift start
+              outDate.getTime() > shiftStartDate.getTime() &&
+              timeDifference >= -12 * 60) // Allow before shift end up to 12 hours
           ) {
             inOutIndex++;
           } else {
@@ -324,15 +361,17 @@ export const processSalaryWithInOut = async (
 
   records.forEach((record) => {
     noPay += record.noPay;
-    const recordHolidays = record.holiday
-      .split(/[\s,]+/)
-      .map((h) => h.trim().toLowerCase());
-    if (
-      ["public", "mercantile", "off"].some((holiday) =>
-        recordHolidays.includes(holiday)
-      )
-    ) {
-      holidayPay += record.ot;
+    const { holidayPay: recordHolidayPay, holidayPayMultiplier } =
+      calculateHolidayPay(
+        record.holiday,
+        record.workingHours,
+        record.workingHoursTreshold,
+        employee.basic,
+        employee.divideBy
+      );
+
+    if (holidayPayMultiplier > 0) {
+      holidayPay += recordHolidayPay;
     } else {
       ot += record.ot;
     }
@@ -407,43 +446,56 @@ export const generateSalaryWithInOut = async (
       //get shift based on index and day
       let shiftIndex = (employee.index + day.getUTCDate() - 1) % shifts.length;
       shift = shifts[shiftIndex];
-      
+
       // Check if this shift would end on the next day and if that day is an off day or holiday
       const shiftEndTime = getShiftEnd(shift.end, day);
       const nextDay = new Date(shiftEndTime);
       nextDay.setUTCDate(nextDay.getUTCDate());
-      
+
       // Get working day status and holiday status for the next day
       const nextDayWorkingStatus = getWorkingDayStatus(nextDay, employee);
       const nextDayHoliday = getHoliday(nextDay, holidays);
-      
+
       // If the next day is an off day or holiday, try to find a different shift
-      if (nextDayWorkingStatus === "off" || 
-          nextDayHoliday.categories.public || 
-          nextDayHoliday.categories.mercantile) {
-        // Try to find a shift that doesn't end on an off day or holiday
+      if (
+        nextDayWorkingStatus === "off" ||
+        nextDayHoliday.categories.public ||
+        nextDayHoliday.categories.mercantile
+      ) {
+        // Try to find a shift that doesn\'t end on an off day or holiday
         let foundAlternative = false;
         for (let i = 0; i < shifts.length; i++) {
           if (i !== shiftIndex) {
             const alternativeShift = shifts[i];
-            const alternativeShiftEndTime = getShiftEnd(alternativeShift.end, day);
+            const alternativeShiftEndTime = getShiftEnd(
+              alternativeShift.end,
+              day
+            );
             const alternativeNextDay = new Date(alternativeShiftEndTime);
             alternativeNextDay.setUTCDate(alternativeNextDay.getUTCDate());
-            
-            const alternativeNextDayWorkingStatus = getWorkingDayStatus(alternativeNextDay, employee);
-            const alternativeNextDayHoliday = getHoliday(alternativeNextDay, holidays);
-            
-            // If this alternative shift doesn't end on an off day or holiday, use it
-            if (alternativeNextDayWorkingStatus !== "off" && 
-                !alternativeNextDayHoliday.categories.public && 
-                !alternativeNextDayHoliday.categories.mercantile) {
+
+            const alternativeNextDayWorkingStatus = getWorkingDayStatus(
+              alternativeNextDay,
+              employee
+            );
+            const alternativeNextDayHoliday = getHoliday(
+              alternativeNextDay,
+              holidays
+            );
+
+            // If this alternative shift doesn\'t end on an off day or holiday, use it
+            if (
+              alternativeNextDayWorkingStatus !== "off" &&
+              !alternativeNextDayHoliday.categories.public &&
+              !alternativeNextDayHoliday.categories.mercantile
+            ) {
               shift = alternativeShift;
               foundAlternative = true;
               break;
             }
           }
         }
-        
+
         // If no alternative found, continue with the initial shift
         if (!foundAlternative) {
           // Keep the original shift selection
@@ -719,6 +771,13 @@ const getShiftEnd = (shift: string, inDate: Date): Date => {
   return shiftEndTime;
 };
 
+const getShiftStart = (shift: string, inDate: Date): Date => {
+  const [hours, minutes] = shift.split(":").map(Number);
+  const shiftStartTime = new Date(inDate);
+  shiftStartTime.setUTCHours(hours, minutes, 0, 0);
+  return shiftStartTime;
+};
+
 const getTimeDifferenceInMinutes = (shift: string, inOut: Date): number => {
   const [hours, minutes] = shift.split(":").map(Number);
   const timeDiff =
@@ -807,4 +866,32 @@ const calculateOT = (
     ot,
     otHours,
   };
+};
+
+const calculateHolidayPay = (
+  holidayText: string,
+  workingHours: number,
+  workingHoursTreshold: number,
+  basic: number,
+  divideBy: number
+) => {
+  const recordHolidays = new Set(
+    holidayText.split(/[\s,]+/).map((h) => h.trim().toLowerCase())
+  );
+
+  let holidayPayMultiplier = 0;
+  if (recordHolidays.has("mercantile") || recordHolidays.has("off")) {
+    holidayPayMultiplier = 1; // Double pay for working, so bonus is 1x basic rate.
+  } else if (recordHolidays.has("public")) {
+    holidayPayMultiplier = 0.5; // 1.5x pay for working, so bonus is 0.5x basic rate.
+  }
+
+  let holidayPay = 0;
+  if (holidayPayMultiplier > 0) {
+    const basePayForHours =
+      (basic / divideBy) * Math.min(workingHoursTreshold, workingHours);
+    holidayPay = basePayForHours * holidayPayMultiplier;
+  }
+
+  return { holidayPay, holidayPayMultiplier };
 };
