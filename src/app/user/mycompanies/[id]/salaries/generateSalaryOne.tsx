@@ -529,6 +529,9 @@ const GenerateSalaryOne = ({
                 }}
                 fetchSalary={generateSalary}
                 editable={true}
+                isDynamicHolidays={
+                  employee?.workingDays?.isDynamicHolidays || false
+                }
               />
             </Grid>
             <Grid item xs={12} sm={6}>

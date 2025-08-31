@@ -27,7 +27,14 @@ interface IEmployee extends Document {
   };
   calendar?: "default" | "other";
   workingDays: {
-    [key: string]: "full" | "half" | "off";
+    mon: "full" | "half" | "off";
+    tue: "full" | "half" | "off";
+    wed: "full" | "half" | "off";
+    thu: "full" | "half" | "off";
+    fri: "full" | "half" | "off";
+    sat: "full" | "half" | "off";
+    sun: "full" | "half" | "off";
+    isDynamicHolidays: boolean;
   };
   shifts: {
     start: string;
@@ -184,6 +191,10 @@ const employeeSchema = new Schema<IEmployee>(
           enum: ["full", "half", "off"],
           default: "off",
           required: true,
+        },
+        isDynamicHolidays: {
+          type: Boolean,
+          default: false,
         },
       },
       required: false,

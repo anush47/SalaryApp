@@ -142,6 +142,10 @@ const salarySchema = new Schema<ISalary>(
         remark: {
           type: String,
         },
+        day_status: {
+          type: String,
+          enum: ["full", "half", "off"],
+        },
       },
     ],
     advanceAmount: {

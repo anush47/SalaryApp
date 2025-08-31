@@ -32,7 +32,14 @@ interface ICompany extends Document {
     break: number;
   }[];
   workingDays: {
-    [key: string]: "full" | "half" | "off";
+    mon: "full" | "half" | "off";
+    tue: "full" | "half" | "off";
+    wed: "full" | "half" | "off";
+    thu: "full" | "half" | "off";
+    fri: "full" | "half" | "off";
+    sat: "full" | "half" | "off";
+    sun: "full" | "half" | "off";
+    isDynamicHolidays: boolean;
   };
   paymentStructure: {
     additions: {
@@ -142,6 +149,10 @@ const companySchema = new Schema<ICompany>(
           enum: ["full", "half", "off"],
           default: "off",
           required: true,
+        },
+        isDynamicHolidays: {
+          type: Boolean,
+          default: false,
         },
       },
     },

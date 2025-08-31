@@ -30,13 +30,14 @@ export const processSalaryWithInOut = async (
     holiday: string;
     description: string;
     remark: string;
+    day_status: "full" | "half" | "off";
   }[] = [];
 
   // Reusable function to calculate working hours, OT, and other fields
   const processRecord = (
     inDate: Date,
     outDate: Date,
-    workingDayStatus = "full",
+    workingDayStatus: "full" | "half" | "off" = "full",
     holiday = {
       date: "",
       categories: {
@@ -194,6 +195,7 @@ export const processSalaryWithInOut = async (
       holiday: holidayText,
       description: newDescription,
       remark,
+      day_status: workingDayStatus,
     });
   };
 
@@ -207,11 +209,12 @@ export const processSalaryWithInOut = async (
       )
     ).holidays;
     // Process the already processed records
-    (inOut as any[]).forEach((record: any) => {
-      const inDate = new Date(record.in);
-      const outDate = new Date(record.out);
+    (inOut as ProcessedInOut).forEach((record) => {
+      // Ensure dates are properly handled as UTC
+      const inDate = new Date(record.in.endsWith('Z') ? record.in : record.in + 'Z');
+      const outDate = new Date(record.out.endsWith('Z') ? record.out : record.out + 'Z');
 
-      const workingDayStatus = getWorkingDayStatus(inDate, employee);
+      const workingDayStatus = getWorkingDayStatus(inDate, employee, record);
       const holiday = getHoliday(inDate, holidays);
 
       // Recalculate using the reusable function
@@ -309,7 +312,11 @@ export const processSalaryWithInOut = async (
           }
         }
 
-        const workingDayStatus = getWorkingDayStatus(inDate, employee);
+        const workingDayStatus = getWorkingDayStatus(
+          inDate,
+          employee,
+          undefined
+        );
         const holiday = getHoliday(inDate, holidays);
 
         // Process the record for the current in/out
@@ -329,7 +336,11 @@ export const processSalaryWithInOut = async (
         if (shift) {
           const inDate = new Date(day); // Mark the in time as the start of the shift
 
-          const workingDayStatus = getWorkingDayStatus(inDate, employee);
+          const workingDayStatus = getWorkingDayStatus(
+            inDate,
+            employee,
+            undefined
+          );
           const holiday = getHoliday(inDate, holidays);
 
           // Process the record for the missing day
@@ -431,7 +442,7 @@ export const generateSalaryWithInOut = async (
   const { shifts } = employee;
 
   const generateRandomRecord = (day: Date) => {
-    const workingDayStatus = getWorkingDayStatus(day, employee);
+    const workingDayStatus = getWorkingDayStatus(day, employee, undefined);
     const holidayStatus = getHoliday(day, holidays);
     let shift;
     //if no shift
@@ -453,7 +464,11 @@ export const generateSalaryWithInOut = async (
       nextDay.setUTCDate(nextDay.getUTCDate());
 
       // Get working day status and holiday status for the next day
-      const nextDayWorkingStatus = getWorkingDayStatus(nextDay, employee);
+      const nextDayWorkingStatus = getWorkingDayStatus(
+        nextDay,
+        employee,
+        undefined
+      );
       const nextDayHoliday = getHoliday(nextDay, holidays);
 
       // If the next day is an off day or holiday, try to find a different shift
@@ -476,7 +491,8 @@ export const generateSalaryWithInOut = async (
 
             const alternativeNextDayWorkingStatus = getWorkingDayStatus(
               alternativeNextDay,
-              employee
+              employee,
+              undefined
             );
             const alternativeNextDayHoliday = getHoliday(
               alternativeNextDay,
@@ -644,20 +660,11 @@ export const generateSalaryWithInOut = async (
       holiday: holidayStatus.summary,
       description: "",
       remark: "",
+      day_status: workingDayStatus,
     };
   };
 
-  const inOutProcessed: {
-    in: string;
-    out: string;
-    workingHours: number;
-    otHours: number;
-    ot: number;
-    noPay: number;
-    holiday: string;
-    description: string;
-    remark: string;
-  }[] = [];
+  const inOutProcessed: ProcessedInOut = [];
   //process existing
   const existingProcessed = await processSalaryWithInOut(
     employee,
@@ -705,7 +712,9 @@ export const generateSalaryWithInOut = async (
 
   //sort correctly
   inOutProcessed.sort((a, b) => {
-    return new Date(a.in).getTime() - new Date(b.in).getTime();
+    return (
+      new Date(a.in as string).getTime() - new Date(b.in as string).getTime()
+    );
   });
 
   //set updated data
@@ -715,7 +724,7 @@ export const generateSalaryWithInOut = async (
   const reprocessed = await processSalaryWithInOut(
     employee,
     period,
-    inOutProcessed
+    inOutProcessed as ProcessedInOut
   );
   return reprocessed;
 };
@@ -787,12 +796,41 @@ const getTimeDifferenceInMinutes = (shift: string, inOut: Date): number => {
 
 const getWorkingDayStatus = (
   day: Date,
-  employee: any
+  employee: any,
+  inOutRecord: { day_status?: "full" | "half" | "off" } | undefined
 ): "full" | "half" | "off" => {
-  const dayOfWeek = day
-    .toLocaleDateString("en-US", { weekday: "short" })
-    .toLowerCase(); // mon, tue, wed, etc.
-  const workingDayStatus = employee.workingDays[dayOfWeek] || "full"; // full, half, off
+  // Use UTC methods to avoid timezone issues
+  const dayOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getUTCDay()];
+
+  // Determine if dynamic holidays are enabled
+  // If employee has working days override, check employee's isDynamicHolidays
+  // Otherwise, check company's isDynamicHolidays
+  const isDynamicHolidays = employee.overrides?.workingDays 
+    ? employee.workingDays?.isDynamicHolidays 
+    : employee.company?.workingDays?.isDynamicHolidays;
+
+  // If day_status is undefined, populate it based on employee or company working days
+  if (inOutRecord?.day_status === undefined) {
+    // If employee has working days override, use employee's working days
+    if (employee.overrides?.workingDays && employee.workingDays) {
+      return employee.workingDays[dayOfWeek] || "full";
+    }
+    // Otherwise, use company's working days
+    else if (employee.company?.workingDays) {
+      return employee.company.workingDays[dayOfWeek] || "full";
+    }
+  }
+
+  // If dynamic holidays are enabled and a day_status is available in the record, use it
+  // Otherwise, fall back to the default behavior
+  if (isDynamicHolidays && inOutRecord?.day_status) {
+    return inOutRecord.day_status;
+  }
+
+  // Default behavior - use employee's working days if override is true, otherwise company's
+  const workingDayStatus = employee.overrides?.workingDays 
+    ? employee.workingDays?.[dayOfWeek] || "full"
+    : employee.company?.workingDays?.[dayOfWeek] || "full";
 
   return workingDayStatus;
 };
