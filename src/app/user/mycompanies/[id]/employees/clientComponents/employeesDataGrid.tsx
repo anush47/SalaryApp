@@ -36,7 +36,14 @@ export interface Employee {
   nic: string;
   basic: number;
   workingDays: {
-    [key: string]: "full" | "half" | "off";
+    mon: "full" | "half" | "off";
+    tue: "full" | "half" | "off";
+    wed: "full" | "half" | "off";
+    thu: "full" | "half" | "off";
+    fri: "full" | "half" | "off";
+    sat: "full" | "half" | "off";
+    sun: "full" | "half" | "off";
+    isDynamicHolidays: boolean;
   };
   divideBy: 240 | 200;
   remark: string;
@@ -99,6 +106,7 @@ export const defaultEmployee: Employee = {
     fri: "full",
     sat: "half",
     sun: "off",
+    isDynamicHolidays: false,
   },
   divideBy: 240,
   remark: "",

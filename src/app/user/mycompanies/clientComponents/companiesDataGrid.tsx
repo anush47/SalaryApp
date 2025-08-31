@@ -43,7 +43,14 @@ export interface Company {
   endedAt: Date | String;
   user: any;
   workingDays: {
-    [key: string]: "full" | "half" | "off";
+    mon: "full" | "half" | "off";
+    tue: "full" | "half" | "off";
+    wed: "full" | "half" | "off";
+    thu: "full" | "half" | "off";
+    fri: "full" | "half" | "off";
+    sat: "full" | "half" | "off";
+    sun: "full" | "half" | "off";
+    isDynamicHolidays: boolean;
   };
   probabilities: {
     workOnHoliday: number;

@@ -68,6 +68,7 @@ export interface InOut {
   holiday: string;
   description: string;
   remark: string;
+  day_status: string;
 }
 
 export const InOutTable = ({
@@ -75,11 +76,13 @@ export const InOutTable = ({
   setInOuts,
   fetchSalary,
   editable,
+  isDynamicHolidays,
 }: {
   inOuts: InOut[];
   setInOuts: any;
   fetchSalary: any;
   editable: boolean;
+  isDynamicHolidays: boolean;
 }) => {
   const { showSnackbar } = useSnackbar();
   const [columnVisibilityModel, setColumnVisibilityModel] =
@@ -114,6 +117,7 @@ export const InOutTable = ({
           holiday: "",
           description: "",
           remark: "",
+          day_status: "",
         }
       : {
           id: 0,
@@ -130,6 +134,7 @@ export const InOutTable = ({
           holiday: "",
           description: "",
           remark: "",
+          day_status: "",
         }
   );
   const [loading, setLoading] = useState(false);
@@ -268,6 +273,14 @@ export const InOutTable = ({
       headerName: "Remark",
       flex: 1,
       editable: editable,
+    },
+    {
+      field: "day_status",
+      headerName: "Day Status",
+      flex: 1,
+      editable: isDynamicHolidays,
+      type: "singleSelect",
+      valueOptions: ["full", "half", "off"],
     },
     {
       //delete

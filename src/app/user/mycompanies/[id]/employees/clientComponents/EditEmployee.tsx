@@ -131,6 +131,7 @@ const EditEmployeeForm: React.FC<{
           fri: "off",
           sat: "off",
           sun: "off",
+          isDynamicHolidays: false,
         };
       }
 
