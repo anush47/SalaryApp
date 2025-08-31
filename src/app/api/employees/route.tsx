@@ -173,6 +173,7 @@ const employeeCreateSchema = z.object({
       fri: z.string().optional(),
       sat: z.string().optional(),
       sun: z.string().optional(),
+      isDynamicHolidays: z.boolean().optional(),
     })
     .optional(),
   shifts: z
@@ -431,6 +432,7 @@ const employeeUpdateSchema = z.object({
       fri: z.string(),
       sat: z.string(),
       sun: z.string(),
+      isDynamicHolidays: z.boolean().optional(),
     })
     .optional(),
   shifts: z
