@@ -405,7 +405,50 @@ export const generateSalaryWithInOut = async (
     } else {
       //if multiple shifts
       //get shift based on index and day
-      shift = shifts[(employee.index + day.getUTCDate() - 1) % shifts.length];
+      let shiftIndex = (employee.index + day.getUTCDate() - 1) % shifts.length;
+      shift = shifts[shiftIndex];
+      
+      // Check if this shift would end on the next day and if that day is an off day or holiday
+      const shiftEndTime = getShiftEnd(shift.end, day);
+      const nextDay = new Date(shiftEndTime);
+      nextDay.setUTCDate(nextDay.getUTCDate());
+      
+      // Get working day status and holiday status for the next day
+      const nextDayWorkingStatus = getWorkingDayStatus(nextDay, employee);
+      const nextDayHoliday = getHoliday(nextDay, holidays);
+      
+      // If the next day is an off day or holiday, try to find a different shift
+      if (nextDayWorkingStatus === "off" || 
+          nextDayHoliday.categories.public || 
+          nextDayHoliday.categories.mercantile) {
+        // Try to find a shift that doesn't end on an off day or holiday
+        let foundAlternative = false;
+        for (let i = 0; i < shifts.length; i++) {
+          if (i !== shiftIndex) {
+            const alternativeShift = shifts[i];
+            const alternativeShiftEndTime = getShiftEnd(alternativeShift.end, day);
+            const alternativeNextDay = new Date(alternativeShiftEndTime);
+            alternativeNextDay.setUTCDate(alternativeNextDay.getUTCDate());
+            
+            const alternativeNextDayWorkingStatus = getWorkingDayStatus(alternativeNextDay, employee);
+            const alternativeNextDayHoliday = getHoliday(alternativeNextDay, holidays);
+            
+            // If this alternative shift doesn't end on an off day or holiday, use it
+            if (alternativeNextDayWorkingStatus !== "off" && 
+                !alternativeNextDayHoliday.categories.public && 
+                !alternativeNextDayHoliday.categories.mercantile) {
+              shift = alternativeShift;
+              foundAlternative = true;
+              break;
+            }
+          }
+        }
+        
+        // If no alternative found, continue with the initial shift
+        if (!foundAlternative) {
+          // Keep the original shift selection
+        }
+      }
     }
     const probabilities = employee.probabilities || {};
     const absentProb =

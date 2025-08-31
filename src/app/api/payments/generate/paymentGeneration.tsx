@@ -7,6 +7,10 @@ type Company = {
 type Salary = {
   basic: number;
   holidayPay: number;
+  noPay: {
+    amount: number;
+    reason: string;
+  };
   paymentStructure: {
     additions: {
       name: string;
@@ -53,6 +57,7 @@ export function calculateTotalEarnings(salary: Salary) {
   try {
     totalEarnings += salary.basic;
     totalEarnings += salary.holidayPay ?? 0;
+    totalEarnings -= salary.noPay?.amount ?? 0;
     //payment structure affect
     for (let addition of salary.paymentStructure.additions) {
       if (addition.affectTotalEarnings) {
