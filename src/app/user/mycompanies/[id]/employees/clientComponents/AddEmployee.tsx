@@ -121,6 +121,7 @@ const AddEmployeeForm: React.FC<{
               fri: "full",
               sat: "half",
               sun: "off",
+              isDynamicHolidays: false,
             },
         paymentStructure:
           companyData.paymentStructure &&

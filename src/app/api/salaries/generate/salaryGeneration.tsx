@@ -6,8 +6,8 @@ import {
 // Types for InOut
 export type RawInOut = Date[]; // Unprocessed in/out records
 export type ProcessedInOut = {
-  in: String;
-  out: String;
+  in: string;
+  out: string;
   workingHours: number;
   otHours: number;
   ot: number;
@@ -15,6 +15,7 @@ export type ProcessedInOut = {
   holiday: string;
   description: string;
   remark: string;
+  day_status: "full" | "half" | "off";
 }[];
 
 function getFilteredAdditionsAndDeductions(paymentStructure: {

@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
     const salaryPromises = employees.map(
       async (
         employee: {
+          company: any;
           index: any;
           openHours: any;
           overrides: {
@@ -177,6 +178,9 @@ export async function POST(req: NextRequest) {
         if (!employee.overrides?.calendar) {
           employee.calendar = company.calendar;
         }
+
+        // Add company data to employee object for use in getWorkingDayStatus
+        employee.company = company;
 
         const existingSalary = existingSalariesMap.get(employee._id.toString());
 

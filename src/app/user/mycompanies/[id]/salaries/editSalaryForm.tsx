@@ -62,6 +62,51 @@ const EditSalaryForm: React.FC<{
     finalSalary: 0,
     remark: "",
   });
+
+  const fetchCompanyData = async (): Promise<any> => {
+    const response = await fetch(`/api/companies/?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Company");
+    }
+    const data = await response.json();
+    return data.company;
+  };
+
+  const {
+    data: companyData,
+    isLoading: isCompanyLoading,
+    isError: isCompanyError,
+    error: companyError,
+  } = useQuery<any, Error>({
+    queryKey: ["companies", companyId],
+    queryFn: fetchCompanyData,
+    enabled: !!companyId, // Only run the query if companyId is available
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  const fetchEmployeeData = async (): Promise<any> => {
+    if (!formFields.employee) return null;
+    const response = await fetch(`/api/employees/?employeeId=${formFields.employee}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Employee");
+    }
+    const data = await response.json();
+    return data.employees?.[0] || null;
+  };
+
+  const {
+    data: employeeFullData,
+    isLoading: isEmployeeLoading,
+    isError: isEmployeeError,
+    error: employeeError,
+  } = useQuery<any, Error>({
+    queryKey: ["employees", formFields.employee],
+    queryFn: fetchEmployeeData,
+    enabled: !!formFields.employee, // Only run the query if employee ID is available
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const queryClient = useQueryClient();
 
@@ -124,7 +169,16 @@ const EditSalaryForm: React.FC<{
     }
   }, [isSalaryError, salaryError, showSnackbar]);
 
-  const loading = isSalaryLoading || isLoading;
+  useEffect(() => {
+    if (isEmployeeError) {
+      showSnackbar({
+        message: employeeError?.message || "Error fetching employee data.",
+        severity: "error",
+      });
+    }
+  }, [isEmployeeError, employeeError, showSnackbar]);
+
+  const loading = isSalaryLoading || isLoading || isEmployeeLoading;
 
   //gen salary
   const fetchSalary = async () => {
@@ -565,6 +619,11 @@ const EditSalaryForm: React.FC<{
                 }}
                 editable={isEditing}
                 fetchSalary={fetchSalary}
+                isDynamicHolidays={
+                  employeeFullData?.overrides?.workingDays
+                    ? employeeFullData?.workingDays?.isDynamicHolidays
+                    : companyData?.workingDays?.isDynamicHolidays
+                }
               />
             </Grid>
             <Grid item xs={12} sm={6}>

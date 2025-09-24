@@ -50,7 +50,16 @@ const AddCompanyForm: React.FC<{
     employerAddress: "",
     employerName: "",
     mode: "",
-    workingDays: {},
+    workingDays: {
+      mon: "full",
+      tue: "full",
+      wed: "full",
+      thu: "full",
+      fri: "full",
+      sat: "half",
+      sun: "off",
+      isDynamicHolidays: false,
+    },
     paymentMethod: "",
     openHours: {
       start: "",

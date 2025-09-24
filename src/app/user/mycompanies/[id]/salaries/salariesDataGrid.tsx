@@ -43,6 +43,7 @@ export interface Salary {
     noPay: number;
     description: string;
     remark: string;
+    day_status: "full" | "half" | "off";
   }[];
   noPay: {
     amount: number;

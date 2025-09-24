@@ -42,18 +42,17 @@ import { ThemeSwitch } from "./theme-provider";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { Session } from "next-auth";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchCompanies } from "./user/mycompanies/clientComponents/companiesCards";
+import { GC_TIME, STALE_TIME } from "./lib/consts";
 const LazyDemoContent = lazy(() => import("./help/DemoContent"));
 
-export default function HomePageClient({
-  initialSession,
-}: {
-  initialSession: Session | null;
-}) {
+export default function HomePageClient() {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const { data: sessionFromHook, status } = useSession();
-  const session = sessionFromHook ?? initialSession;
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const heroControls = useAnimation();
   const statsControls = useAnimation();
   const featuresControls = useAnimation();
@@ -76,6 +75,26 @@ export default function HomePageClient({
 
   const handleOpenDemoModal = () => setOpenDemoModal(true);
   const handleCloseDemoModal = () => setOpenDemoModal(false);
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (session) {
+      // Prefetch the user companies page
+      router.prefetch("/user?userPageSelect=mycompanies");
+
+      // Prefetch companies data with React Query
+      queryClient.prefetchQuery({
+        queryKey: ["companies"],
+        queryFn: fetchCompanies,
+        staleTime: STALE_TIME,
+        gcTime: GC_TIME,
+      });
+    } else if (status === "unauthenticated") {
+      // Prefetch the sign-in page
+      router.prefetch("/api/auth/signin");
+    }
+  }, [session, router, queryClient, status]);
 
   useEffect(() => {
     if (isHeroInView) heroControls.start("visible");
@@ -146,12 +165,18 @@ export default function HomePageClient({
     },
   ];
 
+  // Animation constants
+  const FADE_IN_UP_INITIAL_Y = 40;
+  const FADE_IN_UP_DURATION = 0.6;
+  const STAGGER_CHILDREN_DELAY = 0.15;
+  const ANIMATION_EASING = [0.16, 1, 0.3, 1];
+
   const fadeInUp = {
-    hidden: { opacity: 0, y: 40 },
+    hidden: { opacity: 0, y: FADE_IN_UP_INITIAL_Y },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+      transition: { duration: FADE_IN_UP_DURATION, ease: ANIMATION_EASING },
     },
   };
 
@@ -160,7 +185,7 @@ export default function HomePageClient({
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.15,
+        staggerChildren: STAGGER_CHILDREN_DELAY,
       },
     },
   };
