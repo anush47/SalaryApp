@@ -190,7 +190,7 @@ const EditEmployeeForm: React.FC<{
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any
   ) => {
     let { name, value } = event.target;
-    if (name === "active" || name.startsWith("overrides")) {
+    if (name === "active" || name === "canLogin" || name.startsWith("overrides")) {
       // Handle checkbox state changes
       value = event.target.checked;
     } else if (name.startsWith("probabilities")) {
@@ -641,6 +641,29 @@ const EditEmployeeForm: React.FC<{
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.canLogin || false}
+                    size="large"
+                    name="canLogin"
+                    color="primary"
+                    value={formFields.canLogin}
+                    onChange={handleChange}
+                    disabled={!isEditing || loading}
+                  />
+                }
+                label="Can Login ?"
+              />
+              {formFields.user && (
+                <Typography variant="caption" color="textSecondary" sx={{ ml: 4 }}>
+                  User account exists
+                </Typography>
+              )}
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
               <TextField
                 label="Remark"
                 name="remark"
@@ -975,6 +998,54 @@ const EditEmployeeForm: React.FC<{
             </Button>
           </Link>
         </Grid>
+
+        {formFields.canLogin && !formFields.user && (
+          <Grid mt={3} item xs={12}>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={async () => {
+                if (!formFields.email) {
+                  showSnackbar({
+                    message: "Email is required to create a user account",
+                    severity: "error",
+                  });
+                  return;
+                }
+                try {
+                  setIsLoading(true);
+                  const response = await fetch("/api/employees/enable-login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      employeeId: employeeId,
+                      userId: user.id,
+                    }),
+                  });
+                  const data = await response.json();
+                  if (!response.ok) {
+                    throw new Error(data.error || "Failed to create user account");
+                  }
+                  showSnackbar({
+                    message: `User account created! Temporary password: ${data.temporaryPassword}`,
+                    severity: "success",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["employees", companyId, employeeId] });
+                } catch (error: any) {
+                  showSnackbar({ message: error.message, severity: "error" });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : "Create User Account"}
+            </Button>
+            <Typography variant="caption" color="textSecondary" sx={{ ml: 2, display: "block", mt: 1 }}>
+              Note: Employee must have an email address to create a login account.
+            </Typography>
+          </Grid>
+        )}
 
         <Grid mt={3} item xs={12}>
           <Button

@@ -14,17 +14,31 @@ interface IEmployee extends Document {
   remark: string;
   phoneNumber: string;
   email: string;
-  address: string; // Add this line
+  address: string;
   divideBy: 240 | 200;
   active: boolean;
   otMethod: "random" | "noOt" | "calc";
+  // New fields for hierarchy and access
+  user: Schema.Types.ObjectId;
+  department: Schema.Types.ObjectId;
+  manager: Schema.Types.ObjectId;
+  employeeType: "permanent" | "contract" | "intern" | "temporary";
+  canLogin: boolean;
+  // Leave customization with override pattern
   overrides: {
     shifts: boolean;
     workingDays: boolean;
     probabilities: boolean;
     paymentStructure: boolean;
     calendar: boolean;
+    leaveTypes: boolean;
   };
+  leaveTypes: {
+    leaveType: Schema.Types.ObjectId;
+    maxDaysPerYear: number;
+    balance: number;
+    carryForward: boolean;
+  }[];
   calendar?: "default" | "other";
   workingDays: {
     mon: "full" | "half" | "off";
@@ -95,6 +109,28 @@ const employeeSchema = new Schema<IEmployee>(
     remark: {
       type: String,
     },
+    // New hierarchy fields
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    department: {
+      type: Schema.Types.ObjectId,
+      ref: "Department",
+    },
+    manager: {
+      type: Schema.Types.ObjectId,
+      ref: "Employee",
+    },
+    employeeType: {
+      type: String,
+      enum: ["permanent", "contract", "intern", "temporary"],
+      default: "permanent",
+    },
+    canLogin: {
+      type: Boolean,
+      default: false,
+    },
     overrides: {
       type: {
         shifts: {
@@ -117,8 +153,33 @@ const employeeSchema = new Schema<IEmployee>(
           type: Boolean,
           default: false,
         },
+        leaveTypes: {
+          type: Boolean,
+          default: false,
+        },
       },
     },
+    leaveTypes: [
+      {
+        leaveType: {
+          type: Schema.Types.ObjectId,
+          ref: "LeaveType",
+          required: true,
+        },
+        maxDaysPerYear: {
+          type: Number,
+          required: true,
+        },
+        balance: {
+          type: Number,
+          required: true,
+        },
+        carryForward: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
     calendar: {
       type: String,
       enum: ["default", "other"],
@@ -287,6 +348,14 @@ const employeeSchema = new Schema<IEmployee>(
     timestamps: true, // Optionally add timestamps for createdAt and updatedAt
   }
 );
+
+// Indexes for performance
+employeeSchema.index({ company: 1, memberNo: 1 }, { unique: true });
+employeeSchema.index({ user: 1 });
+employeeSchema.index({ department: 1 });
+employeeSchema.index({ manager: 1 });
+employeeSchema.index({ company: 1, canLogin: 1 });
+employeeSchema.index({ company: 1, active: 1 });
 
 // Check if the model already exists
 const Employee =

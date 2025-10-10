@@ -37,6 +37,9 @@ export interface Employee {
   basic: number;
   divideBy: 240 | 200;
   active: boolean;
+  canLogin: boolean;
+  user: any;
+  email: string;
   otMethod: string;
   totalSalary: string;
   workingDays: {
@@ -425,6 +428,25 @@ const EmployeesDataGrid: React.FC<{
       type: "boolean",
     },
     {
+      field: "canLogin",
+      headerName: "Can Login",
+      flex: 1,
+      editable: isEditingEmployeeInHome,
+      type: "boolean",
+    },
+    {
+      field: "user",
+      headerName: "User Account",
+      flex: 1,
+      renderCell: (params) => {
+        return params.value ? (
+          <Chip label="Exists" color="success" size="small" />
+        ) : (
+          <Chip label="None" color="default" size="small" />
+        );
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       flex: 1,
@@ -579,6 +601,8 @@ const EmployeesDataGrid: React.FC<{
       remark: false,
       probabilities: false,
       overrides: false,
+      canLogin: false,
+      user: false,
     });
 
   if (isLoading) {

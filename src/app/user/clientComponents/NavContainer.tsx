@@ -13,7 +13,12 @@ export type Selected =
   | "purchases"
   | "employees"
   | "salaries"
-  | "payments";
+  | "payments"
+  // Employee-specific
+  | "dashboard"
+  | "leaves"
+  | "payslips"
+  | "profile";
 
 const NavContainer = ({
   user,
@@ -26,7 +31,9 @@ const NavContainer = ({
     image: string;
   };
 }) => {
-  const [selected, setSelected] = React.useState<Selected>("mycompanies");
+  // Default selected based on role
+  const defaultSelected = user.role === "employee" ? "dashboard" : "mycompanies";
+  const [selected, setSelected] = React.useState<Selected>(defaultSelected);
 
   const searchParams = useSearchParams();
   useEffect(() => {
@@ -41,13 +48,17 @@ const NavContainer = ({
         "employees",
         "salaries",
         "payments",
+        "dashboard",
+        "leaves",
+        "payslips",
+        "profile",
       ].includes(selectedParam)
     ) {
       setSelected(selectedParam as Selected);
     } else {
-      setSelected("mycompanies");
+      setSelected(defaultSelected);
     }
-  }, [searchParams]);
+  }, [searchParams, defaultSelected]);
   return (
     <Box sx={{ display: "flex" }}>
       <UserSideBar

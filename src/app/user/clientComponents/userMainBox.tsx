@@ -12,6 +12,11 @@ const Payments = lazy(() => import("../payments/payments"));
 const Employees = lazy(() => import("../employees/employees"));
 const Purchases = lazy(() => import("../purchases/purchases"));
 const Salaries = lazy(() => import("../salaries/salaries"));
+// Employee components
+const EmployeeDashboard = lazy(() => import("./employee/EmployeeDashboard"));
+const EmployeeLeaves = lazy(() => import("./employee/EmployeeLeaves"));
+const EmployeePayslips = lazy(() => import("./employee/EmployeePayslips"));
+const EmployeeProfile = lazy(() => import("./employee/EmployeeProfile"));
 
 const UserMainBox = ({
   user,
@@ -96,6 +101,31 @@ const UserMainBox = ({
               return (
                 <Suspense fallback={fallback}>
                   <Payments user={user} />
+                </Suspense>
+              );
+            // Employee routes
+            case "dashboard":
+              return (
+                <Suspense fallback={fallback}>
+                  <EmployeeDashboard user={user} />
+                </Suspense>
+              );
+            case "leaves":
+              return (
+                <Suspense fallback={fallback}>
+                  <EmployeeLeaves user={user} />
+                </Suspense>
+              );
+            case "payslips":
+              return (
+                <Suspense fallback={fallback}>
+                  <EmployeePayslips user={user} />
+                </Suspense>
+              );
+            case "profile":
+              return (
+                <Suspense fallback={fallback}>
+                  <EmployeeProfile user={user} />
                 </Suspense>
               );
             default:

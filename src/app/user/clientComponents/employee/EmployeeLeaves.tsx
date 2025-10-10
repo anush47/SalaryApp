@@ -1,0 +1,659 @@
+"use client";
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Tabs,
+  Tab,
+  Grid,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  CircularProgress,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Switch,
+  FormControlLabel,
+  Paper,
+  IconButton,
+} from "@mui/material";
+import {
+  Send,
+  Cancel,
+  CheckCircle,
+  Block,
+  AttachFile,
+  Close,
+} from "@mui/icons-material";
+import { useSnackbar } from "@/app/context/SnackbarContext";
+
+interface UserProps {
+  user: {
+    name: string;
+    email: string;
+    id: string;
+    role: string;
+    image: string;
+  };
+}
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`leave-tabpanel-${index}`}
+      aria-labelledby={`leave-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
+const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
+  const { showSnackbar } = useSnackbar();
+  const [tabValue, setTabValue] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [employeeData, setEmployeeData] = useState<any>(null);
+  const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
+  const [leaveBalance, setLeaveBalance] = useState<any[]>([]);
+  const [myLeaves, setMyLeaves] = useState<any[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+
+  // Apply form state
+  const [selectedLeaveType, setSelectedLeaveType] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [halfDay, setHalfDay] = useState(false);
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Dialog state
+  const [actionDialog, setActionDialog] = useState<{
+    open: boolean;
+    leaveRequest: any;
+    action: "approve" | "reject" | "cancel" | null;
+  }>({
+    open: false,
+    leaveRequest: null,
+    action: null,
+  });
+  const [remarks, setRemarks] = useState("");
+
+  const fetchEmployeeData = async () => {
+    try {
+      const empResponse = await fetch(`/api/employees?user=${user.id}`);
+      if (!empResponse.ok) throw new Error("Failed to fetch employee data");
+      const empData = await empResponse.json();
+      if (!empData.employees || empData.employees.length === 0) {
+        throw new Error("Employee profile not found");
+      }
+      return empData.employees[0];
+    } catch (error: any) {
+      showSnackbar(error.message, "error");
+      return null;
+    }
+  };
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    const employee = await fetchEmployeeData();
+    if (!employee) {
+      setLoading(false);
+      return;
+    }
+
+    setEmployeeData(employee);
+
+    try {
+      // Fetch leave types
+      const typesResponse = await fetch(
+        `/api/leave-types?companyId=${employee.company._id}`
+      );
+      if (typesResponse.ok) {
+        const typesData = await typesResponse.json();
+        setLeaveTypes(typesData.leaveTypes || []);
+      }
+
+      // Fetch leave balance
+      const balanceResponse = await fetch(
+        `/api/employees/leave-balance?employeeId=${employee._id}`
+      );
+      if (balanceResponse.ok) {
+        const balanceData = await balanceResponse.json();
+        setLeaveBalance(balanceData.summary || []);
+      }
+
+      // Fetch my leaves
+      const myLeavesResponse = await fetch(
+        `/api/leave-requests?companyId=${employee.company._id}&myRequests=true`
+      );
+      if (myLeavesResponse.ok) {
+        const myLeavesData = await myLeavesResponse.json();
+        setMyLeaves(myLeavesData.leaveRequests || []);
+      }
+
+      // Fetch pending approvals
+      const approvalsResponse = await fetch(
+        `/api/leave-requests?companyId=${employee.company._id}&pendingApprovals=true`
+      );
+      if (approvalsResponse.ok) {
+        const approvalsData = await approvalsResponse.json();
+        setPendingApprovals(approvalsData.leaveRequests || []);
+      }
+    } catch (error: any) {
+      showSnackbar(error.message, "error");
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAllData();
+  }, [user.id]);
+
+  const handleApplyLeave = async () => {
+    if (!selectedLeaveType || !startDate || !endDate) {
+      showSnackbar("Please fill all required fields", "error");
+      return;
+    }
+
+    if (!employeeData) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/leave-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employeeId: employeeData._id,
+          leaveTypeId: selectedLeaveType,
+          startDate,
+          endDate,
+          halfDay,
+          reason,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to apply for leave");
+      }
+
+      showSnackbar(data.message, "success");
+      // Reset form
+      setSelectedLeaveType("");
+      setStartDate("");
+      setEndDate("");
+      setHalfDay(false);
+      setReason("");
+      // Refresh data
+      fetchAllData();
+    } catch (error: any) {
+      showSnackbar(error.message, "error");
+    }
+    setSubmitting(false);
+  };
+
+  const handleLeaveAction = async () => {
+    if (!actionDialog.leaveRequest || !actionDialog.action) return;
+
+    try {
+      const response = await fetch("/api/leave-requests", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leaveRequestId: actionDialog.leaveRequest._id,
+          action: actionDialog.action,
+          remarks,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to ${actionDialog.action} leave`);
+      }
+
+      showSnackbar(data.message, "success");
+      setActionDialog({ open: false, leaveRequest: null, action: null });
+      setRemarks("");
+      fetchAllData();
+    } catch (error: any) {
+      showSnackbar(error.message, "error");
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "success";
+      case "rejected":
+        return "error";
+      case "cancelled":
+        return "default";
+      default:
+        return "warning";
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (!employeeData) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">Employee data not available</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box p={3}>
+      <Typography variant="h5" gutterBottom>
+        Leave Management
+      </Typography>
+
+      <Card>
+        <Tabs
+          value={tabValue}
+          onChange={(e, newValue) => setTabValue(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          <Tab label="Apply for Leave" />
+          <Tab label={`My Leaves (${myLeaves.length})`} />
+          {pendingApprovals.length > 0 && (
+            <Tab label={`Pending Approvals (${pendingApprovals.length})`} />
+          )}
+        </Tabs>
+
+        {/* Tab 1: Apply for Leave */}
+        <TabPanel value={tabValue} index={0}>
+          <Grid container spacing={3}>
+            {/* Leave Application Form */}
+            <Grid item xs={12} md={8}>
+              <Typography variant="h6" gutterBottom>
+                Apply for New Leave
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Leave Type *</InputLabel>
+                    <Select
+                      value={selectedLeaveType}
+                      label="Leave Type *"
+                      onChange={(e) => setSelectedLeaveType(e.target.value)}
+                    >
+                      {leaveTypes.map((type) => (
+                        <MenuItem key={type._id} value={type._id}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Chip
+                              label={type.code}
+                              size="small"
+                              sx={{ backgroundColor: type.color, color: "white" }}
+                            />
+                            <Typography>{type.name}</Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Start Date *"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="End Date *"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={halfDay}
+                        onChange={(e) => setHalfDay(e.target.checked)}
+                      />
+                    }
+                    label="Half Day Leave"
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Reason"
+                    multiline
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Enter reason for leave..."
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    startIcon={submitting ? <CircularProgress size={20} /> : <Send />}
+                    onClick={handleApplyLeave}
+                    disabled={submitting}
+                  >
+                    Submit Leave Request
+                  </Button>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            {/* Leave Balance Summary */}
+            <Grid item xs={12} md={4}>
+              <Typography variant="h6" gutterBottom>
+                Leave Balance
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              {leaveBalance.length === 0 ? (
+                <Alert severity="info">No leave balance available</Alert>
+              ) : (
+                <List>
+                  {leaveBalance.map((leave, index) => (
+                    <Paper key={index} sx={{ mb: 1, p: 2 }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Chip
+                          label={leave.leaveType.code}
+                          size="small"
+                          sx={{ backgroundColor: leave.leaveType.color, color: "white" }}
+                        />
+                        <Typography variant="h6">{leave.available} days</Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        {leave.leaveType.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Used: {leave.used} / {leave.maxDaysPerYear}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </List>
+              )}
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        {/* Tab 2: My Leaves */}
+        <TabPanel value={tabValue} index={1}>
+          <Typography variant="h6" gutterBottom>
+            My Leave Requests
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+
+          {myLeaves.length === 0 ? (
+            <Alert severity="info">No leave requests found</Alert>
+          ) : (
+            <List>
+              {myLeaves.map((leave) => (
+                <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={3}>
+                      <Chip
+                        label={leave.leaveType.code}
+                        sx={{
+                          backgroundColor: leave.leaveType.color,
+                          color: "white",
+                        }}
+                      />
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {leave.leaveType.name}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Typography variant="body2" color="text.secondary">
+                        Dates
+                      </Typography>
+                      <Typography variant="body1">
+                        {new Date(leave.startDate).toLocaleDateString()} -{" "}
+                        {new Date(leave.endDate).toLocaleDateString()}
+                      </Typography>
+                      <Typography variant="caption">
+                        {leave.totalDays} day{leave.totalDays > 1 ? "s" : ""}
+                        {leave.halfDay && " (Half Day)"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Chip
+                        label={leave.status.toUpperCase()}
+                        color={getStatusColor(leave.status)}
+                        size="small"
+                      />
+                      {leave.approver && (
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          Approver: {leave.approver.name}
+                        </Typography>
+                      )}
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      {(leave.status === "pending" || leave.status === "approved") && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<Cancel />}
+                          onClick={() =>
+                            setActionDialog({
+                              open: true,
+                              leaveRequest: leave,
+                              action: "cancel",
+                            })
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </Grid>
+                    {leave.reason && (
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">
+                          Reason: {leave.reason}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              ))}
+            </List>
+          )}
+        </TabPanel>
+
+        {/* Tab 3: Pending Approvals */}
+        {pendingApprovals.length > 0 && (
+          <TabPanel value={tabValue} index={2}>
+            <Typography variant="h6" gutterBottom>
+              Leave Requests Pending Your Approval
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            <List>
+              {pendingApprovals.map((leave) => (
+                <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="subtitle1">{leave.employee.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {leave.employee.designation || "Employee"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Chip
+                        label={leave.leaveType.code}
+                        sx={{
+                          backgroundColor: leave.leaveType.color,
+                          color: "white",
+                        }}
+                      />
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {leave.leaveType.name}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="body2" color="text.secondary">
+                        Dates
+                      </Typography>
+                      <Typography variant="body1">
+                        {new Date(leave.startDate).toLocaleDateString()} -{" "}
+                        {new Date(leave.endDate).toLocaleDateString()}
+                      </Typography>
+                      <Typography variant="caption">
+                        {leave.totalDays} day{leave.totalDays > 1 ? "s" : ""}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Box display="flex" gap={1}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          startIcon={<CheckCircle />}
+                          onClick={() =>
+                            setActionDialog({
+                              open: true,
+                              leaveRequest: leave,
+                              action: "approve",
+                            })
+                          }
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<Block />}
+                          onClick={() =>
+                            setActionDialog({
+                              open: true,
+                              leaveRequest: leave,
+                              action: "reject",
+                            })
+                          }
+                        >
+                          Reject
+                        </Button>
+                      </Box>
+                    </Grid>
+                    {leave.reason && (
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">
+                          Reason: {leave.reason}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              ))}
+            </List>
+          </TabPanel>
+        )}
+      </Card>
+
+      {/* Action Dialog */}
+      <Dialog
+        open={actionDialog.open}
+        onClose={() => setActionDialog({ open: false, leaveRequest: null, action: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {actionDialog.action === "approve" && "Approve Leave Request"}
+          {actionDialog.action === "reject" && "Reject Leave Request"}
+          {actionDialog.action === "cancel" && "Cancel Leave Request"}
+        </DialogTitle>
+        <DialogContent>
+          {actionDialog.leaveRequest && (
+            <Box>
+              <Typography variant="body2" gutterBottom>
+                Employee: {actionDialog.leaveRequest.employee?.name || "You"}
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                Leave Type: {actionDialog.leaveRequest.leaveType.name}
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                Duration: {new Date(actionDialog.leaveRequest.startDate).toLocaleDateString()} -{" "}
+                {new Date(actionDialog.leaveRequest.endDate).toLocaleDateString()} (
+                {actionDialog.leaveRequest.totalDays} days)
+              </Typography>
+              <TextField
+                fullWidth
+                label="Remarks (Optional)"
+                multiline
+                rows={3}
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                sx={{ mt: 2 }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setActionDialog({ open: false, leaveRequest: null, action: null })}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color={actionDialog.action === "approve" ? "success" : "error"}
+            onClick={handleLeaveAction}
+          >
+            Confirm {actionDialog.action}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default EmployeeLeaves;

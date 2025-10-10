@@ -31,6 +31,10 @@ import {
   LocalAtm,
   Payments,
   Group,
+  Dashboard,
+  EventNote,
+  Receipt,
+  Person,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { Link as LinkM } from "@mui/material";
@@ -64,47 +68,80 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
     setAnchorEl(null);
   };
 
-  const menus = [
-    // {
-    //   name: "Quick Tools",
-    //   key: "quick",
-    //   icon: <Home />,
-    // },
-    {
-      name: "My Companies",
-      key: "mycompanies",
-      icon: <Business />,
-    },
-    {
-      name: "Employees",
-      key: "employees",
-      icon: <Group />,
-    },
-    {
-      name: "Salaries",
-      key: "salaries",
-      icon: <LocalAtm />,
-    },
-    {
-      name: "EPF/ETF Payments",
-      key: "payments",
-      icon: <Payments />,
-    },
-  ];
+  // Generate menus based on user role
+  const getMenusForRole = (role: string) => {
+    if (role === "employee") {
+      return [
+        {
+          name: "Dashboard",
+          key: "dashboard",
+          icon: <Dashboard />,
+        },
+        {
+          name: "My Leaves",
+          key: "leaves",
+          icon: <EventNote />,
+        },
+        {
+          name: "Payslips",
+          key: "payslips",
+          icon: <Receipt />,
+        },
+        {
+          name: "Profile",
+          key: "profile",
+          icon: <Person />,
+        },
+        {
+          name: "Settings",
+          key: "settings",
+          icon: <Settings />,
+        },
+      ];
+    } else {
+      // Employer/Admin menus
+      const employerMenus = [
+        {
+          name: "My Companies",
+          key: "mycompanies",
+          icon: <Business />,
+        },
+        {
+          name: "Employees",
+          key: "employees",
+          icon: <Group />,
+        },
+        {
+          name: "Salaries",
+          key: "salaries",
+          icon: <LocalAtm />,
+        },
+        {
+          name: "EPF/ETF Payments",
+          key: "payments",
+          icon: <Payments />,
+        },
+      ];
 
-  if (user.role === "admin") {
-    menus.push({
-      name: "Purchases",
-      key: "purchases",
-      icon: <ShoppingBag />,
-    });
-  }
+      if (role === "admin") {
+        employerMenus.push({
+          name: "Purchases",
+          key: "purchases",
+          icon: <ShoppingBag />,
+        });
+      }
 
-  menus.push({
-    name: "Settings",
-    key: "settings",
-    icon: <Settings />,
-  });
+      employerMenus.push({
+        name: "Settings",
+        key: "settings",
+        icon: <Settings />,
+      });
+
+      return employerMenus;
+    }
+  };
+
+  const menus = getMenusForRole(user.role);
 
   const [breadcrumbs, setBreadcrumbs] = React.useState<React.ReactNode[]>([]);
   React.useEffect(() => {
@@ -129,6 +166,14 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               return "Salaries";
             case "payments":
               return "Payments";
+            case "dashboard":
+              return "Dashboard";
+            case "leaves":
+              return "My Leaves";
+            case "payslips":
+              return "Payslips";
+            case "profile":
+              return "Profile";
             default:
               return "";
           }

@@ -25,11 +25,13 @@ export async function GET(req: NextRequest) {
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     // Get the companyId from URL
     const companyId = req.nextUrl.searchParams.get("companyId");
+    // Get the user parameter (for employee portal to find their own record)
+    const userParam = req.nextUrl.searchParams.get("user");
 
-    //if both are not present
-    if (!employeeId && !companyId) {
+    //if none are present
+    if (!employeeId && !companyId && !userParam) {
       return NextResponse.json(
-        { message: "Employee ID or Company ID is required" },
+        { message: "Employee ID, Company ID, or User ID is required" },
         { status: 400 }
       );
     }
@@ -37,9 +39,35 @@ export async function GET(req: NextRequest) {
     // Connect to the database
     await dbConnect();
 
-    if (employeeId) {
+    if (userParam) {
+      // Fetch employee by user ID (for employee portal)
+      // Employees can only fetch their own record
+      if (user?.role !== "employee" || userParam !== userId) {
+        return NextResponse.json(
+          { message: "Access denied" },
+          { status: 403 }
+        );
+      }
+
+      const employee = await Employee.findOne({ user: userParam })
+        .populate('user', 'email name')
+        .populate('company', 'name employerNo')
+        .populate('department', 'name')
+        .populate('manager', 'name memberNo')
+        .lean();
+
+      if (!employee) {
+        return NextResponse.json(
+          { message: "Employee record not found" },
+          { status: 404 }
+        );
+      }
+
+      // Return the employee data
+      return NextResponse.json({ employees: [employee] });
+    } else if (employeeId) {
       // Fetch employee from the database
-      const employee = await Employee.findById(employeeId); // Use .lean() for better performance
+      const employee = await Employee.findById(employeeId).populate('user', 'email name'); // Populate user field
 
       // Create filter
       const filter: { user?: string; _id: string } = {
@@ -112,7 +140,7 @@ export async function GET(req: NextRequest) {
         );
       }
       // Find employees based on the filter
-      employees = await Employee.find(filter).lean();
+      employees = await Employee.find(filter).populate('user', 'email name').lean();
       // Enrich employees with company details
       employees.forEach((employee) => {
         const company = companies.find(
@@ -164,6 +192,7 @@ const employeeCreateSchema = z.object({
   otMethod: z.string(),
   startedAt: z.string().optional(),
   active: z.boolean().default(true),
+  canLogin: z.boolean().optional().default(false),
   workingDays: z
     .object({
       mon: z.string().optional(),
@@ -397,6 +426,7 @@ const employeeUpdateSchema = z.object({
     .optional(),
   divideBy: z.union([z.literal(240), z.literal(200)]).default(240),
   active: z.boolean().default(true),
+  canLogin: z.boolean().optional().default(false),
   basic: z.number().min(0, "Basic salary must be a positive number"),
   totalSalary: z.union([z.string(), z.number(), z.null()]),
   startedAt: z.string().optional(), // Assuming the date format is "DD-MM-YYYY"

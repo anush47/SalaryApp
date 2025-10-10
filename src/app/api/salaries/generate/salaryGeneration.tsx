@@ -2,6 +2,7 @@ import {
   generateSalaryWithInOut,
   processSalaryWithInOut,
 } from "../salaryProcessing";
+import { calculateLeaveDeductions } from "@/app/lib/leaveDeductionCalculation";
 
 // Types for InOut
 export type RawInOut = Date[]; // Unprocessed in/out records
@@ -463,13 +464,33 @@ export async function generateSalaryForOneEmployee(
       totalDeductions,
     } = calculateSalaryDetails(source, salary, ot, holidayPay);
 
+    // Calculate leave deductions for no-pay leaves
+    const {
+      totalLeaveDeduction,
+      leaveDeductions,
+      leaveDeductionReason,
+    } = await calculateLeaveDeductions(
+      employee._id,
+      period,
+      source.basic,
+      source.divideBy
+    );
+
+    // Combine attendance-based noPay with leave deductions
+    const totalNoPay = noPay + totalLeaveDeduction;
+
+    // Combine noPay reasons
+    const combinedNoPayReason = [noPayReason, leaveDeductionReason]
+      .filter(Boolean)
+      .join("; ");
+
     const finalSalary =
       employee.basic +
       holidayPay +
       totalAdditions +
       ot -
       totalDeductions -
-      noPay;
+      totalNoPay;
 
     const salaryData = {
       _id: salary ? salary._id : generateObjectId(),
@@ -479,8 +500,8 @@ export async function generateSalaryForOneEmployee(
       basic: source.basic, // Employee's basic salary
       holidayPay,
       noPay: {
-        amount: noPay, // No Pay deduction amount
-        reason: noPayReason, // Reason for no pay
+        amount: totalNoPay, // No Pay deduction amount (attendance + leaves)
+        reason: combinedNoPayReason, // Combined reason for no pay
       },
       ot: {
         amount: ot, // Overtime payment
@@ -490,6 +511,7 @@ export async function generateSalaryForOneEmployee(
         additions: parsedAdditions, // Additions with computed values
         deductions: parsedDeductions, // Deductions with computed values
       },
+      leaveDeductions, // Leave deductions array
       advanceAmount: salary ? salary.advanceAmount : 0, // Example advance amount
       finalSalary,
       remark: "",

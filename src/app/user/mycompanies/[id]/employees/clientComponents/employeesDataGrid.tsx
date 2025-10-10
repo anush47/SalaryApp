@@ -48,6 +48,8 @@ export interface Employee {
   divideBy: 240 | 200;
   remark: string;
   active: boolean;
+  canLogin: boolean;
+  user: any;
   otMethod: string;
   overrides: {
     shifts: boolean;
@@ -111,6 +113,8 @@ export const defaultEmployee: Employee = {
   divideBy: 240,
   remark: "",
   active: true,
+  canLogin: false,
+  user: null,
   otMethod: "",
   overrides: {
     shifts: false,
@@ -473,6 +477,27 @@ const EmployeesDataGrid: React.FC<{
       maxWidth: 100,
     },
     {
+      field: "canLogin",
+      headerName: "Can Login",
+      flex: 1,
+      editable: isEditingEmployeeInHome,
+      type: "boolean",
+      maxWidth: 120,
+    },
+    {
+      field: "user",
+      headerName: "User Account",
+      flex: 1,
+      maxWidth: 150,
+      renderCell: (params) => {
+        return params.value ? (
+          <Chip label="Exists" color="success" size="small" />
+        ) : (
+          <Chip label="None" color="default" size="small" />
+        );
+      },
+    },
+    {
       field: "email",
       headerName: "Email",
       flex: 1,
@@ -643,6 +668,8 @@ const EmployeesDataGrid: React.FC<{
       phoneNumber: false,
       address: false,
       probabilities: false,
+      canLogin: false,
+      user: false,
     });
   const [rowSelectionModel, setRowSelectionModel] = React.useState<string[]>(
     []

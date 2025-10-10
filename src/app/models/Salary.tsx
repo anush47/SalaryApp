@@ -37,6 +37,21 @@ interface ISalary extends Document {
     description: string;
     remark: string;
   }[];
+  // Tax fields
+  taxes: {
+    apitAmount: number;
+    stampDuty: number;
+    totalTax: number;
+    taxableIncome: number;
+    grossSalary: number;
+  };
+  // Leave deductions
+  leaveDeductions: {
+    leaveRequestId: Schema.Types.ObjectId;
+    leaveType: string;
+    days: number;
+    amount: number;
+  }[];
   advanceAmount: number;
   finalSalary: number;
   remark: string;
@@ -148,6 +163,47 @@ const salarySchema = new Schema<ISalary>(
         },
       },
     ],
+    // Tax fields
+    taxes: {
+      apitAmount: {
+        type: Number,
+        default: 0,
+      },
+      stampDuty: {
+        type: Number,
+        default: 0,
+      },
+      totalTax: {
+        type: Number,
+        default: 0,
+      },
+      taxableIncome: {
+        type: Number,
+        default: 0,
+      },
+      grossSalary: {
+        type: Number,
+        default: 0,
+      },
+    },
+    // Leave deductions
+    leaveDeductions: [
+      {
+        leaveRequestId: {
+          type: Schema.Types.ObjectId,
+          ref: "LeaveRequest",
+        },
+        leaveType: {
+          type: String,
+        },
+        days: {
+          type: Number,
+        },
+        amount: {
+          type: Number,
+        },
+      },
+    ],
     advanceAmount: {
       type: Number,
     },
@@ -163,6 +219,10 @@ const salarySchema = new Schema<ISalary>(
     timestamps: true, // Optionally add timestamps for createdAt and updatedAt
   }
 );
+
+// Indexes for performance
+salarySchema.index({ employee: 1, period: -1 });
+salarySchema.index({ period: 1 });
 
 // Check if the model already exists
 const Salary = models.Salary || model<ISalary>("Salary", salarySchema);
