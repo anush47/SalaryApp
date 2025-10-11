@@ -34,6 +34,8 @@ import {
   Payment,
   ShoppingBag,
   Summarize,
+  AccountTree,
+  EventNote,
 } from "@mui/icons-material";
 import Link from "next/link";
 import Image from "next/image";
@@ -92,6 +94,16 @@ const CompanySideBar: React.FC<Props> = ({
       name: "Employees",
       key: "employees",
       icon: <Groups />,
+    },
+    {
+      name: "Organization",
+      key: "organization",
+      icon: <AccountTree />,
+    },
+    {
+      name: "Leaves",
+      key: "leaves",
+      icon: <EventNote />,
     },
     {
       name: "Salaries",
@@ -153,6 +165,10 @@ const CompanySideBar: React.FC<Props> = ({
               return "Company Details";
             case "employees":
               return "Employees";
+            case "organization":
+              return "Organization";
+            case "leaves":
+              return "Leaves";
             case "salaries":
               return "Salaries";
             case "payments":

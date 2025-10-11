@@ -34,6 +34,10 @@ import {
   Receipt,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { InOutTable } from "../../mycompanies/[id]/salaries/inOutTable";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
 interface UserProps {
   user: {
@@ -130,9 +134,23 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5">Payslips</Typography>
         {selectedSalary && (
-          <Button variant="outlined" startIcon={<Download />}>
-            Download PDF
-          </Button>
+          <Box>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={() => handleDownloadPDF("payslip")}
+              sx={{ mr: 1 }}
+            >
+              Download PDF
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={() => handleDownloadPDF("attendance")}
+            >
+              Attendance Report
+            </Button>
+          </Box>
         )}
       </Box>
 
@@ -143,18 +161,18 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
           {/* Period Selector */}
           <Grid item xs={12}>
             <FormControl fullWidth>
-              <InputLabel>Select Period</InputLabel>
-              <Select
-                value={selectedPeriod}
-                label="Select Period"
-                onChange={(e) => handlePeriodChange(e.target.value)}
-              >
-                {salaries.map((salary) => (
-                  <MenuItem key={salary._id} value={salary.period}>
-                    {salary.period} - LKR {salary.finalSalary?.toLocaleString()}
-                  </MenuItem>
-                ))}
-              </Select>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Select Period"
+                  views={["month", "year"]}
+                  value={dayjs(selectedPeriod)}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      handlePeriodChange(newValue.format("YYYY-MM"));
+                    }
+                  }}
+                />
+              </LocalizationProvider>
             </FormControl>
           </Grid>
 
@@ -402,58 +420,20 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
               {/* Attendance Details (if any) */}
               {selectedSalary.inOut && selectedSalary.inOut.length > 0 && (
                 <Grid item xs={12}>
-                  <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="h6">
-                        Attendance Details ({selectedSalary.inOut.length} days)
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Alert severity="info" sx={{ mb: 2 }}>
-                        Detailed attendance records for the period
-                      </Alert>
-                      <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
-                        <Table size="small" stickyHeader>
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Date</TableCell>
-                              <TableCell>In Time</TableCell>
-                              <TableCell>Out Time</TableCell>
-                              <TableCell align="center">Hours</TableCell>
-                              <TableCell>Description</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {selectedSalary.inOut.map((record: any, index: number) => (
-                              <TableRow key={index}>
-                                <TableCell>
-                                  {new Date(record.in).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  {new Date(record.in).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </TableCell>
-                                <TableCell>
-                                  {new Date(record.out).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </TableCell>
-                                <TableCell align="center">
-                                  {record.workingHours?.toFixed(2)}
-                                </TableCell>
-                                <TableCell>
-                                  <Typography variant="caption">{record.description}</Typography>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </AccordionDetails>
-                  </Accordion>
+                  <InOutTable
+                    inOuts={selectedSalary.inOut.map((record: any, index: number) => ({
+                      ...record,
+                      id: index,
+                      employeeName: employeeData?.name,
+                      employeeNIC: employeeData?.nic,
+                      basic: selectedSalary.basic,
+                      divideBy: selectedSalary.divideBy,
+                    }))}
+                    setInOuts={() => {}}
+                    fetchSalary={() => {}}
+                    editable={false}
+                    isDynamicHolidays={false}
+                  />
                 </Grid>
               )}
             </>

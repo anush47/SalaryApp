@@ -89,6 +89,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Validation errors
+  const [errors, setErrors] = useState({
+    leaveType: "",
+    startDate: "",
+    endDate: "",
+    reason: "",
+  });
+
   // Dialog state
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
@@ -111,7 +119,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       }
       return empData.employees[0];
     } catch (error: any) {
-      showSnackbar(error.message, "error");
+      showSnackbar({ message: error.message, severity: "error" });
       return null;
     }
   };
@@ -163,7 +171,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         setPendingApprovals(approvalsData.leaveRequests || []);
       }
     } catch (error: any) {
-      showSnackbar(error.message, "error");
+      showSnackbar({ message: error.message, severity: "error" });
     }
 
     setLoading(false);
@@ -173,13 +181,89 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     fetchAllData();
   }, [user.id]);
 
+  const validateForm = (): boolean => {
+    const newErrors = {
+      leaveType: "",
+      startDate: "",
+      endDate: "",
+      reason: "",
+    };
+
+    let isValid = true;
+
+    // Validate leave type
+    if (!selectedLeaveType) {
+      newErrors.leaveType = "Please select a leave type";
+      isValid = false;
+    }
+
+    // Validate start date
+    if (!startDate) {
+      newErrors.startDate = "Start date is required";
+      isValid = false;
+    } else {
+      const start = new Date(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (start < today) {
+        newErrors.startDate = "Start date cannot be in the past";
+        isValid = false;
+      }
+    }
+
+    // Validate end date
+    if (!endDate) {
+      newErrors.endDate = "End date is required";
+      isValid = false;
+    } else if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (end < start) {
+        newErrors.endDate = "End date must be on or after start date";
+        isValid = false;
+      }
+
+      // Check if date range is too long (optional check)
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+      if (diffDays > 365) {
+        newErrors.endDate = "Leave period cannot exceed 365 days";
+        isValid = false;
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const handleApplyLeave = async () => {
-    if (!selectedLeaveType || !startDate || !endDate) {
-      showSnackbar("Please fill all required fields", "error");
+    // Clear previous errors
+    setErrors({
+      leaveType: "",
+      startDate: "",
+      endDate: "",
+      reason: "",
+    });
+
+    // Validate form
+    if (!validateForm()) {
+      showSnackbar({
+        message: "Please fix the errors in the form",
+        severity: "error",
+      });
       return;
     }
 
-    if (!employeeData) return;
+    if (!employeeData) {
+      showSnackbar({
+        message: "Employee data not available",
+        severity: "error",
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -192,7 +276,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
           startDate,
           endDate,
           halfDay,
-          reason,
+          reason: reason.trim(),
         }),
       });
 
@@ -202,19 +286,32 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         throw new Error(data.error || "Failed to apply for leave");
       }
 
-      showSnackbar(data.message, "success");
+      showSnackbar({
+        message: data.message || "Leave request submitted successfully",
+        severity: "success",
+      });
       // Reset form
       setSelectedLeaveType("");
       setStartDate("");
       setEndDate("");
       setHalfDay(false);
       setReason("");
+      setErrors({
+        leaveType: "",
+        startDate: "",
+        endDate: "",
+        reason: "",
+      });
       // Refresh data
       fetchAllData();
     } catch (error: any) {
-      showSnackbar(error.message, "error");
+      showSnackbar({
+        message: error.message || "Failed to submit leave request",
+        severity: "error",
+      });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleLeaveAction = async () => {
@@ -227,22 +324,28 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         body: JSON.stringify({
           leaveRequestId: actionDialog.leaveRequest._id,
           action: actionDialog.action,
-          remarks,
+          remarks: remarks.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `Failed to ${actionDialog.action} leave`);
+        throw new Error(data.error || `Failed to ${actionDialog.action} leave request`);
       }
 
-      showSnackbar(data.message, "success");
+      showSnackbar({
+        message: data.message || `Leave request ${actionDialog.action}d successfully`,
+        severity: "success",
+      });
       setActionDialog({ open: false, leaveRequest: null, action: null });
       setRemarks("");
       fetchAllData();
     } catch (error: any) {
-      showSnackbar(error.message, "error");
+      showSnackbar({
+        message: error.message || `Failed to ${actionDialog.action} leave request`,
+        severity: "error",
+      });
     }
   };
 
@@ -307,26 +410,41 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
               <Grid container spacing={2}>
                 <Grid item xs={12}>
-                  <FormControl fullWidth>
+                  <FormControl fullWidth error={!!errors.leaveType}>
                     <InputLabel>Leave Type *</InputLabel>
                     <Select
                       value={selectedLeaveType}
                       label="Leave Type *"
-                      onChange={(e) => setSelectedLeaveType(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedLeaveType(e.target.value);
+                        setErrors((prev) => ({ ...prev, leaveType: "" }));
+                      }}
+                      disabled={submitting}
                     >
-                      {leaveTypes.map((type) => (
-                        <MenuItem key={type._id} value={type._id}>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Chip
-                              label={type.code}
-                              size="small"
-                              sx={{ backgroundColor: type.color, color: "white" }}
-                            />
-                            <Typography>{type.name}</Typography>
-                          </Box>
+                      {leaveTypes.length === 0 ? (
+                        <MenuItem value="" disabled>
+                          No leave types available
                         </MenuItem>
-                      ))}
+                      ) : (
+                        leaveTypes.map((type) => (
+                          <MenuItem key={type._id} value={type._id}>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Chip
+                                label={type.code}
+                                size="small"
+                                sx={{ backgroundColor: type.color, color: "white" }}
+                              />
+                              <Typography>{type.name}</Typography>
+                            </Box>
+                          </MenuItem>
+                        ))
+                      )}
                     </Select>
+                    {errors.leaveType && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                        {errors.leaveType}
+                      </Typography>
+                    )}
                   </FormControl>
                 </Grid>
 
@@ -336,8 +454,17 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     label="Start Date *"
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setErrors((prev) => ({ ...prev, startDate: "" }));
+                    }}
                     InputLabelProps={{ shrink: true }}
+                    inputProps={{
+                      min: new Date().toISOString().split("T")[0],
+                    }}
+                    error={!!errors.startDate}
+                    helperText={errors.startDate}
+                    disabled={submitting}
                   />
                 </Grid>
 
@@ -347,8 +474,17 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     label="End Date *"
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setErrors((prev) => ({ ...prev, endDate: "" }));
+                    }}
                     InputLabelProps={{ shrink: true }}
+                    inputProps={{
+                      min: startDate || new Date().toISOString().split("T")[0],
+                    }}
+                    error={!!errors.endDate}
+                    helperText={errors.endDate}
+                    disabled={submitting}
                   />
                 </Grid>
 
@@ -358,10 +494,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                       <Switch
                         checked={halfDay}
                         onChange={(e) => setHalfDay(e.target.checked)}
+                        disabled={submitting}
                       />
                     }
                     label="Half Day Leave"
                   />
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
+                    Enable this if you're applying for half-day leave only
+                  </Typography>
                 </Grid>
 
                 <Grid item xs={12}>
@@ -371,8 +511,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     multiline
                     rows={3}
                     value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Enter reason for leave..."
+                    onChange={(e) => {
+                      setReason(e.target.value);
+                      setErrors((prev) => ({ ...prev, reason: "" }));
+                    }}
+                    placeholder="Enter reason for leave (optional)..."
+                    helperText="Provide a brief explanation for your leave request (optional)"
+                    disabled={submitting}
                   />
                 </Grid>
 
@@ -469,14 +614,24 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         color={getStatusColor(leave.status)}
                         size="small"
                       />
-                      {leave.approver && (
+                      {leave.status === 'approved' ? (
+                        leave.approvedBy ? (
+                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                            Approved by: {leave.approvedBy.name}
+                          </Typography>
+                        ) : (
+                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                            Approved by: Employer
+                          </Typography>
+                        )
+                      ) : leave.status === 'pending' && leave.approver ? (
                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                           Approver: {leave.approver.name}
                         </Typography>
-                      )}
+                      ) : null}
                     </Grid>
                     <Grid item xs={12} sm={2}>
-                      {(leave.status === "pending" || leave.status === "approved") && (
+                      {leave.status === "pending" && (
                         <Button
                           size="small"
                           variant="outlined"

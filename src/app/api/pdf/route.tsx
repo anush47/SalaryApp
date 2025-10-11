@@ -9,6 +9,8 @@ import { options } from "../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import { checkPurchased } from "../purchases/check/checkPurchased";
+import Employee from "@/app/models/Employee";
+import Salary from "@/app/models/Salary";
 
 const periodSchema = z
   .string()
@@ -50,6 +52,31 @@ export async function POST(req: NextRequest) {
     }
 
     await dbConnect();
+
+    if (user?.role === "employee") {
+      const employee = await Employee.findOne({ user: userId });
+      if (!employee) {
+        return NextResponse.json(
+          { message: "Employee not found for the current user." },
+          { status: 404 }
+        );
+      }
+
+      // Verify that all requested salaryIds belong to this employee
+      if (salaryIds && salaryIds.length > 0) {
+        const salaries = await Salary.find({
+          _id: { $in: salaryIds },
+          employee: employee._id,
+        }).select("_id");
+
+        if (salaries.length !== salaryIds.length) {
+          return NextResponse.json(
+            { message: "Access denied. You can only request your own documents." },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     //check authority
     const filter: { user?: string; _id: string } = {

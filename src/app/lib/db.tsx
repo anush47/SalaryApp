@@ -1,4 +1,15 @@
 import mongoose from "mongoose";
+import "./../models/Company";
+import "./../models/Department";
+import "./../models/Employee";
+import "./../models/Holiday";
+import "./../models/LeaveRequest";
+import "./../models/LeaveType";
+import "./../models/Payment";
+import "./../models/Purchase";
+import "./../models/Salary";
+import "./../models/TaxConfiguration";
+import "./../models/User";
 
 interface Connection {
   isConnected?: number;

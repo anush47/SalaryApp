@@ -48,11 +48,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState<any>(null);
-  const [passwordDialog, setPasswordDialog] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,49 +75,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
     fetchData();
   }, [user.id]);
 
-  const handlePasswordChange = async () => {
-    if (!newPassword || !confirmPassword || !currentPassword) {
-      showSnackbar("Please fill all password fields", "error");
-      return;
-    }
 
-    if (newPassword !== confirmPassword) {
-      showSnackbar("New passwords do not match", "error");
-      return;
-    }
-
-    if (newPassword.length < 4) {
-      showSnackbar("Password must be at least 4 characters", "error");
-      return;
-    }
-
-    setChangingPassword(true);
-    try {
-      const response = await fetch("/api/auth/changePassword", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          oldPassword: currentPassword,
-          newPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to change password");
-      }
-
-      showSnackbar("Password changed successfully", "success");
-      setPasswordDialog(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (error: any) {
-      showSnackbar(error.message, "error");
-    }
-    setChangingPassword(false);
-  };
 
   if (loading) {
     return (
@@ -172,15 +126,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     Member #{employeeData.memberNo} • {employeeData.company?.name}
                   </Typography>
                 </Box>
-                <Box>
-                  <Button
-                    variant="outlined"
-                    startIcon={<Lock />}
-                    onClick={() => setPasswordDialog(true)}
-                  >
-                    Change Password
-                  </Button>
-                </Box>
+
               </Box>
             </CardContent>
           </Card>
@@ -319,13 +265,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     secondary={employeeData.company?.employerNo || "N/A"}
                   />
                 </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="EPF Number"
-                    secondary={employeeData.epfNo || "Not provided"}
-                  />
-                </ListItem>
+
               </List>
             </CardContent>
           </Card>
@@ -355,90 +295,49 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                   />
                 </ListItem>
                 <Divider component="li" />
-                {employeeData.paymentStructure?.additions && (
-                  <>
-                    <ListItem>
-                      <ListItemText
-                        primary="Additions"
-                        secondary={
-                          employeeData.paymentStructure.additions.length > 0
-                            ? employeeData.paymentStructure.additions
-                                .map((a: any) => a.name)
-                                .join(", ")
-                            : "None"
-                        }
-                      />
-                    </ListItem>
-                    <Divider component="li" />
-                  </>
-                )}
-                {employeeData.paymentStructure?.deductions && (
-                  <ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Payment Structure"
+                    secondary={employeeData.overrides?.paymentStructure ? "Employee Specific" : "Company Default"}
+                  />
+                </ListItem>
+                <Divider component="li" />
+                <ListItem>
+                  <ListItemText primary="Additions" />
+                </ListItem>
+                {(employeeData.overrides?.paymentStructure
+                  ? employeeData.paymentStructure?.additions
+                  : employeeData.company?.paymentStructure?.additions
+                )?.map((a: any, index: number) => (
+                  <ListItem key={`addition-${index}`} sx={{ pl: 4 }}>
                     <ListItemText
-                      primary="Deductions"
-                      secondary={
-                        employeeData.paymentStructure.deductions.length > 0
-                          ? employeeData.paymentStructure.deductions
-                              .map((d: any) => d.name)
-                              .join(", ")
-                          : "None"
-                      }
+                      primary={a.name}
+                      secondary={typeof a.amount === 'number' ? `LKR ${a.amount.toLocaleString()}` : 'Dynamic'}
                     />
                   </ListItem>
-                )}
+                )) || <ListItem sx={{ pl: 4 }}><ListItemText secondary="None" /></ListItem>}
+                <Divider component="li" />
+                <ListItem>
+                  <ListItemText primary="Deductions" />
+                </ListItem>
+                {(employeeData.overrides?.paymentStructure
+                  ? employeeData.paymentStructure?.deductions
+                  : employeeData.company?.paymentStructure?.deductions
+                )?.map((d: any, index: number) => (
+                  <ListItem key={`deduction-${index}`} sx={{ pl: 4 }}>
+                    <ListItemText
+                      primary={d.name}
+                      secondary={typeof d.amount === 'number' ? `LKR ${d.amount.toLocaleString()}` : 'Dynamic'}
+                    />
+                  </ListItem>
+                )) || <ListItem sx={{ pl: 4 }}><ListItemText secondary="None" /></ListItem>}
               </List>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Change Password Dialog */}
-      <Dialog
-        open={passwordDialog}
-        onClose={() => setPasswordDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Change Password</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <TextField
-              fullWidth
-              label="Current Password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="New Password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Confirm New Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPasswordDialog(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handlePasswordChange}
-            disabled={changingPassword}
-            startIcon={changingPassword ? <CircularProgress size={20} /> : <Lock />}
-          >
-            Change Password
-          </Button>
-        </DialogActions>
-      </Dialog>
+
     </Box>
   );
 };

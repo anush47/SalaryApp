@@ -65,7 +65,8 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
     },
     reason: {
       type: String,
-      required: true,
+      required: false,
+      default: "",
     },
     status: {
       type: String,

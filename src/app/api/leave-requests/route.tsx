@@ -6,6 +6,7 @@ import LeaveRequest from "@/app/models/LeaveRequest";
 import LeaveType from "@/app/models/LeaveType";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
+import Department from "@/app/models/Department";
 import { isInManagementChain } from "@/app/lib/employeeHierarchy";
 
 // GET /api/leave-requests - List leave requests with filters
@@ -59,7 +60,9 @@ export async function GET(req: NextRequest) {
     }
 
     // Build query
-    const query: any = {};
+    const query: any = {
+      company: companyId, // Always filter by company
+    };
 
     // If myRequests, show employee's own requests
     if (myRequests && session.user.role === "employee") {
@@ -267,7 +270,7 @@ export async function POST(req: NextRequest) {
     if (!approver) {
       // If no manager, check department manager
       if (employee.department) {
-        const department = await Employee.findById(employee.department).populate("manager");
+        const department = await Department.findById(employee.department).populate("manager");
         if (department && department.manager) {
           approver = department.manager;
         }
@@ -280,6 +283,7 @@ export async function POST(req: NextRequest) {
     // Create leave request
     const leaveRequest = new LeaveRequest({
       employee: employeeId,
+      company: employee.company,
       leaveType: leaveTypeId,
       startDate: start,
       endDate: end,
@@ -426,9 +430,8 @@ export async function PUT(req: NextRequest) {
         }
 
         leaveRequest.status = "approved";
-        leaveRequest.approvedBy = session.user.role === "employee"
-          ? (await Employee.findOne({ user: session.user.id }))?._id
-          : leaveRequest.approver;
+        const approvingEmployee = await Employee.findOne({ user: session.user.id });
+        leaveRequest.approvedBy = approvingEmployee?._id;
         leaveRequest.approvedAt = new Date();
         leaveRequest.remarks = remarks || "";
 
@@ -470,6 +473,14 @@ export async function PUT(req: NextRequest) {
           return NextResponse.json(
             { error: "Leave request is already cancelled" },
             { status: 400 }
+          );
+        }
+
+        // Employee can only cancel pending requests
+        if (session.user.role === "employee" && leaveRequest.status !== "pending") {
+          return NextResponse.json(
+            { error: "You can only cancel pending leave requests." },
+            { status: 403 }
           );
         }
 

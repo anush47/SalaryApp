@@ -89,6 +89,9 @@ export interface Employee {
   email: string;
   address: string;
   calendar: "default" | "other";
+  department?: any;
+  manager?: any;
+  employeeType?: "permanent" | "contract" | "intern" | "temporary";
 }
 
 // Default values for Employee
@@ -142,6 +145,9 @@ export const defaultEmployee: Employee = {
   email: "",
   address: "",
   calendar: "default",
+  department: null,
+  manager: null,
+  employeeType: "permanent",
 };
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {

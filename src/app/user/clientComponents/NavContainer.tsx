@@ -12,6 +12,7 @@ export type Selected =
   | "settings"
   | "purchases"
   | "employees"
+  | "organization"
   | "salaries"
   | "payments"
   // Employee-specific
@@ -46,6 +47,7 @@ const NavContainer = ({
         "settings",
         "purchases",
         "employees",
+        "organization",
         "salaries",
         "payments",
         "dashboard",

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"; // Adjust import as needed
 import { z } from "zod";
 import dbConnect from "@/app/lib/db";
 import Employee from "@/app/models/Employee";
+import Department from "@/app/models/Department";
 import { options } from "../auth/[...nextauth]/options";
 import Company from "@/app/models/Company";
 import { calculateMonthlyPrice } from "../purchases/price/priceUtils";
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
 
       const employee = await Employee.findOne({ user: userParam })
         .populate('user', 'email name')
-        .populate('company', 'name employerNo')
+        .populate('company', 'name employerNo paymentStructure')
         .populate('department', 'name')
         .populate('manager', 'name memberNo')
         .lean();
@@ -248,6 +249,9 @@ const employeeCreateSchema = z.object({
     .optional(),
   email: z.string().email("Email must be a valid email").optional(),
   address: z.string().optional(), // Add this line
+  department: z.union([z.string(), z.null()]).optional(),
+  manager: z.union([z.string(), z.null()]).optional(),
+  employeeType: z.enum(["permanent", "contract", "intern", "temporary"]).optional().default("permanent"),
   overrides: z
     .object({
       shifts: z.boolean(),
@@ -301,6 +305,13 @@ export async function POST(req: NextRequest) {
     }
     if (body.address === "") {
       delete body.address;
+    }
+    // Handle empty department and manager (when "None" is selected)
+    if (body.department === "") {
+      body.department = null;
+    }
+    if (body.manager === "") {
+      body.manager = null;
     }
 
     const parsedBody = employeeCreateSchema.parse(body);
@@ -502,6 +513,9 @@ const employeeUpdateSchema = z.object({
   email: z.string().email("Email must be a valid email").optional(),
   address: z.string().optional(),
   calendar: z.enum(["default", "other"]).optional(),
+  department: z.union([z.string(), z.null()]).optional(),
+  manager: z.union([z.string(), z.null()]).optional(),
+  employeeType: z.enum(["permanent", "contract", "intern", "temporary"]).optional(),
 });
 
 export async function PUT(req: NextRequest) {
@@ -539,6 +553,13 @@ export async function PUT(req: NextRequest) {
     }
     if (body.address === "") {
       delete body.address;
+    }
+    // Handle empty department and manager (when "None" is selected)
+    if (body.department === "") {
+      body.department = null;
+    }
+    if (body.manager === "") {
+      body.manager = null;
     }
 
     const parsedBody = employeeUpdateSchema.parse(body);

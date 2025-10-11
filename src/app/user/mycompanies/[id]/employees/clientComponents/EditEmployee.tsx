@@ -93,6 +93,24 @@ const EditEmployeeForm: React.FC<{
     return data.companies[0];
   };
 
+  const fetchDepartments = async () => {
+    const response = await fetch(`/api/departments?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch departments");
+    }
+    const data = await response.json();
+    return data.departments || [];
+  };
+
+  const fetchEmployees = async () => {
+    const response = await fetch(`/api/employees?companyId=${companyId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch employees");
+    }
+    const data = await response.json();
+    return data.employees || [];
+  };
+
   const {
     data: employeeData,
     isLoading: isLoadingEmployee,
@@ -114,6 +132,22 @@ const EditEmployeeForm: React.FC<{
   } = useQuery<Company, Error>({
     queryKey: ["company", companyId],
     queryFn: fetchCompanyData,
+    enabled: !!companyId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  const { data: departments } = useQuery({
+    queryKey: ["departments", companyId],
+    queryFn: fetchDepartments,
+    enabled: !!companyId,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
+
+  const { data: employees } = useQuery({
+    queryKey: ["employees", companyId],
+    queryFn: fetchEmployees,
     enabled: !!companyId,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -723,6 +757,87 @@ const EditEmployeeForm: React.FC<{
                   readOnly: !isEditing,
                 }}
               />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel id="department-label">Department</InputLabel>
+              <Select
+                labelId="department-label"
+                label="Department"
+                name="department"
+                value={
+                  typeof formFields.department === "object"
+                    ? (formFields.department as any)?._id || ""
+                    : formFields.department || ""
+                }
+                onChange={(e) => {
+                  setFormFields((prev) => ({
+                    ...prev,
+                    department: e.target.value,
+                  }));
+                }}
+                variant="outlined"
+                readOnly={!isEditing}
+              >
+                <MenuItem value="">None</MenuItem>
+                {departments?.map((dept: any) => (
+                  <MenuItem key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel id="manager-label">Manager</InputLabel>
+              <Select
+                labelId="manager-label"
+                label="Manager"
+                name="manager"
+                value={
+                  typeof formFields.manager === "object"
+                    ? (formFields.manager as any)?._id || ""
+                    : formFields.manager || ""
+                }
+                onChange={(e) => {
+                  setFormFields((prev) => ({
+                    ...prev,
+                    manager: e.target.value,
+                  }));
+                }}
+                variant="outlined"
+                readOnly={!isEditing}
+              >
+                <MenuItem value="">None</MenuItem>
+                {employees
+                  ?.filter((emp: any) => emp._id !== employeeId)
+                  .map((emp: any) => (
+                    <MenuItem key={emp._id} value={emp._id}>
+                      {emp.name} ({emp.memberNo}) - {emp.designation}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel id="employeeType-label">Employee Type</InputLabel>
+              <Select
+                labelId="employeeType-label"
+                label="Employee Type"
+                name="employeeType"
+                value={formFields.employeeType || "permanent"}
+                onChange={handleChange}
+                variant="outlined"
+                readOnly={!isEditing}
+              >
+                <MenuItem value="permanent">Permanent</MenuItem>
+                <MenuItem value="contract">Contract</MenuItem>
+                <MenuItem value="intern">Intern</MenuItem>
+                <MenuItem value="temporary">Temporary</MenuItem>
+              </Select>
             </FormControl>
           </Grid>
         </Grid>

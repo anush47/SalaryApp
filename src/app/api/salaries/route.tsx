@@ -95,16 +95,37 @@ export async function GET(req: NextRequest) {
     const salaryId = req.nextUrl.searchParams.get("salaryId");
     let companyId = req.nextUrl.searchParams.get("companyId");
     let period = req.nextUrl.searchParams.get("period");
+    const employeeId = req.nextUrl.searchParams.get("employee");
 
     if (period) {
       period = periodSchema.parse(period);
     }
 
-    if (!companyId && !salaryId) {
+    if (!companyId && !salaryId && !employeeId) {
       return NextResponse.json(
-        { message: "Company ID or salary ID is required" },
+        { message: "Company ID, salary ID, or employee ID is required" },
         { status: 400 }
       );
+    }
+
+    if (employeeId) {
+      // Security check: Ensure the logged-in user is the employee themselves
+      if (user?.role === "employee") {
+        const employee = await Employee.findOne({ user: userId });
+        if (String(employee?._id) !== employeeId) {
+          return NextResponse.json(
+            { message: "Access denied. You can only view your own salaries." },
+            { status: 403 }
+          );
+        }
+      }
+
+      const salaries = await Salary.find({
+        employee: employeeId,
+        ...(period ? { period } : {}),
+      }).select("+inOut").lean();
+
+      return NextResponse.json({ salaries });
     }
 
     if (salaryId) {

@@ -10,6 +10,7 @@ const MyCompanies = lazy(() => import("../mycompanies/myCompanies"));
 const Settings = lazy(() => import("../settings/settings"));
 const Payments = lazy(() => import("../payments/payments"));
 const Employees = lazy(() => import("../employees/employees"));
+const Organization = lazy(() => import("../organization/organization"));
 const Purchases = lazy(() => import("../purchases/purchases"));
 const Salaries = lazy(() => import("../salaries/salaries"));
 // Employee components
@@ -83,6 +84,12 @@ const UserMainBox = ({
               return (
                 <Suspense fallback={fallback}>
                   <Employees user={user} />
+                </Suspense>
+              );
+            case "organization":
+              return (
+                <Suspense fallback={fallback}>
+                  <Organization user={user} />
                 </Suspense>
               );
             case "purchases":

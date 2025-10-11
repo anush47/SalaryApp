@@ -9,6 +9,8 @@ export type Selected =
   | 'quick'
   | 'details'
   | 'employees'
+  | 'organization'
+  | 'leaves'
   | 'payments'
   | 'salaries'
   | 'purchases'
@@ -38,6 +40,8 @@ const NavContainer = ({
         'quick',
         'details',
         'employees',
+        'organization',
+        'leaves',
         'payments',
         'salaries',
         'purchases',

@@ -35,6 +35,7 @@ import {
   EventNote,
   Receipt,
   Person,
+  AccountTree,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { Link as LinkM } from "@mui/material";
@@ -112,6 +113,11 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
           icon: <Group />,
         },
         {
+          name: "Organization",
+          key: "organization",
+          icon: <AccountTree />,
+        },
+        {
           name: "Salaries",
           key: "salaries",
           icon: <LocalAtm />,
@@ -158,6 +164,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               return "Companies";
             case "employees":
               return "Employees";
+            case "organization":
+              return "Organization";
             case "purchases":
               return "Purchases";
             case "settings":
