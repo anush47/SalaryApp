@@ -225,7 +225,13 @@ const AddEmployeeForm: React.FC<{
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any
   ) => {
     let { name, value } = event.target;
-    if (name === "active" || name.startsWith("overrides")) {
+    if (
+      name === "active" ||
+      name === "canLogin" ||
+      name === "isMarried" ||
+      name === "editable" ||
+      name.startsWith("overrides")
+    ) {
       // Handle checkbox state changes
       value = event.target.checked;
     } else if (name.startsWith("probabilities")) {
@@ -542,6 +548,116 @@ const AddEmployeeForm: React.FC<{
                 variant="filled"
                 value={formFields.email}
                 onChange={handleChange}
+              />
+            </FormControl>
+          </Grid>
+          
+          {/* Personal Details Section */}
+          <Grid item xs={12}>
+            <div className="my-5" />
+            <Typography variant="h5" component="h2" gutterBottom>
+              Personal Details
+            </Typography>
+            <Divider />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Full Name"
+                name="fullName"
+                variant="filled"
+                value={formFields.fullName || ""}
+                onChange={handleChange}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Mother's Name"
+                name="motherName"
+                variant="filled"
+                value={formFields.motherName || ""}
+                onChange={handleChange}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Father's Name"
+                name="fatherName"
+                variant="filled"
+                value={formFields.fatherName || ""}
+                onChange={handleChange}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.isMarried || false}
+                    name="isMarried"
+                    color="primary"
+                    value={formFields.isMarried}
+                    onChange={handleChange}
+                  />
+                }
+                label="Is Married?"
+              />
+            </FormControl>
+          </Grid>
+          {formFields.isMarried && (
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <TextField
+                  label="Spouse's Name"
+                  name="spouseName"
+                  variant="filled"
+                  value={formFields.spouseName || ""}
+                  onChange={handleChange}
+                />
+              </FormControl>
+            </Grid>
+          )}
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Nationality"
+                name="nationality"
+                variant="filled"
+                value={formFields.nationality || ""}
+                onChange={handleChange}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Emergency Contact"
+                name="emergencyContact"
+                variant="filled"
+                value={formFields.emergencyContact || ""}
+                onChange={handleChange}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.editable || false}
+                    name="editable"
+                    color="primary"
+                    value={formFields.editable}
+                    onChange={handleChange}
+                  />
+                }
+                label="Employee Can Edit Details ?"
               />
             </FormControl>
           </Grid>

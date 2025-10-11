@@ -25,6 +25,27 @@ export async function GET(req: NextRequest) {
     const needCompanies =
       req.nextUrl.searchParams.get("needCompanies") === "true";
 
+    // check if me=true is in the query
+    const me = req.nextUrl.searchParams.get("me");
+
+    if (me === "true") {
+      // Connect to the database
+      await dbConnect();
+      // Find the user
+      const _user = await User.findById(userId);
+      if (!_user) {
+        return NextResponse.json(
+          { message: "User not found" },
+          { status: 404 }
+        );
+      }
+      // remove password
+      const userToReturn = _user.toObject();
+      delete userToReturn.password;
+
+      return NextResponse.json({ users: [userToReturn] });
+    }
+
     // check if userId is in the query
     const _userId = req.nextUrl.searchParams.get("userId");
 
@@ -173,7 +194,19 @@ export async function POST(req: NextRequest) {
   }
 }
 
-const nameSchema = z.string().min(1, "Name is required");
+const userUpdateSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  address: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  nic: z.string().optional(),
+  motherName: z.string().optional(),
+  fatherName: z.string().optional(),
+  isMarried: z.boolean().optional(),
+  spouseName: z.string().optional(),
+  nationality: z.string().optional(),
+  documents: z.record(z.string()).optional(),
+});
+
 export async function PUT(req: NextRequest) {
   try {
     // Get user session
@@ -190,7 +223,7 @@ export async function PUT(req: NextRequest) {
 
     // Parse and validate the input
     const json = await req.json();
-    const name = nameSchema.parse(json.name);
+    const updatedData = userUpdateSchema.parse(json);
 
     // Connect to the database
     await dbConnect();
@@ -198,25 +231,19 @@ export async function PUT(req: NextRequest) {
     // Find and update the user
     const _user = await User.findOneAndUpdate(
       { _id: user.id },
-      { name },
+      updatedData,
       { new: true }
     );
 
-    if (!user) {
+    if (!_user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    //update the session
-
     //remove password
-    return NextResponse.json({
-      user: {
-        id: _user._id,
-        name: _user.name,
-        email: _user.email,
-        role: _user.role,
-      },
-    });
+    const userToReturn = _user.toObject();
+    delete userToReturn.password;
+
+    return NextResponse.json({ user: userToReturn });
   } catch (error) {
     // Handle validation errors
     if (error instanceof z.ZodError) {

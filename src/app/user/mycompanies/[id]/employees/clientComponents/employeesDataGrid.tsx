@@ -92,6 +92,16 @@ export interface Employee {
   department?: any;
   manager?: any;
   employeeType?: "permanent" | "contract" | "intern" | "temporary";
+  // Personal details
+  fullName?: string;
+  motherName?: string;
+  fatherName?: string;
+  isMarried?: boolean;
+  spouseName?: string;
+  nationality?: string;
+  emergencyContact?: string;
+  editable?: boolean;
+  documents?: Record<string, string>;
 }
 
 // Default values for Employee
@@ -148,6 +158,15 @@ export const defaultEmployee: Employee = {
   department: null,
   manager: null,
   employeeType: "permanent",
+  fullName: "",
+  motherName: "",
+  fatherName: "",
+  isMarried: false,
+  spouseName: "",
+  nationality: "Sri Lankan",
+  emergencyContact: "",
+  editable: false,
+  documents: {},
 };
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {

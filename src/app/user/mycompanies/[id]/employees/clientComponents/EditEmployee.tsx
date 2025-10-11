@@ -23,6 +23,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Divider,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -60,6 +61,7 @@ import Link from "next/link";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { MenuItem } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
+import Documents from "../../../../clientComponents/employee/Documents";
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -224,7 +226,13 @@ const EditEmployeeForm: React.FC<{
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any
   ) => {
     let { name, value } = event.target;
-    if (name === "active" || name === "canLogin" || name.startsWith("overrides")) {
+    if (
+      name === "active" ||
+      name === "canLogin" ||
+      name === "isMarried" ||
+      name === "editable" ||
+      name.startsWith("overrides")
+    ) {
       // Handle checkbox state changes
       value = event.target.checked;
     } else if (name.startsWith("probabilities")) {
@@ -690,10 +698,32 @@ const EditEmployeeForm: React.FC<{
                 label="Can Login ?"
               />
               {formFields.user && (
-                <Typography variant="caption" color="textSecondary" sx={{ ml: 4 }}>
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  sx={{ ml: 4 }}
+                >
                   User account exists
                 </Typography>
               )}
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.editable || false}
+                    size="large"
+                    name="editable"
+                    color="primary"
+                    value={formFields.editable}
+                    onChange={handleChange}
+                    disabled={!isEditing || loading}
+                  />
+                }
+                label="Employee Can Edit Details ?"
+              />
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -759,6 +789,153 @@ const EditEmployeeForm: React.FC<{
               />
             </FormControl>
           </Grid>
+
+          {/* Personal Details Section */}
+          <Grid item xs={12}>
+            <div className="my-5" />
+            <Typography variant="h5" component="h2" gutterBottom>
+              Personal Details
+            </Typography>
+            <Divider />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Full Name"
+                name="fullName"
+                variant="filled"
+                value={formFields.fullName || ""}
+                onChange={handleChange}
+                InputProps={{
+                  readOnly: !isEditing,
+                }}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Mother's Name"
+                name="motherName"
+                variant="filled"
+                value={formFields.motherName || ""}
+                onChange={handleChange}
+                InputProps={{
+                  readOnly: !isEditing,
+                }}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Father's Name"
+                name="fatherName"
+                variant="filled"
+                value={formFields.fatherName || ""}
+                onChange={handleChange}
+                InputProps={{
+                  readOnly: !isEditing,
+                }}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.isMarried || false}
+                    name="isMarried"
+                    color="primary"
+                    value={formFields.isMarried}
+                    onChange={handleChange}
+                    disabled={!isEditing || loading}
+                  />
+                }
+                label="Is Married?"
+              />
+            </FormControl>
+          </Grid>
+          {formFields.isMarried && (
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <TextField
+                  label="Spouse's Name"
+                  name="spouseName"
+                  variant="filled"
+                  value={formFields.spouseName || ""}
+                  onChange={handleChange}
+                  InputProps={{
+                    readOnly: !isEditing,
+                  }}
+                  disabled={!isEditing}
+                />
+              </FormControl>
+            </Grid>
+          )}
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Nationality"
+                name="nationality"
+                variant="filled"
+                value={formFields.nationality || ""}
+                onChange={handleChange}
+                InputProps={{
+                  readOnly: !isEditing,
+                }}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <TextField
+                label="Emergency Contact"
+                name="emergencyContact"
+                variant="filled"
+                value={formFields.emergencyContact || ""}
+                onChange={handleChange}
+                InputProps={{
+                  readOnly: !isEditing,
+                }}
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.editable || false}
+                    size="large"
+                    name="editable"
+                    color="primary"
+                    value={formFields.editable}
+                    onChange={handleChange}
+                    disabled={!isEditing || loading}
+                  />
+                }
+                label="Employee Can Edit Details ?"
+              />
+            </FormControl>
+          </Grid>
+          
+          {/* Documents Section */}
+          <Grid item xs={12}>
+            <div className="my-5" />
+            <Typography variant="h5" component="h2" gutterBottom>
+              Documents
+            </Typography>
+            <Divider />
+            <Documents 
+              documents={formFields.documents} 
+              setDocuments={(docs) => setFormFields({ ...formFields, documents: docs })} 
+              editable={isEditing} 
+            />
+          </Grid>
+          
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel id="department-label">Department</InputLabel>
@@ -1139,13 +1316,17 @@ const EditEmployeeForm: React.FC<{
                   });
                   const data = await response.json();
                   if (!response.ok) {
-                    throw new Error(data.error || "Failed to create user account");
+                    throw new Error(
+                      data.error || "Failed to create user account"
+                    );
                   }
                   showSnackbar({
                     message: `User account created! Temporary password: ${data.temporaryPassword}`,
                     severity: "success",
                   });
-                  queryClient.invalidateQueries({ queryKey: ["employees", companyId, employeeId] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["employees", companyId, employeeId],
+                  });
                 } catch (error: any) {
                   showSnackbar({ message: error.message, severity: "error" });
                 } finally {
@@ -1156,8 +1337,13 @@ const EditEmployeeForm: React.FC<{
             >
               {loading ? <CircularProgress size={24} /> : "Create User Account"}
             </Button>
-            <Typography variant="caption" color="textSecondary" sx={{ ml: 2, display: "block", mt: 1 }}>
-              Note: Employee must have an email address to create a login account.
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              sx={{ ml: 2, display: "block", mt: 1 }}
+            >
+              Note: Employee must have an email address to create a login
+              account.
             </Typography>
           </Grid>
         )}

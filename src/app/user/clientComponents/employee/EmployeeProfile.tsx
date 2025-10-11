@@ -19,6 +19,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import {
   Edit,
@@ -31,8 +33,10 @@ import {
   Work,
   CalendarToday,
   AttachMoney,
+  Save,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import Documents from "./Documents";
 
 interface UserProps {
   user: {
@@ -48,7 +52,40 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = event.target;
+    // Handle boolean fields that come from checkboxes
+    const finalValue = (name === 'isMarried' || name === 'editable') && type === 'checkbox' ? checked : value;
+    setEmployeeData({ ...employeeData, [name]: finalValue });
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/employees`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(employeeData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update profile");
+      }
+
+      showSnackbar({
+        message: "Profile updated successfully",
+        severity: "success",
+      });
+      setIsEditing(false);
+    } catch (error: any) {
+      showSnackbar({ message: error.message, severity: "error" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,15 +104,13 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
         setEmployeeData(empData.employees[0]);
         setLoading(false);
       } catch (error: any) {
-        showSnackbar(error.message, "error");
+        showSnackbar({ message: error.message, severity: "error" });
         setLoading(false);
       }
     };
 
     fetchData();
   }, [user.id]);
-
-
 
   if (loading) {
     return (
@@ -123,10 +158,10 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     {employeeData.designation || "Employee"}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    Member #{employeeData.memberNo} • {employeeData.company?.name}
+                    Member #{employeeData.memberNo} •{" "}
+                    {employeeData.company?.name}
                   </Typography>
                 </Box>
-
               </Box>
             </CardContent>
           </Card>
@@ -151,29 +186,8 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                 <Divider component="li" />
                 <ListItem>
                   <ListItemText
-                    primary="Email"
-                    secondary={user.email || "Not provided"}
-                  />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="Phone Number"
-                    secondary={employeeData.phoneNumber || "Not provided"}
-                  />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
                     primary="NIC"
                     secondary={employeeData.nic || "Not provided"}
-                  />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="Address"
-                    secondary={employeeData.address || "Not provided"}
                   />
                 </ListItem>
               </List>
@@ -265,79 +279,204 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     secondary={employeeData.company?.employerNo || "N/A"}
                   />
                 </ListItem>
-
               </List>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Salary Information */}
-        <Grid item xs={12} md={6}>
+        {/* New Personal Details Card */}
+        <Grid item xs={12}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <AttachMoney color="primary" />
-                <Typography variant="h6">Salary Information</Typography>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+              >
+                <Typography variant="h6">Personal Details</Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => employeeData.editable && setIsEditing(!isEditing)}
+                  disabled={!employeeData.editable}
+                >
+                  {isEditing ? "Cancel" : "Edit"}
+                </Button>
               </Box>
               <Divider sx={{ mb: 2 }} />
-              <List>
-                <ListItem>
-                  <ListItemText
-                    primary="Basic Salary"
-                    secondary={`LKR ${employeeData.basic?.toLocaleString()}`}
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Full Name"
+                    name="fullName"
+                    value={employeeData.fullName || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
                   />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="Divide By"
-                    secondary={employeeData.divideBy || 240}
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    name="email"
+                    value={employeeData.email || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
                   />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="Payment Structure"
-                    secondary={employeeData.overrides?.paymentStructure ? "Employee Specific" : "Company Default"}
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Phone Number"
+                    name="phoneNumber"
+                    value={employeeData.phoneNumber || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
                   />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText primary="Additions" />
-                </ListItem>
-                {(employeeData.overrides?.paymentStructure
-                  ? employeeData.paymentStructure?.additions
-                  : employeeData.company?.paymentStructure?.additions
-                )?.map((a: any, index: number) => (
-                  <ListItem key={`addition-${index}`} sx={{ pl: 4 }}>
-                    <ListItemText
-                      primary={a.name}
-                      secondary={typeof a.amount === 'number' ? `LKR ${a.amount.toLocaleString()}` : 'Dynamic'}
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Address"
+                    name="address"
+                    value={employeeData.address || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Mother's Name"
+                    name="motherName"
+                    value={employeeData.motherName || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Father's Name"
+                    name="fatherName"
+                    value={employeeData.fatherName || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={employeeData.isMarried || false}
+                        onChange={(e) =>
+                          handleInputChange({
+                            target: {
+                              name: "isMarried",
+                              value: e.target.checked,
+                            },
+                          } as any)
+                        }
+                        name="isMarried"
+                        disabled={!isEditing}
+                      />
+                    }
+                    label="Married"
+                  />
+                </Grid>
+                {employeeData.isMarried && (
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Spouse's Name"
+                      name="spouseName"
+                      value={employeeData.spouseName || ""}
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      InputProps={{
+                        readOnly: !isEditing,
+                      }}
                     />
-                  </ListItem>
-                )) || <ListItem sx={{ pl: 4 }}><ListItemText secondary="None" /></ListItem>}
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText primary="Deductions" />
-                </ListItem>
-                {(employeeData.overrides?.paymentStructure
-                  ? employeeData.paymentStructure?.deductions
-                  : employeeData.company?.paymentStructure?.deductions
-                )?.map((d: any, index: number) => (
-                  <ListItem key={`deduction-${index}`} sx={{ pl: 4 }}>
-                    <ListItemText
-                      primary={d.name}
-                      secondary={typeof d.amount === 'number' ? `LKR ${d.amount.toLocaleString()}` : 'Dynamic'}
-                    />
-                  </ListItem>
-                )) || <ListItem sx={{ pl: 4 }}><ListItemText secondary="None" /></ListItem>}
-              </List>
+                  </Grid>
+                )}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Nationality"
+                    name="nationality"
+                    value={employeeData.nationality || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Emergency Contact"
+                    name="emergencyContact"
+                    value={employeeData.emergencyContact || ""}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      readOnly: !isEditing,
+                    }}
+                  />
+                </Grid>
+                
+                {/* Documents Section */}
+                <Grid item xs={12}>
+                  <Documents 
+                    documents={employeeData.documents} 
+                    setDocuments={(docs) => setEmployeeData({ ...employeeData, documents: docs })} 
+                    editable={isEditing} 
+                  />
+                </Grid>
+                
+                {isEditing && (
+                  <Grid item xs={12}>
+                    <Button
+                      variant="contained"
+                      onClick={handleSave}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </Grid>
+                )}
+              </Grid>
             </CardContent>
           </Card>
         </Grid>
+
+
       </Grid>
-
-
     </Box>
   );
 };

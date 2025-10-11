@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       }
 
       const employee = await Employee.findOne({ user: userParam })
-        .populate('user', 'email name')
+        .populate('user', '-password')
         .populate('company', 'name employerNo paymentStructure')
         .populate('department', 'name')
         .populate('manager', 'name memberNo')
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
         );
       }
       // Find employees based on the filter
-      employees = await Employee.find(filter).populate('user', 'email name').lean();
+      employees = await Employee.find(filter).populate('user', '-password').lean();
       // Enrich employees with company details
       employees.forEach((employee) => {
         const company = companies.find(
@@ -268,6 +268,15 @@ const employeeCreateSchema = z.object({
       calendar: false,
     }),
   calendar: z.enum(["default", "other"]).optional().default("default"),
+  // Personal information fields
+  fullName: z.string().optional(),
+  motherName: z.string().optional(),
+  fatherName: z.string().optional(),
+  isMarried: z.boolean().optional(),
+  spouseName: z.string().optional(),
+  nationality: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  editable: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -516,6 +525,16 @@ const employeeUpdateSchema = z.object({
   department: z.union([z.string(), z.null()]).optional(),
   manager: z.union([z.string(), z.null()]).optional(),
   employeeType: z.enum(["permanent", "contract", "intern", "temporary"]).optional(),
+  // Personal information fields
+  fullName: z.string().optional(),
+  motherName: z.string().optional(),
+  fatherName: z.string().optional(),
+  isMarried: z.boolean().optional(),
+  spouseName: z.string().optional(),
+  nationality: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  editable: z.boolean().optional(),
+  documents: z.record(z.string()).optional(),
 });
 
 export async function PUT(req: NextRequest) {

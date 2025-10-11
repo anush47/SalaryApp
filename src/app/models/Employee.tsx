@@ -4,6 +4,7 @@ import { Schema, model, models, Document } from "mongoose";
 interface IEmployee extends Document {
   memberNo: number;
   name: string;
+  fullName: string;
   nic: string;
   basic: number;
   totalSalary: string;
@@ -74,6 +75,14 @@ interface IEmployee extends Document {
       affectTotalEarnings: boolean;
     }[];
   };
+  motherName: string;
+  fatherName: string;
+  isMarried: boolean;
+  spouseName: string;
+  nationality: string;
+  documents: Map<string, string>;
+  emergencyContact: string;
+  editable: boolean;
 }
 
 // Define the schema for the Employee model
@@ -86,6 +95,9 @@ const employeeSchema = new Schema<IEmployee>(
     name: {
       type: String,
       required: true,
+    },
+    fullName: {
+      type: String,
     },
     nic: {
       type: String,
@@ -342,6 +354,33 @@ const employeeSchema = new Schema<IEmployee>(
         ],
         default: [{ name: "EPF 8%", amount: null }],
       },
+    },
+    motherName: {
+      type: String,
+    },
+    fatherName: {
+      type: String,
+    },
+    isMarried: {
+      type: Boolean,
+    },
+    spouseName: {
+      type: String,
+    },
+    nationality: {
+      type: String,
+      default: "Sri Lankan",
+    },
+    documents: {
+      type: Map,
+      of: String,
+    },
+    emergencyContact: {
+      type: String,
+    },
+    editable: {
+      type: Boolean,
+      default: false,
     },
   },
   {

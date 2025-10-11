@@ -18,6 +18,7 @@ const EmployeeDashboard = lazy(() => import("./employee/EmployeeDashboard"));
 const EmployeeLeaves = lazy(() => import("./employee/EmployeeLeaves"));
 const EmployeePayslips = lazy(() => import("./employee/EmployeePayslips"));
 const EmployeeProfile = lazy(() => import("./employee/EmployeeProfile"));
+const ProfileForm = lazy(() => import("./employer/ProfileForm"));
 
 const UserMainBox = ({
   user,
@@ -130,11 +131,19 @@ const UserMainBox = ({
                 </Suspense>
               );
             case "profile":
-              return (
-                <Suspense fallback={fallback}>
-                  <EmployeeProfile user={user} />
-                </Suspense>
-              );
+              if (user.role === 'employee') {
+                return (
+                  <Suspense fallback={fallback}>
+                    <EmployeeProfile user={user} />
+                  </Suspense>
+                );
+              } else {
+                return (
+                  <Suspense fallback={fallback}>
+                    <ProfileForm user={user} />
+                  </Suspense>
+                );
+              }
             default:
               return <div>Component not found</div>;
           }

@@ -65,6 +65,16 @@ export interface Employee {
   startedAt: Date | string;
   resignedAt: Date | string;
   company: string;
+  // Personal details
+  fullName?: string;
+  motherName?: string;
+  fatherName?: string;
+  isMarried?: boolean;
+  spouseName?: string;
+  nationality?: string;
+  emergencyContact?: string;
+  editable?: boolean;
+  documents?: Record<string, string>;
 }
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
@@ -429,7 +439,11 @@ const EmployeesDataGrid: React.FC<{
     },
     {
       field: "canLogin",
-      headerName: "Can Login",
+      type: "boolean",
+    },
+    {
+      field: "editable",
+      headerName: "Editable",
       flex: 1,
       editable: isEditingEmployeeInHome,
       type: "boolean",

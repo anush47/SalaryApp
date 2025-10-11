@@ -138,6 +138,12 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
       }
 
       employerMenus.push({
+        name: "Profile",
+        key: "profile",
+        icon: <Person />,
+      });
+
+      employerMenus.push({
         name: "Settings",
         key: "settings",
         icon: <Settings />,

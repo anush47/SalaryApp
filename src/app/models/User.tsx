@@ -59,6 +59,12 @@ const userSchema = new Schema<IUser>(
     phoneNumber: {
       type: String,
     },
+    nic: {
+      type: String,
+    },
+    address: {
+      type: String,
+    },
   },
   {
     timestamps: true, // Optionally add timestamps for createdAt and updatedAt
