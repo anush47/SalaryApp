@@ -4,9 +4,8 @@ import { options } from "../../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import Employee from "@/app/models/Employee";
 import LeaveRequest from "@/app/models/LeaveRequest";
-import Salary from "@/app/models/Salary";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // GET /api/dashboard/manager?employeeId=xxx
 // Returns manager's team overview and statistics
@@ -30,9 +29,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Verify the employee exists and belongs to the user
-    const manager = await Employee.findById(employeeId).select("_id name company").lean();
+    const manager = await Employee.findById(employeeId)
+      .select("_id name company")
+      .lean();
     if (!manager) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Employee not found" },
+        { status: 404 }
+      );
     }
 
     // Get all team members (employees who report to this manager)
@@ -49,8 +53,8 @@ export async function GET(req: NextRequest) {
     if (teamMemberIds.length === 0) {
       return NextResponse.json({
         manager: {
-          _id: manager._id,
-          name: manager.name,
+          _id: (manager as any)._id,
+          name: (manager as any).name,
         },
         team: {
           total: 0,
@@ -64,79 +68,58 @@ export async function GET(req: NextRequest) {
           totalPending: 0,
         },
         performance: {
-          avgSalary: 0,
-          trends: [],
+          avgSalary: 0, // Placeholder - salary data removed for privacy
+          trends: [], // Placeholder - salary data removed for privacy
         },
       });
     }
 
     // Parallel data fetching
-    const [leaveRequests, employeesByType, employeesByDept, recentSalaries] = await Promise.all([
-      // Leave requests for team members
-      LeaveRequest.find({
-        employee: { $in: teamMemberIds },
-        status: { $in: ["pending", "approved"] },
-      })
-        .populate("employee", "name memberNo")
-        .populate("leaveType", "name code color")
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .lean(),
+    const [leaveRequests, employeesByType, employeesByDept] = await Promise.all(
+      [
+        // Leave requests for team members
+        LeaveRequest.find({
+          employee: { $in: teamMemberIds },
+          status: { $in: ["pending", "approved"] },
+        })
+          .populate("employee", "name memberNo")
+          .populate("leaveType", "name code color")
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .lean(),
 
-      // Team members by type
-      Employee.aggregate([
-        { $match: { _id: { $in: teamMemberIds } } },
-        {
-          $group: {
-            _id: "$employeeType",
-            count: { $sum: 1 },
-          },
-        },
-      ]),
-
-      // Team members by department
-      Employee.aggregate([
-        { $match: { _id: { $in: teamMemberIds } } },
-        {
-          $lookup: {
-            from: "departments",
-            localField: "department",
-            foreignField: "_id",
-            as: "deptData",
-          },
-        },
-        { $unwind: { path: "$deptData", preserveNullAndEmptyArrays: true } },
-        {
-          $group: {
-            _id: "$deptData.name",
-            count: { $sum: 1 },
-          },
-        },
-      ]),
-
-      // Recent salaries for trend analysis (last 3 months)
-      Salary.aggregate([
-        {
-          $match: {
-            employee: { $in: teamMemberIds },
-            period: {
-              $gte: new Date(new Date().setMonth(new Date().getMonth() - 3))
-                .toISOString()
-                .slice(0, 7),
+        // Team members by type
+        Employee.aggregate([
+          { $match: { _id: { $in: teamMemberIds } } },
+          {
+            $group: {
+              _id: "$employeeType",
+              count: { $sum: 1 },
             },
           },
-        },
-        {
-          $group: {
-            _id: "$period",
-            avgSalary: { $avg: "$finalSalary" },
-            totalSalary: { $sum: "$finalSalary" },
-            count: { $sum: 1 },
+        ]),
+
+        // Team members by department
+        Employee.aggregate([
+          { $match: { _id: { $in: teamMemberIds } } },
+          {
+            $lookup: {
+              from: "departments",
+              localField: "department",
+              foreignField: "_id",
+              as: "deptData",
+            },
           },
-        },
-        { $sort: { _id: -1 } },
-      ]),
-    ]);
+          { $unwind: { path: "$deptData", preserveNullAndEmptyArrays: true } },
+          {
+            $group: {
+              _id: "$deptData.name",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+      ]
+    );
 
     // Get leave balance for each team member
     const teamWithLeaves = await Promise.all(
@@ -144,7 +127,9 @@ export async function GET(req: NextRequest) {
         try {
           // Fetch leave balance using the existing helper
           const balanceResponse = await fetch(
-            `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/employees/leave-balance?employeeId=${member._id}`,
+            `${
+              process.env.NEXTAUTH_URL || "http://localhost:3000"
+            }/api/employees/leave-balance?employeeId=${member._id}`,
             {
               headers: {
                 cookie: req.headers.get("cookie") || "",
@@ -173,8 +158,12 @@ export async function GET(req: NextRequest) {
     );
 
     // Format leave requests
-    const pendingLeaves = leaveRequests.filter((req) => req.status === "pending");
-    const approvedLeaves = leaveRequests.filter((req) => req.status === "approved");
+    const pendingLeaves = leaveRequests.filter(
+      (req) => req.status === "pending"
+    );
+    const approvedLeaves = leaveRequests.filter(
+      (req) => req.status === "approved"
+    );
 
     // Format employee type breakdown
     const byType = employeesByType.reduce((acc, curr) => {
@@ -190,8 +179,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       manager: {
-        _id: manager._id,
-        name: manager.name,
+        _id: (manager as any)._id,
+        name: (manager as any).name,
       },
       team: {
         total: teamMembers.length,
@@ -224,13 +213,8 @@ export async function GET(req: NextRequest) {
         totalPending: pendingLeaves.length,
       },
       performance: {
-        avgSalary: recentSalaries.length > 0 ? Math.round(recentSalaries[0].avgSalary) : 0,
-        trends: recentSalaries.map((s) => ({
-          period: s._id,
-          avgSalary: Math.round(s.avgSalary),
-          totalSalary: Math.round(s.totalSalary),
-          employeeCount: s.count,
-        })),
+        avgSalary: 0, // Removed for privacy - managers cannot see employee salaries
+        trends: [], // Removed for privacy - managers cannot see employee salaries
       },
     });
   } catch (error) {

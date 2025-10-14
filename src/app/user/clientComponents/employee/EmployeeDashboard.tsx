@@ -25,7 +25,6 @@ import {
   CheckCircle,
   Pending,
   CalendarToday,
-  TrendingUp,
   Groups,
   Work,
 } from "@mui/icons-material";
@@ -530,14 +529,10 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                     justifyContent="space-between"
                   >
                     <Box>
-                      <Typography
-                        variant="body2"
-                        color="white"
-                        sx={{ opacity: 0.9 }}
-                      >
+                      <Typography variant="body2" color="primary.contrastText">
                         Team Members
                       </Typography>
-                      <Typography variant="h3" color="white">
+                      <Typography variant="h3" color="primary.contrastText">
                         {managerData.team.total}
                       </Typography>
                     </Box>
@@ -569,12 +564,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                     <Box>
                       <Typography
                         variant="body2"
-                        color="white"
+                        color="primary.contrastText"
                         sx={{ opacity: 0.9 }}
                       >
                         Pending Approvals
                       </Typography>
-                      <Typography variant="h3" color="white">
+                      <Typography variant="h3" color="primary.contrastText">
                         {managerData.leaves.totalPending}
                       </Typography>
                     </Box>
@@ -593,7 +588,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
             <Grid item xs={12} md={3}>
               <Card
                 sx={{
-                  bgcolor: "info.light",
+                  bgcolor: "success.light",
                   color: "primary.contrastText",
                 }}
               >
@@ -606,16 +601,16 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                     <Box>
                       <Typography
                         variant="body2"
-                        color="white"
+                        color="primary.contrastText"
                         sx={{ opacity: 0.9 }}
                       >
-                        Avg Team Salary
+                        Employee Types
                       </Typography>
-                      <Typography variant="h3" color="white">
-                        {(managerData.performance.avgSalary / 1000).toFixed(0)}K
+                      <Typography variant="h3" color="primary.contrastText">
+                        {Object.keys(managerData.team.byType).length}
                       </Typography>
                     </Box>
-                    <TrendingUp
+                    <Work
                       sx={{
                         fontSize: 60,
                         color: "primary.contrastText",
@@ -643,12 +638,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                     <Box>
                       <Typography
                         variant="body2"
-                        color="white"
+                        color="primary.contrastText"
                         sx={{ opacity: 0.9 }}
                       >
                         Departments
                       </Typography>
-                      <Typography variant="h3" color="white">
+                      <Typography variant="h3" color="primary.contrastText">
                         {Object.keys(managerData.team.byDepartment).length}
                       </Typography>
                     </Box>
