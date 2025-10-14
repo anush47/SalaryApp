@@ -156,8 +156,8 @@ const LeaveRequestsManagement: React.FC<{
       headerName: "Employee",
       flex: 1,
       minWidth: 200,
-      valueGetter: (params) => {
-        return `${params.name} (${params.memberNo})`;
+      valueGetter: (value, row) => {
+        return `${row.employee.name} (${row.employee.memberNo})`;
       },
     },
     {
@@ -183,8 +183,8 @@ const LeaveRequestsManagement: React.FC<{
       headerName: "Start Date",
       flex: 1,
       minWidth: 120,
-      valueGetter: (params) => {
-        return dayjs(params).format("DD-MM-YYYY");
+      valueGetter: (value, row) => {
+        return dayjs(row.startDate).format("DD-MM-YYYY");
       },
     },
     {
@@ -192,8 +192,8 @@ const LeaveRequestsManagement: React.FC<{
       headerName: "End Date",
       flex: 1,
       minWidth: 120,
-      valueGetter: (params) => {
-        return dayjs(params).format("DD-MM-YYYY");
+      valueGetter: (value, row) => {
+        return dayjs(row.endDate).format("DD-MM-YYYY");
       },
     },
     {
@@ -234,8 +234,10 @@ const LeaveRequestsManagement: React.FC<{
       headerName: "Approver",
       flex: 1,
       minWidth: 150,
-      valueGetter: (params) => {
-        return params ? `${params.name} (${params.memberNo})` : "None";
+      valueGetter: (value, row) => {
+        return row.approver
+          ? `${row.approver.name} (${row.approver.memberNo})`
+          : "None";
       },
     },
     {
@@ -254,7 +256,7 @@ const LeaveRequestsManagement: React.FC<{
                   size="small"
                   color="success"
                   startIcon={<Check />}
-                  onClick={() => handleAction(request, "approve")}
+                  onClick={() => handleActionClick(request, "approve")}
                 >
                   Approve
                 </Button>
@@ -263,17 +265,18 @@ const LeaveRequestsManagement: React.FC<{
                   size="small"
                   color="error"
                   startIcon={<Close />}
-                  onClick={() => handleAction(request, "reject")}
+                  onClick={() => handleActionClick(request, "reject")}
                 >
                   Reject
                 </Button>
               </>
             )}
-            {(request.status === "pending" || request.status === "approved") && (
+            {(request.status === "pending" ||
+              request.status === "approved") && (
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => handleAction(request, "cancel")}
+                onClick={() => handleActionClick(request, "cancel")}
               >
                 Cancel
               </Button>
@@ -284,7 +287,7 @@ const LeaveRequestsManagement: React.FC<{
     },
   ];
 
-  const handleAction = (
+  const handleActionClick = (
     request: LeaveRequest,
     actionType: "approve" | "reject" | "cancel"
   ) => {
@@ -466,7 +469,13 @@ const LeaveRequestsManagement: React.FC<{
           <Button
             onClick={handleConfirmAction}
             variant="contained"
-            color={action === "approve" ? "success" : action === "reject" ? "error" : "primary"}
+            color={
+              action === "approve"
+                ? "success"
+                : action === "reject"
+                ? "error"
+                : "primary"
+            }
           >
             {action === "approve"
               ? "Approve"

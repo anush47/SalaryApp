@@ -19,7 +19,9 @@ export type Selected =
   | "dashboard"
   | "leaves"
   | "payslips"
-  | "profile";
+  | "profile"
+  // Employer-specific
+  | "employerDashboard";
 
 const NavContainer = ({
   user,
@@ -33,7 +35,7 @@ const NavContainer = ({
   };
 }) => {
   // Default selected based on role
-  const defaultSelected = user.role === "employee" ? "dashboard" : "mycompanies";
+  const defaultSelected = user.role === "employee" ? "dashboard" : "employerDashboard";
   const [selected, setSelected] = React.useState<Selected>(defaultSelected);
 
   const searchParams = useSearchParams();
@@ -54,6 +56,7 @@ const NavContainer = ({
         "leaves",
         "payslips",
         "profile",
+        "employerDashboard",
       ].includes(selectedParam)
     ) {
       setSelected(selectedParam as Selected);

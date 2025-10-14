@@ -89,16 +89,31 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
-const fetchEmployees = async (): Promise<Employee[]> => {
-  const response = await fetch(`/api/employees?companyId=all`);
+interface PaginatedResponse {
+  data: Employee[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
+const fetchEmployees = async (page: number, limit: number): Promise<PaginatedResponse> => {
+  const response = await fetch(`/api/employees?companyId=all&page=${page}&limit=${limit}`);
   if (!response.ok) {
     throw new Error("Failed to fetch employees");
   }
   const data = await response.json();
-  return data.employees.map((employee: any) => ({
-    ...employee,
-    id: employee._id,
-  }));
+  return {
+    data: data.employees.map((employee: any) => ({
+      ...employee,
+      id: employee._id,
+    })),
+    pagination: data.pagination,
+  };
 };
 
 const EmployeesDataGrid: React.FC<{
@@ -108,17 +123,26 @@ const EmployeesDataGrid: React.FC<{
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
+  // Pagination state
+  const [paginationModel, setPaginationModel] = React.useState({
+    page: 0, // MUI DataGrid uses 0-based indexing
+    pageSize: 20,
+  });
+
   const {
-    data: employees,
+    data,
     isLoading,
     isError,
     error,
-  } = useQuery<Employee[], Error>({
-    queryKey: ["employees"],
-    queryFn: fetchEmployees,
+  } = useQuery<PaginatedResponse, Error>({
+    queryKey: ["employees", paginationModel.page + 1, paginationModel.pageSize], // Backend uses 1-based indexing
+    queryFn: () => fetchEmployees(paginationModel.page + 1, paginationModel.pageSize),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
+
+  const employees = data?.data || [];
+  const rowCount = data?.pagination.total || 0;
 
   const columns: GridColDef[] = [
     {
@@ -661,23 +685,14 @@ const EmployeesDataGrid: React.FC<{
       }}
     >
       <DataGrid
-        rows={employees || []}
+        rows={employees}
         columns={columns}
         getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
         editMode="row"
-        initialState={{
-          pagination: {
-            paginationModel: {
-              pageSize: 20,
-            },
-          },
-          filter: {
-            filterModel: {
-              items: [],
-              quickFilterExcludeHiddenColumns: false,
-            },
-          },
-        }}
+        paginationMode="server"
+        rowCount={rowCount}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
         pageSizeOptions={[10, 20, 50]}
         slots={{
           toolbar: (props) => (

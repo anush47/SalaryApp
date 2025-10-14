@@ -233,9 +233,8 @@ const EmployeesInclude: React.FC<Props> = ({
     <Accordion>
       <AccordionSummary expandIcon={<ExpandMore />}>
         <Typography variant="h6">{`Employees to Include - ${
-          employees.filter((employee) =>
-            employeeIds.includes(employee.id.toString())
-          ).length
+          employees.filter((employee) => employeeIds.includes(employee._id))
+            .length
         }`}</Typography>
       </AccordionSummary>
       <AccordionDetails>

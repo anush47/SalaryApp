@@ -71,7 +71,10 @@ export async function POST(req: NextRequest) {
 
         if (salaries.length !== salaryIds.length) {
           return NextResponse.json(
-            { message: "Access denied. You can only request your own documents." },
+            {
+              message:
+                "Access denied. You can only request your own documents.",
+            },
             { status: 403 }
           );
         }
@@ -156,7 +159,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Return the PDF as a response
-    return new NextResponse(pdfOutput, {
+    return new NextResponse(pdfOutput as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'inline; filename="report.pdf"', // or "attachment" if you want it to be downloaded

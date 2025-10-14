@@ -94,7 +94,7 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
 
         setLoading(false);
       } catch (error: any) {
-        showSnackbar(error.message, "error");
+        showSnackbar({ message: error.message, severity: "error" });
         setLoading(false);
       }
     };
@@ -106,6 +106,34 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
     setSelectedPeriod(period);
     const salary = salaries.find((s) => s.period === period);
     setSelectedSalary(salary || null);
+  };
+
+  const handleDownloadPDF = async (pdfType: "payslip" | "attendance") => {
+    if (!selectedSalary || !employeeData) {
+      showSnackbar({
+        message: "No salary selected or employee data missing.",
+        severity: "warning",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId: employeeData.company._id,
+          period: selectedSalary.period,
+          salaryIds: [selectedSalary._id],
+          pdfType: pdfType,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to generate PDF");
+      const blob = await response.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    } catch (error: any) {
+      showSnackbar({ message: error.message, severity: "error" });
+    }
   };
 
   if (loading) {
@@ -131,7 +159,12 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="h5">Payslips</Typography>
         {selectedSalary && (
           <Box>
@@ -180,11 +213,20 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
             <>
               {/* Salary Summary Card */}
               <Grid item xs={12}>
-                <Card sx={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
+                <Card
+                  sx={{
+                    background:
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  }}
+                >
                   <CardContent>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+                        <Typography
+                          variant="body2"
+                          color="white"
+                          sx={{ opacity: 0.9 }}
+                        >
                           Period
                         </Typography>
                         <Typography variant="h5" color="white">
@@ -192,7 +234,11 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+                        <Typography
+                          variant="body2"
+                          color="white"
+                          sx={{ opacity: 0.9 }}
+                        >
                           Basic Salary
                         </Typography>
                         <Typography variant="h5" color="white">
@@ -200,10 +246,18 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+                        <Typography
+                          variant="body2"
+                          color="white"
+                          sx={{ opacity: 0.9 }}
+                        >
                           Final Salary
                         </Typography>
-                        <Typography variant="h4" color="white" fontWeight="bold">
+                        <Typography
+                          variant="h4"
+                          color="white"
+                          fontWeight="bold"
+                        >
                           LKR {selectedSalary.finalSalary?.toLocaleString()}
                         </Typography>
                       </Grid>
@@ -234,7 +288,8 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                             <TableRow>
                               <TableCell>Holiday Pay</TableCell>
                               <TableCell align="right">
-                                LKR {selectedSalary.holidayPay?.toLocaleString()}
+                                LKR{" "}
+                                {selectedSalary.holidayPay?.toLocaleString()}
                               </TableCell>
                             </TableRow>
                           )}
@@ -243,7 +298,11 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                               <TableCell>
                                 Overtime
                                 {selectedSalary.ot.reason && (
-                                  <Typography variant="caption" display="block" color="text.secondary">
+                                  <Typography
+                                    variant="caption"
+                                    display="block"
+                                    color="text.secondary"
+                                  >
                                     {selectedSalary.ot.reason}
                                   </Typography>
                                 )}
@@ -316,13 +375,18 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                               <TableCell>
                                 No Pay
                                 {selectedSalary.noPay.reason && (
-                                  <Typography variant="caption" display="block" color="text.secondary">
+                                  <Typography
+                                    variant="caption"
+                                    display="block"
+                                    color="text.secondary"
+                                  >
                                     {selectedSalary.noPay.reason}
                                   </Typography>
                                 )}
                               </TableCell>
                               <TableCell align="right">
-                                LKR {selectedSalary.noPay.amount?.toLocaleString()}
+                                LKR{" "}
+                                {selectedSalary.noPay.amount?.toLocaleString()}
                               </TableCell>
                             </TableRow>
                           )}
@@ -330,7 +394,8 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                             <TableRow>
                               <TableCell>Advance</TableCell>
                               <TableCell align="right">
-                                LKR {selectedSalary.advanceAmount?.toLocaleString()}
+                                LKR{" "}
+                                {selectedSalary.advanceAmount?.toLocaleString()}
                               </TableCell>
                             </TableRow>
                           )}
@@ -360,75 +425,87 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
               </Grid>
 
               {/* Leave Deductions (if any) */}
-              {selectedSalary.leaveDeductions && selectedSalary.leaveDeductions.length > 0 && (
-                <Grid item xs={12}>
-                  <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="h6">
-                        Leave Deductions ({selectedSalary.leaveDeductions.length})
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <TableContainer component={Paper}>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Leave Type</TableCell>
-                              <TableCell align="center">Days</TableCell>
-                              <TableCell align="right">Amount</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {selectedSalary.leaveDeductions.map((ld: any, index: number) => (
-                              <TableRow key={index}>
-                                <TableCell>{ld.leaveType}</TableCell>
-                                <TableCell align="center">{ld.days}</TableCell>
+              {selectedSalary.leaveDeductions &&
+                selectedSalary.leaveDeductions.length > 0 && (
+                  <Grid item xs={12}>
+                    <Accordion>
+                      <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography variant="h6">
+                          Leave Deductions (
+                          {selectedSalary.leaveDeductions.length})
+                        </Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <TableContainer component={Paper}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Leave Type</TableCell>
+                                <TableCell align="center">Days</TableCell>
+                                <TableCell align="right">Amount</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {selectedSalary.leaveDeductions.map(
+                                (ld: any, index: number) => (
+                                  <TableRow key={index}>
+                                    <TableCell>{ld.leaveType}</TableCell>
+                                    <TableCell align="center">
+                                      {ld.days}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                      LKR {ld.amount?.toLocaleString()}
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              )}
+                              <TableRow sx={{ backgroundColor: "grey.100" }}>
+                                <TableCell>
+                                  <strong>Total Leave Deductions</strong>
+                                </TableCell>
+                                <TableCell align="center">
+                                  <strong>
+                                    {selectedSalary.leaveDeductions.reduce(
+                                      (sum: number, ld: any) => sum + ld.days,
+                                      0
+                                    )}
+                                  </strong>
+                                </TableCell>
                                 <TableCell align="right">
-                                  LKR {ld.amount?.toLocaleString()}
+                                  <strong>
+                                    LKR{" "}
+                                    {selectedSalary.leaveDeductions
+                                      .reduce(
+                                        (sum: number, ld: any) =>
+                                          sum + ld.amount,
+                                        0
+                                      )
+                                      .toLocaleString()}
+                                  </strong>
                                 </TableCell>
                               </TableRow>
-                            ))}
-                            <TableRow sx={{ backgroundColor: "grey.100" }}>
-                              <TableCell>
-                                <strong>Total Leave Deductions</strong>
-                              </TableCell>
-                              <TableCell align="center">
-                                <strong>
-                                  {selectedSalary.leaveDeductions.reduce(
-                                    (sum: number, ld: any) => sum + ld.days,
-                                    0
-                                  )}
-                                </strong>
-                              </TableCell>
-                              <TableCell align="right">
-                                <strong>
-                                  LKR{" "}
-                                  {selectedSalary.leaveDeductions
-                                    .reduce((sum: number, ld: any) => sum + ld.amount, 0)
-                                    .toLocaleString()}
-                                </strong>
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </AccordionDetails>
-                  </Accordion>
-                </Grid>
-              )}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </AccordionDetails>
+                    </Accordion>
+                  </Grid>
+                )}
 
               {/* Attendance Details (if any) */}
               {selectedSalary.inOut && selectedSalary.inOut.length > 0 && (
                 <Grid item xs={12}>
                   <InOutTable
-                    inOuts={selectedSalary.inOut.map((record: any, index: number) => ({
-                      ...record,
-                      id: index,
-                      employeeName: employeeData?.name,
-                      employeeNIC: employeeData?.nic,
-                      basic: selectedSalary.basic,
-                      divideBy: selectedSalary.divideBy,
-                    }))}
+                    inOuts={selectedSalary.inOut.map(
+                      (record: any, index: number) => ({
+                        ...record,
+                        id: index,
+                        employeeName: employeeData?.name,
+                        employeeNIC: employeeData?.nic,
+                        basic: selectedSalary.basic,
+                        divideBy: selectedSalary.divideBy,
+                      })
+                    )}
                     setInOuts={() => {}}
                     fetchSalary={() => {}}
                     editable={false}

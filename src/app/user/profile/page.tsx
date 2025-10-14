@@ -9,7 +9,12 @@ const ProfilePage = async () => {
     return <div>Not authorized</div>;
   }
 
-  return <ProfileForm user={session.user} />;
+  return <ProfileForm user={{
+    id: session.user.id ?? '',
+    role: session.user.role ?? '',
+    name: session.user.name ?? '',
+    email: session.user.email ?? '',
+  }} />;
 };
 
 export default ProfilePage;

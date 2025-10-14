@@ -7,6 +7,11 @@ import Department from "@/app/models/Department";
 import { options } from "../auth/[...nextauth]/options";
 import Company from "@/app/models/Company";
 import { calculateMonthlyPrice } from "../purchases/price/priceUtils";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // Define schema for validation
 const userIdSchema = z.string().min(1, "User ID is required");
@@ -140,8 +145,20 @@ export async function GET(req: NextRequest) {
           { status: 404 }
         );
       }
-      // Find employees based on the filter
-      employees = await Employee.find(filter).populate('user', '-password').lean();
+
+      // Get pagination params
+      const { page, limit, skip } = getPaginationParams(req);
+
+      // Find employees based on the filter with pagination
+      employees = await Employee.find(filter)
+        .populate('user', '-password')
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // Get total count for pagination
+      const total = await getTotalCount(Employee, filter);
+
       // Enrich employees with company details
       employees.forEach((employee) => {
         const company = companies.find(
@@ -150,12 +167,13 @@ export async function GET(req: NextRequest) {
         employee.companyName = company?.name;
         employee.companyEmployerNo = company?.employerNo;
       });
-      // Return enriched employees
-      return NextResponse.json({ employees });
+
+      // Return paginated response
+      const response = createPaginatedResponse(employees, page, limit, total);
+      return NextResponse.json({ ...response, employees: response.data });
     }
   } catch (error) {
     // Handle Zod validation errors
-    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: error.errors[0].message },
@@ -370,15 +388,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if the memberNo already exists within the company
-    const employees = await Employee.find({ company: parsedBody.company });
-    for (let i = 0; i < employees.length; i++) {
-      if (employees[i].memberNo === parsedBody.memberNo) {
-        return NextResponse.json(
-          { message: "Employee with this member number already exists" },
-          { status: 400 }
-        );
-      }
+    // Check if the memberNo already exists within the company (single query instead of N+1)
+    const duplicateEmployee = await Employee.findOne({
+      company: parsedBody.company,
+      memberNo: parsedBody.memberNo,
+    });
+    if (duplicateEmployee) {
+      return NextResponse.json(
+        { message: "Employee with this member number already exists" },
+        { status: 400 }
+      );
     }
 
     // Create and save the new employee
@@ -411,7 +430,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Employee added successfully" });
   } catch (error) {
     // Handle Zod validation errors
-    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: error.errors[0].message },
@@ -640,18 +658,17 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Check if the updated memberNo is unique within the company
-    const employees = await Employee.find({
+    // Check if the updated memberNo is unique within the company (single query instead of N+1)
+    const duplicateEmployee = await Employee.findOne({
       company: parsedBody.company,
+      memberNo: parsedBody.memberNo,
       _id: { $ne: parsedBody._id }, // Exclude the current employee being updated
     });
-    for (const employee of employees) {
-      if (employee.memberNo === parsedBody.memberNo) {
-        return NextResponse.json(
-          { message: "Employee with this member number already exists" },
-          { status: 400 }
-        );
-      }
+    if (duplicateEmployee) {
+      return NextResponse.json(
+        { message: "Employee with this member number already exists" },
+        { status: 400 }
+      );
     }
     const updateData = { ...parsedBody };
     const unsetFields: Record<string, number> = {};
@@ -692,7 +709,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ message: "Employee updated successfully" });
   } catch (error) {
     // Handle Zod validation errors
-    console.log(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: error.errors[0].message },

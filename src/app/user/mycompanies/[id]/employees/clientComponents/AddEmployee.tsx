@@ -12,6 +12,7 @@ import {
   IconButton,
   Typography,
   CardHeader,
+  Divider,
   CardContent,
   InputAdornment,
   FormControl,
@@ -551,7 +552,7 @@ const AddEmployeeForm: React.FC<{
               />
             </FormControl>
           </Grid>
-          
+
           {/* Personal Details Section */}
           <Grid item xs={12}>
             <div className="my-5" />
@@ -560,7 +561,7 @@ const AddEmployeeForm: React.FC<{
             </Typography>
             <Divider />
           </Grid>
-          
+
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <TextField

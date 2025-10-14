@@ -4,6 +4,8 @@ import { options } from "../../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import { getLeaveBalanceSummary } from "@/app/lib/leaveBalance";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/employees/leave-balance?employeeId=xxx
 export async function GET(req: NextRequest) {
   try {

@@ -7,6 +7,11 @@ import { options } from "../auth/[...nextauth]/options";
 import Employee from "@/app/models/Employee";
 import Salary from "@/app/models/Salary";
 import { checkPurchased } from "../purchases/check/checkPurchased";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 const noPaySchema = z.object({
   amount: z.number().min(0, "No Pay amount must be a positive number"),
@@ -185,25 +190,37 @@ export async function GET(req: NextRequest) {
       let companies = [];
       if (user?.role === "admin") {
         // Fetch all employees for admin
-        employees = await Employee.find({})
+        employees = (await Employee.find({})
           .select("_id name memberNo nic company basic divideBy")
-          .lean();
-        companies = await Company.find({}).select("_id name employerNo").lean();
+          .lean()).map(employee => ({
+          ...employee,
+          _id: (employee._id as any).toString(),
+        })) as any;
+        companies = (await Company.find({}).select("_id name employerNo").lean()).map(company => ({
+          ...company,
+          _id: (company._id as any).toString(),
+        })) as any;
       } else {
         // Fetch all employees of companies associated with the user
-        companies = await Company.find({ user: userId })
+        companies = (await Company.find({ user: userId })
           .select("_id name employerNo")
-          .lean();
-        const companyIds = companies.map((company) => company._id);
-        employees = await Employee.find({ company: { $in: companyIds } })
+          .lean()).map(company => ({
+          ...company,
+          _id: (company._id as any).toString(),
+        })) as any;
+        const companyIds = companies.map((company: any) => company._id);
+        employees = (await Employee.find({ company: { $in: companyIds } })
           .select("_id name memberNo nic company")
-          .lean();
+          .lean()).map(employee => ({
+          ...employee,
+          _id: (employee._id as any).toString(),
+        })) as any;
       }
 
       // Enrich employees with company details
       employees = employees.map((employee) => {
         const company = companies.find(
-          (comp) => String(comp._id) === String(employee.company)
+          (comp: any) => String(comp._id) === String(employee.company)
         );
         return {
           ...employee,
@@ -230,19 +247,34 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      employees = await Employee.find({ company: companyId })
+      employees = (await Employee.find({ company: companyId })
         .select("_id name memberNo nic")
-        .lean();
+        .lean()).map(employee => ({
+        ...employee,
+        _id: (employee._id as any).toString(),
+      })) as any;
     }
 
     // Extract the list of IDs (just the _id values)
     const employeeIdList = employees.map((emp) => emp._id);
 
-    // Fetch salaries of employees with those IDs and remove inOut
-    const salaries = await Salary.find(
-      { employee: { $in: employeeIdList }, ...(period ? { period } : {}) },
-      { inOut: 0 }
-    );
+    // Get pagination params
+    const { page, limit, skip } = getPaginationParams(req);
+
+    // Build filter for salary query
+    const salaryFilter = {
+      employee: { $in: employeeIdList },
+      ...(period ? { period } : {})
+    };
+
+    // Fetch salaries of employees with those IDs and remove inOut, with pagination
+    const salaries = await Salary.find(salaryFilter, { inOut: 0 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Get total count for pagination
+    const total = await getTotalCount(Salary, salaryFilter);
 
     // Enrich the salary records with employee details
     const enrichedSalaries = salaries.map((salary) => {
@@ -250,7 +282,7 @@ export async function GET(req: NextRequest) {
         (emp) => String(emp._id) === String(salary.employee)
       );
       return {
-        ...salary._doc,
+        ...salary,
         name: employee?.name,
         memberNo: employee?.memberNo,
         nic: employee?.nic,
@@ -261,8 +293,9 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Send salaries
-    return NextResponse.json({ salaries: enrichedSalaries });
+    // Return paginated response
+    const response = createPaginatedResponse(enrichedSalaries, page, limit, total);
+    return NextResponse.json({ ...response, salaries: response.data });
   } catch (error: any) {
     return NextResponse.json(
       {
@@ -419,7 +452,6 @@ export async function POST(req: NextRequest) {
       message: `${salaryDocs.length} Salary records created successfully`,
     });
   } catch (error: any) {
-    console.log(error);
     return NextResponse.json(
       {
         message:
@@ -680,7 +712,6 @@ export async function DELETE(req: NextRequest) {
       }
     }
   } catch (error: any) {
-    console.error("Error deleting salaries:", error);
     return NextResponse.json(
       { message: "An unexpected error occurred" },
       { status: 500 }

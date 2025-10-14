@@ -5,6 +5,11 @@ import dbConnect from "@/app/lib/db";
 import Department from "@/app/models/Department";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // GET /api/departments?companyId=xxx
 export async function GET(req: NextRequest) {
@@ -40,15 +45,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Get pagination params
+    const { page, limit, skip } = getPaginationParams(req);
+
+    const filter = { company: companyId };
+
     // Get all departments for this company with populated manager info
-    const departments = await Department.find({ company: companyId })
+    const departments = await Department.find(filter)
       .populate("manager", "name memberNo designation")
       .populate("parentDepartment", "name")
-      .sort({ name: 1 });
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    return NextResponse.json({ departments }, { status: 200 });
+    const total = await getTotalCount(Department, filter);
+
+    const response = createPaginatedResponse(departments, page, limit, total);
+    return NextResponse.json({ ...response, departments: response.data }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching departments:", error);
     return NextResponse.json(
       { error: "Failed to fetch departments" },
       { status: 500 }
@@ -157,7 +172,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating department:", error);
     return NextResponse.json(
       { error: "Failed to create department" },
       { status: 500 }
@@ -290,7 +304,6 @@ export async function PUT(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error updating department:", error);
     return NextResponse.json(
       { error: "Failed to update department" },
       { status: 500 }
@@ -375,7 +388,6 @@ export async function DELETE(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error deleting department:", error);
     return NextResponse.json(
       { error: "Failed to delete department" },
       { status: 500 }

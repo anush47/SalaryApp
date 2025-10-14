@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import User from "@/app/models/User";
 import bcrypt from "bcrypt";
 import dbConnect from "@/app/lib/db";
+import { isBcryptHash, isGoogleOAuthUser, generateSecureRandomPassword } from "@/app/lib/authHelpers";
 
 export const options: NextAuthOptions = {
   // Configure one or more authentication providers
@@ -31,17 +32,40 @@ export const options: NextAuthOptions = {
         //
         await dbConnect();
         const user = await User.findOne({ email });
-        //if password is google then return null
-        if (password === "google") {
+
+        if (!user) {
           return null;
-        } else if (user && bcrypt.compareSync(password, user.password)) {
-          // Any object returned will be saved in `user` property of the JWT
-          return user;
-        } else {
-          // If you return null then an error will be displayed advising the user to check their details.
-          return null;
-          // You can also Reject this callback with an Error thus the user will be sent to the error page with the error message as a query parameter
         }
+
+        // Security: Check if this is a Google OAuth user
+        // Google OAuth users cannot login with credentials
+        if (isGoogleOAuthUser(user.password)) {
+          return null;
+        }
+
+        // Check if user is active
+        if (!user.isActive) {
+          return null;
+        }
+
+        // For employee role, check canLogin permission
+        if (user.role === "employee" && user.employee) {
+          const Employee = (await import("@/app/models/Employee")).default;
+          const employee = await Employee.findById(user.employee).select("canLogin");
+          if (!employee || !employee.canLogin) {
+            return null;
+          }
+        }
+
+        // Verify password
+        if (bcrypt.compareSync(password, user.password)) {
+          // Update last login
+          user.lastLogin = new Date();
+          await user.save();
+          return user;
+        }
+
+        return null;
       },
     }),
     GoogleProvider({
@@ -68,6 +92,14 @@ export const options: NextAuthOptions = {
 
       token.id = user.id;
       token.role = user.role;
+      token.isActive = user.isActive;
+
+      // For employees, check canLogin permission
+      if (user.role === "employee" && user.employee) {
+        const Employee = (await import("@/app/models/Employee")).default;
+        const employee = await Employee.findById(user.employee).select("canLogin");
+        token.canLogin = employee?.canLogin || false;
+      }
 
       return token;
     },
@@ -78,18 +110,38 @@ export const options: NextAuthOptions = {
         //search for user in db
         await dbConnect();
         const _user = await User.findOne({ email: user.email });
-        console.log("User", _user);
+
         if (!_user) {
-          console.log("Creating new user", user);
+          // Create new Google OAuth user with secure random password
           const newUser = new User({
             name: user.name,
             email: user.email,
             role: "employer",
-            password: "google",
+            password: generateSecureRandomPassword(), // Secure random string, not "google"
+            isActive: true,
           });
           await newUser.save();
           return true;
         }
+
+        // Check if user account is active
+        if (!_user.isActive) {
+          return false; // Redirect to sign-in with error
+        }
+
+        // For employee role, check if they have login permission
+        if (_user.role === "employee" && _user.employee) {
+          const Employee = (await import("@/app/models/Employee")).default;
+          const employee = await Employee.findById(_user.employee).select("canLogin");
+          if (!employee || !employee.canLogin) {
+            return false;
+          }
+        }
+
+        // Update last login
+        _user.lastLogin = new Date();
+        await _user.save();
+
         user.name = _user.name;
         user.role = _user.role;
         return true;

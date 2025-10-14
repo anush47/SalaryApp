@@ -154,7 +154,9 @@ const DepartmentsDataGrid: React.FC<{
       flex: 1,
       minWidth: 200,
       valueGetter: (params) => {
-        return params ? `${params.name} (${params.memberNo})` : "None";
+        return params
+          ? `${(params as any).name} (${(params as any).memberNo})`
+          : "None";
       },
       renderCell: (params) => {
         return params.value !== "None" ? (
@@ -170,7 +172,7 @@ const DepartmentsDataGrid: React.FC<{
       flex: 1,
       minWidth: 180,
       valueGetter: (params) => {
-        return params ? params.name : "None";
+        return params ? (params as any).name : "None";
       },
       renderCell: (params) => {
         return params.value !== "None" ? (
@@ -254,7 +256,9 @@ const DepartmentsDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments", selectedCompanyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["departments", selectedCompanyId],
+      });
       showSnackbar({
         message: "Department updated successfully!",
         severity: "success",
@@ -291,7 +295,9 @@ const DepartmentsDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments", selectedCompanyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["departments", selectedCompanyId],
+      });
       showSnackbar({
         message: "Department created successfully!",
         severity: "success",
@@ -326,7 +332,9 @@ const DepartmentsDataGrid: React.FC<{
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments", selectedCompanyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["departments", selectedCompanyId],
+      });
       showSnackbar({
         message: "Department deleted successfully!",
         severity: "success",
@@ -346,7 +354,8 @@ const DepartmentsDataGrid: React.FC<{
       return newRow;
     } catch (error: any) {
       throw {
-        message: error?.message || "An error occurred while updating the department.",
+        message:
+          error?.message || "An error occurred while updating the department.",
         error: error,
       };
     }
@@ -536,7 +545,10 @@ const DepartmentsDataGrid: React.FC<{
               label="Manager"
               value={newDepartment.managerId}
               onChange={(e) =>
-                setNewDepartment({ ...newDepartment, managerId: e.target.value })
+                setNewDepartment({
+                  ...newDepartment,
+                  managerId: e.target.value,
+                })
               }
             >
               <MenuItem value="">None</MenuItem>
@@ -613,7 +625,9 @@ const DepartmentsDataGrid: React.FC<{
         <DialogTitle>Edit Department</DialogTitle>
         <DialogContent>
           {editingDepartment && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
+            >
               <TextField
                 label="Name"
                 required
@@ -639,7 +653,8 @@ const DepartmentsDataGrid: React.FC<{
                 <MenuItem value="">None</MenuItem>
                 {employees?.map((employee) => (
                   <MenuItem key={employee._id} value={employee._id}>
-                    {employee.name} ({employee.memberNo}) - {employee.designation}
+                    {employee.name} ({employee.memberNo}) -{" "}
+                    {employee.designation}
                   </MenuItem>
                 ))}
               </TextField>

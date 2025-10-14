@@ -230,7 +230,7 @@ const LeaveTypesManagement: React.FC<{
       flex: 1,
       minWidth: 130,
       valueGetter: (params) => {
-        return params.toString().toUpperCase();
+        return params;
       },
     },
     {

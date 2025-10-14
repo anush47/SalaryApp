@@ -6,6 +6,7 @@ import {
   GridColDef,
   GridColumnVisibilityModel,
   GridToolbar,
+  GridPaginationModel,
 } from "@mui/x-data-grid";
 import {
   Box,
@@ -22,14 +23,56 @@ import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { useSnackbar } from "@/app/context/SnackbarContext";
-import { fetchEmployees } from "../../quick/quick";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
 
+interface PaginatedResponse {
+  data: Employee[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
+// Updated fetch function to support pagination
+const fetchEmployees = async (
+  companyId: string,
+  page: number,
+  limit: number
+): Promise<PaginatedResponse> => {
+  const response = await fetch(
+    `/api/employees?companyId=${companyId}&page=${page}&limit=${limit}`
+  );
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+
+  return {
+    data: data.employees.map((employee: { _id: string }) => ({
+      ...employee,
+      id: employee._id,
+    })),
+    pagination: data.pagination || {
+      page: 1,
+      limit: limit,
+      total: data.employees.length, // fallback if no pagination data
+      totalPages: Math.ceil(data.employees.length / limit),
+      hasNextPage: false,
+      hasPrevPage: false,
+    },
+  };
+};
+
 export interface Employee {
   totalSalary: string;
   id: string;
+  _id: string;
   designation: string;
   name: string;
   memberNo: number;
@@ -108,6 +151,7 @@ export interface Employee {
 export const defaultEmployee: Employee = {
   totalSalary: "",
   id: "",
+  _id: "",
   designation: "",
   name: "",
   memberNo: 0,
@@ -189,17 +233,36 @@ const EmployeesDataGrid: React.FC<{
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
 
+  const [paginationModel, setPaginationModel] = React.useState({
+    page: 0,
+    pageSize: 20,
+  });
+
   const {
-    data: employees,
+    data: paginatedResponse,
     isLoading,
     isError,
     error,
-  } = useQuery<Employee[], Error>({
-    queryKey: ["employees", companyId],
-    queryFn: () => fetchEmployees(companyId),
+  } = useQuery<PaginatedResponse, Error>({
+    queryKey: [
+      "employees",
+      companyId,
+      paginationModel.page,
+      paginationModel.pageSize,
+    ],
+    queryFn: () =>
+      fetchEmployees(
+        companyId,
+        paginationModel.page + 1,
+        paginationModel.pageSize
+      ),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    placeholderData: (previousData) => previousData,
   });
+
+  const employees = paginatedResponse?.data || [];
+  const rowCount = paginatedResponse?.pagination.total || 0;
 
   const columns: GridColDef[] = [
     {
@@ -700,7 +763,7 @@ const EmployeesDataGrid: React.FC<{
     []
   );
 
-  if (isLoading) {
+  if (isLoading && !paginatedResponse) {
     return (
       <Box
         sx={{
@@ -743,23 +806,28 @@ const EmployeesDataGrid: React.FC<{
     >
       <div>
         <DataGrid
-          rows={employees || []}
+          rows={employees}
+          rowCount={rowCount}
           columns={columns}
           getRowId={(row) => row._id}
           editMode="row"
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 20,
-              },
-            },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
-            },
-          }}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          paginationMode="server"
+          loading={isLoading}
+          // initialState={{
+          //   pagination: {
+          //     paginationModel: {
+          //       pageSize: 20,
+          //     },
+          //   },
+          //   filter: {
+          //     filterModel: {
+          //       items: [],
+          //       quickFilterExcludeHiddenColumns: false,
+          //     },
+          //   },
+          // }}
           pageSizeOptions={[5, 10, 20, 50]}
           slots={{
             toolbar: (props) => (

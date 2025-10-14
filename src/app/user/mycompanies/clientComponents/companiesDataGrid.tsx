@@ -79,19 +79,36 @@ export interface Company {
   calendar: "default" | "other";
 }
 
-const fetchCompanies = async (): Promise<Company[]> => {
-  const companiesResponse = await fetch(`/api/companies?needUsers=true`);
+interface PaginatedResponse {
+  data: Company[];
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+const fetchCompanies = async (paginationModel: { page: number; pageSize: number }): Promise<PaginatedResponse> => {
+  const { page, pageSize } = paginationModel;
+  const companiesResponse = await fetch(
+    `/api/companies?needUsers=true&page=${page + 1}&limit=${pageSize}`
+  ); // API uses 1-based indexing
   if (!companiesResponse.ok) {
     throw new Error("Failed to fetch companies");
   }
   const companiesData = await companiesResponse.json();
-
-  return companiesData.companies.map((company: any) => ({
-    ...company,
-    id: company._id,
-    userName: company.user.name,
-    userEmail: company.user.email,
-  }));
+  
+  return {
+    data: companiesData.companies.map((company: any) => ({
+      ...company,
+      id: company._id,
+      userName: company.user?.name,
+      userEmail: company.user?.email,
+    })),
+    page: companiesData.page,
+    limit: companiesData.limit,
+    total: companiesData.total,
+    pages: companiesData.pages,
+  };
 };
 
 const CompaniesDataGrid = ({
@@ -104,19 +121,34 @@ const CompaniesDataGrid = ({
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
-  const {
-    data: companies,
-    isLoading,
-    isError,
-    error,
-  } = useQuery<Company[], Error>({
-    queryKey: ["companies"],
-    queryFn: fetchCompanies,
-    staleTime: STALE_TIME,
-    gcTime: GC_TIME,
+  const [paginationModel, setPaginationModel] = React.useState({
+    page: 0,
+    pageSize: 10,
   });
+  const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [total, setTotal] = React.useState(0);
 
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
+  const { data, isError, error, isSuccess } = useQuery<PaginatedResponse, Error, PaginatedResponse, (string | { page: number; pageSize: number; })[]>(
+    {
+      queryKey: ["companies", paginationModel],
+      queryFn: () => fetchCompanies(paginationModel),
+      staleTime: STALE_TIME,
+      gcTime: GC_TIME,
+      enabled: true,
+    }
+  );
+
+  useEffect(() => {
+    if (isSuccess && data) {
+      const filtered = showActiveOnly 
+        ? data.data.filter((company) => company.active) 
+        : data.data;
+      
+      setCompanies(filtered);
+      setTotal(data.total);
+    }
+  }, [isSuccess, data, showActiveOnly]);
 
   const columns: GridColDef[] = [
     { field: "name", headerName: "Name", flex: 1 },
@@ -158,16 +190,6 @@ const CompaniesDataGrid = ({
     ),
   });
 
-  useEffect(() => {
-    if (companies) {
-      setFilteredCompanies(
-        companies.filter((company) => {
-          return !showActiveOnly || company.active;
-        })
-      );
-    }
-  }, [companies, showActiveOnly]);
-
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
       id: false,
@@ -180,22 +202,6 @@ const CompaniesDataGrid = ({
       monthlyPrice: false,
       monthlyPriceOverride: false,
     });
-
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          height: "calc(100vh - 230px)",
-          justifyContent: "center",
-          alignItems: "center",
-          display: "flex",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (isError) {
     return (
@@ -224,54 +230,38 @@ const CompaniesDataGrid = ({
         alignItems: "center",
       }}
     >
-      {filteredCompanies.length > 0 ? (
-        <DataGrid
-          rows={filteredCompanies}
-          columns={columns}
-          getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 10,
-              },
-            },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
-            },
-          }}
-          pageSizeOptions={[5, 10, 20]}
-          slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
-          }}
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-            },
-          }}
-          disableRowSelectionOnClick
-          disableColumnFilter
-          disableDensitySelector
-          columnVisibilityModel={columnVisibilityModel}
-          onColumnVisibilityModelChange={(newModel) =>
-            setColumnVisibilityModel(newModel)
-          }
-        />
-      ) : (
-        <Box sx={{ textAlign: "left", mt: 4, mb: 4 }}>
-          <Typography variant="h5" color="textSecondary">
-            No companies to show 😟
-          </Typography>
-        </Box>
-      )}
+      <DataGrid
+        rows={companies}
+        columns={columns}
+        getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
+        rowCount={total}
+        paginationMode="server"
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[5, 10, 20]}
+        loading={loading}
+        slots={{
+          toolbar: (props) => (
+            <GridToolbar
+              {...props}
+              csvOptions={{ disableToolbarButton: true }}
+              printOptions={{ disableToolbarButton: true }}
+            />
+          ),
+        }}
+        slotProps={{
+          toolbar: {
+            showQuickFilter: true,
+          },
+        }}
+        disableRowSelectionOnClick
+        disableColumnFilter
+        disableDensitySelector
+        columnVisibilityModel={columnVisibilityModel}
+        onColumnVisibilityModelChange={(newModel) =>
+          setColumnVisibilityModel(newModel)
+        }
+      />
     </Box>
   );
 };

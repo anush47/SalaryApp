@@ -103,6 +103,11 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
       // Employer/Admin menus
       const employerMenus = [
         {
+          name: "Dashboard",
+          key: "employerDashboard",
+          icon: <Dashboard />,
+        },
+        {
           name: "My Companies",
           key: "mycompanies",
           icon: <Business />,
@@ -181,6 +186,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
             case "payments":
               return "Payments";
             case "dashboard":
+              return "Dashboard";
+            case "employerDashboard":
               return "Dashboard";
             case "leaves":
               return "My Leaves";

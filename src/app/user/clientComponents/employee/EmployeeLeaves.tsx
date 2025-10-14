@@ -331,11 +331,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `Failed to ${actionDialog.action} leave request`);
+        throw new Error(
+          data.error || `Failed to ${actionDialog.action} leave request`
+        );
       }
 
       showSnackbar({
-        message: data.message || `Leave request ${actionDialog.action}d successfully`,
+        message:
+          data.message || `Leave request ${actionDialog.action}d successfully`,
         severity: "success",
       });
       setActionDialog({ open: false, leaveRequest: null, action: null });
@@ -343,7 +346,8 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       fetchAllData();
     } catch (error: any) {
       showSnackbar({
-        message: error.message || `Failed to ${actionDialog.action} leave request`,
+        message:
+          error.message || `Failed to ${actionDialog.action} leave request`,
         severity: "error",
       });
     }
@@ -364,7 +368,12 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="80vh"
+      >
         <CircularProgress size={60} />
       </Box>
     );
@@ -432,7 +441,10 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                               <Chip
                                 label={type.code}
                                 size="small"
-                                sx={{ backgroundColor: type.color, color: "white" }}
+                                sx={{
+                                  backgroundColor: type.color,
+                                  color: "white",
+                                }}
                               />
                               <Typography>{type.name}</Typography>
                             </Box>
@@ -441,7 +453,11 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                       )}
                     </Select>
                     {errors.leaveType && (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{ mt: 0.5, ml: 1.5 }}
+                      >
                         {errors.leaveType}
                       </Typography>
                     )}
@@ -499,8 +515,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     }
                     label="Half Day Leave"
                   />
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 4 }}>
-                    Enable this if you're applying for half-day leave only
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ ml: 4 }}
+                  >
+                    Enable this if you&apos;re applying for half-day leave only
                   </Typography>
                 </Grid>
 
@@ -525,7 +546,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                   <Button
                     variant="contained"
                     size="large"
-                    startIcon={submitting ? <CircularProgress size={20} /> : <Send />}
+                    startIcon={
+                      submitting ? <CircularProgress size={20} /> : <Send />
+                    }
                     onClick={handleApplyLeave}
                     disabled={submitting}
                   >
@@ -547,13 +570,23 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 <List>
                   {leaveBalance.map((leave, index) => (
                     <Paper key={index} sx={{ mb: 1, p: 2 }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        mb={1}
+                      >
                         <Chip
                           label={leave.leaveType.code}
                           size="small"
-                          sx={{ backgroundColor: leave.leaveType.color, color: "white" }}
+                          sx={{
+                            backgroundColor: leave.leaveType.color,
+                            color: "white",
+                          }}
                         />
-                        <Typography variant="h6">{leave.available} days</Typography>
+                        <Typography variant="h6">
+                          {leave.available} days
+                        </Typography>
                       </Box>
                       <Typography variant="body2" color="text.secondary">
                         {leave.leaveType.name}
@@ -614,18 +647,30 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         color={getStatusColor(leave.status)}
                         size="small"
                       />
-                      {leave.status === 'approved' ? (
+                      {leave.status === "approved" ? (
                         leave.approvedBy ? (
-                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          <Typography
+                            variant="caption"
+                            display="block"
+                            sx={{ mt: 1 }}
+                          >
                             Approved by: {leave.approvedBy.name}
                           </Typography>
                         ) : (
-                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          <Typography
+                            variant="caption"
+                            display="block"
+                            sx={{ mt: 1 }}
+                          >
                             Approved by: Employer
                           </Typography>
                         )
-                      ) : leave.status === 'pending' && leave.approver ? (
-                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                      ) : leave.status === "pending" && leave.approver ? (
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          sx={{ mt: 1 }}
+                        >
                           Approver: {leave.approver.name}
                         </Typography>
                       ) : null}
@@ -676,7 +721,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={3}>
-                      <Typography variant="subtitle1">{leave.employee.name}</Typography>
+                      <Typography variant="subtitle1">
+                        {leave.employee.name}
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {leave.employee.designation || "Employee"}
                       </Typography>
@@ -757,7 +804,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       {/* Action Dialog */}
       <Dialog
         open={actionDialog.open}
-        onClose={() => setActionDialog({ open: false, leaveRequest: null, action: null })}
+        onClose={() =>
+          setActionDialog({ open: false, leaveRequest: null, action: null })
+        }
         maxWidth="sm"
         fullWidth
       >
@@ -776,9 +825,15 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 Leave Type: {actionDialog.leaveRequest.leaveType.name}
               </Typography>
               <Typography variant="body2" gutterBottom>
-                Duration: {new Date(actionDialog.leaveRequest.startDate).toLocaleDateString()} -{" "}
-                {new Date(actionDialog.leaveRequest.endDate).toLocaleDateString()} (
-                {actionDialog.leaveRequest.totalDays} days)
+                Duration:{" "}
+                {new Date(
+                  actionDialog.leaveRequest.startDate
+                ).toLocaleDateString()}{" "}
+                -{" "}
+                {new Date(
+                  actionDialog.leaveRequest.endDate
+                ).toLocaleDateString()}{" "}
+                ({actionDialog.leaveRequest.totalDays} days)
               </Typography>
               <TextField
                 fullWidth
@@ -794,7 +849,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={() => setActionDialog({ open: false, leaveRequest: null, action: null })}
+            onClick={() =>
+              setActionDialog({ open: false, leaveRequest: null, action: null })
+            }
           >
             Cancel
           </Button>

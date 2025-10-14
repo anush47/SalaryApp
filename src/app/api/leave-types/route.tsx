@@ -5,6 +5,11 @@ import dbConnect from "@/app/lib/db";
 import LeaveType from "@/app/models/LeaveType";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // GET /api/leave-types?companyId=xxx
 export async function GET(req: NextRequest) {
@@ -57,11 +62,20 @@ export async function GET(req: NextRequest) {
       query.isActive = true;
     }
 
-    const leaveTypes = await LeaveType.find(query).sort({ code: 1 });
+    // Get pagination params
+    const { page, limit, skip } = getPaginationParams(req);
 
-    return NextResponse.json({ leaveTypes }, { status: 200 });
+    const leaveTypes = await LeaveType.find(query)
+      .sort({ code: 1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await getTotalCount(LeaveType, query);
+
+    const response = createPaginatedResponse(leaveTypes, page, limit, total);
+    return NextResponse.json({ ...response, leaveTypes: response.data }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching leave types:", error);
     return NextResponse.json(
       { error: "Failed to fetch leave types" },
       { status: 500 }
@@ -183,7 +197,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating leave type:", error);
+    // console.error("Error creating leave type:", error);
     return NextResponse.json(
       { error: "Failed to create leave type" },
       { status: 500 }
@@ -270,7 +284,7 @@ export async function PUT(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error updating leave type:", error);
+    // console.error("Error updating leave type:", error);
     return NextResponse.json(
       { error: "Failed to update leave type" },
       { status: 500 }
@@ -334,7 +348,7 @@ export async function DELETE(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error deleting leave type:", error);
+    // console.error("Error deleting leave type:", error);
     return NextResponse.json(
       { error: "Failed to delete leave type" },
       { status: 500 }

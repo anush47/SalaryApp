@@ -80,16 +80,19 @@ export default function HomePageClient() {
 
   useEffect(() => {
     if (session) {
-      // Prefetch the user companies page
-      router.prefetch("/user?userPageSelect=mycompanies");
-
-      // Prefetch companies data with React Query
-      queryClient.prefetchQuery({
-        queryKey: ["companies"],
-        queryFn: fetchCompanies,
-        staleTime: STALE_TIME,
-        gcTime: GC_TIME,
-      });
+      // Prefetch the appropriate dashboard based on role
+      if (session.user?.role === "employee") {
+        router.prefetch("/user?userPageSelect=dashboard");
+      } else {
+        router.prefetch("/user?userPageSelect=mycompanies");
+        // Prefetch companies data with React Query for employers
+        queryClient.prefetchQuery({
+          queryKey: ["companies"],
+          queryFn: fetchCompanies,
+          staleTime: STALE_TIME,
+          gcTime: GC_TIME,
+        });
+      }
     } else if (status === "unauthenticated") {
       // Prefetch the sign-in page
       router.prefetch("/api/auth/signin");
@@ -169,7 +172,7 @@ export default function HomePageClient() {
   const FADE_IN_UP_INITIAL_Y = 40;
   const FADE_IN_UP_DURATION = 0.6;
   const STAGGER_CHILDREN_DELAY = 0.15;
-  const ANIMATION_EASING = [0.16, 1, 0.3, 1];
+  const ANIMATION_EASING = [0.16, 1, 0.3, 1] as const;
 
   const fadeInUp = {
     hidden: { opacity: 0, y: FADE_IN_UP_INITIAL_Y },
@@ -318,7 +321,9 @@ export default function HomePageClient() {
                   <Link
                     href={
                       session
-                        ? "/user?userPageSelect=mycompanies"
+                        ? session.user?.role === "employee"
+                          ? "/user?userPageSelect=dashboard"
+                          : "/user?userPageSelect=mycompanies"
                         : "/api/auth/signin"
                     }
                   >
@@ -337,7 +342,11 @@ export default function HomePageClient() {
                       whileHover={{ y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {session ? "Goto My Companies" : "Get Started Free"}
+                      {session
+                        ? session.user?.role === "employee"
+                          ? "Go to Dashboard"
+                          : "Go to My Companies"
+                        : "Get Started Free"}
                     </Button>
                   </Link>
                   <Button
@@ -594,7 +603,9 @@ export default function HomePageClient() {
             <Link
               href={
                 session
-                  ? "/user?userPageSelect=mycompanies"
+                  ? session.user?.role === "employee"
+                    ? "/user?userPageSelect=dashboard"
+                    : "/user?userPageSelect=mycompanies"
                   : "/api/auth/signin"
               }
             >
@@ -611,7 +622,11 @@ export default function HomePageClient() {
                 whileHover={{ y: -2, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {session ? "Goto My Companies" : "Start Free Trial"}
+                {session
+                  ? session.user?.role === "employee"
+                    ? "Go to Dashboard"
+                    : "Go to My Companies"
+                  : "Start Free Trial"}
               </Button>
             </Link>
           </motion.div>

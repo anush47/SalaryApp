@@ -8,6 +8,11 @@ import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
 import Department from "@/app/models/Department";
 import { isInManagementChain } from "@/app/lib/employeeHierarchy";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // GET /api/leave-requests - List leave requests with filters
 export async function GET(req: NextRequest) {
@@ -106,16 +111,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Get pagination params
+    const { page, limit, skip } = getPaginationParams(req);
+
     const leaveRequests = await LeaveRequest.find(query)
       .populate("employee", "name memberNo designation")
       .populate("leaveType", "name code color")
       .populate("approver", "name memberNo")
       .populate("approvedBy", "name memberNo")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    return NextResponse.json({ leaveRequests }, { status: 200 });
+    const total = await getTotalCount(LeaveRequest, query);
+
+    const response = createPaginatedResponse(leaveRequests, page, limit, total);
+    return NextResponse.json({ ...response, leaveRequests: response.data }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching leave requests:", error);
+    // console.error("Error fetching leave requests:", error);
     return NextResponse.json(
       { error: "Failed to fetch leave requests" },
       { status: 500 }
@@ -326,7 +340,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating leave request:", error);
+    // console.error("Error creating leave request:", error);
     return NextResponse.json(
       { error: "Failed to create leave request" },
       { status: 500 }
@@ -516,7 +530,7 @@ export async function PUT(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error updating leave request:", error);
+    // console.error("Error updating leave request:", error);
     return NextResponse.json(
       { error: "Failed to update leave request" },
       { status: 500 }

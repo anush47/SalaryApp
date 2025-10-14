@@ -557,3 +557,367 @@ This script:
 - Holiday management in `src/app/api/calendar/holidays/holidayHelper.tsx`
 - **NEW**: Leave types are fully customizable - employers can create custom leave types beyond defaults
 - **NEW**: Tax slabs are editable by admin - can be updated for new tax years
+
+---
+
+## Security Best Practices
+
+**IMPORTANT:** A comprehensive security audit was conducted on 2025-10-12. See `SECURITY_AUDIT_REPORT.md` for detailed findings.
+
+### Critical Security Rules
+
+1. **NEVER use "google" or any known string as a password**
+   - Use cryptographically random strings: `crypto.randomBytes(32).toString('hex')`
+   - Track authentication provider separately (`authProvider` field)
+
+2. **ALWAYS validate user status in authentication**
+   - Check `user.isActive` before allowing login
+   - Check `user.canLogin` for employee roles
+   - Enforce `forcePasswordChange` requirement
+
+3. **NEVER use console.log/console.error in production**
+   - Use environment-aware logging
+   - Send errors to monitoring service (Sentry, Datadog)
+   - Remove all console statements before production deployment
+
+4. **ALWAYS implement rate limiting**
+   - Authentication endpoints: 5 attempts per 15 minutes
+   - Password change: 3 attempts per hour
+   - API endpoints: 100 requests per 15 minutes
+
+5. **ALWAYS paginate list endpoints**
+   - Default limit: 50 items
+   - Max limit: 1000 items
+   - Include total count for pagination UI
+
+### Authentication & Authorization Checklist
+
+When adding/modifying authentication:
+- [ ] Check session exists (`await getServerSession(options)`)
+- [ ] Validate user role matches endpoint requirements
+- [ ] Check `user.isActive` status
+- [ ] For employee role, verify `canLogin` permission
+- [ ] Verify company/resource ownership (except for admin)
+- [ ] Handle "visit" and "aided" mode restrictions
+- [ ] Log sensitive operations for audit trail
+
+### API Route Security Pattern
+
+```typescript
+export async function POST(req: NextRequest) {
+  try {
+    // 1. Get and validate session
+    const session = await getServerSession(options);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Check role-based access
+    if (session.user.role === "employee") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // 3. Connect to database
+    await dbConnect();
+
+    // 4. Parse and validate input with Zod
+    const body = await req.json();
+    const validatedData = yourSchema.parse(body);
+
+    // 5. Check resource ownership (unless admin)
+    if (session.user.role !== "admin") {
+      const resource = await Resource.findById(validatedData.id);
+      if (resource.user.toString() !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
+    // 6. Check company mode restrictions
+    const company = await Company.findById(validatedData.companyId);
+    if (session.user.role !== "admin" &&
+        (company.mode === "aided" || company.mode === "visit")) {
+      return NextResponse.json(
+        { error: "You are not allowed to modify this company" },
+        { status: 403 }
+      );
+    }
+
+    // 7. Perform operation
+    // ... business logic ...
+
+    // 8. Return success response
+    return NextResponse.json({ message: "Success", data }, { status: 200 });
+  } catch (error) {
+    // 9. Handle errors appropriately
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    // NEVER expose error details in production
+    return NextResponse.json(
+      { error: "An unexpected error occurred" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Password Security
+
+**Minimum Requirements:**
+- 12 characters minimum length
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+
+**Zod Schema:**
+```typescript
+const passwordSchema = z.string()
+  .min(12, "Password must be at least 12 characters")
+  .regex(/[A-Z]/, "Must contain uppercase letter")
+  .regex(/[a-z]/, "Must contain lowercase letter")
+  .regex(/[0-9]/, "Must contain number")
+  .regex(/[^A-Za-z0-9]/, "Must contain special character");
+```
+
+### Sensitive Data Handling
+
+**Password Field Exclusion:**
+```typescript
+// Method 1: Select exclusion in query
+const user = await User.findOne({ email }).select('-password');
+
+// Method 2: Model-level exclusion (recommended)
+userSchema.set('toJSON', {
+  transform: function(doc, ret, options) {
+    delete ret.password;
+    return ret;
+  }
+});
+```
+
+**Never Log Sensitive Data:**
+- Passwords (plaintext or hashed)
+- Session tokens
+- API keys
+- Personal identification numbers (NIC)
+- Salary amounts in error messages
+
+### Performance Best Practices
+
+1. **Use Indexes** (already implemented well)
+   ```typescript
+   employeeSchema.index({ company: 1, memberNo: 1 }, { unique: true });
+   ```
+
+2. **Avoid N+1 Queries**
+   ```typescript
+   // BAD: Query in loop
+   for (const employee of employees) {
+     const company = await Company.findById(employee.company);
+   }
+
+   // GOOD: Batch query or populate
+   const employees = await Employee.find(filter)
+     .populate('company', 'name employerNo')
+     .lean();
+   ```
+
+3. **Use Lean Queries** for read-only operations
+   ```typescript
+   const companies = await Company.find(filter).lean();
+   ```
+
+4. **Paginate Large Datasets**
+   ```typescript
+   const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
+   const limit = 50;
+   const skip = (page - 1) * limit;
+
+   const results = await Model.find(filter).skip(skip).limit(limit);
+   const total = await Model.countDocuments(filter);
+   ```
+
+### Error Handling
+
+**Production vs Development:**
+```typescript
+catch (error) {
+  // Always log server-side (use logging service in production)
+  console.error("[DEV ONLY]", error);
+
+  // Return sanitized error to client
+  return NextResponse.json(
+    {
+      error: "An unexpected error occurred",
+      // Only include debug info in development
+      ...(process.env.NODE_ENV === 'development' && {
+        debug: error instanceof Error ? error.message : String(error)
+      })
+    },
+    { status: 500 }
+  );
+}
+```
+
+### Database Query Optimization
+
+**Batch Operations:**
+```typescript
+// GOOD: Use aggregation for counts
+const employeeCounts = await Employee.aggregate([
+  { $match: { company: { $in: companyIds }, active: true } },
+  { $group: { _id: "$company", count: { $sum: 1 } } }
+]);
+
+// BAD: Individual count queries in loop
+for (const company of companies) {
+  const count = await Employee.countDocuments({ company: company._id });
+}
+```
+
+**Select Only Needed Fields:**
+```typescript
+const employees = await Employee.find(filter)
+  .select('_id name memberNo company')
+  .lean();
+```
+
+### Security Headers (to be implemented)
+
+Add to `next.config.js`:
+```javascript
+async headers() {
+  return [
+    {
+      source: '/(.*)',
+      headers: [
+        { key: 'X-Frame-Options', value: 'DENY' },
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        {
+          key: 'Strict-Transport-Security',
+          value: 'max-age=31536000; includeSubDomains'
+        }
+      ]
+    }
+  ];
+}
+```
+
+### Middleware Enhancements (to be implemented)
+
+```typescript
+// Enhanced middleware with role-based protection
+export async function middleware(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  if (!token) {
+    return NextResponse.redirect(new URL('/auth/signIn', req.url));
+  }
+
+  // Check active status
+  if (!token.isActive) {
+    return NextResponse.redirect(new URL('/auth/signIn?error=AccountDisabled', req.url));
+  }
+
+  // Role-based route protection
+  const { pathname } = req.nextUrl;
+
+  if (pathname.startsWith('/admin') && token.role !== 'admin') {
+    return NextResponse.redirect(new URL('/unauthorized', req.url));
+  }
+
+  // Employee role restrictions
+  if (token.role === 'employee') {
+    const employerOnlyRoutes = [
+      '/user/mycompanies',
+      '/user/employees',
+      '/user/organization',
+      '/user/salaries',
+      '/user/payments'
+    ];
+
+    if (employerOnlyRoutes.some(route => pathname.startsWith(route))) {
+      return NextResponse.redirect(new URL('/user?userPageSelect=dashboard', req.url));
+    }
+  }
+
+  return NextResponse.next();
+}
+```
+
+### Testing Checklist
+
+Before deploying:
+- [ ] Run security audit: `npm audit`
+- [ ] Check for exposed secrets: `git secrets --scan`
+- [ ] Test authentication bypass attempts
+- [ ] Verify RBAC on all endpoints
+- [ ] Test with deactivated user accounts
+- [ ] Verify pagination works correctly
+- [ ] Test rate limiting (if implemented)
+- [ ] Check error messages don't expose sensitive info
+- [ ] Verify all console.log statements removed
+- [ ] Test with SQL injection payloads (via Zod)
+- [ ] Test with XSS payloads (React escapes by default)
+
+### Compliance & Audit
+
+**Audit Logging (to be implemented):**
+```typescript
+await AuditLog.create({
+  user: session.user.id,
+  action: "EMPLOYEE_CREATED",
+  resource: "Employee",
+  resourceId: newEmployee._id,
+  changes: { name: newEmployee.name, memberNo: newEmployee.memberNo },
+  ip: req.headers.get('x-forwarded-for') || req.ip,
+  userAgent: req.headers.get('user-agent'),
+  timestamp: new Date()
+});
+```
+
+**GDPR Compliance:**
+- Implement data export functionality
+- Implement data deletion (right to be forgotten)
+- Add consent management
+- Document data retention policies
+- Implement audit trail for data access
+
+### Known Security Issues (From Audit)
+
+**CRITICAL - Fix Immediately:**
+1. ❌ Password "google" authentication bypass
+2. ❌ Missing isActive/canLogin checks in authentication
+3. ❌ Weak password policy (4 char minimum)
+
+**HIGH - Fix This Month:**
+4. ❌ Console.log statements in production code
+5. ❌ No rate limiting on authentication
+6. ❌ Middleware lacks role-based protection
+
+**MEDIUM - Fix This Quarter:**
+7. ❌ Missing pagination on list endpoints
+8. ❌ N+1 query problems in several routes
+9. ❌ No explicit CSRF protection
+
+See `SECURITY_AUDIT_REPORT.md` for detailed information and remediation steps.
+
+### Resources
+
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Next.js Security Best Practices](https://nextjs.org/docs/app/building-your-application/configuring/security)
+- [NextAuth.js Security](https://next-auth.js.org/configuration/options#security)
+- [MongoDB Security Checklist](https://www.mongodb.com/docs/manual/administration/security-checklist/)
+- [CWE Top 25](https://cwe.mitre.org/top25/)
+
+---
+
+**Last Security Audit:** 2025-10-12
+**Next Security Audit:** 2025-11-12 (Monthly)

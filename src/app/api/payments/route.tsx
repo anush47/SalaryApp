@@ -7,6 +7,11 @@ import { options } from "../auth/[...nextauth]/options";
 import { checkPurchased } from "../purchases/check/checkPurchased";
 import Payment from "@/app/models/Payment";
 import { FlattenMaps } from "mongoose";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // period schema
 const periodSchema = z
@@ -81,22 +86,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ payments: [enrichedPayment] });
     }
 
+    // Get pagination params
+    const { page, limit, skip } = getPaginationParams(req);
+
     let payments;
+    let paymentFilter: any = {};
+    let total = 0;
 
     if (companyId === "all") {
       let companies: (FlattenMaps<any> & Required<{ _id: string }>)[] = [];
       if (user?.role === "admin") {
         // Fetch all companies
-        companies = await Company.find({}).select("_id name employerNo").lean();
-        payments = await Payment.find().lean();
+        companies = (await Company.find({}).select("_id name employerNo paymentMethod").lean()).map(company => ({
+          ...company,
+          _id: (company._id as any).toString(),
+        }));
+        paymentFilter = {};
       } else {
         // Fetch all employees of companies associated with the user
-        companies = await Company.find({ user: userId })
-          .select("_id name employerNo")
-          .lean();
+        companies = (await Company.find({ user: userId })
+          .select("_id name employerNo paymentMethod")
+          .lean()).map(company => ({
+          ...company,
+          _id: (company._id as any).toString(),
+        }));
         const companyIds = companies.map((company) => company._id);
-        payments = await Payment.find({ company: { $in: companyIds } }).lean();
+        paymentFilter = { company: { $in: companyIds } };
       }
+
+      // Fetch payments with pagination
+      payments = await Payment.find(paymentFilter)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // Get total count
+      total = await getTotalCount(Payment, paymentFilter);
 
       // Enrich payments with company details
       payments = payments.map((payment) => {
@@ -128,17 +153,22 @@ export async function GET(req: NextRequest) {
           { status: 403 }
         );
       }
-      // if there is a period
+
+      // Build payment filter
+      paymentFilter = { company: companyId };
       if (period) {
-        payments = await Payment.find({
-          company: companyId,
-          period: period,
-        }).lean();
+        paymentFilter.period = period;
       }
-      // Fetch payments of the specified company
-      else {
-        payments = await Payment.find({ company: companyId }).lean();
-      }
+
+      // Fetch payments with pagination
+      payments = await Payment.find(paymentFilter)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // Get total count
+      total = await getTotalCount(Payment, paymentFilter);
+
       // Enrich payments with company details
       payments = payments.map((payment) => {
         return {
@@ -150,8 +180,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Send salaries
-    return NextResponse.json({ payments: payments });
+    // Return paginated response
+    const response = createPaginatedResponse(payments, page, limit, total);
+    return NextResponse.json({ ...response, payments: response.data });
   } catch (error: any) {
     return NextResponse.json(
       {
@@ -269,7 +300,6 @@ export async function POST(req: NextRequest) {
       payment: newPayment,
     });
   } catch (error: any) {
-    console.log(error);
     return NextResponse.json(
       {
         message:
@@ -364,7 +394,6 @@ export async function PUT(req: NextRequest) {
       payment: updatedPayment,
     });
   } catch (error: any) {
-    console.log(error);
     return NextResponse.json(
       {
         message:
@@ -460,7 +489,6 @@ export async function DELETE(req: NextRequest) {
       }
     }
   } catch (error: any) {
-    console.error("Error deleting salaries:", error);
     return NextResponse.json(
       { message: "An unexpected error occurred" },
       { status: 500 }

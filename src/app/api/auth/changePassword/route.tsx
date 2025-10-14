@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 import { options } from "@/app/api/auth/[...nextauth]/options";
 import { z } from "zod";
+import { isGoogleOAuthUser } from "@/app/lib/authHelpers";
 
 //zod for password
 const passwordSchema = z
@@ -40,14 +41,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check if the old password matches
-    const isMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!isMatch && user.password !== "google") {
-      return NextResponse.json(
-        { error: "Incorrect old password" },
-        { status: 400 }
-      );
+    // Check if this is a Google OAuth user
+    if (isGoogleOAuthUser(user.password)) {
+      // This is a Google OAuth user - they're setting their first password
+      // Allow password change without old password verification
+    } else {
+      // Regular credentials user - verify old password
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        return NextResponse.json(
+          { error: "Incorrect old password" },
+          { status: 400 }
+        );
+      }
     }
+
+    // Validate new password
     passwordSchema.parse(newPassword);
 
     // Hash the new password

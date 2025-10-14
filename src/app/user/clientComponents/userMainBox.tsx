@@ -19,6 +19,8 @@ const EmployeeLeaves = lazy(() => import("./employee/EmployeeLeaves"));
 const EmployeePayslips = lazy(() => import("./employee/EmployeePayslips"));
 const EmployeeProfile = lazy(() => import("./employee/EmployeeProfile"));
 const ProfileForm = lazy(() => import("./employer/ProfileForm"));
+// Employer components
+const EmployerDashboard = lazy(() => import("./employer/EmployerDashboard"));
 
 const UserMainBox = ({
   user,
@@ -45,7 +47,14 @@ const UserMainBox = ({
   );
 
   const RenderComponent = () => {
-    // Simulate a delay
+    // Employer-only pages
+    const employerOnlyPages = ["mycompanies", "employees", "organization", "salaries", "payments", "purchases", "employerDashboard"];
+
+    // If employee tries to access employer-only pages, show dashboard instead
+    const effectiveSelected = (user.role === "employee" && employerOnlyPages.includes(selected))
+      ? "dashboard"
+      : selected;
+
     return (
       <Suspense
         fallback={
@@ -62,7 +71,7 @@ const UserMainBox = ({
         }
       >
         {(() => {
-          switch (selected) {
+          switch (effectiveSelected) {
             case "quick":
               return (
                 <Suspense fallback={fallback}>
@@ -109,6 +118,13 @@ const UserMainBox = ({
               return (
                 <Suspense fallback={fallback}>
                   <Payments user={user} />
+                </Suspense>
+              );
+            // Employer Dashboard
+            case "employerDashboard":
+              return (
+                <Suspense fallback={fallback}>
+                  <EmployerDashboard user={user} />
                 </Suspense>
               );
             // Employee routes

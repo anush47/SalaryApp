@@ -8,6 +8,11 @@ import { options } from "../auth/[...nextauth]/options";
 import { request } from "http";
 import Employee from "@/app/models/Employee";
 import { calculateTotalPrice } from "./price/priceUtils";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // Define schema for purchase validation
 const purchaseSchema = z.object({
@@ -87,6 +92,9 @@ export async function GET(req: NextRequest) {
         delete (companyFilter as { user?: string }).user;
       }
 
+      // Get pagination params
+      const { page, limit, skip } = getPaginationParams(req);
+
       if (companyId !== "all") {
         const company = await Company.findOne(companyFilter);
 
@@ -105,16 +113,30 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        const purchases = await Purchase.find(filter).select("-request");
+        const purchases = await Purchase.find(filter)
+          .select("-request")
+          .skip(skip)
+          .limit(limit)
+          .lean();
+
+        const total = await getTotalCount(Purchase, filter);
+
         const enrichedPurchases = purchases.map((purchase) => ({
-          ...purchase._doc,
+          ...purchase,
           companyName: company.name,
           companyEmployerNo: company.employerNo,
         }));
 
-        return NextResponse.json({ purchases: enrichedPurchases });
+        const response = createPaginatedResponse(enrichedPurchases, page, limit, total);
+        return NextResponse.json({ ...response, purchases: response.data });
       } else {
-        const purchases = await Purchase.find().lean();
+        const purchases = await Purchase.find()
+          .skip(skip)
+          .limit(limit)
+          .lean();
+
+        const total = await getTotalCount(Purchase, {});
+
         const companies = await Company.find()
           .select("_id name employerNo")
           .lean();
@@ -132,7 +154,8 @@ export async function GET(req: NextRequest) {
           };
         });
 
-        return NextResponse.json({ purchases: purchasesWithCompanyDetails });
+        const response = createPaginatedResponse(purchasesWithCompanyDetails, page, limit, total);
+        return NextResponse.json({ ...response, purchases: response.data });
       }
     } else {
       return NextResponse.json(
@@ -208,7 +231,6 @@ export async function POST(req: NextRequest) {
       purchase: newPurchase,
     });
   } catch (error: any) {
-    console.log(error);
     return NextResponse.json(
       {
         message:

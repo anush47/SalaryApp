@@ -25,6 +25,9 @@ import {
   CheckCircle,
   Pending,
   CalendarToday,
+  TrendingUp,
+  Groups,
+  Work,
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 
@@ -47,6 +50,8 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   const [upcomingLeaves, setUpcomingLeaves] = useState<any[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
   const [recentSalaries, setRecentSalaries] = useState<any[]>([]);
+  const [managerData, setManagerData] = useState<any>(null);
+  const [isManager, setIsManager] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -106,6 +111,27 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           if (approvalsResponse.ok) {
             const approvalsData = await approvalsResponse.json();
             setPendingApprovals(approvalsData.leaveRequests || []);
+
+            // If there are pending approvals, this is a manager
+            if (
+              approvalsData.leaveRequests &&
+              approvalsData.leaveRequests.length > 0
+            ) {
+              setIsManager(true);
+
+              // Fetch manager dashboard data
+              try {
+                const managerResponse = await fetch(
+                  `/api/dashboard/manager?employeeId=${employee._id}`
+                );
+                if (managerResponse.ok) {
+                  const managerDashboard = await managerResponse.json();
+                  setManagerData(managerDashboard);
+                }
+              } catch (manErr) {
+                console.error("Error fetching manager data:", manErr);
+              }
+            }
           }
         } catch (err) {
           console.error("Error fetching pending approvals:", err);
@@ -166,7 +192,9 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   return (
     <Box p={3}>
       {/* Welcome Card */}
-      <Card sx={{ mb: 3, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
+      <Card
+        sx={{ mb: 3, bgcolor: "primary.main", color: "primary.contrastText" }}
+      >
         <CardContent>
           <Box display="flex" alignItems="center" gap={2}>
             <Avatar
@@ -175,18 +203,35 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
               sx={{ width: 80, height: 80, border: "3px solid white" }}
             />
             <Box flex={1}>
-              <Typography variant="h4" color="white" gutterBottom>
+              <Typography
+                variant="h4"
+                color="primary.contrastText"
+                gutterBottom
+              >
                 Welcome back, {employeeData.name}!
               </Typography>
-              <Typography variant="body1" color="white" sx={{ opacity: 0.9 }}>
-                {employeeData.designation || "Employee"} • Member #{employeeData.memberNo}
+              <Typography
+                variant="body1"
+                color="primary.contrastText"
+                sx={{ opacity: 0.9 }}
+              >
+                {employeeData.designation || "Employee"} • Member #
+                {employeeData.memberNo}
               </Typography>
-              <Typography variant="body2" color="white" sx={{ opacity: 0.8 }}>
+              <Typography
+                variant="body2"
+                color="primary.contrastText"
+                sx={{ opacity: 0.8 }}
+              >
                 {employeeData.company?.name || ""}
               </Typography>
             </Box>
             <Box textAlign="right">
-              <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+              <Typography
+                variant="body2"
+                color="primary.contrastText"
+                sx={{ opacity: 0.9 }}
+              >
                 {new Date().toLocaleDateString("en-US", {
                   weekday: "long",
                   year: "numeric",
@@ -215,7 +260,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 <Grid item xs={12} sm={6} md={3} key={index}>
                   <Card>
                     <CardContent>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        mb={1}
+                      >
                         <Chip
                           label={leave.leaveType.code}
                           size="small"
@@ -226,7 +276,11 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                         />
                         <EventNote color="action" />
                       </Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         {leave.leaveType.name}
                       </Typography>
                       <Typography variant="h4" gutterBottom>
@@ -252,7 +306,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+              >
                 <Typography variant="h6">Upcoming Leaves</Typography>
                 <Button
                   size="small"
@@ -273,9 +332,13 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       </ListItemIcon>
                       <ListItemText
                         primary={leave.leaveType.name}
-                        secondary={`${new Date(leave.startDate).toLocaleDateString()} - ${new Date(
+                        secondary={`${new Date(
+                          leave.startDate
+                        ).toLocaleDateString()} - ${new Date(
                           leave.endDate
-                        ).toLocaleDateString()} (${leave.totalDays} day${leave.totalDays > 1 ? "s" : ""})`}
+                        ).toLocaleDateString()} (${leave.totalDays} day${
+                          leave.totalDays > 1 ? "s" : ""
+                        })`}
                       />
                       <Chip
                         label={leave.status}
@@ -296,9 +359,18 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={2}
+                >
                   <Typography variant="h6">Pending Approvals</Typography>
-                  <Chip label={pendingApprovals.length} color="warning" size="small" />
+                  <Chip
+                    label={pendingApprovals.length}
+                    color="warning"
+                    size="small"
+                  />
                 </Box>
                 <Divider sx={{ mb: 2 }} />
                 <List dense>
@@ -309,13 +381,15 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       </ListItemIcon>
                       <ListItemText
                         primary={request.employee.name}
-                        secondary={`${request.leaveType.name} - ${request.totalDays} day${
-                          request.totalDays > 1 ? "s" : ""
-                        }`}
+                        secondary={`${request.leaveType.name} - ${
+                          request.totalDays
+                        } day${request.totalDays > 1 ? "s" : ""}`}
                       />
                       <Button
                         size="small"
-                        onClick={() => router.push("/user?userPageSelect=leaves")}
+                        onClick={() =>
+                          router.push("/user?userPageSelect=leaves")
+                        }
                       >
                         Review
                       </Button>
@@ -331,7 +405,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
         <Grid item xs={12} md={pendingApprovals.length > 0 ? 12 : 6}>
           <Card>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+              >
                 <Typography variant="h6">Recent Payslips</Typography>
                 <Button
                   size="small"
@@ -356,7 +435,9 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       />
                       <Button
                         size="small"
-                        onClick={() => router.push("/user?userPageSelect=payslips")}
+                        onClick={() =>
+                          router.push("/user?userPageSelect=payslips")
+                        }
                       >
                         View
                       </Button>
@@ -423,6 +504,255 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Manager Dashboard Section */}
+        {isManager && managerData && (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="h5" gutterBottom sx={{ mt: 2 }}>
+                Team Management
+              </Typography>
+              <Divider />
+            </Grid>
+
+            {/* Team Statistics */}
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  bgcolor: "primary.light",
+                  color: "primary.contrastText",
+                }}
+              >
+                <CardContent>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="white"
+                        sx={{ opacity: 0.9 }}
+                      >
+                        Team Members
+                      </Typography>
+                      <Typography variant="h3" color="white">
+                        {managerData.team.total}
+                      </Typography>
+                    </Box>
+                    <Groups
+                      sx={{
+                        fontSize: 60,
+                        color: "primary.contrastText",
+                        opacity: 0.3,
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  bgcolor: "warning.light",
+                  color: "primary.contrastText",
+                }}
+              >
+                <CardContent>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="white"
+                        sx={{ opacity: 0.9 }}
+                      >
+                        Pending Approvals
+                      </Typography>
+                      <Typography variant="h3" color="white">
+                        {managerData.leaves.totalPending}
+                      </Typography>
+                    </Box>
+                    <Pending
+                      sx={{
+                        fontSize: 60,
+                        color: "primary.contrastText",
+                        opacity: 0.3,
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  bgcolor: "info.light",
+                  color: "primary.contrastText",
+                }}
+              >
+                <CardContent>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="white"
+                        sx={{ opacity: 0.9 }}
+                      >
+                        Avg Team Salary
+                      </Typography>
+                      <Typography variant="h3" color="white">
+                        {(managerData.performance.avgSalary / 1000).toFixed(0)}K
+                      </Typography>
+                    </Box>
+                    <TrendingUp
+                      sx={{
+                        fontSize: 60,
+                        color: "primary.contrastText",
+                        opacity: 0.3,
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  bgcolor: "secondary.light",
+                  color: "primary.contrastText",
+                }}
+              >
+                <CardContent>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="white"
+                        sx={{ opacity: 0.9 }}
+                      >
+                        Departments
+                      </Typography>
+                      <Typography variant="h3" color="white">
+                        {Object.keys(managerData.team.byDepartment).length}
+                      </Typography>
+                    </Box>
+                    <Work
+                      sx={{
+                        fontSize: 60,
+                        color: "primary.contrastText",
+                        opacity: 0.3,
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Team Members with Leave Balance */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Team Leave Overview
+                  </Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                    <Grid container spacing={2}>
+                      {managerData.team.members.map((member: any) => (
+                        <Grid item xs={12} md={6} key={member._id}>
+                          <Card variant="outlined">
+                            <CardContent>
+                              <Box
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                mb={1}
+                              >
+                                <Box>
+                                  <Typography
+                                    variant="subtitle1"
+                                    fontWeight="bold"
+                                  >
+                                    {member.name}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    {member.designation || "Employee"} • #
+                                    {member.memberNo}
+                                  </Typography>
+                                </Box>
+                                <Chip
+                                  label={member.employeeType || "permanent"}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              </Box>
+                              {member.leaveBalance &&
+                              member.leaveBalance.length > 0 ? (
+                                <Grid container spacing={1} mt={1}>
+                                  {member.leaveBalance
+                                    .slice(0, 4)
+                                    .map((leave: any, idx: number) => (
+                                      <Grid item xs={6} key={idx}>
+                                        <Box
+                                          sx={{
+                                            p: 1,
+                                            borderRadius: 1,
+                                            bgcolor: "background.default",
+                                          }}
+                                        >
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                          >
+                                            {leave.leaveType.code}
+                                          </Typography>
+                                          <Typography
+                                            variant="body2"
+                                            fontWeight="bold"
+                                          >
+                                            {leave.available}/
+                                            {leave.maxDaysPerYear}
+                                          </Typography>
+                                        </Box>
+                                      </Grid>
+                                    ))}
+                                </Grid>
+                              ) : (
+                                <Alert severity="info" sx={{ mt: 1 }}>
+                                  No leave data available
+                                </Alert>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
+        )}
       </Grid>
     </Box>
   );

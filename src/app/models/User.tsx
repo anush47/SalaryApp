@@ -12,6 +12,8 @@ interface IUser extends Document {
   forcePasswordChange: boolean;
   profilePhoto: string;
   phoneNumber: string;
+  nic: string;
+  address: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -72,7 +74,7 @@ const userSchema = new Schema<IUser>(
 );
 
 // Indexes for performance
-userSchema.index({ email: 1 }, { unique: true });
+// Note: email index is already created via unique: true in schema definition
 userSchema.index({ role: 1, isActive: 1 });
 userSchema.index({ employee: 1 });
 

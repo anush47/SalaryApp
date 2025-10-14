@@ -6,6 +6,11 @@ import { options } from "../auth/[...nextauth]/options";
 import { z } from "zod";
 import Employee from "@/app/models/Employee";
 import { calculateMonthlyPrice } from "../purchases/price/priceUtils";
+import {
+  getPaginationParams,
+  createPaginatedResponse,
+  getTotalCount,
+} from "@/app/lib/pagination";
 
 // Define schema for validation
 const userIdSchema = z.string().min(1, "User ID is required");
@@ -49,15 +54,23 @@ export async function GET(req: NextRequest) {
       // Return the company data
       return NextResponse.json({ companies: [company] });
     } else {
-      // Fetch companies from the database
+      // Get pagination params
+      const { page, limit, skip } = getPaginationParams(req);
+
+      // Fetch companies from the database with pagination
       let companies;
 
       if (isUserNeeded) {
         companies = await Company.find(filter)
           .populate("user", "name email") // Use populate to include user details
+          .skip(skip)
+          .limit(limit)
           .lean();
       } else {
-        companies = await Company.find(filter).lean();
+        companies = await Company.find(filter)
+          .skip(skip)
+          .limit(limit)
+          .lean();
       }
       if (!companies) {
         return NextResponse.json(
@@ -65,6 +78,9 @@ export async function GET(req: NextRequest) {
           { status: 404 }
         );
       }
+
+      // Get total count for pagination
+      const total = await getTotalCount(Company, filter);
 
       // Add the number of employees for each company in a single batch operation
       const companyIds = companies.map((company) => company._id);
@@ -87,8 +103,9 @@ export async function GET(req: NextRequest) {
         noOfEmployees: employeeCountMap[company._id as string] || 0, // Default to 0 if no employees
       }));
 
-      // Return the response
-      return NextResponse.json({ companies: companiesWithEmployeeCount });
+      // Return paginated response
+      const response = createPaginatedResponse(companiesWithEmployeeCount, page, limit, total);
+      return NextResponse.json({ ...response, companies: response.data });
     }
   } catch (error) {
     // Handle Zod validation errors
@@ -387,7 +404,6 @@ export async function PUT(req: NextRequest) {
     // Return the updated company data
     return NextResponse.json({ company: updatedCompany });
   } catch (error) {
-    console.error(error);
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(

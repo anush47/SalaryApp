@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     // Return the pdf
     // Return the PDF as a response
-    return new NextResponse(pdfOutput, {
+    return new NextResponse(pdfOutput as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'inline; filename="report.pdf"', // or "attachment" if you want it to be downloaded

@@ -6,6 +6,8 @@ import Department from "@/app/models/Department";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/departments/hierarchy?companyId=xxx
 // Returns hierarchical org chart data
 export async function GET(req: NextRequest) {

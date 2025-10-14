@@ -11,6 +11,8 @@ import {
   Button,
   TextField,
   FormControl,
+  FormControlLabel,
+  Checkbox,
   InputLabel,
   Select,
   MenuItem,
@@ -46,7 +48,7 @@ const ProfileForm: React.FC<UserProps> = ({ user }) => {
         const data = await response.json();
         setUserData(data.users[0]);
       } catch (error: any) {
-        showSnackbar(error.message, "error");
+        showSnackbar({ message: error.message, severity: "error" });
       } finally {
         setLoading(false);
       }
@@ -63,21 +65,22 @@ const ProfileForm: React.FC<UserProps> = ({ user }) => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/users`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(userData),
-        }
-      );
+      const response = await fetch(`/api/users`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to update profile");
       }
 
-      showSnackbar("Profile updated successfully", "success");
+      showSnackbar({
+        message: "Profile updated successfully",
+        severity: "success",
+      });
     } catch (error: any) {
-      showSnackbar(error.message, "error");
+      showSnackbar({ message: error.message, severity: "error" });
     } finally {
       setIsSaving(false);
     }
@@ -203,17 +206,28 @@ const ProfileForm: React.FC<UserProps> = ({ user }) => {
               <Typography variant="h6" gutterBottom>
                 Documents
               </Typography>
-              {userData.documents && Object.entries(userData.documents).map(([key, value]) => (
-                <Grid container spacing={2} key={key} alignItems="center">
-                  <Grid item xs={5}>
-                    <TextField fullWidth label="Document Name" value={key} disabled />
+              {userData.documents &&
+                Object.entries(userData.documents).map(([key, value]) => (
+                  <Grid container spacing={2} key={key} alignItems="center">
+                    <Grid item xs={5}>
+                      <TextField
+                        fullWidth
+                        label="Document Name"
+                        value={key}
+                        disabled
+                      />
+                    </Grid>
+                    <Grid item xs={5}>
+                      <TextField
+                        fullWidth
+                        label="Link"
+                        value={value as string}
+                        disabled
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid item xs={5}>
-                    <TextField fullWidth label="Link" value={value as string} disabled />
-                  </Grid>
-                </Grid>
-              ))}
-               {/* Add new document fields will be here */}
+                ))}
+              {/* Add new document fields will be here */}
             </Grid>
 
             <Grid item xs={12}>
