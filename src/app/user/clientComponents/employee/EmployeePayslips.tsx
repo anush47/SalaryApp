@@ -215,8 +215,9 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
               <Grid item xs={12}>
                 <Card
                   sx={{
-                    background:
-                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    mb: 3,
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
                   }}
                 >
                   <CardContent>
@@ -224,38 +225,38 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                       <Grid item xs={12} sm={4}>
                         <Typography
                           variant="body2"
-                          color="white"
+                          color="primary.contrastText"
                           sx={{ opacity: 0.9 }}
                         >
                           Period
                         </Typography>
-                        <Typography variant="h5" color="white">
+                        <Typography variant="h5" color="primary.contrastText">
                           {selectedSalary.period}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={4}>
                         <Typography
                           variant="body2"
-                          color="white"
+                          color="primary.contrastText"
                           sx={{ opacity: 0.9 }}
                         >
                           Basic Salary
                         </Typography>
-                        <Typography variant="h5" color="white">
+                        <Typography variant="h5" color="primary.contrastText">
                           LKR {selectedSalary.basic?.toLocaleString()}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={4}>
                         <Typography
                           variant="body2"
-                          color="white"
+                          color="primary.contrastText"
                           sx={{ opacity: 0.9 }}
                         >
                           Final Salary
                         </Typography>
                         <Typography
                           variant="h4"
-                          color="white"
+                          color="primary.contrastText"
                           fontWeight="bold"
                         >
                           LKR {selectedSalary.finalSalary?.toLocaleString()}

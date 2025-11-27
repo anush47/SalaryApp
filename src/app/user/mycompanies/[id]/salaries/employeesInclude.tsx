@@ -249,6 +249,7 @@ const EmployeesInclude: React.FC<Props> = ({
           <DataGrid
             rows={employees}
             columns={columns}
+            getRowId={(row) => row._id}
             initialState={{
               pagination: {
                 paginationModel: {

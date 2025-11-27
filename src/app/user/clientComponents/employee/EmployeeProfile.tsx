@@ -58,7 +58,10 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = event.target;
     // Handle boolean fields that come from checkboxes
-    const finalValue = (name === 'isMarried' || name === 'editable') && type === 'checkbox' ? checked : value;
+    const finalValue =
+      (name === "isMarried" || name === "editable") && type === "checkbox"
+        ? checked
+        : value;
     setEmployeeData({ ...employeeData, [name]: finalValue });
   };
 
@@ -140,8 +143,9 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Profile Header Card */}
         <Grid item xs={12}>
+          {/* Profile Header Card */}
+
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={3}>
@@ -167,32 +171,64 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
           </Card>
         </Grid>
 
-        {/* Personal Information */}
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <Person color="primary" />
-                <Typography variant="h6">Personal Information</Typography>
-              </Box>
-              <Divider sx={{ mb: 2 }} />
-              <List>
-                <ListItem>
-                  <ListItemText
-                    primary="Full Name"
-                    secondary={employeeData.name}
-                  />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="NIC"
-                    secondary={employeeData.nic || "Not provided"}
-                  />
-                </ListItem>
-              </List>
-            </CardContent>
-          </Card>
+          <Grid container spacing={3}>
+            {/* Personal Information */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1} mb={2}>
+                    <Person color="primary" />
+                    <Typography variant="h6">Personal Information</Typography>
+                  </Box>
+                  <Divider sx={{ mb: 2 }} />
+                  <List>
+                    <ListItem>
+                      <ListItemText
+                        primary="Full Name"
+                        secondary={employeeData.name}
+                      />
+                    </ListItem>
+                    <Divider component="li" />
+                    <ListItem>
+                      <ListItemText
+                        primary="NIC"
+                        secondary={employeeData.nic || "Not provided"}
+                      />
+                    </ListItem>
+                  </List>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Company Information */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1} mb={2}>
+                    <Business color="primary" />
+                    <Typography variant="h6">Company Information</Typography>
+                  </Box>
+                  <Divider sx={{ mb: 2 }} />
+                  <List>
+                    <ListItem>
+                      <ListItemText
+                        primary="Company Name"
+                        secondary={employeeData.company?.name || "N/A"}
+                      />
+                    </ListItem>
+                    <Divider component="li" />
+                    <ListItem>
+                      <ListItemText
+                        primary="Employer Number"
+                        secondary={employeeData.company?.employerNo || "N/A"}
+                      />
+                    </ListItem>
+                  </List>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Grid>
 
         {/* Employment Details */}
@@ -256,34 +292,6 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
           </Card>
         </Grid>
 
-        {/* Company Information */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <Business color="primary" />
-                <Typography variant="h6">Company Information</Typography>
-              </Box>
-              <Divider sx={{ mb: 2 }} />
-              <List>
-                <ListItem>
-                  <ListItemText
-                    primary="Company Name"
-                    secondary={employeeData.company?.name || "N/A"}
-                  />
-                </ListItem>
-                <Divider component="li" />
-                <ListItem>
-                  <ListItemText
-                    primary="Employer Number"
-                    secondary={employeeData.company?.employerNo || "N/A"}
-                  />
-                </ListItem>
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
-
         {/* Salary Information */}
         {/* New Personal Details Card */}
         <Grid item xs={12}>
@@ -298,7 +306,9 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                 <Typography variant="h6">Personal Details</Typography>
                 <Button
                   variant="outlined"
-                  onClick={() => employeeData.editable && setIsEditing(!isEditing)}
+                  onClick={() =>
+                    employeeData.editable && setIsEditing(!isEditing)
+                  }
                   disabled={!employeeData.editable}
                 >
                   {isEditing ? "Cancel" : "Edit"}
@@ -445,16 +455,18 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     }}
                   />
                 </Grid>
-                
+
                 {/* Documents Section */}
                 <Grid item xs={12}>
-                  <Documents 
-                    documents={employeeData.documents} 
-                    setDocuments={(docs) => setEmployeeData({ ...employeeData, documents: docs })} 
-                    editable={isEditing} 
+                  <Documents
+                    documents={employeeData.documents}
+                    setDocuments={(docs) =>
+                      setEmployeeData({ ...employeeData, documents: docs })
+                    }
+                    editable={isEditing}
                   />
                 </Grid>
-                
+
                 {isEditing && (
                   <Grid item xs={12}>
                     <Button
@@ -474,8 +486,6 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
             </CardContent>
           </Card>
         </Grid>
-
-
       </Grid>
     </Box>
   );

@@ -314,6 +314,7 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
             <DataGrid
               rows={generatedSalaries}
               columns={columns}
+              getRowId={(row) => row._id}
               editMode="row"
               initialState={{
                 pagination: {
