@@ -223,20 +223,25 @@ The system implements Sri Lankan APIT (Advance Personal Income Tax) with automat
 | Above Rs. 358,333 | 36% |
 
 **Key Features:**
-*   **Automatic Calculation** - Tax calculated during salary generation
-*   **Progressive System** - Implements 6 tax slabs (0% to 36%)
-*   **Admin Configurable** - Tax rates editable via admin UI at `/admin?adminPageSelect=taxConfig`
-*   **Company-Specific Overrides** - Companies can have custom tax configurations
-*   **Tax Preview** - API endpoint (`/api/tax-configuration/preview`) for pre-calculation
-*   **EPF Integration** - Properly deducts EPF 8% before calculating tax
-*   **Personal Allowance** - Rs. 150,000/month (Rs. 1,800,000/year) tax-free
+*   **Automatic Calculation** - Tax calculated automatically during salary generation.
+*   **Progressive System** - Implements the latest progressive tax slabs (e.g., 0% to 36%).
+*   **Global & Company-Specific Configuration** - Tax rules can be managed globally by admins or overridden on a per-company basis by employers.
+*   **Centralized Admin Management** - Admins manage the base (global default) tax configurations for each year from the admin dashboard (`/admin?adminPageSelect=taxConfig`).
+*   **Per-Company Overrides** - Employers can override the global default tax slabs and personal allowance for their company from their dedicated "Tax" page (`/user/mycompanies/[id]?companyPageSelect=tax`).
+*   **Tax Preview** - API endpoint (`/api/tax-configuration/preview`) for pre-calculation.
+*   **EPF Integration** - Properly deducts EPF 8% before calculating tax.
+*   **Personal Allowance** - Supports the standard personal relief allowance (e.g., Rs. 150,000/month).
 
 **Tax Configuration Management:**
-*   Admins can create/edit tax configurations for different years
-*   Supports global default and company-specific configurations
-*   Built-in tax calculator for testing
-*   Effective date tracking for tax year transitions
-*   Migration script: `node scripts/migration-tax-2025.js`
+
+The system uses a single tax document for each year (e.g., 2025). This document contains the global default tax rules and an `overrides` array to store company-specific settings.
+
+*   **Admin Role:** Administrators are responsible for creating and maintaining the base (global) tax configuration for each year.
+*   **Employer Role:** Employers can view the active tax configuration for their company on the "Tax" page.
+    *   If the company is using the global default, an employer can choose to "Override and Customize" it. This adds an entry for their company to the `overrides` array in the base tax document.
+    *   If an override is already in place, an employer can edit it or "Reset to Global Default," which removes their company's entry from the `overrides` array.
+*   **Data Structure:** This approach ensures that there is only one master document per year, preventing database conflicts while providing full flexibility for per-company overrides.
+*   **Migration script:** `node scripts/migration-tax-2025.js` can be used to set up initial configurations.
 
 **Example (Rs. 300,000 salary):**
 ```

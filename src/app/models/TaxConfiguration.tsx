@@ -4,8 +4,6 @@ import { Schema, model, models, Document } from "mongoose";
 interface ITaxConfiguration extends Document {
   year: number;
   country: string;
-  companyId?: Schema.Types.ObjectId; // Optional: for company-specific tax configs
-  isDefault: boolean; // True for global default, false for company-specific
   taxSlabs: {
     min: number;
     max: number;
@@ -30,6 +28,19 @@ interface ITaxConfiguration extends Document {
     rate: number;
     maxAmount: number;
   }[];
+  overrides: {
+    companyId: Schema.Types.ObjectId;
+    taxSlabs?: {
+      min: number;
+      max: number;
+      rate: number;
+      fixedAmount: number;
+    }[];
+    personalAllowance?: {
+      monthly: number;
+      annual: number;
+    };
+  }[];
   isActive: boolean;
   effectiveFrom: Date;
   effectiveTo: Date;
@@ -49,65 +60,25 @@ const taxConfigurationSchema = new Schema<ITaxConfiguration>(
       required: true,
       default: "LK",
     },
-    companyId: {
-      type: Schema.Types.ObjectId,
-      ref: "Company",
-      required: false,
-    },
-    isDefault: {
-      type: Boolean,
-      default: false,
-    },
     taxSlabs: [
       {
-        min: {
-          type: Number,
-          required: true,
-        },
-        max: {
-          type: Number,
-          required: true,
-        },
-        rate: {
-          type: Number,
-          required: true,
-        },
-        fixedAmount: {
-          type: Number,
-          default: 0,
-        },
+        min: { type: Number, required: true },
+        max: { type: Number, required: true },
+        rate: { type: Number, required: true },
+        fixedAmount: { type: Number, default: 0 },
       },
     ],
     personalAllowance: {
-      monthly: {
-        type: Number,
-        required: true,
-        default: 150000, // LKR 150,000 per month (Updated April 2025)
-      },
-      annual: {
-        type: Number,
-        required: true,
-        default: 1800000, // LKR 1,800,000 per year (Updated April 2025)
-      },
+      monthly: { type: Number, required: true },
+      annual: { type: Number, required: true },
     },
     qualifyingPaymentRelief: {
-      epfRate: {
-        type: Number,
-        default: 0.08, // 8% EPF contribution
-      },
-      maxMonthly: {
-        type: Number,
-      },
+      epfRate: { type: Number, default: 0.08 },
+      maxMonthly: { type: Number },
     },
     stampDuty: {
-      threshold: {
-        type: Number,
-        default: 50000, // LKR 50,000
-      },
-      amount: {
-        type: Number,
-        default: 25, // LKR 25
-      },
+      threshold: { type: Number, default: 50000 },
+      amount: { type: Number, default: 25 },
     },
     otherDeductions: [
       {
@@ -116,6 +87,13 @@ const taxConfigurationSchema = new Schema<ITaxConfiguration>(
         rate: Number,
         maxAmount: Number,
       },
+    ],
+    overrides: [
+      {
+        companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+        taxSlabs: [{ min: Number, max: Number, rate: Number, fixedAmount: Number }],
+        personalAllowance: { monthly: Number, annual: Number },
+      }
     ],
     isActive: {
       type: Boolean,
@@ -135,10 +113,9 @@ const taxConfigurationSchema = new Schema<ITaxConfiguration>(
 );
 
 // Indexes for performance
-taxConfigurationSchema.index({ year: 1, country: 1, companyId: 1 });
+taxConfigurationSchema.index({ year: 1, country: 1 }, { unique: true });
+taxConfigurationSchema.index({ "overrides.companyId": 1 });
 taxConfigurationSchema.index({ isActive: 1, effectiveFrom: 1 });
-taxConfigurationSchema.index({ companyId: 1, isActive: 1 });
-taxConfigurationSchema.index({ isDefault: 1, isActive: 1 });
 
 // Check if the model already exists
 const TaxConfiguration =

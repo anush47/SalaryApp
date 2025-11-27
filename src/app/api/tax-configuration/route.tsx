@@ -28,66 +28,47 @@ export async function GET(req: NextRequest) {
       ? parseInt(searchParams.get("year")!)
       : new Date().getFullYear();
 
-    let query: any = {
-      isActive: true,
+    // Find the base configuration for the year
+    const baseConfig = await TaxConfiguration.findOne({
       year,
-    };
+      country: "LK",
+      isActive: true,
+    }).lean();
 
-    // Role-based access control
-    if (session.user.role === "employee") {
+    if (!baseConfig) {
       return NextResponse.json(
-        { error: "Employees cannot access tax configuration" },
-        { status: 403 }
+        { error: "No active tax configuration found for the year." },
+        { status: 404 }
       );
     }
 
-    // If companyId provided, try to find company-specific config first
+    // If a companyId is provided, check for an override
     if (companyId) {
-      // Verify user has access to this company
-      if (session.user.role !== "admin") {
-        const company = await Company.findById(companyId);
-        if (!company) {
-          return NextResponse.json(
-            { error: "Company not found" },
-            { status: 404 }
-          );
-        }
-        // For employers, verify they own this company
-        // This would need to be adjusted based on your Company model structure
-      }
+      const override = baseConfig.overrides?.find(
+        (o) => o.companyId.toString() === companyId
+      );
 
-      // Try to find company-specific config
-      const companyConfig = await TaxConfiguration.findOne({
-        ...query,
-        companyId,
-      }).sort({ effectiveFrom: -1 });
+      if (override) {
+        // Merge the override with the base config
+        const mergedConfig = {
+          ...baseConfig,
+          taxSlabs: override.taxSlabs || baseConfig.taxSlabs,
+          personalAllowance: override.personalAllowance || baseConfig.personalAllowance,
+          isOverride: true, // Add a flag to indicate this is an override
+        };
+        delete mergedConfig.overrides; // Clean up the response
 
-      if (companyConfig) {
         return NextResponse.json({
           success: true,
-          taxConfiguration: companyConfig,
-          source: "company-specific",
+          taxConfiguration: mergedConfig,
+          source: "company-specific-override",
         });
       }
     }
 
-    // Fall back to global default configuration
-    const defaultConfig = await TaxConfiguration.findOne({
-      ...query,
-      isDefault: true,
-      companyId: { $exists: false },
-    }).sort({ effectiveFrom: -1 });
-
-    if (!defaultConfig) {
-      return NextResponse.json(
-        {
-          error: "No active tax configuration found",
-          message:
-            "Please contact administrator to set up tax configuration",
-        },
-        { status: 404 }
-      );
-    }
+    // If no companyId or no override found, return the default base config
+    const defaultConfig = { ...baseConfig, isOverride: false };
+    delete defaultConfig.overrides;
 
     return NextResponse.json({
       success: true,
@@ -97,11 +78,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[GET /api/tax-configuration] Error:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch tax configuration",
-        message:
-          error instanceof Error ? error.message : "An unexpected error occurred",
-      },
+      { error: "Failed to fetch tax configuration" },
       { status: 500 }
     );
   }
@@ -129,12 +106,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only admin can create tax configurations
-    if (session.user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Only administrators can create tax configurations" },
-        { status: 403 }
-      );
+    if (session.user.role === 'employee') {
+       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await dbConnect();
@@ -142,84 +115,81 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       year,
-      country = "LK",
       companyId,
       taxSlabs,
       personalAllowance,
-      qualifyingPaymentRelief,
-      stampDuty,
-      otherDeductions = [],
-      effectiveFrom,
-      effectiveTo,
     } = body;
 
-    // Validation
-    if (!year || !taxSlabs || !personalAllowance || !effectiveFrom) {
+    if (!year || !companyId ) {
       return NextResponse.json(
-        {
-          error: "Missing required fields",
-          required: ["year", "taxSlabs", "personalAllowance", "effectiveFrom"],
-        },
+        { error: "Missing required fields: year, companyId" },
         { status: 400 }
       );
     }
-
-    // Validate tax slabs
-    if (!Array.isArray(taxSlabs) || taxSlabs.length === 0) {
-      return NextResponse.json(
-        { error: "Tax slabs must be a non-empty array" },
-        { status: 400 }
-      );
+    
+    // Security Check: Ensure employer is modifying their own company
+    if (session.user.role === 'employer') {
+        const company = await Company.findById(companyId);
+        if (!company || company.user.toString() !== session.user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
     }
 
-    // If companyId provided, verify company exists
-    if (companyId) {
-      const company = await Company.findById(companyId);
-      if (!company) {
-        return NextResponse.json(
-          { error: "Company not found" },
-          { status: 404 }
+    const baseConfig = await TaxConfiguration.findOne({ year, country: "LK" });
+
+    if (!baseConfig) {
+      // If no base config for the year, admin must create it.
+      // For now, let's handle creating a base config if admin.
+      if (session.user.role === 'admin' && !companyId) {
+        const newBaseConfig = await TaxConfiguration.create(body);
+         return NextResponse.json(
+          {
+            success: true,
+            message: "Base tax configuration created successfully.",
+            taxConfiguration: newBaseConfig,
+          },
+          { status: 201 }
         );
       }
+      return NextResponse.json(
+        { error: `No base tax configuration found for the year ${year}. Admin must create one first.` },
+        { status: 404 }
+      );
     }
 
-    // Create new tax configuration
-    const newTaxConfig = await TaxConfiguration.create({
-      year,
-      country,
-      companyId: companyId || undefined,
-      isDefault: !companyId, // Global if no company specified
-      taxSlabs,
-      personalAllowance,
-      qualifyingPaymentRelief: qualifyingPaymentRelief || {
-        epfRate: 0.08,
-        maxMonthly: null,
-      },
-      stampDuty: stampDuty || {
-        threshold: 50000,
-        amount: 25,
-      },
-      otherDeductions,
-      isActive: true,
-      effectiveFrom: new Date(effectiveFrom),
-      effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
-    });
+    const overrideIndex = baseConfig.overrides.findIndex(
+      (o) => o.companyId.toString() === companyId
+    );
+
+    const overrideData = {
+        companyId,
+        taxSlabs,
+        personalAllowance
+    };
+
+    if (overrideIndex > -1) {
+      // Update existing override
+       baseConfig.overrides[overrideIndex] = { ...baseConfig.overrides[overrideIndex].toObject(), ...overrideData };
+    } else {
+      // Add new override
+      baseConfig.overrides.push(overrideData);
+    }
+
+    await baseConfig.save();
 
     return NextResponse.json(
       {
         success: true,
-        message: "Tax configuration created successfully",
-        taxConfiguration: newTaxConfig,
+        message: "Company tax override saved successfully.",
       },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error) {
     console.error("[POST /api/tax-configuration] Error:", error);
     return NextResponse.json(
       {
-        error: "Failed to create tax configuration",
-        message:
-          error instanceof Error ? error.message : "An unexpected error occurred",
+        error: "Failed to save tax configuration override",
+        message: error instanceof Error ? error.message : "An unexpected error occurred",
       },
       { status: 500 }
     );
@@ -237,16 +207,8 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(options);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admin can update tax configurations
-    if (session.user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Only administrators can update tax configurations" },
-        { status: 403 }
-      );
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await dbConnect();
@@ -261,8 +223,8 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Find and update
-    const taxConfig = await TaxConfiguration.findById(id);
+    const taxConfig = await TaxConfiguration.findByIdAndUpdate(id, updates, { new: true });
+
     if (!taxConfig) {
       return NextResponse.json(
         { error: "Tax configuration not found" },
@@ -270,18 +232,9 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Update fields
-    Object.keys(updates).forEach((key) => {
-      if (updates[key] !== undefined) {
-        (taxConfig as any)[key] = updates[key];
-      }
-    });
-
-    await taxConfig.save();
-
     return NextResponse.json({
       success: true,
-      message: "Tax configuration updated successfully",
+      message: "Base tax configuration updated successfully",
       taxConfiguration: taxConfig,
     });
   } catch (error) {
@@ -311,49 +264,54 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only admin can delete tax configurations
-    if (session.user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Only administrators can delete tax configurations" },
-        { status: 403 }
-      );
+    if (session.user.role === 'employee') {
+       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const companyId = searchParams.get("companyId");
+    const year = searchParams.get("year")
+      ? parseInt(searchParams.get("year")!)
+      : new Date().getFullYear();
 
-    if (!id) {
+    if (!companyId || !year) {
       return NextResponse.json(
-        { error: "Tax configuration ID is required" },
+        { error: "companyId and year are required" },
         { status: 400 }
       );
     }
+    
+    // Security Check: Ensure employer is modifying their own company
+    if (session.user.role === 'employer') {
+        const company = await Company.findById(companyId);
+        if (!company || company.user.toString() !== session.user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+    }
 
-    // Soft delete by setting isActive to false
-    const taxConfig = await TaxConfiguration.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
+    const result = await TaxConfiguration.updateOne(
+      { year, country: "LK" },
+      { $pull: { overrides: { companyId } } }
     );
 
-    if (!taxConfig) {
+    if (result.modifiedCount === 0) {
       return NextResponse.json(
-        { error: "Tax configuration not found" },
+        { error: "No tax override found for this company to delete." },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "Tax configuration deactivated successfully",
+      message: "Company tax override has been reset to global default.",
     });
   } catch (error) {
     console.error("[DELETE /api/tax-configuration] Error:", error);
     return NextResponse.json(
       {
-        error: "Failed to delete tax configuration",
+        error: "Failed to reset tax configuration",
         message:
           error instanceof Error ? error.message : "An unexpected error occurred",
       },

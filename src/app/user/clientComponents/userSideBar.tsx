@@ -133,11 +133,6 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
           key: "payments",
           icon: <Payments />,
         },
-        {
-          name: "Tax Settings",
-          key: "taxSettings",
-          icon: <Calculate />,
-        },
       ];
 
       if (role === "admin") {
@@ -191,8 +186,6 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               return "Salaries";
             case "payments":
               return "Payments";
-            case "taxSettings":
-              return "Tax Settings";
             case "dashboard":
               return "Dashboard";
             case "employerDashboard":

@@ -14,7 +14,8 @@ export type Selected =
   | 'payments'
   | 'salaries'
   | 'purchases'
-  | 'documents';
+  | 'documents'
+  | 'tax';
 
 const NavContainer = ({
   user,
@@ -46,6 +47,7 @@ const NavContainer = ({
         'salaries',
         'purchases',
         'documents',
+        'tax',
       ].includes(selectedParam)
     ) {
       setSelected(selectedParam as Selected);

@@ -1,6 +1,5 @@
 "use client";
 import * as React from "react";
-import "@fontsource/roboto/400.css";
 import {
   AppBar,
   Avatar,
@@ -36,6 +35,7 @@ import {
   Summarize,
   AccountTree,
   EventNote,
+  Calculate,
 } from "@mui/icons-material";
 import Link from "next/link";
 import Image from "next/image";
@@ -116,6 +116,11 @@ const CompanySideBar: React.FC<Props> = ({
       icon: <Payments />,
     },
     {
+      name: "Tax",
+      key: "tax",
+      icon: <Calculate />,
+    },
+    {
       name: "Documents",
       key: "documents",
       icon: <Summarize />,
@@ -173,6 +178,8 @@ const CompanySideBar: React.FC<Props> = ({
               return "Salaries";
             case "payments":
               return "Payments";
+            case "tax":
+              return "Tax";
             case "purchases":
               return "Purchases";
             case "documents":
