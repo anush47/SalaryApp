@@ -33,7 +33,7 @@ const fetchUsers = async () => {
     throw new Error("Failed to fetch users");
   }
   const data = await response.json();
-  return data.users.map((user: any) => ({ ...user, id: user._id }));
+  return data.data.map((user: any) => ({ ...user, id: user._id }));
 };
 
 const Users = ({
