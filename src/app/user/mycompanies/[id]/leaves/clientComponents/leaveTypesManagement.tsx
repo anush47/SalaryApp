@@ -30,7 +30,12 @@ export interface LeaveType {
   name: string;
   code: string;
   company: string;
-  maxDaysPerYear: number;
+  // Flexible period fields
+  accrualPeriod: "yearly" | "monthly" | "weekly" | "quarterly" | "half-yearly" | "custom";
+  maxDaysPerPeriod: number;
+  customPeriodDays?: number;
+  accrualMethod: "upfront" | "monthly-accrual" | "pro-rata";
+  resetDay?: number;
   carryForward: boolean;
   maxCarryForwardDays?: number;
   maxConsecutiveDays?: number;
@@ -73,7 +78,11 @@ const LeaveTypesManagement: React.FC<{
   const [newLeaveType, setNewLeaveType] = useState({
     name: "",
     code: "",
-    maxDaysPerYear: 14,
+    accrualPeriod: "yearly" as "yearly" | "monthly" | "weekly" | "quarterly" | "half-yearly" | "custom",
+    maxDaysPerPeriod: 14,
+    customPeriodDays: 30,
+    accrualMethod: "upfront" as "upfront" | "monthly-accrual" | "pro-rata",
+    resetDay: 1,
     carryForward: false,
     maxCarryForwardDays: 0,
     maxConsecutiveDays: 0,
@@ -127,7 +136,11 @@ const LeaveTypesManagement: React.FC<{
       setNewLeaveType({
         name: "",
         code: "",
-        maxDaysPerYear: 14,
+        accrualPeriod: "yearly",
+        maxDaysPerPeriod: 14,
+        customPeriodDays: 30,
+        accrualMethod: "upfront",
+        resetDay: 1,
         carryForward: false,
         maxCarryForwardDays: 0,
         maxConsecutiveDays: 0,
@@ -191,10 +204,41 @@ const LeaveTypesManagement: React.FC<{
       maxWidth: 100,
     },
     {
-      field: "maxDaysPerYear",
-      headerName: "Max Days/Year",
-      flex: 0.7,
-      maxWidth: 130,
+      field: "maxDaysPerPeriod",
+      headerName: "Max Days/Period",
+      flex: 1,
+      minWidth: 150,
+      valueGetter: (params) => {
+        const row = params;
+        const period = row.accrualPeriod || "yearly";
+        const days = row.maxDaysPerPeriod;
+
+        const periodLabels: Record<string, string> = {
+          yearly: "year",
+          monthly: "month",
+          weekly: "week",
+          quarterly: "quarter",
+          "half-yearly": "half-year",
+          custom: `${row.customPeriodDays || 30} days`,
+        };
+
+        return `${days} days/${periodLabels[period]}`;
+      },
+    },
+    {
+      field: "accrualMethod",
+      headerName: "Accrual Method",
+      flex: 0.8,
+      minWidth: 120,
+      valueGetter: (params) => {
+        const method = params || "upfront";
+        const methodLabels: Record<string, string> = {
+          upfront: "Upfront",
+          "monthly-accrual": "Monthly Accrual",
+          "pro-rata": "Pro-Rata",
+        };
+        return methodLabels[method] || method;
+      },
     },
     {
       field: "carryForward",
@@ -404,15 +448,113 @@ const LeaveTypesManagement: React.FC<{
               }
             />
             <TextField
-              label="Max Days Per Year"
-              type="number"
-              value={newLeaveType.maxDaysPerYear}
+              select
+              label="Accrual Period"
+              required
+              value={newLeaveType.accrualPeriod}
               onChange={(e) =>
                 setNewLeaveType({
                   ...newLeaveType,
-                  maxDaysPerYear: parseInt(e.target.value),
+                  accrualPeriod: e.target.value as any,
                 })
               }
+              helperText="How often does the leave balance reset?"
+            >
+              <MenuItem value="yearly">Yearly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="quarterly">Quarterly</MenuItem>
+              <MenuItem value="half-yearly">Half-Yearly</MenuItem>
+              <MenuItem value="custom">Custom Period</MenuItem>
+            </TextField>
+            <TextField
+              label="Max Days Per Period"
+              type="number"
+              required
+              value={newLeaveType.maxDaysPerPeriod}
+              onChange={(e) =>
+                setNewLeaveType({
+                  ...newLeaveType,
+                  maxDaysPerPeriod: parseFloat(e.target.value),
+                })
+              }
+              helperText="Maximum leave days available per period"
+            />
+            <TextField
+              select
+              label="Accrual Method"
+              required
+              value={newLeaveType.accrualMethod}
+              onChange={(e) =>
+                setNewLeaveType({
+                  ...newLeaveType,
+                  accrualMethod: e.target.value as any,
+                })
+              }
+              helperText="How are leaves made available?"
+            >
+              <MenuItem value="upfront">Upfront (All at period start)</MenuItem>
+              <MenuItem value="monthly-accrual">Monthly Accrual (Gradual)</MenuItem>
+              <MenuItem value="pro-rata">Pro-Rata (Based on time worked)</MenuItem>
+            </TextField>
+            {newLeaveType.accrualPeriod === "custom" && (
+              <TextField
+                label="Custom Period Days"
+                type="number"
+                required
+                value={newLeaveType.customPeriodDays}
+                onChange={(e) =>
+                  setNewLeaveType({
+                    ...newLeaveType,
+                    customPeriodDays: parseInt(e.target.value),
+                  })
+                }
+                helperText="Number of days in custom period (e.g., 30, 60, 90)"
+              />
+            )}
+            {(newLeaveType.accrualPeriod === "monthly" || newLeaveType.accrualPeriod === "weekly") && (
+              <TextField
+                label="Reset Day"
+                type="number"
+                value={newLeaveType.resetDay}
+                onChange={(e) =>
+                  setNewLeaveType({
+                    ...newLeaveType,
+                    resetDay: parseInt(e.target.value),
+                  })
+                }
+                helperText={
+                  newLeaveType.accrualPeriod === "monthly"
+                    ? "Day of month (1-31)"
+                    : "Day of week (0=Sunday, 1=Monday, ...)"
+                }
+              />
+            )}
+            {newLeaveType.carryForward && (
+              <TextField
+                label="Max Carry Forward Days"
+                type="number"
+                value={newLeaveType.maxCarryForwardDays}
+                onChange={(e) =>
+                  setNewLeaveType({
+                    ...newLeaveType,
+                    maxCarryForwardDays: parseInt(e.target.value),
+                  })
+                }
+                helperText="Maximum days that can carry to next period"
+              />
+            )}
+            <TextField
+              label="Max Consecutive Days"
+              type="number"
+              value={newLeaveType.maxConsecutiveDays}
+              onChange={(e) =>
+                setNewLeaveType({
+                  ...newLeaveType,
+                  maxConsecutiveDays: parseInt(e.target.value),
+                })
+              }
+              helperText="Maximum consecutive days allowed (0 = no limit)"
             />
             <TextField
               label="Color"
@@ -562,15 +704,113 @@ const LeaveTypesManagement: React.FC<{
                 value={editingLeaveType.code}
               />
               <TextField
-                label="Max Days Per Year"
-                type="number"
-                value={editingLeaveType.maxDaysPerYear}
+                select
+                label="Accrual Period"
+                required
+                value={editingLeaveType.accrualPeriod}
                 onChange={(e) =>
                   setEditingLeaveType({
                     ...editingLeaveType,
-                    maxDaysPerYear: parseInt(e.target.value),
+                    accrualPeriod: e.target.value as any,
                   })
                 }
+                helperText="How often does the leave balance reset?"
+              >
+                <MenuItem value="yearly">Yearly</MenuItem>
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="weekly">Weekly</MenuItem>
+                <MenuItem value="quarterly">Quarterly</MenuItem>
+                <MenuItem value="half-yearly">Half-Yearly</MenuItem>
+                <MenuItem value="custom">Custom Period</MenuItem>
+              </TextField>
+              <TextField
+                label="Max Days Per Period"
+                type="number"
+                required
+                value={editingLeaveType.maxDaysPerPeriod}
+                onChange={(e) =>
+                  setEditingLeaveType({
+                    ...editingLeaveType,
+                    maxDaysPerPeriod: parseFloat(e.target.value),
+                  })
+                }
+                helperText="Maximum leave days available per period"
+              />
+              <TextField
+                select
+                label="Accrual Method"
+                required
+                value={editingLeaveType.accrualMethod}
+                onChange={(e) =>
+                  setEditingLeaveType({
+                    ...editingLeaveType,
+                    accrualMethod: e.target.value as any,
+                  })
+                }
+                helperText="How are leaves made available?"
+              >
+                <MenuItem value="upfront">Upfront (All at period start)</MenuItem>
+                <MenuItem value="monthly-accrual">Monthly Accrual (Gradual)</MenuItem>
+                <MenuItem value="pro-rata">Pro-Rata (Based on time worked)</MenuItem>
+              </TextField>
+              {editingLeaveType.accrualPeriod === "custom" && (
+                <TextField
+                  label="Custom Period Days"
+                  type="number"
+                  required
+                  value={editingLeaveType.customPeriodDays}
+                  onChange={(e) =>
+                    setEditingLeaveType({
+                      ...editingLeaveType,
+                      customPeriodDays: parseInt(e.target.value),
+                    })
+                  }
+                  helperText="Number of days in custom period (e.g., 30, 60, 90)"
+                />
+              )}
+              {(editingLeaveType.accrualPeriod === "monthly" || editingLeaveType.accrualPeriod === "weekly") && (
+                <TextField
+                  label="Reset Day"
+                  type="number"
+                  value={editingLeaveType.resetDay}
+                  onChange={(e) =>
+                    setEditingLeaveType({
+                      ...editingLeaveType,
+                      resetDay: parseInt(e.target.value),
+                    })
+                  }
+                  helperText={
+                    editingLeaveType.accrualPeriod === "monthly"
+                      ? "Day of month (1-31)"
+                      : "Day of week (0=Sunday, 1=Monday, ...)"
+                  }
+                />
+              )}
+              {editingLeaveType.carryForward && (
+                <TextField
+                  label="Max Carry Forward Days"
+                  type="number"
+                  value={editingLeaveType.maxCarryForwardDays}
+                  onChange={(e) =>
+                    setEditingLeaveType({
+                      ...editingLeaveType,
+                      maxCarryForwardDays: parseInt(e.target.value),
+                    })
+                  }
+                  helperText="Maximum days that can carry to next period"
+                />
+              )}
+              <TextField
+                label="Max Consecutive Days"
+                type="number"
+                value={editingLeaveType.maxConsecutiveDays}
+                onChange={(e) =>
+                  setEditingLeaveType({
+                    ...editingLeaveType,
+                    maxConsecutiveDays: parseInt(e.target.value),
+                  })
+                }
+                helperText="Maximum consecutive days allowed (0 = no limit)"
               />
               <TextField
                 label="Color"

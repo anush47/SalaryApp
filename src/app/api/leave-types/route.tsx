@@ -103,7 +103,6 @@ export async function POST(req: NextRequest) {
       name,
       code,
       companyId,
-      maxDaysPerYear,
       accrualPeriod,
       maxDaysPerPeriod,
       customPeriodDays,
@@ -182,14 +181,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Create leave type
-    const finalMaxDaysPerPeriod = maxDaysPerPeriod || maxDaysPerYear || 14;
+    const finalMaxDaysPerPeriod = maxDaysPerPeriod || 14;
 
     const leaveType = new LeaveType({
       name: name.trim(),
       code: code.toUpperCase(),
       company: companyId,
-      // Legacy field
-      maxDaysPerYear: maxDaysPerYear || finalMaxDaysPerPeriod,
       // New flexible period fields
       accrualPeriod: accrualPeriod || "yearly",
       maxDaysPerPeriod: finalMaxDaysPerPeriod,
@@ -225,7 +222,7 @@ export async function POST(req: NextRequest) {
           $push: {
             leaveTypes: {
               leaveType: leaveType._id,
-              maxDaysPerYear: finalMaxDaysPerPeriod,
+              maxDaysPerPeriod: finalMaxDaysPerPeriod,
               balance: finalMaxDaysPerPeriod,
               carryForward: leaveType.carryForward,
               currentPeriodStart: now,
@@ -268,7 +265,6 @@ export async function PUT(req: NextRequest) {
     const {
       leaveTypeId,
       name,
-      maxDaysPerYear,
       accrualPeriod,
       maxDaysPerPeriod,
       customPeriodDays,
@@ -332,7 +328,6 @@ export async function PUT(req: NextRequest) {
 
     // Update fields
     if (name) leaveType.name = name.trim();
-    if (maxDaysPerYear !== undefined) leaveType.maxDaysPerYear = maxDaysPerYear;
     if (accrualPeriod !== undefined) leaveType.accrualPeriod = accrualPeriod;
     if (maxDaysPerPeriod !== undefined) leaveType.maxDaysPerPeriod = maxDaysPerPeriod;
     if (customPeriodDays !== undefined) leaveType.customPeriodDays = customPeriodDays;

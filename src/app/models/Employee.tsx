@@ -36,7 +36,7 @@ interface IEmployee extends Document {
   };
   leaveTypes: {
     leaveType: Schema.Types.ObjectId;
-    maxDaysPerYear: number; // Legacy field, now represents maxDaysPerPeriod
+    maxDaysPerPeriod: number; // Represents max days per period
     balance: number; // Current period balance
     carryForward: boolean;
     currentPeriodStart?: Date; // Start date of current period
@@ -181,10 +181,9 @@ const employeeSchema = new Schema<IEmployee>(
           ref: "LeaveType",
           required: true,
         },
-        maxDaysPerYear: {
+        maxDaysPerPeriod: {
           type: Number,
           required: true,
-          // Now represents maxDaysPerPeriod based on leave type's accrualPeriod
         },
         balance: {
           type: Number,

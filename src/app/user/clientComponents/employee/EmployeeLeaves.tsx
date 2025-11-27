@@ -591,9 +591,19 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                       <Typography variant="body2" color="text.secondary">
                         {leave.leaveType.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" display="block">
                         Used: {leave.used} / {leave.maxDaysPerYear}
                       </Typography>
+                      {leave.currentPeriod && (
+                        <Typography variant="caption" color="primary" display="block" sx={{ mt: 0.5 }}>
+                          Period: {leave.currentPeriod.label}
+                        </Typography>
+                      )}
+                      {leave.carriedForward > 0 && (
+                        <Typography variant="caption" color="success.main" display="block">
+                          +{leave.carriedForward} days carried forward
+                        </Typography>
+                      )}
                     </Paper>
                   ))}
                 </List>

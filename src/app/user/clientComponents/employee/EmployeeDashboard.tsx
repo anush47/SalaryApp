@@ -290,9 +290,19 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                         value={(leave.available / leave.maxDaysPerYear) * 100}
                         sx={{ mb: 1, height: 8, borderRadius: 4 }}
                       />
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" display="block">
                         {leave.used} used of {leave.maxDaysPerYear} days
                       </Typography>
+                      {leave.currentPeriod && (
+                        <Typography variant="caption" color="primary" display="block" sx={{ mt: 0.5 }}>
+                          {leave.currentPeriod.label}
+                        </Typography>
+                      )}
+                      {leave.carriedForward > 0 && (
+                        <Typography variant="caption" color="success.main" display="block">
+                          +{leave.carriedForward} carried
+                        </Typography>
+                      )}
                     </CardContent>
                   </Card>
                 </Grid>

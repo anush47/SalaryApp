@@ -5,8 +5,6 @@ interface ILeaveType extends Document {
   name: string;
   company: Schema.Types.ObjectId;
   code: string;
-  // Legacy field - kept for backward compatibility
-  maxDaysPerYear: number;
   // New flexible period fields
   accrualPeriod: "yearly" | "monthly" | "weekly" | "quarterly" | "half-yearly" | "custom";
   maxDaysPerPeriod: number;
@@ -44,12 +42,6 @@ const leaveTypeSchema = new Schema<ILeaveType>(
       type: String,
       required: true,
       uppercase: true,
-    },
-    // Legacy field - kept for backward compatibility
-    maxDaysPerYear: {
-      type: Number,
-      required: true,
-      default: 14,
     },
     // New flexible period fields
     accrualPeriod: {
