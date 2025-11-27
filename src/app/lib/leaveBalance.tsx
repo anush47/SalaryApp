@@ -2,6 +2,13 @@ import Employee from "@/app/models/Employee";
 import LeaveRequest from "@/app/models/LeaveRequest";
 import LeaveType from "@/app/models/LeaveType";
 import Company from "@/app/models/Company";
+import {
+  getCurrentPeriod,
+  calculateAvailableLeaves,
+  spansMultiplePeriods,
+  splitDaysAcrossPeriods,
+  formatPeriodLabel,
+} from "@/app/lib/leavePeriodCalculations";
 
 /**
  * Get leave balance summary for an employee
@@ -31,9 +38,12 @@ export async function getLeaveBalanceSummary(employeeId: string) {
       // Map to employee leave balance format
       leaveTypes = companyLeaveTypes.map((lt: any) => ({
         leaveType: lt._id,
-        maxDaysPerYear: lt.maxDaysPerYear,
-        balance: lt.maxDaysPerYear, // Default to max if not yet initialized
+        maxDaysPerYear: lt.maxDaysPerPeriod || lt.maxDaysPerYear,
+        balance: lt.maxDaysPerPeriod || lt.maxDaysPerYear,
         carryForward: lt.carryForward,
+        currentPeriodStart: null,
+        lastAccrualDate: null,
+        carriedForwardBalance: 0,
       }));
     }
 
@@ -43,7 +53,26 @@ export async function getLeaveBalanceSummary(employeeId: string) {
         const leaveType = await LeaveType.findById(lt.leaveType);
         if (!leaveType) return null;
 
-        // Calculate used leaves (approved + pending)
+        // Get current period for this leave type
+        const currentPeriod = getCurrentPeriod(leaveType, new Date());
+
+        // Check if we need to reset period
+        const needsReset = !lt.currentPeriodStart ||
+          new Date(lt.currentPeriodStart).getTime() !== currentPeriod.periodStart.getTime();
+
+        if (needsReset) {
+          // Period has changed - reset balance
+          await resetPeriodBalance(employee, lt, leaveType, currentPeriod);
+        }
+
+        // Calculate available leaves based on accrual method
+        const availableLeaves = calculateAvailableLeaves(
+          leaveType,
+          new Date(employee.startedAt || new Date()),
+          new Date()
+        );
+
+        // Calculate used leaves in current period
         const usedLeaves = await LeaveRequest.aggregate([
           {
             $match: {
@@ -51,7 +80,8 @@ export async function getLeaveBalanceSummary(employeeId: string) {
               leaveType: leaveType._id,
               status: { $in: ["approved", "pending"] },
               startDate: {
-                $gte: new Date(new Date().getFullYear(), 0, 1), // Start of current year
+                $gte: currentPeriod.periodStart,
+                $lte: currentPeriod.periodEnd,
               },
             },
           },
@@ -75,12 +105,21 @@ export async function getLeaveBalanceSummary(employeeId: string) {
             requiresApproval: leaveType.requiresApproval,
             requiresDocument: leaveType.requiresDocument,
             maxConsecutiveDays: leaveType.maxConsecutiveDays,
+            accrualPeriod: leaveType.accrualPeriod,
+            accrualMethod: leaveType.accrualMethod,
           },
-          maxDaysPerYear: lt.maxDaysPerYear,
+          maxDaysPerPeriod: lt.maxDaysPerYear,
+          availableLeaves,
           used,
           balance: lt.balance,
-          available: lt.balance - used,
+          available: Math.max(0, lt.balance - used),
           carryForward: lt.carryForward,
+          carriedForwardBalance: lt.carriedForwardBalance || 0,
+          currentPeriod: {
+            start: currentPeriod.periodStart,
+            end: currentPeriod.periodEnd,
+            label: formatPeriodLabel(currentPeriod),
+          },
         };
       })
     );
@@ -93,6 +132,46 @@ export async function getLeaveBalanceSummary(employeeId: string) {
 }
 
 /**
+ * Reset employee leave balance for new period
+ */
+async function resetPeriodBalance(
+  employee: any,
+  leaveBalance: any,
+  leaveType: any,
+  newPeriod: any
+) {
+  try {
+    // Calculate carry forward if applicable
+    let carriedForward = 0;
+    if (leaveBalance.carryForward && leaveType.carryForward) {
+      const remainingBalance = leaveBalance.balance || 0;
+      const maxCarryForward = leaveType.maxCarryForwardDays || 0;
+      carriedForward = Math.min(remainingBalance, maxCarryForward);
+    }
+
+    // Reset balance for new period
+    const maxForPeriod = leaveType.maxDaysPerPeriod || leaveType.maxDaysPerYear;
+
+    // Find and update the specific leave type
+    const leaveTypeIndex = employee.leaveTypes.findIndex(
+      (lt: any) => lt.leaveType.toString() === leaveType._id.toString()
+    );
+
+    if (leaveTypeIndex !== -1) {
+      employee.leaveTypes[leaveTypeIndex].balance = maxForPeriod + carriedForward;
+      employee.leaveTypes[leaveTypeIndex].currentPeriodStart = newPeriod.periodStart;
+      employee.leaveTypes[leaveTypeIndex].lastAccrualDate = new Date();
+      employee.leaveTypes[leaveTypeIndex].carriedForwardBalance = carriedForward;
+      employee.leaveTypes[leaveTypeIndex].maxDaysPerYear = maxForPeriod;
+
+      await employee.save();
+    }
+  } catch (error) {
+    console.error("Error resetting period balance:", error);
+  }
+}
+
+/**
  * Validate if a leave application is possible
  */
 export async function validateLeaveApplication(
@@ -101,7 +180,7 @@ export async function validateLeaveApplication(
   startDate: Date,
   endDate: Date,
   halfDay: boolean = false
-): Promise<{ valid: boolean; error?: string; message?: string }> {
+): Promise<{ valid: boolean; error?: string; message?: string; warning?: string }> {
   try {
     const employee = await Employee.findById(employeeId);
     if (!employee) {
@@ -147,33 +226,76 @@ export async function validateLeaveApplication(
       };
     }
 
-    // Check balance for paid leaves
-    if (leaveType.isPaid) {
-      const leaveBalance = employee.leaveTypes.find(
-        (lt: any) => lt.leaveType.toString() === leaveTypeId
-      );
+    // Check if leave spans multiple periods
+    const spansMultiple = spansMultiplePeriods(leaveType, start, end);
+    let warning = undefined;
 
-      if (!leaveBalance) {
-        return {
-          valid: false,
-          error: "Leave type not assigned to this employee",
-        };
-      }
+    if (spansMultiple) {
+      // Split days across periods
+      const periodSplits = splitDaysAcrossPeriods(leaveType, start, end, totalDays);
 
-      if (leaveBalance.balance < totalDays) {
-        return {
-          valid: false,
-          error: `Insufficient leave balance. Available: ${leaveBalance.balance} days, Requested: ${totalDays} days`,
-        };
-      }
+      warning = `This leave spans multiple ${leaveType.accrualPeriod} periods: ` +
+        periodSplits.map(ps => `${ps.days} day(s) in ${formatPeriodLabel(ps.period)}`).join(", ");
 
-      // Check max consecutive days
-      if (leaveType.maxConsecutiveDays && totalDays > leaveType.maxConsecutiveDays) {
-        return {
-          valid: false,
-          error: `Maximum consecutive days for this leave type is ${leaveType.maxConsecutiveDays}`,
-        };
+      // Validate balance for each period
+      if (leaveType.isPaid) {
+        for (const split of periodSplits) {
+          const leaveBalance = employee.leaveTypes.find(
+            (lt: any) => lt.leaveType.toString() === leaveTypeId
+          );
+
+          if (!leaveBalance) {
+            return {
+              valid: false,
+              error: "Leave type not assigned to this employee",
+            };
+          }
+
+          // For future periods, we can't accurately check balance yet
+          const currentPeriod = getCurrentPeriod(leaveType, new Date());
+          if (split.period.periodStart.getTime() > currentPeriod.periodStart.getTime()) {
+            warning += `. Note: Balance for future periods will be validated when the period begins.`;
+            continue;
+          }
+
+          // Check current period balance
+          if (leaveBalance.balance < split.days) {
+            return {
+              valid: false,
+              error: `Insufficient leave balance for ${formatPeriodLabel(split.period)}. Available: ${leaveBalance.balance} days, Requested: ${split.days} days`,
+            };
+          }
+        }
       }
+    } else {
+      // Single period validation
+      if (leaveType.isPaid) {
+        const leaveBalance = employee.leaveTypes.find(
+          (lt: any) => lt.leaveType.toString() === leaveTypeId
+        );
+
+        if (!leaveBalance) {
+          return {
+            valid: false,
+            error: "Leave type not assigned to this employee",
+          };
+        }
+
+        if (leaveBalance.balance < totalDays) {
+          return {
+            valid: false,
+            error: `Insufficient leave balance. Available: ${leaveBalance.balance} days, Requested: ${totalDays} days`,
+          };
+        }
+      }
+    }
+
+    // Check max consecutive days
+    if (leaveType.maxConsecutiveDays && totalDays > leaveType.maxConsecutiveDays) {
+      return {
+        valid: false,
+        error: `Maximum consecutive days for this leave type is ${leaveType.maxConsecutiveDays}`,
+      };
     }
 
     // Check for overlapping leave requests
@@ -193,6 +315,7 @@ export async function validateLeaveApplication(
     return {
       valid: true,
       message: `Leave application is valid. ${totalDays} day(s) will be deducted.`,
+      warning,
     };
   } catch (error) {
     console.error("Error validating leave application:", error);
@@ -430,13 +553,26 @@ export async function initializeLeaveBalances(employeeId: string) {
       (lt: any) => !existingLeaveTypeIds.includes(lt._id.toString())
     );
 
-    // Add missing leave types
+    // Add missing leave types with period awareness
     for (const leaveType of missingLeaveTypes) {
+      const currentPeriod = getCurrentPeriod(leaveType, new Date());
+      const maxDays = leaveType.maxDaysPerPeriod || leaveType.maxDaysPerYear;
+
+      // Calculate available balance based on accrual method
+      const availableBalance = calculateAvailableLeaves(
+        leaveType,
+        new Date(employee.startedAt || new Date()),
+        new Date()
+      );
+
       employee.leaveTypes.push({
         leaveType: leaveType._id,
-        maxDaysPerYear: leaveType.maxDaysPerYear,
-        balance: leaveType.maxDaysPerYear,
+        maxDaysPerYear: maxDays,
+        balance: availableBalance,
         carryForward: leaveType.carryForward,
+        currentPeriodStart: currentPeriod.periodStart,
+        lastAccrualDate: new Date(),
+        carriedForwardBalance: 0,
       });
     }
 
@@ -449,7 +585,9 @@ export async function initializeLeaveBalances(employeeId: string) {
       leaveTypes: missingLeaveTypes.map((lt: any) => ({
         name: lt.name,
         code: lt.code,
-        balance: lt.maxDaysPerYear,
+        accrualPeriod: lt.accrualPeriod,
+        accrualMethod: lt.accrualMethod,
+        balance: lt.maxDaysPerPeriod || lt.maxDaysPerYear,
       })),
     };
   } catch (error) {

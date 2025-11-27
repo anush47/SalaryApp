@@ -58,17 +58,204 @@ The core of the application revolves around a set of interconnected data models:
 
 ### 3.3. Leave Management
 
-*   **Customizable Leave Types:** Employers can define their own leave policies.
-*   **Leave Application & Approval:** Employees can apply for leave through the portal, and their designated managers can approve or reject the requests.
-*   **Automated Balance Tracking:** The system automatically calculates and updates leave balances upon approval or cancellation of leave requests.
-*   **Salary Integration:** Approved no-pay leaves are automatically deducted during the salary generation process.
+The leave management system supports fully customizable leave policies with flexible accrual periods, making it adaptable to various business needs.
+
+#### 3.3.1. Flexible Accrual Periods
+
+Leave types can be configured with different accrual periods beyond traditional yearly leaves:
+
+*   **Yearly Leaves** - Traditional annual leaves (e.g., 14 days per year)
+*   **Monthly Leaves** - Leaves that reset monthly (e.g., 3 sick days per month)
+*   **Weekly Leaves** - Leaves that reset weekly (e.g., 0.5 days per week)
+*   **Quarterly Leaves** - Leaves that reset every quarter (e.g., 3.5 days per quarter)
+*   **Half-Yearly Leaves** - Leaves that reset twice a year (e.g., 7 days per half-year)
+*   **Custom Period Leaves** - Leaves with custom periods (e.g., 2 days every 30/60/90 days)
+
+Each accrual period can have a configurable reset day (e.g., 1st of month, Monday of week).
+
+#### 3.3.2. Accrual Methods
+
+The system supports three accrual methods:
+
+*   **Upfront:** All leaves available immediately at period start
+*   **Monthly Accrual:** Leaves accrue gradually each month (e.g., 1 day per month for 12 days/year)
+*   **Pro-Rata:** Leaves accrue proportionally based on time worked (ideal for new employees)
+
+#### 3.3.3. Core Leave Features
+
+*   **Customizable Leave Types:** Employers can define unlimited leave policies with specific rules per leave type.
+*   **Automatic Period Management:** System automatically detects period boundaries and resets balances with carry-forward support.
+*   **Cross-Period Leave Handling:** Validates and splits leaves that span multiple periods (e.g., leave from Jan 29 to Feb 2 in a monthly leave type).
+*   **Leave Application & Approval:** Employees apply for leave, managers receive notifications, and approvals are tracked with full audit trail.
+*   **Automated Balance Tracking:** System calculates and updates balances per period upon approval or cancellation.
+*   **Salary Integration:** Approved no-pay leaves are automatically deducted during salary generation, with accurate period-based calculations.
+*   **Carry Forward:** Supports configurable carry-forward rules with maximum limits per period type.
+
+#### 3.3.4. Leave Type Configuration
+
+Each leave type includes:
+
+*   `name` - Display name (e.g., "Monthly Sick Leave")
+*   `code` - Unique identifier (e.g., "MSL")
+*   `accrualPeriod` - Period type (yearly/monthly/weekly/quarterly/half-yearly/custom)
+*   `maxDaysPerPeriod` - Maximum days available per period
+*   `customPeriodDays` - Days in custom period (if using custom type)
+*   `accrualMethod` - How leaves become available (upfront/monthly-accrual/pro-rata)
+*   `resetDay` - Day when period resets (e.g., 1st of month, Monday)
+*   `carryForward` - Whether unused leaves carry to next period
+*   `maxCarryForwardDays` - Maximum days that can be carried forward
+*   `requiresApproval` - Whether manager approval is needed
+*   `requiresDocument` - Whether supporting documents are required
+*   `isPaid` - Paid vs. unpaid leave
+*   `applicableFor` - Employee types (permanent/contract/intern/temporary)
+*   `gender` - Gender restrictions (male/female/all)
+
+#### 3.3.5. Leave Period Examples
+
+**Example 1: Monthly Sick Leave**
+```json
+{
+  "name": "Monthly Sick Leave",
+  "code": "MSL",
+  "accrualPeriod": "monthly",
+  "maxDaysPerPeriod": 3,
+  "accrualMethod": "upfront",
+  "resetDay": 1
+}
+```
+Employees get 3 sick days on the 1st of each month. Unused days don't carry forward.
+
+**Example 2: Weekly Casual Leave**
+```json
+{
+  "name": "Weekly Casual Leave",
+  "code": "WCL",
+  "accrualPeriod": "weekly",
+  "maxDaysPerPeriod": 0.5,
+  "accrualMethod": "upfront",
+  "resetDay": 1,
+  "carryForward": true,
+  "maxCarryForwardDays": 2
+}
+```
+Employees get 0.5 days every Monday with carry-forward up to 2 days.
+
+**Example 3: Quarterly Leave with Monthly Accrual**
+```json
+{
+  "name": "Quarterly Annual Leave",
+  "code": "QAL",
+  "accrualPeriod": "quarterly",
+  "maxDaysPerPeriod": 3.5,
+  "accrualMethod": "monthly-accrual"
+}
+```
+Employees accrue ~1.17 days per month, totaling 3.5 days by end of quarter.
+
+#### 3.3.6. Technical Implementation
+
+**Period Calculation Engine** (`src/app/lib/leavePeriodCalculations.tsx`):
+*   `getCurrentPeriod()` - Calculates period boundaries for any date
+*   `calculateAvailableLeaves()` - Determines available leaves based on accrual method
+*   `spansMultiplePeriods()` - Checks if leave crosses period boundaries
+*   `splitDaysAcrossPeriods()` - Splits leave days across multiple periods
+
+**Leave Balance Management** (`src/app/lib/leaveBalance.tsx`):
+*   Automatic period reset when boundaries change
+*   Per-period balance tracking in employee records
+*   Cross-period validation for spanning leave requests
+*   Carry-forward calculation at period transitions
+
+**Employee Leave Balance Schema:**
+```typescript
+{
+  leaveType: ObjectId,
+  maxDaysPerYear: Number,  // Represents maxDaysPerPeriod
+  balance: Number,  // Current period balance
+  carryForward: Boolean,
+  currentPeriodStart: Date,  // Period tracking
+  lastAccrualDate: Date,  // For accrual tracking
+  carriedForwardBalance: Number  // Carried from previous period
+}
+```
+
+#### 3.3.7. Migration
+
+The system includes a migration script (`scripts/migration-flexible-leaves.js`) that:
+*   Updates existing leave types with default yearly periods
+*   Initializes employee balances with period tracking fields
+*   Maintains full backward compatibility
+*   Verifies successful migration
+
+Run with: `node scripts/migration-flexible-leaves.js`
 
 ### 3.4. Salary Processing and Payroll
 
 *   **Automated Salary Generation:** The system can generate salaries based on employee basic pay, attendance data, overtime, and other additions/deductions.
 *   **Attendance Integration:** It processes in/out time data (from CSV uploads) to calculate working hours, overtime, and no-pay days.
-*   **Tax Compliance (APIT):** Sri Lankan APIT (Advanced Personal Income Tax) is automatically calculated based on the configurable tax slabs stored in the `TaxConfiguration` model.
 *   **PDF Generation:** The system can generate various PDF documents, including payslips, EPF/ETF reports, and official government forms like Form A.
+
+#### 3.4.1. Tax Calculation (APIT)
+
+The system implements Sri Lankan APIT (Advance Personal Income Tax) with automatic progressive tax calculation.
+
+**Tax Calculation Flow:**
+```
+1. Gross Salary = Basic + Holiday Pay + Additions (affecting earnings)
+2. Total Earnings = Gross Salary + OT + All Additions
+3. EPF 8% = Total Earnings × 0.08
+4. Taxable Income = Gross Salary - EPF 8%
+5. APIT = Progressive tax calculated from tax slabs
+6. Stamp Duty = Rs. 25 (if Gross Salary >= Rs. 50,000)
+7. Total Tax = APIT + Stamp Duty
+8. Final Salary = Total Earnings - EPF 8% - Total Tax - Deductions - No Pay
+```
+
+**Sri Lankan Tax Slabs 2025 (Effective April 1, 2025):**
+
+| Monthly Taxable Income | Tax Rate |
+|------------------------|----------|
+| Rs. 0 - 150,000 | 0% (Personal Relief) |
+| Rs. 150,001 - 233,333 | 6% |
+| Rs. 233,334 - 275,000 | 18% |
+| Rs. 275,001 - 316,667 | 24% |
+| Rs. 316,668 - 358,333 | 30% |
+| Above Rs. 358,333 | 36% |
+
+**Key Features:**
+*   **Automatic Calculation** - Tax calculated during salary generation
+*   **Progressive System** - Implements 6 tax slabs (0% to 36%)
+*   **Admin Configurable** - Tax rates editable via admin UI at `/admin?adminPageSelect=taxConfig`
+*   **Company-Specific Overrides** - Companies can have custom tax configurations
+*   **Tax Preview** - API endpoint (`/api/tax-configuration/preview`) for pre-calculation
+*   **EPF Integration** - Properly deducts EPF 8% before calculating tax
+*   **Personal Allowance** - Rs. 150,000/month (Rs. 1,800,000/year) tax-free
+
+**Tax Configuration Management:**
+*   Admins can create/edit tax configurations for different years
+*   Supports global default and company-specific configurations
+*   Built-in tax calculator for testing
+*   Effective date tracking for tax year transitions
+*   Migration script: `node scripts/migration-tax-2025.js`
+
+**Example (Rs. 300,000 salary):**
+```
+Gross Salary:        Rs. 300,000
+EPF 8%:             -Rs.  24,000
+Taxable Income:      Rs. 276,000
+
+Tax Breakdown (Progressive):
+  0-150,000 at 0%    = Rs. 0
+  150,001-233,333 at 6% = Rs. 5,000
+  233,334-275,000 at 18% = Rs. 7,500
+  275,001-276,000 at 24% = Rs. 240
+
+APIT:                Rs.  12,740
+Stamp Duty:          Rs.      25
+Total Tax:           Rs.  12,765
+Net Salary:          Rs. 263,235
+Effective Rate:      4.26%
+```
 
 ### 3.5. Employee Portal
 

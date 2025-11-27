@@ -36,9 +36,12 @@ interface IEmployee extends Document {
   };
   leaveTypes: {
     leaveType: Schema.Types.ObjectId;
-    maxDaysPerYear: number;
-    balance: number;
+    maxDaysPerYear: number; // Legacy field, now represents maxDaysPerPeriod
+    balance: number; // Current period balance
     carryForward: boolean;
+    currentPeriodStart?: Date; // Start date of current period
+    lastAccrualDate?: Date; // For monthly-accrual tracking
+    carriedForwardBalance?: number; // Balance carried from previous period
   }[];
   calendar?: "default" | "other";
   workingDays: {
@@ -181,14 +184,29 @@ const employeeSchema = new Schema<IEmployee>(
         maxDaysPerYear: {
           type: Number,
           required: true,
+          // Now represents maxDaysPerPeriod based on leave type's accrualPeriod
         },
         balance: {
           type: Number,
           required: true,
+          // Current period balance
         },
         carryForward: {
           type: Boolean,
           default: false,
+        },
+        currentPeriodStart: {
+          type: Date,
+          // Start date of current leave period
+        },
+        lastAccrualDate: {
+          type: Date,
+          // Last date leaves were accrued (for monthly-accrual method)
+        },
+        carriedForwardBalance: {
+          type: Number,
+          default: 0,
+          // Balance carried forward from previous period
         },
       },
     ],

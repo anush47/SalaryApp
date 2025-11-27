@@ -104,6 +104,11 @@ export async function POST(req: NextRequest) {
       code,
       companyId,
       maxDaysPerYear,
+      accrualPeriod,
+      maxDaysPerPeriod,
+      customPeriodDays,
+      accrualMethod,
+      resetDay,
       maxConsecutiveDays,
       carryForward,
       maxCarryForwardDays,
@@ -150,13 +155,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate accrual period and method
+    const validAccrualPeriods = ["yearly", "monthly", "weekly", "quarterly", "half-yearly", "custom"];
+    const validAccrualMethods = ["upfront", "monthly-accrual", "pro-rata"];
+
+    if (accrualPeriod && !validAccrualPeriods.includes(accrualPeriod)) {
+      return NextResponse.json(
+        { error: `Invalid accrualPeriod. Must be one of: ${validAccrualPeriods.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    if (accrualMethod && !validAccrualMethods.includes(accrualMethod)) {
+      return NextResponse.json(
+        { error: `Invalid accrualMethod. Must be one of: ${validAccrualMethods.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate custom period days
+    if (accrualPeriod === "custom" && (!customPeriodDays || customPeriodDays <= 0)) {
+      return NextResponse.json(
+        { error: "customPeriodDays is required and must be > 0 for custom accrual period" },
+        { status: 400 }
+      );
+    }
+
     // Create leave type
+    const finalMaxDaysPerPeriod = maxDaysPerPeriod || maxDaysPerYear || 14;
+
     const leaveType = new LeaveType({
       name: name.trim(),
       code: code.toUpperCase(),
       company: companyId,
-      maxDaysPerYear: maxDaysPerYear || 14,
-      maxConsecutiveDays: maxConsecutiveDays || maxDaysPerYear || 14,
+      // Legacy field
+      maxDaysPerYear: maxDaysPerYear || finalMaxDaysPerPeriod,
+      // New flexible period fields
+      accrualPeriod: accrualPeriod || "yearly",
+      maxDaysPerPeriod: finalMaxDaysPerPeriod,
+      customPeriodDays: customPeriodDays || undefined,
+      accrualMethod: accrualMethod || "upfront",
+      resetDay: resetDay || undefined,
+      maxConsecutiveDays: maxConsecutiveDays || finalMaxDaysPerPeriod,
       carryForward: carryForward || false,
       maxCarryForwardDays: maxCarryForwardDays || 0,
       requiresApproval: requiresApproval !== undefined ? requiresApproval : true,
@@ -173,6 +213,8 @@ export async function POST(req: NextRequest) {
 
     // Add this leave type to all active employees in the company (if paid)
     if (leaveType.isPaid) {
+      const now = new Date();
+
       await Employee.updateMany(
         {
           company: companyId,
@@ -183,9 +225,12 @@ export async function POST(req: NextRequest) {
           $push: {
             leaveTypes: {
               leaveType: leaveType._id,
-              maxDaysPerYear: leaveType.maxDaysPerYear,
-              balance: leaveType.maxDaysPerYear,
+              maxDaysPerYear: finalMaxDaysPerPeriod,
+              balance: finalMaxDaysPerPeriod,
               carryForward: leaveType.carryForward,
+              currentPeriodStart: now,
+              lastAccrualDate: now,
+              carriedForwardBalance: 0,
             },
           },
         }
@@ -224,6 +269,11 @@ export async function PUT(req: NextRequest) {
       leaveTypeId,
       name,
       maxDaysPerYear,
+      accrualPeriod,
+      maxDaysPerPeriod,
+      customPeriodDays,
+      accrualMethod,
+      resetDay,
       maxConsecutiveDays,
       carryForward,
       maxCarryForwardDays,
@@ -262,9 +312,32 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Validate accrual period and method if provided
+    const validAccrualPeriods = ["yearly", "monthly", "weekly", "quarterly", "half-yearly", "custom"];
+    const validAccrualMethods = ["upfront", "monthly-accrual", "pro-rata"];
+
+    if (accrualPeriod && !validAccrualPeriods.includes(accrualPeriod)) {
+      return NextResponse.json(
+        { error: `Invalid accrualPeriod. Must be one of: ${validAccrualPeriods.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    if (accrualMethod && !validAccrualMethods.includes(accrualMethod)) {
+      return NextResponse.json(
+        { error: `Invalid accrualMethod. Must be one of: ${validAccrualMethods.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     // Update fields
     if (name) leaveType.name = name.trim();
     if (maxDaysPerYear !== undefined) leaveType.maxDaysPerYear = maxDaysPerYear;
+    if (accrualPeriod !== undefined) leaveType.accrualPeriod = accrualPeriod;
+    if (maxDaysPerPeriod !== undefined) leaveType.maxDaysPerPeriod = maxDaysPerPeriod;
+    if (customPeriodDays !== undefined) leaveType.customPeriodDays = customPeriodDays;
+    if (accrualMethod !== undefined) leaveType.accrualMethod = accrualMethod;
+    if (resetDay !== undefined) leaveType.resetDay = resetDay;
     if (maxConsecutiveDays !== undefined) leaveType.maxConsecutiveDays = maxConsecutiveDays;
     if (carryForward !== undefined) leaveType.carryForward = carryForward;
     if (maxCarryForwardDays !== undefined) leaveType.maxCarryForwardDays = maxCarryForwardDays;
@@ -276,6 +349,14 @@ export async function PUT(req: NextRequest) {
     if (color) leaveType.color = color;
     if (description !== undefined) leaveType.description = description;
     if (isActive !== undefined) leaveType.isActive = isActive;
+
+    // Validate custom period
+    if (leaveType.accrualPeriod === "custom" && (!leaveType.customPeriodDays || leaveType.customPeriodDays <= 0)) {
+      return NextResponse.json(
+        { error: "customPeriodDays is required and must be > 0 for custom accrual period" },
+        { status: 400 }
+      );
+    }
 
     await leaveType.save();
 

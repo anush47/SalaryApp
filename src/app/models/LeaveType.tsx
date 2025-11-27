@@ -5,7 +5,14 @@ interface ILeaveType extends Document {
   name: string;
   company: Schema.Types.ObjectId;
   code: string;
+  // Legacy field - kept for backward compatibility
   maxDaysPerYear: number;
+  // New flexible period fields
+  accrualPeriod: "yearly" | "monthly" | "weekly" | "quarterly" | "half-yearly" | "custom";
+  maxDaysPerPeriod: number;
+  customPeriodDays?: number; // For custom periods (e.g., every 90 days)
+  accrualMethod: "upfront" | "monthly-accrual" | "pro-rata";
+  resetDay?: number; // Day of month/week when period resets (1-31 for monthly, 0-6 for weekly)
   maxConsecutiveDays: number;
   carryForward: boolean;
   maxCarryForwardDays: number;
@@ -38,10 +45,39 @@ const leaveTypeSchema = new Schema<ILeaveType>(
       required: true,
       uppercase: true,
     },
+    // Legacy field - kept for backward compatibility
     maxDaysPerYear: {
       type: Number,
       required: true,
       default: 14,
+    },
+    // New flexible period fields
+    accrualPeriod: {
+      type: String,
+      enum: ["yearly", "monthly", "weekly", "quarterly", "half-yearly", "custom"],
+      default: "yearly",
+      required: true,
+    },
+    maxDaysPerPeriod: {
+      type: Number,
+      required: true,
+      default: 14,
+    },
+    customPeriodDays: {
+      type: Number,
+      // Only required if accrualPeriod is "custom"
+    },
+    accrualMethod: {
+      type: String,
+      enum: ["upfront", "monthly-accrual", "pro-rata"],
+      default: "upfront",
+      required: true,
+    },
+    resetDay: {
+      type: Number,
+      // Day of month (1-31) for monthly/quarterly/half-yearly
+      // Day of week (0-6) for weekly
+      // Not used for yearly (resets on company fiscal year start or calendar year)
     },
     maxConsecutiveDays: {
       type: Number,
