@@ -4,6 +4,8 @@ import { Schema, model, models, Document } from "mongoose";
 interface ITaxConfiguration extends Document {
   year: number;
   country: string;
+  companyId?: Schema.Types.ObjectId; // Optional: for company-specific tax configs
+  isDefault: boolean; // True for global default, false for company-specific
   taxSlabs: {
     min: number;
     max: number;
@@ -47,6 +49,15 @@ const taxConfigurationSchema = new Schema<ITaxConfiguration>(
       required: true,
       default: "LK",
     },
+    companyId: {
+      type: Schema.Types.ObjectId,
+      ref: "Company",
+      required: false,
+    },
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
     taxSlabs: [
       {
         min: {
@@ -71,12 +82,12 @@ const taxConfigurationSchema = new Schema<ITaxConfiguration>(
       monthly: {
         type: Number,
         required: true,
-        default: 100000, // LKR 100,000 per month
+        default: 150000, // LKR 150,000 per month (Updated April 2025)
       },
       annual: {
         type: Number,
         required: true,
-        default: 1200000, // LKR 1,200,000 per year
+        default: 1800000, // LKR 1,800,000 per year (Updated April 2025)
       },
     },
     qualifyingPaymentRelief: {
@@ -124,8 +135,10 @@ const taxConfigurationSchema = new Schema<ITaxConfiguration>(
 );
 
 // Indexes for performance
-taxConfigurationSchema.index({ year: 1, country: 1 }, { unique: true });
+taxConfigurationSchema.index({ year: 1, country: 1, companyId: 1 });
 taxConfigurationSchema.index({ isActive: 1, effectiveFrom: 1 });
+taxConfigurationSchema.index({ companyId: 1, isActive: 1 });
+taxConfigurationSchema.index({ isDefault: 1, isActive: 1 });
 
 // Check if the model already exists
 const TaxConfiguration =

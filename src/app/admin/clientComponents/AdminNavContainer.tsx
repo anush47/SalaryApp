@@ -6,7 +6,7 @@ import AdminMainBox from "./adminMainBox";
 import { useSearchParams } from "next/navigation";
 
 //export selected type
-export type Selected = "users" | "calendar";
+export type Selected = "users" | "calendar" | "taxConfig";
 
 const AdminNavContainer = ({
   user,
@@ -24,7 +24,7 @@ const AdminNavContainer = ({
   const searchParams = useSearchParams();
   useEffect(() => {
     const selectedParam = searchParams?.get("adminPageSelect");
-    if (selectedParam && ["users", "calendar"].includes(selectedParam)) {
+    if (selectedParam && ["users", "calendar", "taxConfig"].includes(selectedParam)) {
       setSelected(selectedParam as Selected);
     } else {
       setSelected("users");

@@ -21,6 +21,7 @@ const EmployeeProfile = lazy(() => import("./employee/EmployeeProfile"));
 const ProfileForm = lazy(() => import("./employer/ProfileForm"));
 // Employer components
 const EmployerDashboard = lazy(() => import("./employer/EmployerDashboard"));
+const CompanyTaxSettings = lazy(() => import("./employer/CompanyTaxSettings"));
 
 const UserMainBox = ({
   user,
@@ -48,7 +49,7 @@ const UserMainBox = ({
 
   const RenderComponent = () => {
     // Employer-only pages
-    const employerOnlyPages = ["mycompanies", "employees", "organization", "salaries", "payments", "purchases", "employerDashboard"];
+    const employerOnlyPages = ["mycompanies", "employees", "organization", "salaries", "payments", "purchases", "employerDashboard", "taxSettings"];
 
     // If employee tries to access employer-only pages, show dashboard instead
     const effectiveSelected = (user.role === "employee" && employerOnlyPages.includes(selected))
@@ -125,6 +126,13 @@ const UserMainBox = ({
               return (
                 <Suspense fallback={fallback}>
                   <EmployerDashboard user={user} />
+                </Suspense>
+              );
+            // Tax Settings
+            case "taxSettings":
+              return (
+                <Suspense fallback={fallback}>
+                  <CompanyTaxSettings />
                 </Suspense>
               );
             // Employee routes

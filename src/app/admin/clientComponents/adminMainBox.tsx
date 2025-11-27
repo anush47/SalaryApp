@@ -7,6 +7,7 @@ import { Selected } from "./AdminNavContainer";
 // Lazy load the components
 const Users = lazy(() => import("../users/Users"));
 const Calendar = lazy(() => import("../calendar/Calendar"));
+const TaxConfiguration = lazy(() => import("./TaxConfiguration"));
 // const Settings = lazy(() => import("../settings/settings"));
 // const Payments = lazy(() => import("../payments/payments"));
 // const Employees = lazy(() => import("../employees/employees"));
@@ -65,6 +66,12 @@ const AdminMainBox = ({ user, selected }: Props) => {
               return (
                 <Suspense fallback={fallback}>
                   <Calendar user={user} />
+                </Suspense>
+              );
+            case "taxConfig":
+              return (
+                <Suspense fallback={fallback}>
+                  <TaxConfiguration />
                 </Suspense>
               );
             default:

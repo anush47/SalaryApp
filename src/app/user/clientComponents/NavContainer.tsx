@@ -15,6 +15,7 @@ export type Selected =
   | "organization"
   | "salaries"
   | "payments"
+  | "taxSettings"
   // Employee-specific
   | "dashboard"
   | "leaves"
@@ -52,6 +53,7 @@ const NavContainer = ({
         "organization",
         "salaries",
         "payments",
+        "taxSettings",
         "dashboard",
         "leaves",
         "payslips",

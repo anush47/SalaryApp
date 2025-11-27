@@ -35,6 +35,7 @@ import {
   CalendarMonth,
   Group,
   ArrowBack,
+  Calculate,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { Link as LinkM } from "@mui/material";
@@ -45,7 +46,7 @@ import { ThemeSwitch } from "@/app/theme-provider";
 const drawerWidth = 300;
 
 //export selected type
-export type Selected = "users" | "calendar";
+export type Selected = "users" | "calendar" | "taxConfig";
 
 interface Props {
   window?: Window | undefined;
@@ -87,6 +88,11 @@ const AdminSideBar: React.FC<Props> = ({
       key: "calendar",
       icon: <CalendarMonth />,
     },
+    {
+      name: "Tax Configuration",
+      key: "taxConfig",
+      icon: <Calculate />,
+    },
   ];
 
   const [breadcrumbs, setBreadcrumbs] = React.useState<React.ReactNode[]>([]);
@@ -102,6 +108,8 @@ const AdminSideBar: React.FC<Props> = ({
               return "Users";
             case "calendar":
               return "Calendar";
+            case "taxConfig":
+              return "Tax Configuration";
             default:
               return "";
           }
