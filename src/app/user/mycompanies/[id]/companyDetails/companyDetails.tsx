@@ -52,25 +52,15 @@ import { LoadingButton } from "@mui/lab";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
-import { fetchCompany } from "../quick/quick";
+import {
+  fetchCompany,
+  updateCompany,
+  deleteCompany,
+  getReferenceNoName,
+  fetchUser
+} from "@/app/lib/api";
 
 const ChangeUser = React.lazy(() => import("./ChangeUser"));
-
-const fetchUser = async (userId: string) => {
-  if (!userId) return null;
-  const userResponse = await fetch(`/api/users?userId=${userId}`);
-  if (!userResponse.ok) {
-    throw new Error("Failed to fetch user details");
-  }
-  const userData = await userResponse.json();
-  if (userData.users[0]) {
-    return {
-      userName: userData.users[0].name,
-      userEmail: userData.users[0].email,
-    };
-  }
-  return null;
-};
 
 const CompanyDetails = ({
   user,
@@ -124,20 +114,7 @@ const CompanyDetails = ({
 
   const updateCompanyMutation = useMutation({
     mutationFn: async (updatedCompany: Company) => {
-      const response = await fetch(`/api/companies`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedCompany),
-      });
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(
-          result.message || "Error updating company. Please try again."
-        );
-      }
-      return response.json();
+      return updateCompany(updatedCompany);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
@@ -157,19 +134,7 @@ const CompanyDetails = ({
 
   const deleteCompanyMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/companies`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id: companyId }),
-      });
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(
-          result.message || "Error deleting company. Please try again."
-        );
-      }
+      return deleteCompany(companyId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
@@ -201,22 +166,22 @@ const CompanyDetails = ({
       };
       setFormFields(
         (prevFields) =>
-          ({
-            ...prevFields,
-            requiredDocs: requiredDocs,
-          } as Company)
+        ({
+          ...prevFields,
+          requiredDocs: requiredDocs,
+        } as Company)
       );
       return;
     } else if (name.startsWith("probabilities")) {
       setFormFields(
         (prevFields) =>
-          ({
-            ...prevFields,
-            probabilities: {
-              ...prevFields?.probabilities,
-              [name.split(".")[1]]: parseInt(value),
-            },
-          } as Company)
+        ({
+          ...prevFields,
+          probabilities: {
+            ...prevFields?.probabilities,
+            [name.split(".")[1]]: parseInt(value),
+          },
+        } as Company)
       );
       return;
     } else if (name.startsWith("openHours")) {
@@ -228,13 +193,13 @@ const CompanyDetails = ({
       }
       setFormFields(
         (prevFields) =>
-          ({
-            ...prevFields,
-            openHours: {
-              ...prevFields?.openHours,
-              [subName]: value,
-            },
-          } as Company)
+        ({
+          ...prevFields,
+          openHours: {
+            ...prevFields?.openHours,
+            [subName]: value,
+          },
+        } as Company)
       );
       return;
     }
@@ -272,16 +237,7 @@ const CompanyDetails = ({
   const onFetchNameClick = async () => {
     setNameLoading(true);
     try {
-      const response = await fetch("/api/companies/getReferenceNoName", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          employerNo: formFields?.employerNo,
-        }),
-      });
-      const result = await response.json();
+      const result = await getReferenceNoName(formFields?.employerNo || "", "");
 
       const name = result.name;
       if (!name) {
@@ -293,10 +249,10 @@ const CompanyDetails = ({
       }
       setFormFields(
         (prevFields) =>
-          ({
-            ...prevFields,
-            name: name.toUpperCase(),
-          } as Company)
+        ({
+          ...prevFields,
+          name: name.toUpperCase(),
+        } as Company)
       );
 
       showSnackbar({ message: `Name found: ${name}`, severity: "success" });
@@ -495,18 +451,18 @@ const CompanyDetails = ({
                     value={
                       formFields.startedAt
                         ? dayjs(
-                            ddmmyyyy_to_mmddyyyy(formFields.startedAt as string)
-                          )
+                          ddmmyyyy_to_mmddyyyy(formFields.startedAt as string)
+                        )
                         : null
                     }
                     views={["year", "month", "day"]}
                     onChange={(newDate) => {
                       setFormFields(
                         (prevFields) =>
-                          ({
-                            ...prevFields,
-                            startedAt: newDate?.format("DD-MM-YYYY"),
-                          } as Company)
+                        ({
+                          ...prevFields,
+                          startedAt: newDate?.format("DD-MM-YYYY"),
+                        } as Company)
                       );
                     }}
                     slotProps={{
@@ -530,18 +486,18 @@ const CompanyDetails = ({
                     value={
                       formFields.endedAt
                         ? dayjs(
-                            ddmmyyyy_to_mmddyyyy(formFields.endedAt as string)
-                          )
+                          ddmmyyyy_to_mmddyyyy(formFields.endedAt as string)
+                        )
                         : null
                     }
                     views={["year", "month", "day"]}
                     onChange={(newDate) => {
                       setFormFields(
                         (prevFields) =>
-                          ({
-                            ...prevFields,
-                            endedAt: newDate?.format("DD-MM-YYYY"),
-                          } as Company)
+                        ({
+                          ...prevFields,
+                          endedAt: newDate?.format("DD-MM-YYYY"),
+                        } as Company)
                       );
                     }}
                     slotProps={{
@@ -636,10 +592,10 @@ const CompanyDetails = ({
                 setPaymentStructure={(paymentStructure) => {
                   setFormFields(
                     (prev) =>
-                      ({
-                        ...prev,
-                        paymentStructure,
-                      } as Company)
+                    ({
+                      ...prev,
+                      paymentStructure,
+                    } as Company)
                   );
                 }}
               />
@@ -654,10 +610,10 @@ const CompanyDetails = ({
                 setWorkingDays={(workingDays) => {
                   setFormFields(
                     (prev) =>
-                      ({
-                        ...prev,
-                        workingDays,
-                      } as Company)
+                    ({
+                      ...prev,
+                      workingDays,
+                    } as Company)
                   );
                 }}
               />
@@ -672,10 +628,10 @@ const CompanyDetails = ({
                 setShifts={(shifts: any) => {
                   setFormFields(
                     (prev) =>
-                      ({
-                        ...prev,
-                        shifts,
-                      } as Company)
+                    ({
+                      ...prev,
+                      shifts,
+                    } as Company)
                   );
                 }}
               />
@@ -751,8 +707,8 @@ const CompanyDetails = ({
                 <Grid item xs={12}>
                   {companyUser && (
                     <>
-                      <Typography>Name: {companyUser.userName}</Typography>
-                      <Typography>Email: {companyUser.userEmail}</Typography>
+                      <Typography>Name: {companyUser.name}</Typography>
+                      <Typography>Email: {companyUser.email}</Typography>
                     </>
                   )}
                   <div className="my-5" />
@@ -772,10 +728,10 @@ const CompanyDetails = ({
                                 setUser={(user) => {
                                   setFormFields(
                                     (prevFields) =>
-                                      ({
-                                        ...prevFields,
-                                        user,
-                                      } as Company)
+                                    ({
+                                      ...prevFields,
+                                      user,
+                                    } as Company)
                                   );
                                 }}
                               />

@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     try {
       const body = await req.json();
       const result = await SalaryService.generateSalaries(body, context);
-      return NextResponse.json(result);
+      return ApiResponseUtils.sendSuccess(result, "Salaries generated successfully");
     } catch (error) {
       if (error instanceof z.ZodError) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);

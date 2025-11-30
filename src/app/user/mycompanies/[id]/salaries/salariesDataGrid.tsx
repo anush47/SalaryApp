@@ -24,6 +24,7 @@ import { DeleteOutline } from "@mui/icons-material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchSalaries, updateSalary, deleteSalaries } from "@/app/lib/api";
 
 export interface Salary {
   id: string;
@@ -68,50 +69,35 @@ export interface Salary {
 
 import { PaginatedResponse } from "@/app/lib/types";
 
-const fetchSalaries = async (
+const fetchSalariesData = async (
   companyId: string,
   page: number,
   limit: number,
   period?: string
 ): Promise<PaginatedResponse> => {
-  const fetchLink = period
-    ? `/api/salaries/?companyId=${companyId}&period=${period}&page=${page}&limit=${limit}`
-    : `/api/salaries/?companyId=${companyId}&page=${page}&limit=${limit}`;
-  const response = await fetch(fetchLink);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
-  }
-  const data = await response.json();
+  const data = await fetchSalaries({ companyId, page, limit, period });
 
-  if (data.success) {
-    const responseSalaries = data.salaries || data.data || [];
-    const page = data.page || data.pagination?.page || 1;
-    const limitParam = data.limit || data.pagination?.limit || limit;
-    const total = data.total || data.pagination?.total || 0;
-    const totalPages = Math.ceil(total / limitParam);
+  const responseSalaries = data.salaries || data.data || [];
+  const pagination = data.pagination || {
+    page: data.page || 1,
+    limit: data.limit || limit,
+    total: data.total || 0,
+    totalPages: Math.ceil((data.total || 0) / (data.limit || limit)),
+    hasNextPage: (data.page || 1) < Math.ceil((data.total || 0) / (data.limit || limit)),
+    hasPrevPage: (data.page || 1) > 1,
+  };
 
-    return {
-      data: responseSalaries.map((salary: any) => ({
-        ...salary,
-        id: salary._id,
-        ot: salary.ot.amount,
-        otReason: salary.ot.reason,
-        noPay: salary.noPay.amount,
-        noPayReason: salary.noPay.reason,
-      })),
-      pagination: {
-        page: page,
-        limit: limitParam,
-        total: total,
-        totalPages: totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
-  } else {
-    throw new Error(data.error?.message || "Failed to fetch salaries");
-  }
+  return {
+    data: responseSalaries.map((salary: any) => ({
+      ...salary,
+      id: salary._id,
+      ot: salary.ot?.amount || salary.ot,
+      otReason: salary.ot?.reason || salary.otReason,
+      noPay: salary.noPay?.amount || salary.noPay,
+      noPayReason: salary.noPay?.reason || salary.noPayReason,
+    })),
+    pagination,
+  };
 };
 
 const SalariesDataGrid: React.FC<{
@@ -134,7 +120,7 @@ const SalariesDataGrid: React.FC<{
     error,
   } = useQuery<PaginatedResponse, Error>({
     queryKey: ["salaries", companyId, period, paginationModel.page, paginationModel.pageSize],
-    queryFn: () => fetchSalaries(companyId, paginationModel.page + 1, paginationModel.pageSize, period),
+    queryFn: () => fetchSalariesData(companyId, paginationModel.page + 1, paginationModel.pageSize, period),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     placeholderData: (previousData) => previousData,
@@ -287,18 +273,7 @@ const SalariesDataGrid: React.FC<{
 
   const updateSalaryMutation = useMutation({
     mutationFn: async (newSalary: Salary) => {
-      const response = await fetch("/api/salaries", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newSalary),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update salary");
-      }
-      return response.json();
+      return updateSalary(newSalary);
     },
     onSuccess: () => {
       const queryKey = [
@@ -318,18 +293,7 @@ const SalariesDataGrid: React.FC<{
 
   const deleteSalaryMutation = useMutation({
     mutationFn: async (salaryIds: string[]) => {
-      const response = await fetch(`/api/salaries/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ salaryIds }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete salary");
-      }
-      return response.json();
+      return deleteSalaries(salaryIds);
     },
     onSuccess: () => {
       const queryKey = [

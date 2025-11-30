@@ -27,6 +27,7 @@ import { InOutTable } from "./inOutTable";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchCompany, fetchEmployee, fetchSalaries, updateSalary, deleteSalaries, generateSalaries } from "@/app/lib/api";
 
 const EditSalaryForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -64,12 +65,7 @@ const EditSalaryForm: React.FC<{
   });
 
   const fetchCompanyData = async (): Promise<any> => {
-    const response = await fetch(`/api/companies/?companyId=${companyId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch Company");
-    }
-    const data = await response.json();
-    return data.company;
+    return fetchCompany(companyId);
   };
 
   const {
@@ -87,12 +83,7 @@ const EditSalaryForm: React.FC<{
 
   const fetchEmployeeData = async (): Promise<any> => {
     if (!formFields.employee) return null;
-    const response = await fetch(`/api/employees/?employeeId=${formFields.employee}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch Employee");
-    }
-    const data = await response.json();
-    return data.employees?.[0] || null;
+    return fetchEmployee(formFields.employee);
   };
 
   const {
@@ -111,12 +102,7 @@ const EditSalaryForm: React.FC<{
   const queryClient = useQueryClient();
 
   const fetchSalaryData = async (): Promise<any> => {
-    const response = await fetch(`/api/salaries/?salaryId=${salaryId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch Salary");
-    }
-    const data = await response.json();
-    return data.data?.salary || data.salary;
+    return fetchSalaries({ salaryId });
   };
 
   const {
@@ -184,36 +170,14 @@ const EditSalaryForm: React.FC<{
   const fetchSalary = async () => {
     try {
       //use post method
-      const response = await fetch(`/api/salaries/generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          companyId,
-          employees: [formFields.employee ?? ""],
-          period: formFields.period,
-          inOut: formFields.inOut,
-          existingSalaries: [formFields],
-          update: true,
-        }),
+      const data = await generateSalaries({
+        companyId,
+        employees: [formFields.employee ?? ""],
+        period: formFields.period,
+        inOut: formFields.inOut,
+        existingSalaries: [formFields],
+        update: true,
       });
-      if (!response.ok) {
-        setFormFields((prevFields) => ({
-          ...prevFields,
-        }));
-        const data = await response.json();
-        const errorMessage = data.error?.message || data.message;
-        if (
-          typeof errorMessage === "string" &&
-          errorMessage.startsWith("Month not Purchased")
-        ) {
-          throw new Error(errorMessage);
-        } else {
-          throw new Error(errorMessage || "Failed to fetch Salary");
-        }
-      }
-      const data = await response.json();
 
       if (
         !data.salaries[0] ||
@@ -355,41 +319,24 @@ const EditSalaryForm: React.FC<{
     try {
       // Perform POST request to add a new salary record
       setIsLoading(true);
-      const response = await fetch("/api/salaries", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formFields,
-        }),
+      const result = await updateSalary({ ...formFields });
+
+      showSnackbar({
+        message: "Salary record saved successfully!",
+        severity: "success",
       });
 
-      const result = await response.json();
+      setIsEditing(false);
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
 
-      if (response.ok) {
-        showSnackbar({
-          message: "Salary record saved successfully!",
-          severity: "success",
-        });
+      // Wait before clearing the form
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-        setIsEditing(false);
-        const queryKey = [
-          "salaries",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        setErrors({});
-      } else {
-        showSnackbar({
-          message: result.message || "Error saving salary. Please try again.",
-          severity: "error",
-        });
-      }
+      setErrors({});
     } catch (error) {
       showSnackbar({
         message: "Error saving salary. Please try again.",
@@ -463,41 +410,25 @@ const EditSalaryForm: React.FC<{
     try {
       setIsLoading(true);
       // Perform DELETE request to delete the salary record
-      const response = await fetch(`/api/salaries/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          salaryIds: [formFields.id],
-        }),
+      // Perform DELETE request to delete the salary record
+      const result = await deleteSalaries([formFields.id]);
+
+      showSnackbar({
+        message: "Salary record deleted successfully!",
+        severity: "success",
       });
 
-      const result = await response.json();
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
 
-      if (response.ok) {
-        showSnackbar({
-          message: "Salary record deleted successfully!",
-          severity: "success",
-        });
+      // Wait before clearing the form
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-        const queryKey = [
-          "salaries",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        setErrors({});
-        window.history.back();
-      } else {
-        showSnackbar({
-          message: result.message || "Error deleting salary. Please try again.",
-          severity: "error",
-        });
-      }
+      setErrors({});
+      window.history.back();
     } catch (error) {
       showSnackbar({
         message: "Error deleting salary. Please try again.",

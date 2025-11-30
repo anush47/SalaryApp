@@ -23,6 +23,7 @@ import { InOutTable } from "./inOutTable";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchEmployee, generateSalaries, saveSalaries } from "@/app/lib/api";
 
 const GenerateSalaryOne = ({
   period,
@@ -68,15 +69,14 @@ const GenerateSalaryOne = ({
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const fetchEmployee = async (): Promise<Employee> => {
-    const response = await fetch(`/api/employees?employeeId=${employeeId}`);
-    if (!response.ok) {
+  const fetchEmployeeData = async (): Promise<Employee> => {
+    const employee = await fetchEmployee(employeeId);
+    if (!employee) {
       throw new Error("Failed to fetch Employee");
     }
-    const data = await response.json();
     // Set working days if undefined
-    if (!data.employees[0].workingDays) {
-      data.employees[0].workingDays = {
+    if (!employee.workingDays) {
+      employee.workingDays = {
         mon: "off",
         tue: "off",
         wed: "off",
@@ -87,7 +87,7 @@ const GenerateSalaryOne = ({
       };
     }
     setGenerated(false);
-    return data.employees[0];
+    return employee;
   };
 
   const {
@@ -97,7 +97,7 @@ const GenerateSalaryOne = ({
     error,
   } = useQuery<Employee, Error>({
     queryKey: ["employees", companyId, employeeId],
-    queryFn: fetchEmployee,
+    queryFn: fetchEmployeeData,
     enabled: !!employeeId,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -151,44 +151,6 @@ const GenerateSalaryOne = ({
         showSnackbar({
           message: `InOut required for calculated OT of ${employee?.name || "employee"
             }`,
-          severity: "error",
-        });
-        return;
-      }
-
-      //use post method
-      const response = await fetch(`/api/salaries/generate`, {
-        method: "POST",
-        body: JSON.stringify({
-          companyId,
-          employees: [employeeId],
-          period,
-          inOut: update ? formFields.inOut : inOut,
-          existingSalaries: update ? [formFields] : undefined,
-          update,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setFormFields((prevFields) => ({
-          ...prevFields,
-          period,
-        }));
-        const errorMessage = data.error?.message || data.message;
-        if (
-          typeof errorMessage === "string" &&
-          errorMessage.startsWith("Month not Purchased")
-        ) {
-          throw new Error(errorMessage);
-        } else {
-          throw new Error(errorMessage || "Failed to fetch Salary");
-        }
-      }
-
-      //if data.exists then show salary for this month already exists
-      if (data.exists && data.exists.length > 0) {
-        showSnackbar({
-          message: `Salary for ${period} already exists.`,
           severity: "warning",
         });
         return;
@@ -329,67 +291,50 @@ const GenerateSalaryOne = ({
     setLoading(true);
     try {
       // Perform POST request to add a new salary record
-      const response = await fetch("/api/salaries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const result = await saveSalaries([
+        {
+          ...formFields,
         },
-        body: JSON.stringify({
-          salaries: [
-            {
-              ...formFields, // The form data becomes the first element of the array
-            },
-          ],
-        }),
+      ]);
+
+      showSnackbar({
+        message: "Salary record saved successfully!",
+        severity: "success",
       });
 
-      const result = await response.json();
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-      if (response.ok) {
-        showSnackbar({
-          message: "Salary record saved successfully!",
-          severity: "success",
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        setErrors({});
-        setFormFields({
-          id: "",
-          _id: "",
-          employee: "",
-          period,
-          basic: 0,
-          holidayPay: 0,
-          inOut: [],
-          noPay: {
-            amount: 0,
-            reason: "",
-          },
-          ot: {
-            amount: 0,
-            reason: "",
-          },
-          paymentStructure: {
-            additions: [],
-            deductions: [],
-          },
-          advanceAmount: 0,
-          finalSalary: 0,
-          remark: "",
-        });
-        setGenerated(false);
-        const queryKey = [
-          "salaries",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-      } else {
-        showSnackbar({
-          message: result.message || "Error saving salary. Please try again.",
-          severity: "error",
-        });
-      }
+      setErrors({});
+      setFormFields({
+        id: "",
+        _id: "",
+        employee: "",
+        period,
+        basic: 0,
+        holidayPay: 0,
+        inOut: [],
+        noPay: {
+          amount: 0,
+          reason: "",
+        },
+        ot: {
+          amount: 0,
+          reason: "",
+        },
+        paymentStructure: {
+          additions: [],
+          deductions: [],
+        },
+        advanceAmount: 0,
+        finalSalary: 0,
+        remark: "",
+      });
+      setGenerated(false);
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       showSnackbar({
         message: "Error saving salary. Please try again.",

@@ -21,6 +21,7 @@ import { UploadInOutBtn, ViewUploadedInOutBtn } from "./csvUpload";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { STALE_TIME, GC_TIME } from "@/app/lib/consts";
+import { fetchEmployees, generateSalaries, saveSalaries } from "@/app/lib/api";
 
 const GenerateSalaryAll = ({
   period,
@@ -40,13 +41,9 @@ const GenerateSalaryAll = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [openDialog, setOpenDialog] = useState(false);
 
-  const fetchEmployees = async (companyId: string): Promise<Employee[]> => {
-    const response = await fetch(`/api/employees?companyId=${companyId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch employees");
-    }
-    const data = await response.json();
-    return data.employees.map((employee: any) => ({
+  const fetchEmployeesData = async (companyId: string): Promise<Employee[]> => {
+    const employees = await fetchEmployees({ companyId });
+    return employees.map((employee: any) => ({
       ...employee,
       id: employee._id,
       include: employee.active,
@@ -60,7 +57,7 @@ const GenerateSalaryAll = ({
     error,
   } = useQuery<Employee[], Error>({
     queryKey: ["employees", companyId],
-    queryFn: () => fetchEmployees(companyId),
+    queryFn: () => fetchEmployeesData(companyId),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -94,38 +91,21 @@ const GenerateSalaryAll = ({
       },
     }));
     try {
-      const response = await fetch("/api/salaries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          salaries: transformedSalaries,
-        }),
+      const result = await saveSalaries(transformedSalaries);
+
+      showSnackbar({
+        message: "Salary records saved successfully!",
+        severity: "success",
       });
+      const queryKey = [
+        "salaries",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const result = await response.json();
-
-      if (response.ok) {
-        showSnackbar({
-          message: "Salary records saved successfully!",
-          severity: "success",
-        });
-        const queryKey = [
-          "salaries",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        setErrors({});
-        setGeneratedSalaries([]);
-      } else {
-        showSnackbar({
-          message: result.message || "Error saving salary. Please try again.",
-          severity: "error",
-        });
-      }
+      setErrors({});
+      setGeneratedSalaries([]);
     } catch (error) {
       showSnackbar({
         message: "Error saving salary. Please try again.",
@@ -190,28 +170,12 @@ const GenerateSalaryAll = ({
         return;
       }
 
-      const response = await fetch(`/api/salaries/generate`, {
-        method: "POST",
-        body: JSON.stringify({
-          companyId,
-          employees: employeeIds,
-          period,
-          inOut,
-        }),
+      const data = await generateSalaries({
+        companyId,
+        employees: employeeIds,
+        period,
+        inOut,
       });
-      if (!response.ok) {
-        const data = await response.json();
-        const errorMessage = data.error?.message || data.message;
-        if (
-          typeof errorMessage === "string" &&
-          errorMessage.startsWith("Month not Purchased")
-        ) {
-          throw new Error(errorMessage);
-        } else {
-          throw new Error(errorMessage || "Failed to fetch Salary");
-        }
-      }
-      const data = await response.json();
       if (
         (!data.salaries[0] ||
           !data.salaries[0].employee ||

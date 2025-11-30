@@ -42,41 +42,35 @@ import { Employee } from "../employees/clientComponents/employeesDataGrid";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import {
+  fetchCompany,
+  fetchEmployees,
+  checkPurchased,
+  generateSalaries,
+  saveSalaries,
+  generatePayments,
+  savePayment,
+  generatePdf,
+  getReferenceNoName
+} from "@/app/lib/api";
 
-export const fetchCompany = async (companyId: string) => {
-  const response = await fetch(`/api/companies?companyId=${companyId}`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  const companyData = await response.json();
-  if (!companyData.companies[0]) {
+const fetchCompanyData = async (companyId: string) => {
+  const company = await fetchCompany(companyId);
+  if (!company) {
     throw new Error("Company data not found in the response");
   }
-  const companyWithId = {
-    ...companyData.companies[0],
-    id: companyData.companies[0]._id,
+  return {
+    ...company,
+    id: company._id,
   };
-  return companyWithId;
 };
 
-export const fetchEmployees = async (companyId: string) => {
-  const response = await fetch(`/api/employees?companyId=${companyId}`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  const data = await response.json();
-  return data.employees.map((employee: { _id: string }) => ({
+const fetchEmployeesData = async (companyId: string) => {
+  const employees = await fetchEmployees({ companyId });
+  return employees.map((employee: { _id: string }) => ({
     ...employee,
     id: employee._id,
   }));
-};
-
-export const fetchPurchased = async (companyId: string, period: string) => {
-  const response = await fetch(
-    `/api/purchases/check?companyId=${companyId}&month=${period}`
-  );
-  const result = await response.json();
-  return result?.purchased === "approved";
 };
 
 const QuickTools = ({
@@ -103,7 +97,7 @@ const QuickTools = ({
   const { data: company, isLoading: companyLoading } = useQuery<Company, Error>(
     {
       queryKey: ["companies", companyId],
-      queryFn: () => fetchCompany(companyId),
+      queryFn: () => fetchCompanyData(companyId),
       staleTime: STALE_TIME,
       gcTime: GC_TIME,
     }
@@ -114,7 +108,7 @@ const QuickTools = ({
     Error
   >({
     queryKey: ["employees", companyId],
-    queryFn: () => fetchEmployees(companyId),
+    queryFn: () => fetchEmployeesData(companyId),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -124,7 +118,7 @@ const QuickTools = ({
     Error
   >({
     queryKey: ["purchases", "check", companyId, period],
-    queryFn: () => fetchPurchased(companyId, period),
+    queryFn: () => checkPurchased(companyId, period),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -132,17 +126,7 @@ const QuickTools = ({
   const handleGenerateSalariesForPreview = async () => {
     setIsPreviewLoading(true);
     try {
-      const response = await fetch(`/api/salaries/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period, inOut }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(
-          data.message || `HTTP error! status: ${response.status}`
-        );
-      }
+      const data = await generateSalaries({ companyId, period, inOut });
       if (data.salaries.length === 0) {
         showSnackbar({
           message: data.message || "No salaries to generate",
@@ -178,14 +162,7 @@ const QuickTools = ({
 
   const saveSalariesMutation = useMutation({
     mutationFn: async (salariesToSave: Salary[]) => {
-      const response = await fetch("/api/salaries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salaries: salariesToSave }),
-      });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.message || "Failed to save salaries");
+      const data = await saveSalaries(salariesToSave);
       return data;
     },
     onSuccess: () => {
@@ -208,17 +185,8 @@ const QuickTools = ({
 
   const generateAndSaveSalariesMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/salaries/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period, inOut }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(
-          data.message || `HTTP error! status: ${response.status}`
-        );
-      }
+      const data = await generateSalaries({ companyId, period, inOut });
+
       if (data.salaries.length === 0) {
         throw new Error(data.message || "No salaries to generate");
       }
@@ -227,15 +195,7 @@ const QuickTools = ({
         id: salary._id,
       }));
 
-      const saveResponse = await fetch("/api/salaries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salaries: formattedSalaries }),
-      });
-      const saveData = await saveResponse.json();
-      if (!saveResponse.ok) {
-        throw new Error(saveData.message || "Failed to save salaries");
-      }
+      const saveData = await saveSalaries(formattedSalaries);
       return saveData;
     },
     onSuccess: () => {
@@ -261,17 +221,7 @@ const QuickTools = ({
     mutationFn: async () => {
       const fetchReferenceNo = async () => {
         try {
-          const response = await fetch("/api/companies/getReferenceNoName", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              employerNo: company?.employerNo,
-              period: period,
-            }),
-          });
-          const result = await response.json();
+          const result = await getReferenceNoName(company?.employerNo, period);
           const referenceNo = result.referenceNo;
           if (!referenceNo) {
             throw new Error("Reference number not found. Please try again.");
@@ -282,15 +232,7 @@ const QuickTools = ({
         }
       };
 
-      const generateResponse = await fetch(`/api/payments/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, period }),
-      });
-      const generateData = await generateResponse.json();
-      if (!generateResponse.ok) {
-        throw new Error(generateData.message || "Failed to generate payments");
-      }
+      const generateData = await generatePayments(companyId, period);
 
       const referenceNo = await fetchReferenceNo();
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -304,15 +246,7 @@ const QuickTools = ({
         etfPaymentMethod: company?.paymentMethod,
       };
 
-      const saveResponse = await fetch("/api/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payment: payment }),
-      });
-      const saveData = await saveResponse.json();
-      if (!saveResponse.ok) {
-        throw new Error(saveData.message || "Failed to save payments");
-      }
+      const saveData = await savePayment(payment);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -336,36 +270,29 @@ const QuickTools = ({
       pdfType: "salary" | "epf" | "etf" | "payslip" | "all" | "print"
     ) => {
       const salaryIds = undefined;
-      const response = await fetch("/api/pdf/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      try {
+        const blob = await generatePdf({
           companyId: companyId,
           period: period,
           pdfType,
           salaryIds,
-        }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        if (data.message) {
-          if (data.message.includes("data not found for")) {
-            throw new Error(data.message);
-          } else if (data.message.includes("not Purchased")) {
-            throw new Error(data.message);
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${company?.name} ${pdfType} ${period}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch (error: any) {
+        if (error.message) {
+          if (error.message.includes("data not found for")) {
+            throw new Error(error.message);
+          } else if (error.message.includes("not Purchased")) {
+            throw new Error(error.message);
           }
         }
         throw new Error("Failed to generate PDF");
       }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${company?.name} ${pdfType} ${period}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
     },
     onSuccess: () => {
       showSnackbar({
@@ -540,9 +467,8 @@ const QuickTools = ({
                                   <>
                                     {!purchased && (
                                       <Link
-                                        href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                                          period.split("-")[1]
-                                        }-${period.split("-")[0]}`}
+                                        href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${period.split("-")[1]
+                                          }-${period.split("-")[0]}`}
                                       >
                                         <Button
                                           variant="contained"
@@ -791,7 +717,7 @@ const QuickTools = ({
                               setGeneratedSalaries={setGeneratedSalaries}
                               error={null}
                               loading={loading}
-                              setLoading={() => {}}
+                              setLoading={() => { }}
                             />
                           )}
                         </AccordionDetails>
