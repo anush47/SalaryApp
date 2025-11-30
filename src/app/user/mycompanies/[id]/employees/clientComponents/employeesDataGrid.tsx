@@ -39,7 +39,7 @@ interface PaginatedResponse {
   };
 }
 
-// Updated fetch function to support pagination
+// Updated fetch function to support pagination and new API response structure
 const fetchEmployees = async (
   companyId: string,
   page: number,
@@ -49,24 +49,33 @@ const fetchEmployees = async (
     `/api/employees?companyId=${companyId}&page=${page}&limit=${limit}`
   );
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const errorData = await response.json();
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
   }
   const data = await response.json();
 
-  return {
-    data: data.employees.map((employee: { _id: string }) => ({
-      ...employee,
-      id: employee._id,
-    })),
-    pagination: data.pagination || {
-      page: 1,
-      limit: limit,
-      total: data.employees.length, // fallback if no pagination data
-      totalPages: Math.ceil(data.employees.length / limit),
-      hasNextPage: false,
-      hasPrevPage: false,
-    },
-  };
+  // Handle the new API response structure
+  if (data.success) {
+    const responseEmployees = data.data?.data || data.data || data.employees || [];
+    const paginationData = data.data?.pagination || data.pagination;
+
+    return {
+      data: responseEmployees.map((employee: { _id: string }) => ({
+        ...employee,
+        id: employee._id,
+      })),
+      pagination: {
+        page: paginationData?.page || 1,
+        limit: paginationData?.limit || limit,
+        total: paginationData?.total || (responseEmployees ? responseEmployees.length : 0),
+        totalPages: paginationData?.totalPages || 0,
+        hasNextPage: (paginationData?.page || 1) < (paginationData?.totalPages || 0),
+        hasPrevPage: (paginationData?.page || 1) > 1,
+      },
+    };
+  } else {
+    throw new Error(data.error?.message || "Failed to fetch employees");
+  }
 };
 
 export interface Employee {
@@ -608,13 +617,17 @@ const EmployeesDataGrid: React.FC<{
       headerName: "Actions",
       flex: 1,
       maxWidth: 150,
-      renderCell: (params) => (
-        <Link
-          href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${params.id}`}
-        >
-          <Button variant="text">View</Button>
-        </Link>
-      ),
+      renderCell: (params) => {
+        // Get the employee object from the current row data
+        const employee = params.row;
+        return (
+          <Link
+            href={`/user/mycompanies/${employee.company || companyId}?companyPageSelect=employees&employeeId=${params.id}`}
+          >
+            <Button variant="text">View</Button>
+          </Link>
+        );
+      },
     }
   );
 
@@ -630,11 +643,20 @@ const EmployeesDataGrid: React.FC<{
           userId: user.id, // Include user ID
         }),
       });
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update employee");
+        const errorMessage = result.error?.message || result.message || "Failed to update employee";
+        throw new Error(errorMessage);
       }
-      return response.json();
+
+      // Handle the new API response structure
+      if (result.success) {
+        return result;
+      } else {
+        const errorMessage = result.error?.message || "Failed to update employee";
+        throw new Error(errorMessage);
+      }
     },
     onSuccess: (data: any, newEmployee: Employee) => {
       const queryKey = [
@@ -643,7 +665,7 @@ const EmployeesDataGrid: React.FC<{
       ];
       queryClient.invalidateQueries({ queryKey });
       showSnackbar({
-        message: "Employee updated successfully!",
+        message: data?.message || "Employee updated successfully!",
         severity: "success",
       });
     },

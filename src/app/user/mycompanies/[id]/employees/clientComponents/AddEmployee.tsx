@@ -85,10 +85,17 @@ const AddEmployeeForm: React.FC<{
   const fetchEmployeesForMemberNo = async (): Promise<Employee[]> => {
     const response = await fetch(`/api/employees?companyId=${companyId}`);
     if (!response.ok) {
-      throw new Error("Failed to fetch employees");
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || errorData.message || "Failed to fetch employees");
     }
     const data = await response.json();
-    return data.employees;
+
+    // Handle the new API response structure
+    if (data.success) {
+      return data.data?.employees || data.employees || [];
+    } else {
+      throw new Error(data.error?.message || "Failed to fetch employees");
+    }
   };
 
   const { data: employeesData, isLoading: isLoadingEmployees } = useQuery<
@@ -195,11 +202,20 @@ const AddEmployeeForm: React.FC<{
         },
         body: JSON.stringify(body),
       });
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to add employee");
+        const errorMessage = result.error?.message || result.message || "Failed to add employee";
+        throw new Error(errorMessage);
       }
-      return response.json();
+
+      // Handle the new API response structure
+      if (result.success) {
+        return result;
+      } else {
+        const errorMessage = result.error?.message || "Failed to add employee";
+        throw new Error(errorMessage);
+      }
     },
     onSuccess: () => {
       const queryKey = [

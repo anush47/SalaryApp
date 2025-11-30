@@ -104,16 +104,33 @@ interface PaginatedResponse {
 const fetchEmployees = async (page: number, limit: number): Promise<PaginatedResponse> => {
   const response = await fetch(`/api/employees?companyId=all&page=${page}&limit=${limit}`);
   if (!response.ok) {
-    throw new Error("Failed to fetch employees");
+    const errorData = await response.json();
+    throw new Error(errorData.error?.message || "Failed to fetch employees");
   }
   const data = await response.json();
-  return {
-    data: data.employees.map((employee: any) => ({
-      ...employee,
-      id: employee._id,
-    })),
-    pagination: data.pagination,
-  };
+
+  // Handle the new API response structure
+  if (data.success) {
+    const paginationData = data.data?.pagination || data.pagination;
+    const employeeData = data.data?.data || data.data || data.employees;
+
+    return {
+      data: (employeeData || []).map((employee: any) => ({
+        ...employee,
+        id: employee._id,
+      })),
+      pagination: {
+        page: paginationData?.page || 1,
+        limit: paginationData?.limit || limit,
+        total: paginationData?.total || 0,
+        totalPages: paginationData?.totalPages || 0,
+        hasNextPage: (paginationData?.page || 1) < (paginationData?.totalPages || 0),
+        hasPrevPage: (paginationData?.page || 1) > 1,
+      },
+    };
+  } else {
+    throw new Error(data.error?.message || "Failed to fetch employees");
+  }
 };
 
 const EmployeesDataGrid: React.FC<{
@@ -154,16 +171,17 @@ const EmployeesDataGrid: React.FC<{
       field: "companyName",
       headerName: "Company",
       flex: 1,
-      renderCell: (params) => (
-        <Link
-          href={`user/mycompanies/${
-            //companyId of the given params
-            employees?.find((employee) => employee.id === params.id)?.company
-          }?companyPageSelect=details`}
-        >
-          <Button variant="text">{params.value}</Button>
-        </Link>
-      ),
+      renderCell: (params) => {
+        // Get the employee object from the current row data
+        const employee = params.row;
+        return (
+          <Link
+            href={`user/mycompanies/${employee.company}?companyPageSelect=details`}
+          >
+            <Button variant="text">{params.value}</Button>
+          </Link>
+        );
+      },
     },
     {
       field: "memberNo",
@@ -488,15 +506,17 @@ const EmployeesDataGrid: React.FC<{
       field: "actions",
       headerName: "Actions",
       flex: 1,
-      renderCell: (params) => (
-        <Link
-          href={`/user/mycompanies/${
-            employees?.find((employee) => employee.id === params.id)?.company
-          }?companyPageSelect=employees&employeeId=${params.id}`}
-        >
-          <Button variant="text">View</Button>
-        </Link>
-      ),
+      renderCell: (params) => {
+        // Get the employee object from the current row data
+        const employee = params.row;
+        return (
+          <Link
+            href={`/user/mycompanies/${employee.company}?companyPageSelect=employees&employeeId=${employee._id}`}
+          >
+            <Button variant="text">View</Button>
+          </Link>
+        );
+      },
     }
   );
 
@@ -573,17 +593,30 @@ const EmployeesDataGrid: React.FC<{
         const result = await response.json();
 
         if (!response.ok) {
+          const errorMessage = result.error?.message || result.message || "Error saving employee. Please try again.";
           showSnackbar({
-            message:
-              result.message || "Error saving employee. Please try again.",
+            message: errorMessage,
             severity: "error",
           });
-          throw new Error(
-            result.message || "Error saving employee. Please try again."
-          );
+          throw new Error(errorMessage);
         }
-        const queryKey = ["employees"];
-        queryClient.invalidateQueries({ queryKey: queryKey });
+
+        // Check if the response follows the new API structure
+        if (result.success) {
+          const queryKey = ["employees"];
+          queryClient.invalidateQueries({ queryKey: queryKey });
+          showSnackbar({
+            message: result.message || `Employee ${newEmployee.memberNo} - updated successfully!`,
+            severity: "success",
+          });
+        } else {
+          const errorMessage = result.error?.message || "Error saving employee. Please try again.";
+          showSnackbar({
+            message: errorMessage,
+            severity: "error",
+          });
+          throw new Error(errorMessage);
+        }
       } catch (error) {
         showSnackbar({
           message: "Error saving employee. Please try again.",
@@ -591,10 +624,6 @@ const EmployeesDataGrid: React.FC<{
         });
         throw error; // Re-throw to be caught by onProcessRowUpdateError
       }
-      showSnackbar({
-        message: `Employee ${newEmployee.memberNo} - updated successfully!`,
-        severity: "success",
-      });
 
       return newEmployee;
     } catch (error: any) {

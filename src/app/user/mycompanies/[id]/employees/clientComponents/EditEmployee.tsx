@@ -80,10 +80,17 @@ const EditEmployeeForm: React.FC<{
   const fetchEmployeeData = async (): Promise<Employee> => {
     const response = await fetch(`/api/employees?employeeId=${employeeId}`);
     if (!response.ok) {
-      throw new Error("Failed to fetch Employee");
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || errorData.message || "Failed to fetch Employee");
     }
     const data = await response.json();
-    return data.employees[0];
+
+    // Handle the new API response structure
+    if (data.success) {
+      return (data.data?.employees || data.employees || [])[0];
+    } else {
+      throw new Error(data.error?.message || "Failed to fetch Employee");
+    }
   };
 
   const fetchCompanyData = async (): Promise<Company> => {
@@ -107,10 +114,17 @@ const EditEmployeeForm: React.FC<{
   const fetchEmployees = async () => {
     const response = await fetch(`/api/employees?companyId=${companyId}`);
     if (!response.ok) {
-      throw new Error("Failed to fetch employees");
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || errorData.message || "Failed to fetch employees");
     }
     const data = await response.json();
-    return data.employees || [];
+
+    // Handle the new API response structure
+    if (data.success) {
+      return data.data?.employees || data.employees || [];
+    } else {
+      throw new Error(data.error?.message || "Failed to fetch employees");
+    }
   };
 
   const {
@@ -287,11 +301,20 @@ const EditEmployeeForm: React.FC<{
         },
         body: JSON.stringify(body),
       });
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update employee");
+        const errorMessage = result.error?.message || result.message || "Failed to update employee";
+        throw new Error(errorMessage);
       }
-      return response.json();
+
+      // Handle the new API response structure
+      if (result.success) {
+        return result;
+      } else {
+        const errorMessage = result.error?.message || "Failed to update employee";
+        throw new Error(errorMessage);
+      }
     },
     onSuccess: () => {
       const queryKey = [
@@ -326,11 +349,20 @@ const EditEmployeeForm: React.FC<{
           userId: user.id,
         }),
       });
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete employee");
+        const errorMessage = result.error?.message || result.message || "Failed to delete employee";
+        throw new Error(errorMessage);
       }
-      return response.json();
+
+      // Handle the new API response structure
+      if (result.success) {
+        return result;
+      } else {
+        const errorMessage = result.error?.message || "Failed to delete employee";
+        throw new Error(errorMessage);
+      }
     },
     onSuccess: () => {
       const queryKey = [

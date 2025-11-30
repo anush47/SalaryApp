@@ -93,22 +93,31 @@ const fetchCompanies = async (paginationModel: { page: number; pageSize: number 
     `/api/companies?needUsers=true&page=${page + 1}&limit=${pageSize}`
   ); // API uses 1-based indexing
   if (!companiesResponse.ok) {
-    throw new Error("Failed to fetch companies");
+    const errorData = await companiesResponse.json();
+    throw new Error(errorData.error?.message || errorData.message || "Failed to fetch companies");
   }
   const companiesData = await companiesResponse.json();
-  
-  return {
-    data: companiesData.companies.map((company: any) => ({
-      ...company,
-      id: company._id,
-      userName: company.user?.name,
-      userEmail: company.user?.email,
-    })),
-    page: companiesData.page,
-    limit: companiesData.limit,
-    total: companiesData.total,
-    pages: companiesData.pages,
-  };
+
+  // Handle the new API response structure
+  if (companiesData.success) {
+    const companyList = companiesData.data?.data || companiesData.data || companiesData.companies || [];
+    const paginationInfo = companiesData.data?.pagination || companiesData.pagination;
+
+    return {
+      data: companyList.map((company: any) => ({
+        ...company,
+        id: company._id,
+        userName: company.user?.name,
+        userEmail: company.user?.email,
+      })),
+      page: paginationInfo?.page || companiesData.page || 1,
+      limit: paginationInfo?.limit || companiesData.limit || pageSize,
+      total: paginationInfo?.total || companiesData.total || 0,
+      pages: paginationInfo?.totalPages || companiesData.pages || 0,
+    };
+  } else {
+    throw new Error(companiesData.error?.message || "Failed to fetch companies");
+  }
 };
 
 const CompaniesDataGrid = ({
