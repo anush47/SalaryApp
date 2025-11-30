@@ -1,370 +1,103 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/app/lib/db";
-import { getServerSession } from "next-auth";
-import Company from "@/app/models/Company";
-import { options } from "../auth/[...nextauth]/options";
+import { ApiMiddleware } from "@/app/lib/apiMiddleware";
+import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
+import { UserService } from "./service";
 import { z } from "zod";
-import Employee from "@/app/models/Employee";
-import User from "@/app/models/User";
-import bcrypt from "bcrypt";
-import { isGoogleOAuthUser } from "@/app/lib/authHelpers";
-import {
-  getPaginationParams,
-  createPaginatedResponse,
-  getTotalCount,
-} from "@/app/lib/pagination";
 
-// Define schema for validation
-const userIdSchema = z.string().min(1, "User ID is required");
-
+// GET: Fetch Users
 export async function GET(req: NextRequest) {
-  try {
-    // Get user session
-    const session = await getServerSession(options);
-    const user = session?.user || null;
-    const userId = user?.id;
+  return ApiMiddleware.authenticated(req, async (req, context) => {
+    try {
+      const result = await UserService.getUsers(req, context);
 
-    // Validate userId
-    userIdSchema.parse(userId);
-
-    //check if need Companies is in the query
-    const needCompanies =
-      req.nextUrl.searchParams.get("needCompanies") === "true";
-
-    // check if me=true is in the query
-    const me = req.nextUrl.searchParams.get("me");
-
-    if (me === "true") {
-      // Connect to the database
-      await dbConnect();
-      // Find the user
-      const _user = await User.findById(userId);
-      if (!_user) {
-        return NextResponse.json(
-          { message: "User not found" },
-          { status: 404 }
-        );
+      // If result is paginated response
+      if ('pagination' in result) {
+        return NextResponse.json({
+          success: true,
+          message: "Users retrieved successfully",
+          ...result,
+          meta: {
+            timestamp: new Date().toISOString(),
+            executionTime: Date.now() - context.startTime,
+            requestId: context.requestId,
+          }
+        });
       }
-      // remove password
-      const userToReturn = _user.toObject();
-      delete userToReturn.password;
 
-      return NextResponse.json({ users: [userToReturn] });
+      return ApiResponseUtils.sendSuccess(result, "Users retrieved successfully");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+      }
+      if (error instanceof Error && error.message === "Unauthorized") {
+        return ApiResponseUtils.sendUnauthorized("Unauthorized");
+      }
+      if (error instanceof Error && error.message === "User not found") {
+        return ApiResponseUtils.sendNotFound("User not found");
+      }
+      throw error;
     }
-
-    // check if userId is in the query
-    const _userId = req.nextUrl.searchParams.get("userId");
-
-    // only allow admins
-    if (user?.role !== "admin" && _userId !== userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    // Connect to the database
-    await dbConnect();
-
-    if (_userId) {
-      // Find the user
-      const _user = await User.findById(_userId);
-      if (!_user) {
-        return NextResponse.json(
-          { message: "User not found" },
-          { status: 404 }
-        );
-      }
-      // Check if this is a Google OAuth user
-      if (isGoogleOAuthUser(_user.password)) {
-        _user.name += " (google)";
-      }
-
-      delete _user.password;
-      if (needCompanies && _user.role !== "admin") {
-        const companies = await Company.find({ user: _user._id })
-          .select("name")
-          .lean();
-        _user.companies = companies;
-      }
-      return NextResponse.json({ users: [_user] });
-    } else {
-      // Get pagination params
-      const { page, limit, skip } = getPaginationParams(req);
-
-      // Fetch users with pagination
-      const users = await User.find()
-        .skip(skip)
-        .limit(limit)
-        .select("-password") // Exclude password at query level
-        .lean();
-
-      // Get total count for pagination
-      const total = await getTotalCount(User, {});
-
-      // Fix N+1: If needCompanies, fetch all companies for these users in one query
-      if (needCompanies && users.length > 0) {
-        const userIds = users
-          .filter((u: any) => u.role !== "admin")
-          .map((u: any) => u._id);
-
-        if (userIds.length > 0) {
-          // Bulk fetch all companies for these users (1 query instead of N queries)
-          const companies = await Company.find({ user: { $in: userIds } })
-            .select("name user")
-            .lean();
-
-          // Create a map for quick lookup
-          const companiesByUser = companies.reduce((acc: any, company: any) => {
-            const userId = company.user.toString();
-            if (!acc[userId]) acc[userId] = [];
-            acc[userId].push(company);
-            return acc;
-          }, {});
-
-          // Attach companies to users
-          users.forEach((user: any) => {
-            if (user.role !== "admin") {
-              user.companies = companiesByUser[user._id.toString()] || [];
-            }
-          });
-        }
-      }
-
-      // Add Google OAuth indicator
-      users.forEach((user: any) => {
-        // password is already excluded, but check if this would have been OAuth user
-        // For display purposes, we need to fetch the user again or store a flag
-        // For now, we'll skip this since password is excluded
-        // If needed, add an authProvider field to User model
-      });
-
-      // Return paginated response
-      const response = createPaginatedResponse(users, page, limit, total);
-      return NextResponse.json(response);
-    }
-  } catch (error) {
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-    // Handle general errors
-    return NextResponse.json(
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred",
-      },
-      { status: 500 }
-    );
-  }
+  });
 }
 
-const userCreateSchema = z.object({
-  email: z.string().email("Invalid email"),
-  password: z.string().min(1, "Password is required"),
-  name: z.string().min(1, "Name is required"),
-});
-
+// POST: Create User
 export async function POST(req: NextRequest) {
-  try {
-    // Get user session
-    const session = await getServerSession(options);
-    const user = session?.user || null;
-    const userId = user?.id;
-
-    // Validate userId
-    userIdSchema.parse(userId);
-
-    // only allow admins
-    if (user?.role !== "admin") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  return ApiMiddleware.authenticated(req, async (req, context) => {
+    try {
+      const body = await req.json();
+      const result = await UserService.createUser(body, context);
+      return ApiResponseUtils.sendSuccess(result, result.message);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+      }
+      if (error instanceof Error && error.message === "Unauthorized") {
+        return ApiResponseUtils.sendUnauthorized("Unauthorized");
+      }
+      throw error;
     }
-
-    // Parse and validate the request body
-    const body = await req.json();
-    const { name, email, password } = userCreateSchema.parse(body);
-    // Create a new user
-    const _user = new User({
-      name,
-      email,
-      password,
-    });
-
-    // encrypt the password
-    // Hash the new password
-    const hashedNewPassword = bcrypt.hashSync(password, 10);
-    _user.password = hashedNewPassword;
-
-    // Connect to the database
-    await dbConnect();
-
-    // Save the user
-    const result = await User.create(_user);
-
-    // Return the response
-    return NextResponse.json({
-      message: "User created",
-      user: {
-        _id: result._id,
-        email: result.email,
-        role: result.role,
-        name: result.name,
-      },
-    });
-  } catch (error) {
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-    // Handle general errors
-    return NextResponse.json(
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred",
-      },
-      { status: 500 }
-    );
-  }
+  });
 }
 
-const userUpdateSchema = z.object({
-  name: z.string().min(1, "Name is required").optional(),
-  address: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  nic: z.string().optional(),
-  motherName: z.string().optional(),
-  fatherName: z.string().optional(),
-  isMarried: z.boolean().optional(),
-  spouseName: z.string().optional(),
-  nationality: z.string().optional(),
-  documents: z.record(z.string()).optional(),
-});
-
+// PUT: Update User
 export async function PUT(req: NextRequest) {
-  try {
-    // Get user session
-    const session = await getServerSession(options);
-    const user = session?.user || null;
-    const userId = user?.id;
-
-    // Validate userId
-    userIdSchema.parse(userId);
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return ApiMiddleware.authenticated(req, async (req, context) => {
+    try {
+      const body = await req.json();
+      const result = await UserService.updateUser(body, context);
+      return ApiResponseUtils.sendSuccess(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+      }
+      if (error instanceof Error && error.message === "Unauthorized") {
+        return ApiResponseUtils.sendUnauthorized("Unauthorized");
+      }
+      if (error instanceof Error && error.message === "User not found") {
+        return ApiResponseUtils.sendNotFound("User not found");
+      }
+      throw error;
     }
-
-    // Parse and validate the input
-    const json = await req.json();
-    const updatedData = userUpdateSchema.parse(json);
-
-    // Connect to the database
-    await dbConnect();
-
-    // Find and update the user
-    const _user = await User.findOneAndUpdate(
-      { _id: user.id },
-      updatedData,
-      { new: true }
-    );
-
-    if (!_user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    //remove password
-    const userToReturn = _user.toObject();
-    delete userToReturn.password;
-
-    return NextResponse.json({ user: userToReturn });
-  } catch (error) {
-    // Handle validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
-
-    // Handle other errors (e.g., database errors)
-    console.error(error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  });
 }
 
+// DELETE: Delete User
 export async function DELETE(req: NextRequest) {
-  try {
-    // Get user session
-    const session = await getServerSession(options);
-    const user = session?.user || null;
-    const userId = user?.id;
-
-    // Validate userId
-    userIdSchema.parse(userId);
-
-    // only allow admins
-    if (user?.role !== "admin") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  return ApiMiddleware.authenticated(req, async (req, context) => {
+    try {
+      const result = await UserService.deleteUser(req, context);
+      return ApiResponseUtils.sendSuccess(result, result.message);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+      }
+      if (error instanceof Error && error.message === "Unauthorized") {
+        return ApiResponseUtils.sendUnauthorized("Unauthorized");
+      }
+      if (error instanceof Error && (error.message === "User has companies associated with them" || error.message === "Cannot delete an admin user")) {
+        return ApiResponseUtils.sendBadRequest(error.message);
+      }
+      throw error;
     }
-
-    //get the user id from the request
-    const _userId = req.nextUrl.searchParams.get("userId");
-    // Validate userId
-    userIdSchema.parse(_userId);
-
-    // Connect to the database
-    await dbConnect();
-
-    // find companies for the user
-    const companyCount = await Company.countDocuments({ user: _userId });
-
-    // if the user has companies then return an error
-    if (companyCount > 0) {
-      return NextResponse.json(
-        { message: "User has companies associated with them" },
-        { status: 400 }
-      );
-    }
-
-    // find user
-    const _user = await User.findById(_userId).select("_id role");
-
-    // if the user is an admin then return an error
-    if (_user?.role === "admin") {
-      return NextResponse.json(
-        { message: "Cannot delete an admin user" },
-        { status: 400 }
-      );
-    }
-
-    // delete the user
-    await User.deleteOne({ _id: _userId });
-
-    // Return the response
-    return NextResponse.json({ message: "User deleted" });
-  } catch (error) {
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-    // Handle general errors
-    return NextResponse.json(
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred",
-      },
-      { status: 500 }
-    );
-  }
+  });
 }

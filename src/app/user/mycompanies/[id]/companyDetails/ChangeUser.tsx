@@ -1,14 +1,12 @@
 import { Autocomplete, TextField } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchUsers } from "@/app/lib/api/userApi";
 
-const fetchUsers = async () => {
-  const response = await fetch("/api/users");
-  if (!response.ok) {
-    throw new Error("Failed to fetch users");
-  }
-  const data = await response.json();
-  return data.users.map((user: any) => ({
+const fetchUsersList = async () => {
+  const users = await fetchUsers();
+
+  return users.map((user: any) => ({
     value: user._id,
     label: `${user.name} - ${user.email}`,
   }));
@@ -30,7 +28,7 @@ const ChangeUser = ({
     error,
   } = useQuery<any[], Error>({
     queryKey: ["users", "list"],
-    queryFn: fetchUsers,
+    queryFn: fetchUsersList,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
