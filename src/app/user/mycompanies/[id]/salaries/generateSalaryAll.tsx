@@ -201,13 +201,14 @@ const GenerateSalaryAll = ({
       });
       if (!response.ok) {
         const data = await response.json();
+        const errorMessage = data.error?.message || data.message;
         if (
-          typeof data?.message === "string" &&
-          data.message.startsWith("Month not Purchased")
+          typeof errorMessage === "string" &&
+          errorMessage.startsWith("Month not Purchased")
         ) {
-          throw new Error(data.message);
+          throw new Error(errorMessage);
         } else {
-          throw new Error("Failed to fetch Salary");
+          throw new Error(errorMessage || "Failed to fetch Salary");
         }
       }
       const data = await response.json();
@@ -247,17 +248,17 @@ const GenerateSalaryAll = ({
           name: string | undefined;
           nic: string | undefined;
           inOut:
-            | {
-                in: string | Date;
-                out: string | Date;
-                workingHours: number;
-                otHours: number;
-                ot: number;
-                noPay: number;
-                holiday: string;
-                description: string;
-              }[]
-            | undefined;
+          | {
+            in: string | Date;
+            out: string | Date;
+            workingHours: number;
+            otHours: number;
+            ot: number;
+            noPay: number;
+            holiday: string;
+            description: string;
+          }[]
+          | undefined;
         }) => {
           const employee = employees?.find((e) => e.id === salary.employee);
 

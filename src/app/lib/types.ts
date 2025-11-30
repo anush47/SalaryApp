@@ -237,3 +237,64 @@ export enum AccrualMethod {
   MONTHLY_ACCRUAL = 'monthly-accrual',
   PRO_RATA = 'pro-rata'
 }
+
+// Salary-related types
+export interface Salary {
+  _id: string;
+  id: string;
+  employee: string | Employee;
+  period: string;
+  basic: number;
+  holidayPay: number;
+  noPay: {
+    amount: number;
+    reason: string;
+  };
+  ot: {
+    amount: number;
+    reason: string;
+  };
+  paymentStructure: {
+    additions: {
+      name: string;
+      amount: number;
+      affectTotalEarnings: boolean;
+    }[];
+    deductions: {
+      name: string;
+      amount: number;
+      affectTotalEarnings: boolean;
+    }[];
+  };
+  inOut: {
+    in: string;
+    out: string;
+    workingHours: number;
+    otHours: number;
+    ot: number;
+    noPay: number;
+    holiday: string;
+    description: string;
+    remark: string;
+    day_status: "full" | "half" | "off";
+  }[];
+  taxes: {
+    apitAmount: number;
+    stampDuty: number;
+    totalTax: number;
+    taxableIncome: number;
+    grossSalary: number;
+  };
+  leaveDeductions: {
+    leaveRequestId: string;
+    leaveType: string;
+    days: number;
+    amount: number;
+  }[];
+  advanceAmount: number;
+  finalSalary: number;
+  remark: string;
+  createdAt: Date;
+  updatedAt: Date;
+  [key: string]: any;
+}

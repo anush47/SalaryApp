@@ -22,7 +22,6 @@ import React, { useEffect, useState } from "react";
 import { Salary } from "./salariesDataGrid";
 import { ArrowBack, Edit, ExpandMore, Save } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
-import { salaryId } from "./salaries";
 import { LoadingButton } from "@mui/lab";
 import { InOutTable } from "./inOutTable";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
@@ -33,7 +32,8 @@ const EditSalaryForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
-}> = ({ user, handleBackClick, companyId }) => {
+  salaryId: string;
+}> = ({ user, handleBackClick, companyId, salaryId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [employeeData, setEmployeeData] = useState<any>(null);
@@ -116,7 +116,7 @@ const EditSalaryForm: React.FC<{
       throw new Error("Failed to fetch Salary");
     }
     const data = await response.json();
-    return data.salary;
+    return data.data?.salary || data.salary;
   };
 
   const {
@@ -203,13 +203,14 @@ const EditSalaryForm: React.FC<{
           ...prevFields,
         }));
         const data = await response.json();
+        const errorMessage = data.error?.message || data.message;
         if (
-          typeof data?.message === "string" &&
-          data.message.startsWith("Month not Purchased")
+          typeof errorMessage === "string" &&
+          errorMessage.startsWith("Month not Purchased")
         ) {
-          throw new Error(data.message);
+          throw new Error(errorMessage);
         } else {
-          throw new Error("Failed to fetch Salary");
+          throw new Error(errorMessage || "Failed to fetch Salary");
         }
       }
       const data = await response.json();

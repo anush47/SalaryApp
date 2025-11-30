@@ -341,3 +341,86 @@ export const leaveTypeCreateSchema = z.object({
   applicableFor: z.array(z.enum(["permanent", "contract", "intern", "temporary"])).optional(),
   gender: z.enum(["male", "female", "all"]).optional().default("all"),
 });
+
+// Salary-related schemas
+export const noPaySchema = z.object({
+  amount: z.number().min(0, "No Pay amount must be a positive number"),
+  reason: z.string().optional(),
+});
+
+export const otSchema = z.object({
+  amount: z.number().min(0, "Overtime amount must be a positive number"),
+  reason: z.string().optional(),
+});
+
+export const salaryPaymentStructureSchema = z.object({
+  additions: z.array(
+    z.object({
+      name: z.string().min(1, "Addition name is required"),
+      amount: z.number().min(0, "Addition amount must be a positive number"),
+      affectTotalEarnings: z.boolean().optional(),
+    })
+  ),
+  deductions: z.array(
+    z.object({
+      name: z.string().min(1, "Deduction name is required"),
+      amount: z.number().min(0, "Deduction amount must be a positive number"),
+      affectTotalEarnings: z.boolean().optional(),
+    })
+  ),
+});
+
+export const salaryCreateSchema = z.object({
+  id: z.string().optional(),
+  employee: z.string().min(1, "Employee ID is required"),
+  period: z.string().min(1, "Period is required"),
+  basic: z.number().min(1, "Basic salary is required"),
+  holidayPay: z.number().optional(),
+  noPay: noPaySchema,
+  ot: otSchema,
+  paymentStructure: salaryPaymentStructureSchema,
+  inOut: z
+    .array(
+      z.object({
+        in: z.string().datetime().optional(),
+        out: z.string().datetime().optional(),
+        workingHours: z
+          .number()
+          .min(0, "Working hours must be a positive number")
+          .optional(),
+        otHours: z
+          .number()
+          .min(0, "OT hours must be a positive number")
+          .optional(),
+        ot: z.number().min(0, "OT amount must be a positive number").optional(),
+        noPay: z
+          .number()
+          .min(0, "No Pay amount must be a positive number")
+          .optional(),
+        holiday: z.string().optional(),
+        description: z.string().optional(),
+        remark: z.string().optional(),
+        day_status: z.string().optional(),
+      })
+    )
+    .optional(),
+  advanceAmount: z.number().optional(),
+  finalSalary: z.number().min(0, "Final salary must be a positive number"),
+  remark: z.string().optional(),
+});
+
+export const salaryUpdateSchema = salaryCreateSchema.extend({
+  id: z.string().min(1, "Salary ID is required"),
+});
+
+export const salaryIdSchema = z.string().min(1, "Salary ID is required");
+export const periodSchema = z.string();
+
+export const salaryGenerateSchema = z.object({
+  employees: z.array(z.string()).optional(),
+  companyId: z.string().min(1, "Company ID is required"),
+  period: z.string().regex(/^\d{4}-\d{2}$/, "Period must be in the format YYYY-MM"),
+  inOut: z.any().optional(),
+  update: z.boolean().optional(),
+  existingSalaries: z.array(z.any()).optional(),
+});

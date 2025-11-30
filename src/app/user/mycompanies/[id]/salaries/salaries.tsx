@@ -56,6 +56,7 @@ const Salaries = ({
           <EditSalaryForm
             companyId={companyId}
             user={user}
+            salaryId={salaryId}
             handleBackClick={() => {
               //go back in browser
               window.history.back();

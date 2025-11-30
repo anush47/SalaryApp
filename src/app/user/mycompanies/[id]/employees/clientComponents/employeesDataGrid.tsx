@@ -27,17 +27,7 @@ import { useSnackbar } from "@/app/context/SnackbarContext";
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
 
-interface PaginatedResponse {
-  data: Employee[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
-}
+import { PaginatedResponse } from "@/app/lib/types";
 
 // Updated fetch function to support pagination and new API response structure
 const fetchEmployees = async (

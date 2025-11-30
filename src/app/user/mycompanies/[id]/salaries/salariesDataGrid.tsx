@@ -66,26 +66,52 @@ export interface Salary {
   remark: string;
 }
 
+import { PaginatedResponse } from "@/app/lib/types";
+
 const fetchSalaries = async (
   companyId: string,
+  page: number,
+  limit: number,
   period?: string
-): Promise<Salary[]> => {
+): Promise<PaginatedResponse> => {
   const fetchLink = period
-    ? `/api/salaries/?companyId=${companyId}&period=${period}`
-    : `/api/salaries/?companyId=${companyId}`;
+    ? `/api/salaries/?companyId=${companyId}&period=${period}&page=${page}&limit=${limit}`
+    : `/api/salaries/?companyId=${companyId}&page=${page}&limit=${limit}`;
   const response = await fetch(fetchLink);
   if (!response.ok) {
-    throw new Error("Failed to fetch salaries");
+    const errorData = await response.json();
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
   }
   const data = await response.json();
-  return data.salaries.map((salary: any) => ({
-    ...salary,
-    id: salary._id,
-    ot: salary.ot.amount,
-    otReason: salary.ot.reason,
-    noPay: salary.noPay.amount,
-    noPayReason: salary.noPay.reason,
-  }));
+
+  if (data.success) {
+    const responseSalaries = data.salaries || data.data || [];
+    const page = data.page || data.pagination?.page || 1;
+    const limitParam = data.limit || data.pagination?.limit || limit;
+    const total = data.total || data.pagination?.total || 0;
+    const totalPages = Math.ceil(total / limitParam);
+
+    return {
+      data: responseSalaries.map((salary: any) => ({
+        ...salary,
+        id: salary._id,
+        ot: salary.ot.amount,
+        otReason: salary.ot.reason,
+        noPay: salary.noPay.amount,
+        noPayReason: salary.noPay.reason,
+      })),
+      pagination: {
+        page: page,
+        limit: limitParam,
+        total: total,
+        totalPages: totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  } else {
+    throw new Error(data.error?.message || "Failed to fetch salaries");
+  }
 };
 
 const SalariesDataGrid: React.FC<{
@@ -96,18 +122,26 @@ const SalariesDataGrid: React.FC<{
 }> = ({ user, isEditing, period, companyId }) => {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
 
   const {
-    data: salaries,
+    data: paginatedResponse,
     isLoading,
     isError,
     error,
-  } = useQuery<Salary[], Error>({
-    queryKey: ["salaries", companyId, period],
-    queryFn: () => fetchSalaries(companyId, period),
+  } = useQuery<PaginatedResponse, Error>({
+    queryKey: ["salaries", companyId, period, paginationModel.page, paginationModel.pageSize],
+    queryFn: () => fetchSalaries(companyId, paginationModel.page + 1, paginationModel.pageSize, period),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    placeholderData: (previousData) => previousData,
   });
+
+  const salaries = paginatedResponse?.data || [];
+  const rowCount = paginatedResponse?.pagination.total || 0;
 
   const columns: GridColDef[] = [
     {
@@ -543,20 +577,11 @@ const SalariesDataGrid: React.FC<{
           }}
           //autoPageSize
           editMode="row"
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 10,
-              },
-            },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
-            },
-          }}
-          pageSizeOptions={[5, 10]}
+          rowCount={rowCount}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[5, 10, 20]}
           slots={{
             toolbar: (props) => (
               <GridToolbar
