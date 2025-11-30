@@ -268,6 +268,111 @@ Effective Rate:      4.26%
 *   **Profile Management:** Employees can view their profile and change their password.
 *   **Leave Application:** The portal provides an interface for employees to apply for leave and track the status of their requests.
 
-## 4. Database Connection
+## 4. API Architecture Improvements
+
+The API layer has been significantly refactored to implement a consistent, scalable, and maintainable architecture following enterprise-grade best practices.
+
+### 4.1. Middleware System
+
+A comprehensive middleware system has been implemented with the following components:
+
+#### 4.1.1. Constants (`src/app/lib/constants.ts`)
+Centralized constants for:
+* HTTP status codes
+* Role types (admin, employer, employee)
+* Log levels
+* API response structure
+* Database configuration
+* Authentication settings
+* Validation error messages
+
+#### 4.1.2. Centralized Logging (`src/app/lib/logger.ts`)
+* Singleton logger instance with multiple log levels (ERROR, WARN, INFO, DEBUG)
+* Structured logging with timestamps, metadata, and error details
+* Configurable log level via environment variables
+* JSON-formatted log entries for better analysis
+
+#### 4.1.3. API Response Structure (`src/app/lib/apiResponse.ts`)
+Standardized response interface:
+```typescript
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code?: string;
+    message: string;
+    details?: any;
+  };
+  meta?: {
+    timestamp: string;
+    requestId?: string;
+    executionTime?: number;
+  };
+}
+```
+
+#### 4.1.4. Authentication Middleware (`src/app/lib/authMiddleware.ts`)
+* Session verification using NextAuth.js
+* User role and account status validation
+* Company access verification
+* Request context creation with user information
+* Unique request ID generation
+
+#### 4.1.5. Role-Based Access Control (`src/app/lib/rbacMiddleware.ts`)
+* Role-based authorization checks
+* Company access verification for different roles
+* Helper functions for role checking (isAdmin, isEmployer, isEmployee)
+* Centralized permission validation
+
+#### 4.1.6. Error Handling System (`src/app/lib/errorHandler.ts`)
+* Custom error classes (BaseError, BadRequestError, UnauthorizedError, etc.)
+* Centralized error handler with logging
+* Consistent error response formatting
+* Multiple error types with specific status codes
+
+#### 4.1.7. API Response Utilities (`src/app/lib/apiResponseUtils.ts`)
+* Unified utility functions for consistent responses
+* Helper methods for different response types (success, error, paginated, etc.)
+* NextResponse wrapper functions with proper status codes
+
+#### 4.1.8. Main Middleware Wrapper (`src/app/lib/apiMiddleware.ts`)
+* Combines authentication, RBAC, and error handling
+* Multiple helper methods (authenticated, adminOnly, employerOnly, etc.)
+* Execution time tracking
+* Consistent request processing flow
+
+### 4.2. Service Layer Architecture
+
+The API routes now follow a clean architecture with separation of concerns:
+
+#### 4.2.1. Service Files
+* Employee service: `src/app/api/employees/service.ts`
+* Company service: `src/app/api/companies/service.ts`
+* Business logic separated from route handlers
+* Zod schemas defined within service files
+* Proper error handling within service methods
+
+#### 4.2.2. Route Handlers
+* Minimal route handlers that delegate to services
+* Middleware integration using the new wrapper system
+* Consistent response structure across all endpoints
+* Proper error propagation to centralized handler
+
+### 4.3. Frontend Integration
+
+The frontend components have been updated to handle the new API response structure:
+
+#### 4.3.1. Response Handling
+* Updated fetch functions to process new response format
+* Proper error message extraction from new response structure
+* Consistent loading and error states
+
+#### 4.3.2. Navigation Fixes
+* Company navigation now uses proper company IDs instead of objects
+* Action links updated to reference correct employee and company data
+* URL generation improvements to prevent malformed navigation links
+
+## 5. Database Connection
 
 The database connection is managed by `src/app/lib/db.tsx`. It uses a singleton pattern to create a cached Mongoose connection, preventing multiple connections in a serverless environment. It also includes a retry mechanism to handle transient database connection issues.
