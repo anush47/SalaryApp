@@ -3,10 +3,8 @@ import { ApiMiddleware } from "@/app/lib/apiMiddleware";
 import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 import { RequestContext } from "@/app/lib/apiResponse";
 import { CompanyService } from "./service";
-import { companyCreateSchema, companyUpdateSchema } from "./service";
+import { companyCreateSchema, companyUpdateSchema, companyIdSchema } from "@/app/lib/schemas";
 import { z } from "zod";
-
-const companyIdSchema = z.string().min(1, "Company ID is required");
 
 export async function GET(req: NextRequest) {
   return ApiMiddleware.authenticated(req, async (req, context) => {

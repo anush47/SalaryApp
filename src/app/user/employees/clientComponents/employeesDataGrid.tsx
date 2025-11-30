@@ -23,6 +23,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchEmployees as fetchEmployeeList } from "@/app/lib/api";
 
 // Set dayjs format for consistency
 dayjs.locale("en-gb");
@@ -102,34 +103,25 @@ interface PaginatedResponse {
 }
 
 const fetchEmployees = async (page: number, limit: number): Promise<PaginatedResponse> => {
-  const response = await fetch(`/api/employees?companyId=all&page=${page}&limit=${limit}`);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || "Failed to fetch employees");
-  }
-  const data = await response.json();
-
-  // Handle the new API response structure
-  if (data.success) {
-    const paginationData = data.data?.pagination || data.pagination;
-    const employeeData = data.data?.data || data.data || data.employees;
+  try {
+    const employees = await fetchEmployeeList({ companyId: "all", page, limit });
 
     return {
-      data: (employeeData || []).map((employee: any) => ({
+      data: employees.map((employee: any) => ({
         ...employee,
         id: employee._id,
       })),
       pagination: {
-        page: paginationData?.page || 1,
-        limit: paginationData?.limit || limit,
-        total: paginationData?.total || 0,
-        totalPages: paginationData?.totalPages || 0,
-        hasNextPage: (paginationData?.page || 1) < (paginationData?.totalPages || 0),
-        hasPrevPage: (paginationData?.page || 1) > 1,
+        page,
+        limit,
+        total: employees.length,
+        totalPages: Math.ceil(employees.length / limit),
+        hasNextPage: page * limit < employees.length,
+        hasPrevPage: page > 1,
       },
     };
-  } else {
-    throw new Error(data.error?.message || "Failed to fetch employees");
+  } catch (error) {
+    throw new Error(`Failed to fetch employees: ${(error as Error).message}`);
   }
 };
 
@@ -577,17 +569,59 @@ const EmployeesDataGrid: React.FC<{
       newEmployee.name = newEmployee.name.toUpperCase();
       newEmployee.nic = newEmployee.nic.toUpperCase();
       newEmployee.basic = parseFloat(newEmployee.basic);
+
+      // Prepare the payload - only send fields that are editable via the data grid
+      const updatePayload: any = {
+        _id: newEmployee._id,
+        memberNo: newEmployee.memberNo,
+        name: newEmployee.name,
+        nic: newEmployee.nic,
+        basic: newEmployee.basic,
+        totalSalary: newEmployee.totalSalary,
+        company: newEmployee.company,
+        designation: newEmployee.designation,
+        remark: newEmployee.remark,
+        divideBy: newEmployee.divideBy,
+        otMethod: newEmployee.otMethod,
+        active: newEmployee.active,
+        email: newEmployee.email,
+        phoneNumber: newEmployee.phoneNumber,
+        address: newEmployee.address,
+        canLogin: newEmployee.canLogin,
+        employeeType: newEmployee.employeeType,
+        editable: newEmployee.editable,
+        nationality: newEmployee.nationality,
+        startedAt: newEmployee.startedAt,
+        resignedAt: newEmployee.resignedAt,
+        // Simple editable fields - avoid sending complex nested objects if they exist
+        workingDays: newEmployee.workingDays,
+        shifts: newEmployee.shifts,
+        // For paymentStructure, only send if it exists and avoid nested complexity
+        paymentStructure: newEmployee.paymentStructure,
+        // For probabilities, only send if it exists
+        probabilities: newEmployee.probabilities,
+        calendar: newEmployee.calendar,
+        // For overrides, handle carefully to avoid nested issues
+        overrides: newEmployee.overrides,
+        // Personal details
+        fullName: newEmployee.fullName,
+        motherName: newEmployee.motherName,
+        fatherName: newEmployee.fatherName,
+        isMarried: newEmployee.isMarried,
+        spouseName: newEmployee.spouseName,
+        emergencyContact: newEmployee.emergencyContact,
+        // Keep userId for authorization
+        userId: user.id,
+      };
+
       try {
-        // Perform POST request to update the employee
+        // Perform PUT request to update the employee
         const response = await fetch("/api/employees", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            ...newEmployee,
-            userId: user.id, // Include user ID
-          }),
+          body: JSON.stringify(updatePayload),
         });
 
         const result = await response.json();
@@ -601,7 +635,7 @@ const EmployeesDataGrid: React.FC<{
           throw new Error(errorMessage);
         }
 
-        // Check if the response follows the new API structure
+        // Handle the new API response structure
         if (result.success) {
           const queryKey = ["employees"];
           queryClient.invalidateQueries({ queryKey: queryKey });

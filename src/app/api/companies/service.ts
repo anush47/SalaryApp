@@ -9,107 +9,11 @@ import {
   createPaginatedResponse,
   getTotalCount,
 } from "@/app/lib/pagination";
-import { z } from "zod";
-
-// Define schema for company creation
-export const companyCreateSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  employerNo: z
-    .string()
-    .min(1, "Employer Number is required")
-    .regex(/^[A-Z]\/\d{5}$/, "Employer Number must match the pattern A/12345"),
-  address: z.string().optional(),
-  startedAt: z.string().optional(),
-  paymentMethod: z.string().optional(),
-  monthlyPrice: z.number(),
-  monthlyPriceOverride: z.boolean(),
-  requiredDocs: z.object({
-    epf: z.boolean(),
-    etf: z.boolean(),
-    salary: z.boolean(),
-    paySlip: z.boolean(),
-  }),
-  workingDays: z.object({
-    mon: z.string().optional(),
-    tue: z.string().optional(),
-    wed: z.string().optional(),
-    thu: z.string().optional(),
-    fri: z.string().optional(),
-    sat: z.string().optional(),
-    sun: z.string().optional(),
-  }),
-  active: z.boolean().default(true),
-  employerName: z.string().optional(),
-  employerAddress: z.string().optional(),
-  openHours: z.object({
-    start: z.string().optional(),
-    end: z.string().optional(),
-    allDay: z.boolean().optional(),
-  }),
-});
-
-// Define schema for company update
-export const companyUpdateSchema = z.object({
-  name: z.string().min(1, "Company name is required"),
-  employerNo: z.string().min(1, "Employer number is required"),
-  address: z.string().optional(),
-  paymentMethod: z.string().optional(),
-  startedAt: z.string().optional(),
-  endedAt: z.string().optional(),
-  monthlyPrice: z.number().optional(),
-  monthlyPriceOverride: z.boolean().optional(),
-  active: z.boolean().optional(),
-  employerName: z.string().optional(),
-  employerAddress: z.string().optional(),
-  requiredDocs: z.object({
-    epf: z.boolean().optional(),
-    etf: z.boolean().optional(),
-    salary: z.boolean().optional(),
-    paySlip: z.boolean().optional(),
-  }),
-  shifts: z
-    .array(
-      z.object({
-        start: z.string().optional(),
-        end: z.string().optional(),
-        break: z
-          .number()
-          .min(0, "Break time must be a positive number")
-          .optional(),
-      })
-    )
-    .optional(),
-  probabilities: z
-    .object({
-      workOnOff: z.number().optional(),
-      workOnHoliday: z.number().optional(),
-      absent: z.number().optional(),
-      late: z.number().optional(),
-      ot: z.number().optional(),
-    })
-    .optional(),
-  mode: z.string().optional(),
-  workingDays: z
-    .object({
-      mon: z.string().optional(),
-      tue: z.string().optional(),
-      wed: z.string().optional(),
-      thu: z.string().optional(),
-      fri: z.string().optional(),
-      sat: z.string().optional(),
-      sun: z.string().optional(),
-    })
-    .optional(),
-  openHours: z
-    .object({
-      start: z.string().optional(),
-      end: z.string().optional(),
-      allDay: z.boolean().optional(),
-    })
-    .optional(),
-});
-
-const companyIdSchema = z.string().min(1, "Company ID is required");
+import {
+  companyCreateSchema,
+  companyUpdateSchema,
+  companyIdSchema
+} from "@/app/lib/schemas";
 
 // Service layer for company operations
 export class CompanyService {

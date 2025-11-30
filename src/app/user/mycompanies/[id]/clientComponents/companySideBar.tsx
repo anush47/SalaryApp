@@ -44,6 +44,7 @@ import { Company } from "../../clientComponents/companiesDataGrid";
 import { ThemeSwitch } from "@/app/theme-provider";
 import { Selected } from "./NavContainer";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { fetchCompany } from "@/app/lib/api";
 
 const drawerWidth = 300;
 
@@ -194,23 +195,19 @@ const CompanySideBar: React.FC<Props> = ({
 
   React.useEffect(() => {
     //fetch company
-    const fetchCompany = async () => {
+    const fetchCompanyData = async () => {
       try {
-        const response = await fetch(`/api/companies?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch company");
-        }
-        const data = await response.json();
-        setCompany(data.companies[0]);
+        const fetchedCompany = await fetchCompany(companyId);
+        setCompany(fetchedCompany);
       } catch (error) {
         showSnackbar({
-          message: "Error fetching company.",
+          message: "Error fetching company: " + (error as Error).message,
           severity: "error",
         });
       }
     };
 
-    if (companyId) fetchCompany();
+    if (companyId) fetchCompanyData();
   }, [companyId]);
 
   const drawer = (

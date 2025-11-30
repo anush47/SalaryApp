@@ -1,18 +1,68 @@
 # SalaryApp API Refactor Plan
 
-This document provides a step-by-step guide to refactor other API routes in the SalaryApp using the same architecture patterns implemented for employees and companies.
+This document provides a comprehensive guide to refactor other API routes in the SalaryApp using the established architecture patterns with full modularization across services, schemas, and types.
 
 ## 1. Architecture Overview
 
-The new architecture separates concerns into:
+The new architecture follows a clean, modular pattern with clear separation of concerns:
 - **Route Handlers**: Minimal code that uses middleware and calls services
-- **Service Layer**: Business logic encapsulation
+- **Service Layer**: Business logic encapsulation in dedicated service files
+- **Schema Layer**: Zod validation schemas in separate files
+- **Type Layer**: Interface definitions in dedicated type files
 - **Middleware System**: Authentication, authorization, error handling, response formatting
 - **Frontend Integration**: Updated to handle new response structure
 
 ## 2. Implementation Template
 
-### 2.1. Service File Template (`src/app/api/[entity]/service.ts`)
+### 2.1. Schema File Template (`src/app/lib/schemas/[entity]Schemas.ts`)
+
+```typescript
+import { z } from "zod";
+
+// Define the schema for [entity] validation
+export const entityCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  // Add other validation fields as needed
+});
+
+export const entityUpdateSchema = z.object({
+  _id: z.string().min(1, "Entity ID is required"),
+  name: z.string().min(1, "Entity name is required"),
+  // Add other validation fields as needed
+});
+
+export const entityIdSchema = z.string().min(1, "Entity ID is required");
+```
+
+### 2.2. Type File Template (`src/app/lib/types/[entity]Types.ts`)
+
+```typescript
+// Common type definitions for [entity] entities
+
+export interface Entity {
+  _id: string;
+  id: string;
+  name: string;
+  // Add other fields as needed
+  createdAt: Date;
+  updatedAt: Date;
+  [key: string]: any;
+}
+
+export interface PaginatedResponse<T = any> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+```
+
+### 2.3. Service File Template (`src/app/api/[entity]/service.ts`)
 
 ```typescript
 import dbConnect from "@/app/lib/db";
@@ -21,35 +71,30 @@ import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorH
 import { RequestContext } from "@/app/lib/apiResponse";
 import {
   getPaginationParams,
-  createPaginatedResponse,
   getTotalCount,
 } from "@/app/lib/pagination";
-import { z } from "zod";
-
-// Define validation schemas
-export const entityCreateSchema = z.object({
-  // Define your validation schema
-});
-
-export const entityUpdateSchema = z.object({
-  // Define your validation schema
-});
-
-const entityIdSchema = z.string().min(1, "Entity ID is required");
+import {
+  entityCreateSchema,
+  entityUpdateSchema,
+  entityIdSchema
+} from "@/app/lib/schemas/entitySchemas";
 
 export class EntityService {
   static async getEntity(entityId: string, context: RequestContext) {
     await dbConnect();
-    
+
+    // Validate ID
+    entityIdSchema.parse(entityId);
+
     // Validation and business logic
     const entity = await Entity.findById(entityId);
     if (!entity) {
       throw new NotFoundError("Entity not found");
     }
-    
+
     // Add authorization checks if needed
     // await this.checkEntityAccess(entity, context);
-    
+
     return entity;
   }
 
@@ -67,6 +112,7 @@ export class EntityService {
 
     // Fetch entities with pagination
     const entities = await Entity.find(filter)
+      .populate('user', '-password') // Add populate as needed
       .skip(skip)
       .limit(limit)
       .lean();
@@ -74,7 +120,17 @@ export class EntityService {
     // Get total count for pagination
     const total = await getTotalCount(Entity, filter);
 
-    return { page, limit, total, entities };
+    return {
+      data: entities,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      }
+    };
   }
 
   static async createEntity(body: any, context: RequestContext) {
@@ -128,7 +184,7 @@ export class EntityService {
     }
 
     // Update entity
-    const updatedEntity = await entity.updateOne(parsedData);
+    const updatedEntity = await entity.updateOne(parsedData, { new: true, runValidators: true });
     if (!updatedEntity) {
       throw new NotFoundError("Entity update failed");
     }
@@ -162,7 +218,7 @@ export class EntityService {
 }
 ```
 
-### 2.2. Route Handler Template (`src/app/api/[entity]/route.tsx`)
+### 2.4. Route Handler Template (`src/app/api/[entity]/route.tsx`)
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
@@ -170,27 +226,28 @@ import { ApiMiddleware } from "@/app/lib/apiMiddleware";
 import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 import { RequestContext } from "@/app/lib/apiResponse";
 import { EntityService } from "./service";
-import { entityCreateSchema, entityUpdateSchema } from "./service";
+import {
+  entityCreateSchema,
+  entityUpdateSchema,
+  entityIdSchema
+} from "@/app/lib/schemas/entitySchemas";
 import { z } from "zod";
-
-const entityIdSchema = z.string().min(1, "Entity ID is required");
 
 export async function GET(req: NextRequest) {
   return ApiMiddleware.authenticated(req, async (req, context) => {
     try {
       const entityId = req.nextUrl.searchParams.get("entityId");
-      
+
       if (entityId) {
         const entity = await EntityService.getEntity(entityId, context);
         return ApiResponseUtils.sendSuccess({ entity }, "Entity retrieved successfully");
       } else {
-        const { page, limit, total, entities } = await EntityService.getEntities(req, context);
-        const response = { page, limit, total, data: entities };
+        const { data, pagination } = await EntityService.getEntities(req, context);
         return NextResponse.json({
           success: true,
           message: "Entities retrieved successfully",
-          ...response,
-          entities: response.data,
+          data,
+          pagination,
           meta: {
             timestamp: new Date().toISOString(),
             executionTime: Date.now() - context.startTime,
@@ -206,6 +263,7 @@ export async function GET(req: NextRequest) {
     }
   });
 }
+```
 
 export async function POST(req: NextRequest) {
   return ApiMiddleware.authenticated(req, async (req, context) => {
@@ -338,25 +396,35 @@ const updateEntityMutation = useMutation({
 
 ## 3. Migration Steps
 
-### Step 1: Create Service File
+### Step 1: Create Schema File
+- Create `src/app/lib/schemas/[entity]Schemas.ts`
+- Define Zod validation schemas (create, update, id validation)
+- Export all schemas for use in service files
+
+### Step 2: Create Type File
+- Create `src/app/lib/types/[entity]Types.ts`
+- Define TypeScript interfaces for entity and paginated responses
+- Export common types for use across the application
+
+### Step 3: Create Service File
 - Create `src/app/api/[entity]/service.ts`
-- Define Zod validation schemas
+- Import schemas and types from their respective files
 - Create service methods with proper error handling
 - Include business logic and validation
 
-### Step 2: Update Route File
+### Step 4: Update Route File
 - Replace existing route file with minimal handler
 - Use middleware for authentication and authorization
 - Call service methods
 - Return consistent responses using ApiResponseUtils
 
-### Step 3: Update Frontend Components
+### Step 5: Update Frontend Components
 - Update fetch functions to handle new response structure
 - Update mutation functions to handle new response format
 - Ensure navigation and display logic works with new structure
 - Add proper error handling
 
-### Step 4: Test Thoroughly
+### Step 6: Test Thoroughly
 - Test all CRUD operations
 - Verify authentication and authorization work correctly
 - Check error handling
@@ -403,12 +471,20 @@ Before deployment, ensure:
 - [ ] All existing functionality is preserved
 - [ ] Error states are properly handled
 - [ ] Performance is maintained or improved
+- [ ] Schema validation works as expected
+- [ ] Service layer methods handle edge cases properly
+- [ ] Response structure is consistent across all endpoints
+- [ ] Type safety is maintained throughout the application
 
 ## 7. Benefits of Refactoring
 
-- Consistent API response structure across all endpoints
-- Separation of concerns (business logic vs route handling)
-- Centralized authentication and authorization
-- Improved error handling and logging
-- Better maintainability and testability
-- Scalable architecture for future development
+- **Modular Architecture**: Fully separated concerns with dedicated files for schemas, types, services, and routes
+- **Consistent API Response Structure**: All endpoints follow the same format with success, data, message, error, and meta fields
+- **Enhanced Type Safety**: Proper TypeScript interfaces and Zod schema validation
+- **Separation of Concerns**: Clear separation between route handling, business logic, validation, and type definitions
+- **Centralized Authentication and Authorization**: Consistent middleware implementation
+- **Improved Error Handling and Logging**: Standardized approach across all endpoints
+- **Better Maintainability and Testability**: Modular components are easier to maintain and test
+- **Scalable Architecture**: Foundation for future development with consistent patterns
+- **Reduced Code Duplication**: Shared schemas and types eliminate redundancy
+- **Enhanced Developer Experience**: Clear file structure and predictable patterns

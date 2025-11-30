@@ -3,11 +3,9 @@ import { ApiMiddleware } from "@/app/lib/apiMiddleware";
 import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 import { RequestContext } from "@/app/lib/apiResponse";
 import { EmployeeService } from "./service";
-import { employeeCreateSchema, employeeUpdateSchema } from "./service";
+import { employeeCreateSchema, employeeUpdateSchema, employeeIdSchema } from "@/app/lib/schemas";
 import { z } from "zod";
 import { getPaginationParams, createPaginatedResponse, getTotalCount } from "@/app/lib/pagination";
-
-const employeeIdSchema = z.string().min(1, "Employee ID is required");
 
 export async function GET(req: NextRequest) {
   return ApiMiddleware.authenticated(req, async (req, context) => {

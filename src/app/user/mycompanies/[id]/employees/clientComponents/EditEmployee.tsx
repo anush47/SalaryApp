@@ -3,6 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import {
+  fetchEmployee,
+  fetchCompany,
+  fetchDepartments,
+  fetchEmployees,
+} from "@/app/lib/api";
+import {
   Box,
   CircularProgress,
   TextField,
@@ -78,53 +84,19 @@ const EditEmployeeForm: React.FC<{
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const fetchEmployeeData = async (): Promise<Employee> => {
-    const response = await fetch(`/api/employees?employeeId=${employeeId}`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || errorData.message || "Failed to fetch Employee");
-    }
-    const data = await response.json();
-
-    // Handle the new API response structure
-    if (data.success) {
-      return (data.data?.employees || data.employees || [])[0];
-    } else {
-      throw new Error(data.error?.message || "Failed to fetch Employee");
-    }
+    return fetchEmployee(employeeId!);
   };
 
   const fetchCompanyData = async (): Promise<Company> => {
-    const response = await fetch(`/api/companies?companyId=${companyId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch company");
-    }
-    const data = await response.json();
-    return data.companies[0];
+    return fetchCompany(companyId!);
   };
 
-  const fetchDepartments = async () => {
-    const response = await fetch(`/api/departments?companyId=${companyId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch departments");
-    }
-    const data = await response.json();
-    return data.departments || [];
+  const fetchDepartmentsData = async () => {
+    return fetchDepartments(companyId!);
   };
 
-  const fetchEmployees = async () => {
-    const response = await fetch(`/api/employees?companyId=${companyId}`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || errorData.message || "Failed to fetch employees");
-    }
-    const data = await response.json();
-
-    // Handle the new API response structure
-    if (data.success) {
-      return data.data?.employees || data.employees || [];
-    } else {
-      throw new Error(data.error?.message || "Failed to fetch employees");
-    }
+  const fetchEmployeesData = async () => {
+    return fetchEmployees({ companyId });
   };
 
   const {
@@ -155,7 +127,7 @@ const EditEmployeeForm: React.FC<{
 
   const { data: departments } = useQuery({
     queryKey: ["departments", companyId],
-    queryFn: fetchDepartments,
+    queryFn: fetchDepartmentsData,
     enabled: !!companyId,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -163,7 +135,7 @@ const EditEmployeeForm: React.FC<{
 
   const { data: employees } = useQuery({
     queryKey: ["employees", companyId],
-    queryFn: fetchEmployees,
+    queryFn: fetchEmployeesData,
     enabled: !!companyId,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -220,6 +192,7 @@ const EditEmployeeForm: React.FC<{
       });
     }
     if (isErrorCompany) {
+      console.log(errorCompany, "gfhvfgfch");
       showSnackbar({
         message: errorCompany?.message || "Error fetching company.",
         severity: "error",
@@ -304,7 +277,10 @@ const EditEmployeeForm: React.FC<{
       const result = await response.json();
 
       if (!response.ok) {
-        const errorMessage = result.error?.message || result.message || "Failed to update employee";
+        const errorMessage =
+          result.error?.message ||
+          result.message ||
+          "Failed to update employee";
         throw new Error(errorMessage);
       }
 
@@ -312,7 +288,8 @@ const EditEmployeeForm: React.FC<{
       if (result.success) {
         return result;
       } else {
-        const errorMessage = result.error?.message || "Failed to update employee";
+        const errorMessage =
+          result.error?.message || "Failed to update employee";
         throw new Error(errorMessage);
       }
     },
@@ -352,7 +329,10 @@ const EditEmployeeForm: React.FC<{
       const result = await response.json();
 
       if (!response.ok) {
-        const errorMessage = result.error?.message || result.message || "Failed to delete employee";
+        const errorMessage =
+          result.error?.message ||
+          result.message ||
+          "Failed to delete employee";
         throw new Error(errorMessage);
       }
 
@@ -360,7 +340,8 @@ const EditEmployeeForm: React.FC<{
       if (result.success) {
         return result;
       } else {
-        const errorMessage = result.error?.message || "Failed to delete employee";
+        const errorMessage =
+          result.error?.message || "Failed to delete employee";
         throw new Error(errorMessage);
       }
     },
@@ -953,7 +934,7 @@ const EditEmployeeForm: React.FC<{
               />
             </FormControl>
           </Grid>
-          
+
           {/* Documents Section */}
           <Grid item xs={12}>
             <div className="my-5" />
@@ -961,13 +942,15 @@ const EditEmployeeForm: React.FC<{
               Documents
             </Typography>
             <Divider />
-            <Documents 
-              documents={formFields.documents} 
-              setDocuments={(docs) => setFormFields({ ...formFields, documents: docs })} 
-              editable={isEditing} 
+            <Documents
+              documents={formFields.documents}
+              setDocuments={(docs) =>
+                setFormFields({ ...formFields, documents: docs })
+              }
+              editable={isEditing}
             />
           </Grid>
-          
+
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel id="department-label">Department</InputLabel>

@@ -268,31 +268,32 @@ Effective Rate:      4.26%
 *   **Profile Management:** Employees can view their profile and change their password.
 *   **Leave Application:** The portal provides an interface for employees to apply for leave and track the status of their requests.
 
-## 4. API Architecture Improvements
+## 4. Service Layer Architecture
 
-The API layer has been significantly refactored to implement a consistent, scalable, and maintainable architecture following enterprise-grade best practices.
+The application follows a clean architecture with clear separation of concerns:
 
-### 4.1. Middleware System
+### 4.1. Service Layer Structure
 
-A comprehensive middleware system has been implemented with the following components:
+#### 4.1.1. Service Files
+* Employee service: `src/app/api/employees/service.ts`
+* Company service: `src/app/api/companies/service.ts`
+* Department service: `src/app/api/departments/service.ts`
+* Leave request service: `src/app/api/leave-requests/service.ts`
+* Leave type service: `src/app/api/leave-types/service.ts`
+* Tax configuration service: `src/app/api/tax-configuration/service.ts`
+* Business logic separated from route handlers
+* Zod schemas defined within service files
+* Proper error handling within service methods
 
-#### 4.1.1. Constants (`src/app/lib/constants.ts`)
-Centralized constants for:
-* HTTP status codes
-* Role types (admin, employer, employee)
-* Log levels
-* API response structure
-* Database configuration
-* Authentication settings
-* Validation error messages
+#### 4.1.2. Schema Definitions
+* Validation schemas in separate files: `src/app/lib/schemas.ts`
+* Common types/interfaces in: `src/app/lib/types.ts`
+* Centralized validation for all API endpoints
+* Consistent data validation across the application
 
-#### 4.1.2. Centralized Logging (`src/app/lib/logger.ts`)
-* Singleton logger instance with multiple log levels (ERROR, WARN, INFO, DEBUG)
-* Structured logging with timestamps, metadata, and error details
-* Configurable log level via environment variables
-* JSON-formatted log entries for better analysis
+### 4.2. API Response Architecture
 
-#### 4.1.3. API Response Structure (`src/app/lib/apiResponse.ts`)
+#### 4.2.1. Response Structure
 Standardized response interface:
 ```typescript
 interface ApiResponse<T = any> {
@@ -312,67 +313,147 @@ interface ApiResponse<T = any> {
 }
 ```
 
-#### 4.1.4. Authentication Middleware (`src/app/lib/authMiddleware.ts`)
+#### 4.2.2. Response Utilities
+* Centralized API response utilities in `src/app/lib/apiResponseUtils.ts`
+* Consistent response formatting across all endpoints
+* Proper error message handling
+* Success and error response helpers
+
+### 4.3. Middleware System
+
+#### 4.3.1. Authentication & Authorization
 * Session verification using NextAuth.js
-* User role and account status validation
+* Role-based access control (admin, employer, employee)
 * Company access verification
 * Request context creation with user information
-* Unique request ID generation
 
-#### 4.1.5. Role-Based Access Control (`src/app/lib/rbacMiddleware.ts`)
-* Role-based authorization checks
-* Company access verification for different roles
-* Helper functions for role checking (isAdmin, isEmployer, isEmployee)
-* Centralized permission validation
-
-#### 4.1.6. Error Handling System (`src/app/lib/errorHandler.ts`)
-* Custom error classes (BaseError, BadRequestError, UnauthorizedError, etc.)
-* Centralized error handler with logging
+#### 4.3.2. Error Handling
+* Custom error classes (ValidationError, NotFoundError, ForbiddenError, etc.)
+* Centralized error handling
 * Consistent error response formatting
 * Multiple error types with specific status codes
 
-#### 4.1.7. API Response Utilities (`src/app/lib/apiResponseUtils.ts`)
-* Unified utility functions for consistent responses
-* Helper methods for different response types (success, error, paginated, etc.)
-* NextResponse wrapper functions with proper status codes
+## 5. Frontend Integration
 
-#### 4.1.8. Main Middleware Wrapper (`src/app/lib/apiMiddleware.ts`)
-* Combines authentication, RBAC, and error handling
-* Multiple helper methods (authenticated, adminOnly, employerOnly, etc.)
-* Execution time tracking
-* Consistent request processing flow
+The frontend components follow a consistent pattern:
 
-### 4.2. Service Layer Architecture
+### 5.1. Data Fetching
+* API calls abstracted into service functions in `src/app/lib/api/`
+* Consistent response handling across all components
+* Proper error message extraction from responses
+* Loading and error state management
 
-The API routes now follow a clean architecture with separation of concerns:
+### 5.2. React Query Integration
+* Centralized data fetching with TanStack Query
+* Caching and stale time management
+* Optimistic updates where appropriate
+* Consistent query keys across the application
 
-#### 4.2.1. Service Files
-* Employee service: `src/app/api/employees/service.ts`
-* Company service: `src/app/api/companies/service.ts`
-* Business logic separated from route handlers
-* Zod schemas defined within service files
-* Proper error handling within service methods
-
-#### 4.2.2. Route Handlers
-* Minimal route handlers that delegate to services
-* Middleware integration using the new wrapper system
-* Consistent response structure across all endpoints
-* Proper error propagation to centralized handler
-
-### 4.3. Frontend Integration
-
-The frontend components have been updated to handle the new API response structure:
-
-#### 4.3.1. Response Handling
-* Updated fetch functions to process new response format
-* Proper error message extraction from new response structure
-* Consistent loading and error states
-
-#### 4.3.2. Navigation Fixes
-* Company navigation now uses proper company IDs instead of objects
-* Action links updated to reference correct employee and company data
-* URL generation improvements to prevent malformed navigation links
-
-## 5. Database Connection
+## 6. Database Connection
 
 The database connection is managed by `src/app/lib/db.tsx`. It uses a singleton pattern to create a cached Mongoose connection, preventing multiple connections in a serverless environment. It also includes a retry mechanism to handle transient database connection issues.
+
+## 7. API Route Refactoring Plan
+
+To maintain consistency across all API routes, follow this refactoring approach:
+
+### 7.1. Template for New API Routes
+
+#### 7.1.1. Service File Template
+```typescript
+import dbConnect from "@/app/lib/db";
+import Entity from "@/app/models/Entity";
+import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
+import { RequestContext } from "@/app/lib/apiResponse";
+import { getPaginationParams, createPaginatedResponse, getTotalCount } from "@/app/lib/pagination";
+import { z } from "zod";
+
+// Define validation schemas
+export const entityCreateSchema = z.object({
+  // Define validation schema
+});
+
+export const entityUpdateSchema = z.object({
+  // Define validation schema
+});
+
+const entityIdSchema = z.string().min(1, "Entity ID is required");
+
+export class EntityService {
+  static async getEntity(entityId: string, context: RequestContext) {
+    await dbConnect();
+    // Implementation
+  }
+
+  static async getEntities(req: any, context: RequestContext) {
+    await dbConnect();
+    // Implementation
+  }
+
+  static async createEntity(body: any, context: RequestContext) {
+    await dbConnect();
+    // Implementation
+  }
+
+  static async updateEntity(body: any, context: RequestContext) {
+    await dbConnect();
+    // Implementation
+  }
+
+  static async deleteEntity(body: any, context: RequestContext) {
+    await dbConnect();
+    // Implementation
+  }
+}
+```
+
+#### 7.1.2. Route Handler Template
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { ApiMiddleware } from "@/app/lib/apiMiddleware";
+import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
+import { RequestContext } from "@/app/lib/apiResponse";
+import { EntityService } from "./service";
+import { entityCreateSchema, entityUpdateSchema } from "./service";
+import { z } from "zod";
+
+const entityIdSchema = z.string().min(1, "Entity ID is required");
+
+export async function GET(req: NextRequest) {
+  return ApiMiddleware.authenticated(req, async (req, context) => {
+    try {
+      const entityId = req.nextUrl.searchParams.get("entityId");
+      // Implementation
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+      }
+      throw error; // Let the middleware handle the error
+    }
+  });
+}
+
+// Implement other methods (POST, PUT, DELETE) similarly
+```
+
+### 7.2. Routes to Refactor
+
+The following API routes need to be updated following the same pattern:
+
+* `src/app/api/leave-requests/route.tsx` - Leave requests API
+* `src/app/api/leave-types/route.tsx` - Leave types API
+* `src/app/api/departments/route.tsx` - Department management API
+* `src/app/api/salaries/route.tsx` - Salary management API
+* `src/app/api/payments/route.tsx` - Payment management API
+* `src/app/api/tax-configuration/route.tsx` - Tax configuration API
+* `src/app/api/users/route.tsx` - User management API
+* All other routes in `src/app/api/`
+
+### 7.3. Frontend Component Updates
+
+For each route, update corresponding frontend components to use the new response structure:
+
+* Update fetch functions to handle `success`, `data`, `error` structure
+* Add proper error handling from the new response format
+* Update mutation functions to process successful responses
+* Ensure navigation and display logic works with new data structure

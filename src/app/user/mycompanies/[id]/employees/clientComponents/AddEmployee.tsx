@@ -3,6 +3,11 @@ import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import {
+  fetchCompany,
+  fetchEmployees,
+  fetchDepartments
+} from "@/app/lib/api";
+import {
   Box,
   CircularProgress,
   TextField,
@@ -63,12 +68,7 @@ const AddEmployeeForm: React.FC<{
   }>({});
 
   const fetchCompanyData = async (): Promise<Company> => {
-    const response = await fetch(`/api/companies?companyId=${companyId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch company");
-    }
-    const data = await response.json();
-    return data.companies[0];
+    return fetchCompany(companyId!);
   };
 
   const { data: companyData, isLoading: isLoadingCompany } = useQuery<
