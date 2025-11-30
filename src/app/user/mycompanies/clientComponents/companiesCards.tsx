@@ -31,8 +31,8 @@ import { PrefetchKind } from "next/dist/client/components/router-reducer/router-
 import {
   fetchCompany,
   fetchEmployees,
-  fetchPurchased,
-} from "../[id]/quick/quick";
+  checkPurchased,
+} from "@/app/lib/api";
 
 export interface Company {
   shifts: any;
@@ -45,13 +45,13 @@ export interface Company {
   active: boolean;
   noOfEmployees: number;
   requiredDocs:
-    | {
-        epf: boolean;
-        etf: boolean;
-        salary: boolean;
-        paySlip: boolean;
-      }
-    | undefined;
+  | {
+    epf: boolean;
+    etf: boolean;
+    salary: boolean;
+    paySlip: boolean;
+  }
+  | undefined;
   paymentMethod: String;
   monthlyPrice: String;
   employerName: string;
@@ -136,14 +136,14 @@ const CompaniesCards = ({
 
       queryClient.prefetchQuery({
         queryKey: ["employees", companyId],
-        queryFn: () => fetchEmployees(companyId),
+        queryFn: () => fetchEmployees({ companyId }),
         staleTime: STALE_TIME,
         gcTime: GC_TIME,
       });
 
       queryClient.prefetchQuery({
         queryKey: ["purchases", "check", companyId, period],
-        queryFn: () => fetchPurchased(companyId, period),
+        queryFn: () => checkPurchased(companyId, period),
         staleTime: STALE_TIME,
         gcTime: GC_TIME,
       });
@@ -203,8 +203,8 @@ const CompaniesCards = ({
                   ? "#f2f7ff"
                   : "#fff2f3"
                 : company.active
-                ? "#212326"
-                : "#262122",
+                  ? "#212326"
+                  : "#262122",
             transition: "transform 0.2s, background-color 0.2s",
             "&:hover": {
               transform: "scale(1.02)",
