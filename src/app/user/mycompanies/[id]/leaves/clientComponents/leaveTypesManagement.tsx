@@ -25,42 +25,14 @@ import {
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Add } from "@mui/icons-material";
 
-export interface LeaveType {
-  _id: string;
-  name: string;
-  code: string;
-  company: string;
-  // Flexible period fields
-  accrualPeriod: "yearly" | "monthly" | "weekly" | "quarterly" | "half-yearly" | "custom";
-  maxDaysPerPeriod: number;
-  customPeriodDays?: number;
-  accrualMethod: "upfront" | "monthly-accrual" | "pro-rata";
-  resetDay?: number;
-  carryForward: boolean;
-  maxCarryForwardDays?: number;
-  maxConsecutiveDays?: number;
-  requiresApproval: boolean;
-  requiresDocument: boolean;
-  isPaid: boolean;
-  applicableFor: "all" | "permanent" | "contract" | "intern";
-  gender?: "all" | "male" | "female";
-  color: string;
-  isActive: boolean;
-  createdAt: string;
-}
+import {
+  fetchLeaveTypes,
+  createLeaveType,
+  updateLeaveType,
+  LeaveType,
+} from "@/app/lib/api/leaveTypeApi";
 
-// Fetch leave types
-const fetchLeaveTypes = async (companyId: string): Promise<LeaveType[]> => {
-  const response = await fetch(
-    `/api/leave-types?companyId=${companyId}&includeInactive=true`
-  );
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch leave types");
-  }
-  const data = await response.json();
-  return data.leaveTypes || [];
-};
+const ALL_EMPLOYEE_TYPES = ["permanent", "contract", "intern", "temporary"];
 
 const LeaveTypesManagement: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -89,7 +61,7 @@ const LeaveTypesManagement: React.FC<{
     requiresApproval: true,
     requiresDocument: false,
     isPaid: true,
-    applicableFor: "all" as "all" | "permanent" | "contract" | "intern",
+    applicableFor: ["all"] as string[],
     gender: "all" as "all" | "male" | "female",
     color: "#1976d2",
   });
@@ -102,29 +74,19 @@ const LeaveTypesManagement: React.FC<{
     error,
   } = useQuery<LeaveType[], Error>({
     queryKey: ["leaveTypes", companyId],
-    queryFn: () => fetchLeaveTypes(companyId),
+    queryFn: () => fetchLeaveTypes(companyId, true),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
 
   // Create leave type mutation
   const createLeaveTypeMutation = useMutation({
-    mutationFn: async (leaveType: any) => {
-      const response = await fetch("/api/leave-types", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...leaveType,
-          companyId,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create leave type");
+    mutationFn: (leaveType: any) => {
+      const payload = { ...leaveType, companyId };
+      if (payload.applicableFor.includes("all")) {
+        payload.applicableFor = ALL_EMPLOYEE_TYPES;
       }
-      return response.json();
+      return createLeaveType(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leaveTypes", companyId] });
@@ -147,7 +109,7 @@ const LeaveTypesManagement: React.FC<{
         requiresApproval: true,
         requiresDocument: false,
         isPaid: true,
-        applicableFor: "all",
+        applicableFor: ["all"],
         gender: "all",
         color: "#1976d2",
       });
@@ -159,22 +121,15 @@ const LeaveTypesManagement: React.FC<{
 
   // Update leave type mutation
   const updateLeaveTypeMutation = useMutation({
-    mutationFn: async (leaveType: any) => {
-      const response = await fetch("/api/leave-types", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          leaveTypeId: leaveType._id,
-          ...leaveType,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update leave type");
+    mutationFn: (leaveType: any) => {
+      const payload = {
+        leaveTypeId: leaveType._id,
+        ...leaveType,
+      };
+      if (payload.applicableFor.includes("all")) {
+        payload.applicableFor = ALL_EMPLOYEE_TYPES;
       }
-      return response.json();
+      return updateLeaveType(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leaveTypes", companyId] });
@@ -208,8 +163,7 @@ const LeaveTypesManagement: React.FC<{
       headerName: "Max Days/Period",
       flex: 1,
       minWidth: 150,
-      valueGetter: (params) => {
-        const row = params;
+      valueGetter: (value, row) => {
         const period = row.accrualPeriod || "yearly";
         const days = row.maxDaysPerPeriod;
 
@@ -230,8 +184,8 @@ const LeaveTypesManagement: React.FC<{
       headerName: "Accrual Method",
       flex: 0.8,
       minWidth: 120,
-      valueGetter: (params) => {
-        const method = params || "upfront";
+      valueGetter: (value, row) => {
+        const method = row.accrualMethod || "upfront";
         const methodLabels: Record<string, string> = {
           upfront: "Upfront",
           "monthly-accrual": "Monthly Accrual",
@@ -273,8 +227,8 @@ const LeaveTypesManagement: React.FC<{
       headerName: "Applicable For",
       flex: 1,
       minWidth: 130,
-      valueGetter: (params) => {
-        return params;
+      valueGetter: (value: string[]) => {
+        return value ? value.join(", ") : "";
       },
     },
     {
@@ -568,17 +522,43 @@ const LeaveTypesManagement: React.FC<{
               select
               label="Applicable For"
               value={newLeaveType.applicableFor}
-              onChange={(e) =>
+              onChange={(e) => {
+                const value = e.target.value;
+                const newValue = typeof value === 'string' ? value.split(',') : value;
+                const oldValue = newLeaveType.applicableFor;
+                let finalValue = newValue;
+
+                if (newValue.includes("all")) {
+                  if (!oldValue.includes("all")) {
+                    // "all" was just selected, so clear others
+                    finalValue = ["all"];
+                  } else if (newValue.length > 1) {
+                    // "all" was already there, but something else was added. Remove "all".
+                    finalValue = newValue.filter((v: string) => v !== "all");
+                  }
+                }
+
                 setNewLeaveType({
                   ...newLeaveType,
-                  applicableFor: e.target.value as any,
-                })
-              }
+                  applicableFor: finalValue,
+                });
+              }}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected: any) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((value: string) => (
+                      <Chip key={value} label={value} size="small" />
+                    ))}
+                  </Box>
+                ),
+              }}
             >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="permanent">Permanent</MenuItem>
               <MenuItem value="contract">Contract</MenuItem>
               <MenuItem value="intern">Intern</MenuItem>
+              <MenuItem value="temporary">Temporary</MenuItem>
             </TextField>
             <TextField
               select
@@ -827,17 +807,43 @@ const LeaveTypesManagement: React.FC<{
                 select
                 label="Applicable For"
                 value={editingLeaveType.applicableFor}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const newValue = typeof value === 'string' ? value.split(',') : value;
+                  const oldValue = editingLeaveType.applicableFor;
+                  let finalValue = newValue;
+
+                  if (newValue.includes("all")) {
+                    if (!oldValue.includes("all")) {
+                      // "all" was just selected, so clear others
+                      finalValue = ["all"];
+                    } else if (newValue.length > 1) {
+                      // "all" was already there, but something else was added. Remove "all".
+                      finalValue = newValue.filter((v: string) => v !== "all");
+                    }
+                  }
+
                   setEditingLeaveType({
                     ...editingLeaveType,
-                    applicableFor: e.target.value as any,
-                  })
-                }
+                    applicableFor: finalValue,
+                  });
+                }}
+                SelectProps={{
+                  multiple: true,
+                  renderValue: (selected: any) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value: string) => (
+                        <Chip key={value} label={value} size="small" />
+                      ))}
+                    </Box>
+                  ),
+                }}
               >
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="permanent">Permanent</MenuItem>
                 <MenuItem value="contract">Contract</MenuItem>
                 <MenuItem value="intern">Intern</MenuItem>
+                <MenuItem value="temporary">Temporary</MenuItem>
               </TextField>
               <TextField
                 select

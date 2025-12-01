@@ -357,24 +357,34 @@ export const companyUpdateSchema = z.object({
 export const companyIdSchema = z.string().min(1, "Company ID is required");
 
 // Leave-related schemas (common ones)
+// Leave-related schemas
 export const leaveRequestCreateSchema = z.object({
   employeeId: idSchema,
   leaveTypeId: idSchema,
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   halfDay: z.boolean().optional().default(false),
+  halfDayPeriod: z.enum(["morning", "afternoon"]).optional(),
   reason: z.string().optional(),
   documents: z.array(z.string()).optional(),
+});
+
+export const leaveRequestUpdateSchema = z.object({
+  leaveRequestId: idSchema,
+  action: z.enum(["approve", "reject", "cancel"]),
+  remarks: z.string().optional(),
 });
 
 export const leaveTypeCreateSchema = z.object({
   name: z.string().min(1, "Leave type name is required"),
   code: z.string().min(1, "Leave type code is required"),
+  companyId: idSchema,
   accrualPeriod: z.enum(["yearly", "monthly", "weekly", "quarterly", "half-yearly", "custom"]),
   maxDaysPerPeriod: z.number().min(0, "Max days must be a positive number"),
   customPeriodDays: z.number().optional(),
   accrualMethod: z.enum(["upfront", "monthly-accrual", "pro-rata"]),
   resetDay: z.number().optional(),
+  maxConsecutiveDays: z.number().optional(),
   carryForward: z.boolean().optional().default(false),
   maxCarryForwardDays: z.number().optional(),
   requiresApproval: z.boolean().optional().default(true),
@@ -382,6 +392,29 @@ export const leaveTypeCreateSchema = z.object({
   isPaid: z.boolean().optional().default(true),
   applicableFor: z.array(z.enum(["permanent", "contract", "intern", "temporary"])).optional(),
   gender: z.enum(["male", "female", "all"]).optional().default("all"),
+  color: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const leaveTypeUpdateSchema = z.object({
+  leaveTypeId: idSchema,
+  name: z.string().min(1, "Leave type name is required").optional(),
+  accrualPeriod: z.enum(["yearly", "monthly", "weekly", "quarterly", "half-yearly", "custom"]).optional(),
+  maxDaysPerPeriod: z.number().min(0, "Max days must be a positive number").optional(),
+  customPeriodDays: z.number().optional(),
+  accrualMethod: z.enum(["upfront", "monthly-accrual", "pro-rata"]).optional(),
+  resetDay: z.number().optional(),
+  maxConsecutiveDays: z.number().optional(),
+  carryForward: z.boolean().optional(),
+  maxCarryForwardDays: z.number().optional(),
+  requiresApproval: z.boolean().optional(),
+  requiresDocument: z.boolean().optional(),
+  isPaid: z.boolean().optional(),
+  applicableFor: z.array(z.enum(["permanent", "contract", "intern", "temporary"])).optional(),
+  gender: z.enum(["male", "female", "all"]).optional(),
+  color: z.string().optional(),
+  description: z.string().optional(),
+  isActive: z.boolean().optional(),
 });
 
 // Salary-related schemas

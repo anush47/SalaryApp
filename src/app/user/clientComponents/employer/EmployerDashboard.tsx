@@ -159,40 +159,40 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
     color: string,
     trend?: number
   ) => (
-    <Card
-      sx={{ bgcolor: color, height: "100%", color: "primary.contrastText" }}
-    >
+    <Card sx={{ height: "100%" }}>
       <CardContent>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box>
             <Typography
               variant="body2"
-              color="primary.contrastText"
-              sx={{ opacity: 0.9 }}
+              color="text.secondary"
               gutterBottom
             >
               {title}
             </Typography>
-            <Typography variant="h3" color="primary.contrastText">
+            <Typography variant="h3" fontWeight="bold">
               {value}
             </Typography>
             {trend !== undefined && (
               <Box display="flex" alignItems="center" mt={1}>
                 {trend >= 0 ? (
-                  <TrendingUp sx={{ color: "primary.contrastText", mr: 0.5 }} />
+                  <TrendingUp sx={{ color: "success.main", mr: 0.5 }} />
                 ) : (
                   <TrendingDown
-                    sx={{ color: "primary.contrastText", mr: 0.5 }}
+                    sx={{ color: "error.main", mr: 0.5 }}
                   />
                 )}
-                <Typography variant="caption" color="primary.contrastText">
+                <Typography
+                  variant="caption"
+                  color={trend >= 0 ? "success.main" : "error.main"}
+                >
                   {Math.abs(trend)}% from last month
                 </Typography>
               </Box>
             )}
           </Box>
           {React.cloneElement(icon, {
-            sx: { fontSize: 60, color: "primary.contrastText", opacity: 0.3 },
+            sx: { fontSize: 60, color: color, opacity: 0.8 },
           })}
         </Box>
       </CardContent>
@@ -202,9 +202,9 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
   const renderSingleCompanyDashboard = (companyData: any) => {
     const employeeTypeData = companyData.employees?.byType
       ? Object.entries(companyData.employees.byType).map(([type, count]) => ({
-          name: type.charAt(0).toUpperCase() + type.slice(1),
-          value: count,
-        }))
+        name: type.charAt(0).toUpperCase() + type.slice(1),
+        value: count,
+      }))
       : [];
 
     return (
@@ -349,7 +349,7 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
                         </Box>
                         <Grid container spacing={1}>
                           <Grid item xs={4}>
-                            <Paper sx={{ p: 1, bgcolor: "background.default" }}>
+                            <Paper sx={{ p: 1, bgcolor: "action.hover" }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -362,7 +362,7 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
                             </Paper>
                           </Grid>
                           <Grid item xs={4}>
-                            <Paper sx={{ p: 1, bgcolor: "background.default" }}>
+                            <Paper sx={{ p: 1, bgcolor: "action.hover" }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -375,7 +375,7 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
                             </Paper>
                           </Grid>
                           <Grid item xs={4}>
-                            <Paper sx={{ p: 1, bgcolor: "background.default" }}>
+                            <Paper sx={{ p: 1, bgcolor: "action.hover" }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -502,7 +502,7 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
                   {companyData.departments?.list?.map(
                     (dept: any, idx: number) => (
                       <Grid item xs={12} sm={6} md={4} key={idx}>
-                        <Paper sx={{ p: 2, bgcolor: "background.default" }}>
+                        <Paper sx={{ p: 2, bgcolor: "action.hover" }}>
                           <Typography variant="subtitle2" gutterBottom>
                             {dept?.name || "N/A"}
                           </Typography>
@@ -659,9 +659,8 @@ const EmployerDashboard: React.FC<UserProps> = ({ user }) => {
                     </Grid>
                     <Box mt={1}>
                       <Chip
-                        label={`${
-                          company.leaves?.pending?.count || 0
-                        } pending leaves`}
+                        label={`${company.leaves?.pending?.count || 0
+                          } pending leaves`}
                         size="small"
                         color={
                           (company.leaves?.pending?.count || 0) > 0

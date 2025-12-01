@@ -29,6 +29,7 @@ import {
   Work,
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
+import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
 
 interface UserProps {
   user: {
@@ -87,49 +88,41 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
         // Fetch upcoming leaves
         try {
-          const leavesResponse = await fetch(
-            `/api/leave-requests?companyId=${employee.company._id}&employeeId=${employee._id}&status=approved`
-          );
-          if (leavesResponse.ok) {
-            const leavesData = await leavesResponse.json();
-            const today = new Date();
-            const upcoming = leavesData.leaveRequests
-              .filter((req: any) => new Date(req.startDate) >= today)
-              .slice(0, 5);
-            setUpcomingLeaves(upcoming);
-          }
+          const leavesResult = await fetchLeaveRequests(employee.company._id, {
+            employeeId: employee._id,
+            status: "approved",
+          });
+          const today = new Date();
+          const upcoming = leavesResult.data
+            .filter((req: any) => new Date(req.startDate) >= today)
+            .slice(0, 5);
+          setUpcomingLeaves(upcoming);
         } catch (err) {
           console.error("Error fetching upcoming leaves:", err);
         }
 
         // Fetch pending approvals (if this employee is a manager)
         try {
-          const approvalsResponse = await fetch(
-            `/api/leave-requests?companyId=${employee.company._id}&pendingApprovals=true`
-          );
-          if (approvalsResponse.ok) {
-            const approvalsData = await approvalsResponse.json();
-            setPendingApprovals(approvalsData.leaveRequests || []);
+          const approvalsResult = await fetchLeaveRequests(employee.company._id, {
+            pendingApprovals: true,
+          });
+          setPendingApprovals(approvalsResult.data || []);
 
-            // If there are pending approvals, this is a manager
-            if (
-              approvalsData.leaveRequests &&
-              approvalsData.leaveRequests.length > 0
-            ) {
-              setIsManager(true);
+          // If there are pending approvals, this is a manager
+          if (approvalsResult.data && approvalsResult.data.length > 0) {
+            setIsManager(true);
 
-              // Fetch manager dashboard data
-              try {
-                const managerResponse = await fetch(
-                  `/api/dashboard/manager?employeeId=${employee._id}`
-                );
-                if (managerResponse.ok) {
-                  const managerDashboard = await managerResponse.json();
-                  setManagerData(managerDashboard);
-                }
-              } catch (manErr) {
-                console.error("Error fetching manager data:", manErr);
+            // Fetch manager dashboard data
+            try {
+              const managerResponse = await fetch(
+                `/api/dashboard/manager?employeeId=${employee._id}`
+              );
+              if (managerResponse.ok) {
+                const managerDashboard = await managerResponse.json();
+                setManagerData(managerDashboard);
               }
+            } catch (manErr) {
+              console.error("Error fetching manager data:", manErr);
             }
           }
         } catch (err) {
@@ -345,9 +338,8 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                           leave.startDate
                         ).toLocaleDateString()} - ${new Date(
                           leave.endDate
-                        ).toLocaleDateString()} (${leave.totalDays} day${
-                          leave.totalDays > 1 ? "s" : ""
-                        })`}
+                        ).toLocaleDateString()} (${leave.totalDays} day${leave.totalDays > 1 ? "s" : ""
+                          })`}
                       />
                       <Chip
                         label={leave.status}
@@ -390,9 +382,8 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       </ListItemIcon>
                       <ListItemText
                         primary={request.employee.name}
-                        secondary={`${request.leaveType.name} - ${
-                          request.totalDays
-                        } day${request.totalDays > 1 ? "s" : ""}`}
+                        secondary={`${request.leaveType.name} - ${request.totalDays
+                          } day${request.totalDays > 1 ? "s" : ""}`}
                       />
                       <Button
                         size="small"
@@ -712,7 +703,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                                 />
                               </Box>
                               {member.leaveBalance &&
-                              member.leaveBalance.length > 0 ? (
+                                member.leaveBalance.length > 0 ? (
                                 <Grid container spacing={1} mt={1}>
                                   {member.leaveBalance
                                     .slice(0, 4)

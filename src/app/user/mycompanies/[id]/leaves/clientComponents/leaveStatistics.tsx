@@ -33,17 +33,14 @@ interface LeaveStatistics {
   }[];
 }
 
+import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
+
 // Fetch leave statistics
 const fetchLeaveStatistics = async (
   companyId: string
 ): Promise<LeaveStatistics> => {
-  const response = await fetch(`/api/leave-requests?companyId=${companyId}`);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch leave statistics");
-  }
-  const data = await response.json();
-  const leaveRequests = data.leaveRequests || [];
+  const result = await fetchLeaveRequests(companyId);
+  const leaveRequests = result.data || [];
 
   // Calculate statistics
   const stats: LeaveStatistics = {
@@ -153,10 +150,9 @@ const LeaveStatistics: React.FC<{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              bgcolor: "#fff3e0",
             }}
           >
-            <PendingActions sx={{ fontSize: 48, color: "#ff9800", mb: 1 }} />
+            <PendingActions sx={{ fontSize: 48, color: "warning.main", mb: 1 }} />
             <Typography variant="h4" fontWeight="bold">
               {statistics.pendingRequests}
             </Typography>
@@ -174,10 +170,9 @@ const LeaveStatistics: React.FC<{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              bgcolor: "#e8f5e9",
             }}
           >
-            <CheckCircle sx={{ fontSize: 48, color: "#4caf50", mb: 1 }} />
+            <CheckCircle sx={{ fontSize: 48, color: "success.main", mb: 1 }} />
             <Typography variant="h4" fontWeight="bold">
               {statistics.approvedRequests}
             </Typography>
@@ -195,10 +190,9 @@ const LeaveStatistics: React.FC<{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              bgcolor: "#ffebee",
             }}
           >
-            <Cancel sx={{ fontSize: 48, color: "#f44336", mb: 1 }} />
+            <Cancel sx={{ fontSize: 48, color: "error.main", mb: 1 }} />
             <Typography variant="h4" fontWeight="bold">
               {statistics.rejectedRequests}
             </Typography>
@@ -216,10 +210,9 @@ const LeaveStatistics: React.FC<{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              bgcolor: "#e3f2fd",
             }}
           >
-            <TrendingUp sx={{ fontSize: 48, color: "#2196f3", mb: 1 }} />
+            <TrendingUp sx={{ fontSize: 48, color: "info.main", mb: 1 }} />
             <Typography variant="h4" fontWeight="bold">
               {statistics.totalRequests}
             </Typography>
@@ -241,7 +234,7 @@ const LeaveStatistics: React.FC<{
                   <Box
                     sx={{
                       p: 2,
-                      bgcolor: "#f5f5f5",
+                      bgcolor: "action.hover",
                       borderRadius: 1,
                     }}
                   >
@@ -257,7 +250,7 @@ const LeaveStatistics: React.FC<{
                   <Box
                     sx={{
                       p: 2,
-                      bgcolor: "#e8f5e9",
+                      bgcolor: "action.hover",
                       borderRadius: 1,
                     }}
                   >

@@ -24,58 +24,11 @@ import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Check, Close } from "@mui/icons-material";
 import dayjs from "dayjs";
 
-export interface LeaveRequest {
-  _id: string;
-  employee: {
-    _id: string;
-    name: string;
-    memberNo: number;
-    designation: string;
-  };
-  leaveType: {
-    _id: string;
-    name: string;
-    code: string;
-    color: string;
-  };
-  startDate: string;
-  endDate: string;
-  totalDays: number;
-  halfDay: boolean;
-  reason: string;
-  status: "pending" | "approved" | "rejected" | "cancelled";
-  approver?: {
-    _id: string;
-    name: string;
-    memberNo: number;
-  };
-  approvedBy?: {
-    _id: string;
-    name: string;
-    memberNo: number;
-  };
-  approvedAt?: string;
-  remarks?: string;
-  createdAt: string;
-}
-
-// Fetch leave requests
-const fetchLeaveRequests = async (
-  companyId: string,
-  status?: string
-): Promise<LeaveRequest[]> => {
-  let url = `/api/leave-requests?companyId=${companyId}`;
-  if (status) {
-    url += `&status=${status}`;
-  }
-  const response = await fetch(url);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch leave requests");
-  }
-  const data = await response.json();
-  return data.leaveRequests || [];
-};
+import {
+  fetchLeaveRequests,
+  updateLeaveRequest,
+  LeaveRequest,
+} from "@/app/lib/api/leaveRequestApi";
 
 const LeaveRequestsManagement: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -101,39 +54,27 @@ const LeaveRequestsManagement: React.FC<{
     error,
   } = useQuery<LeaveRequest[], Error>({
     queryKey: ["leaveRequests", companyId, statusFilter],
-    queryFn: () => fetchLeaveRequests(companyId, statusFilter),
+    queryFn: async () => {
+      const result = await fetchLeaveRequests(companyId, {
+        status: statusFilter,
+      });
+      return result.data;
+    },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
 
   // Update leave request mutation
   const updateLeaveRequestMutation = useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       leaveRequestId,
       action,
       remarks,
     }: {
       leaveRequestId: string;
-      action: string;
+      action: "approve" | "reject" | "cancel";
       remarks?: string;
-    }) => {
-      const response = await fetch("/api/leave-requests", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          leaveRequestId,
-          action,
-          remarks,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update leave request");
-      }
-      return response.json();
-    },
+    }) => updateLeaveRequest({ leaveRequestId, action, remarks }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leaveRequests", companyId] });
       showSnackbar({
@@ -273,14 +214,14 @@ const LeaveRequestsManagement: React.FC<{
             )}
             {(request.status === "pending" ||
               request.status === "approved") && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => handleActionClick(request, "cancel")}
-              >
-                Cancel
-              </Button>
-            )}
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleActionClick(request, "cancel")}
+                >
+                  Cancel
+                </Button>
+              )}
           </Box>
         );
       },
@@ -420,8 +361,8 @@ const LeaveRequestsManagement: React.FC<{
           {action === "approve"
             ? "Approve Leave Request"
             : action === "reject"
-            ? "Reject Leave Request"
-            : "Cancel Leave Request"}
+              ? "Reject Leave Request"
+              : "Cancel Leave Request"}
         </DialogTitle>
         <DialogContent>
           {selectedRequest && (
@@ -473,15 +414,15 @@ const LeaveRequestsManagement: React.FC<{
               action === "approve"
                 ? "success"
                 : action === "reject"
-                ? "error"
-                : "primary"
+                  ? "error"
+                  : "primary"
             }
           >
             {action === "approve"
               ? "Approve"
               : action === "reject"
-              ? "Reject"
-              : "Cancel Leave"}
+                ? "Reject"
+                : "Cancel Leave"}
           </Button>
         </DialogActions>
       </Dialog>

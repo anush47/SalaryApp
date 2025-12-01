@@ -39,6 +39,12 @@ import {
   Close,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { fetchLeaveTypes } from "@/app/lib/api/leaveTypeApi";
+import {
+  fetchLeaveRequests,
+  createLeaveRequest,
+  updateLeaveRequest,
+} from "@/app/lib/api/leaveRequestApi";
 
 interface UserProps {
   user: {
@@ -136,13 +142,8 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
     try {
       // Fetch leave types
-      const typesResponse = await fetch(
-        `/api/leave-types?companyId=${employee.company._id}`
-      );
-      if (typesResponse.ok) {
-        const typesData = await typesResponse.json();
-        setLeaveTypes(typesData.leaveTypes || []);
-      }
+      const types = await fetchLeaveTypes(employee.company._id);
+      setLeaveTypes(types || []);
 
       // Fetch leave balance
       const balanceResponse = await fetch(
@@ -154,22 +155,16 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       }
 
       // Fetch my leaves
-      const myLeavesResponse = await fetch(
-        `/api/leave-requests?companyId=${employee.company._id}&myRequests=true`
-      );
-      if (myLeavesResponse.ok) {
-        const myLeavesData = await myLeavesResponse.json();
-        setMyLeaves(myLeavesData.leaveRequests || []);
-      }
+      const myLeavesResult = await fetchLeaveRequests(employee.company._id, {
+        myRequests: true,
+      });
+      setMyLeaves(myLeavesResult.data || []);
 
       // Fetch pending approvals
-      const approvalsResponse = await fetch(
-        `/api/leave-requests?companyId=${employee.company._id}&pendingApprovals=true`
-      );
-      if (approvalsResponse.ok) {
-        const approvalsData = await approvalsResponse.json();
-        setPendingApprovals(approvalsData.leaveRequests || []);
-      }
+      const approvalsResult = await fetchLeaveRequests(employee.company._id, {
+        pendingApprovals: true,
+      });
+      setPendingApprovals(approvalsResult.data || []);
     } catch (error: any) {
       showSnackbar({ message: error.message, severity: "error" });
     }
@@ -267,27 +262,17 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/leave-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          employeeId: employeeData._id,
-          leaveTypeId: selectedLeaveType,
-          startDate,
-          endDate,
-          halfDay,
-          reason: reason.trim(),
-        }),
+      await createLeaveRequest({
+        employeeId: employeeData._id,
+        leaveTypeId: selectedLeaveType,
+        startDate,
+        endDate,
+        halfDay,
+        reason: reason.trim(),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to apply for leave");
-      }
-
       showSnackbar({
-        message: data.message || "Leave request submitted successfully",
+        message: "Leave request submitted successfully",
         severity: "success",
       });
       // Reset form
@@ -318,27 +303,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     if (!actionDialog.leaveRequest || !actionDialog.action) return;
 
     try {
-      const response = await fetch("/api/leave-requests", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          leaveRequestId: actionDialog.leaveRequest._id,
-          action: actionDialog.action,
-          remarks: remarks.trim(),
-        }),
+      await updateLeaveRequest({
+        leaveRequestId: actionDialog.leaveRequest._id,
+        action: actionDialog.action,
+        remarks: remarks.trim(),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || `Failed to ${actionDialog.action} leave request`
-        );
-      }
-
       showSnackbar({
-        message:
-          data.message || `Leave request ${actionDialog.action}d successfully`,
+        message: `Leave request ${actionDialog.action}d successfully`,
         severity: "success",
       });
       setActionDialog({ open: false, leaveRequest: null, action: null });
