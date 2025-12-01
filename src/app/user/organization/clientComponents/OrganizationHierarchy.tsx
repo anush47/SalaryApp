@@ -26,6 +26,7 @@ import {
   Groups,
   Business,
 } from "@mui/icons-material";
+import { fetchCompanies, fetchDepartmentHierarchy } from "@/app/lib/api";
 
 interface HierarchyProps {
   user: {
@@ -45,14 +46,12 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchCompanies = async () => {
+    const loadCompanies = async () => {
       try {
-        const response = await fetch("/api/companies");
-        if (!response.ok) throw new Error("Failed to fetch companies");
-        const data = await response.json();
-        setCompanies(data.companies || []);
-        if (data.companies && data.companies.length > 0) {
-          setSelectedCompany(data.companies[0]._id);
+        const companiesData = await fetchCompanies();
+        setCompanies(companiesData || []);
+        if (companiesData && companiesData.length > 0) {
+          setSelectedCompany(companiesData[0]._id);
         }
       } catch (err: any) {
         console.error("Error fetching companies:", err);
@@ -60,24 +59,19 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
       }
     };
 
-    fetchCompanies();
+    loadCompanies();
   }, []);
 
   useEffect(() => {
     if (!selectedCompany) return;
 
-    const fetchHierarchy = async () => {
+    const loadHierarchy = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(
-          `/api/departments/hierarchy?companyId=${selectedCompany}`
-        );
-        if (!response.ok) throw new Error("Failed to fetch hierarchy");
-
-        const data = await response.json();
-        setHierarchy(data.hierarchy || []);
+        const hierarchyData = await fetchDepartmentHierarchy(selectedCompany);
+        setHierarchy(hierarchyData || []);
         setLoading(false);
       } catch (err: any) {
         setError(err.message || "Failed to load organization hierarchy");
@@ -85,7 +79,7 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
       }
     };
 
-    fetchHierarchy();
+    loadHierarchy();
   }, [selectedCompany]);
 
   const toggleDepartment = (deptId: string) => {

@@ -16,12 +16,21 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  DialogContentText,
   TextField,
   MenuItem,
   Chip,
 } from "@mui/material";
+import { LoadingButton } from "@mui/lab";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Add } from "@mui/icons-material";
+import {
+  fetchDepartments,
+  fetchEmployees,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
+} from "@/app/lib/api";
 
 export interface Department {
   _id: string;
@@ -51,27 +60,7 @@ export interface Employee {
   designation: string;
 }
 
-// Fetch departments
-const fetchDepartments = async (companyId: string): Promise<Department[]> => {
-  const response = await fetch(`/api/departments?companyId=${companyId}`);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch departments");
-  }
-  const data = await response.json();
-  return data.departments || [];
-};
 
-// Fetch employees for manager dropdown
-const fetchEmployees = async (companyId: string): Promise<Employee[]> => {
-  const response = await fetch(`/api/employees?companyId=${companyId}`);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch employees");
-  }
-  const data = await response.json();
-  return data.employees || [];
-};
 
 const DepartmentsDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -85,6 +74,8 @@ const DepartmentsDataGrid: React.FC<{
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(
     null
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState<string | null>(null);
 
   // Fetch departments for this company
   const {
@@ -103,7 +94,7 @@ const DepartmentsDataGrid: React.FC<{
   // Fetch employees for manager dropdown
   const { data: employees } = useQuery<Employee[], Error>({
     queryKey: ["employees", companyId],
-    queryFn: () => fetchEmployees(companyId),
+    queryFn: () => fetchEmployees({ companyId }),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     enabled: !!companyId,
@@ -212,26 +203,15 @@ const DepartmentsDataGrid: React.FC<{
   // Update department mutation
   const updateDepartmentMutation = useMutation({
     mutationFn: async (department: any) => {
-      const response = await fetch("/api/departments", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          departmentId: department._id,
-          name: department.name,
-          managerId: department.managerId || null,
-          parentDepartmentId: department.parentDepartmentId || null,
-          description: department.description,
-          costCenter: department.costCenter,
-          isActive: department.isActive,
-        }),
+      return updateDepartment({
+        id: department._id,
+        name: department.name,
+        manager: department.managerId || null,
+        parentDepartment: department.parentDepartmentId || null,
+        description: department.description,
+        costCenter: department.costCenter,
+        isActive: department.isActive,
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update department");
-      }
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", companyId] });
@@ -250,25 +230,14 @@ const DepartmentsDataGrid: React.FC<{
   // Create department mutation
   const createDepartmentMutation = useMutation({
     mutationFn: async (department: any) => {
-      const response = await fetch("/api/departments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: department.name,
-          companyId: companyId,
-          managerId: department.managerId || null,
-          parentDepartmentId: department.parentDepartmentId || null,
-          description: department.description,
-          costCenter: department.costCenter,
-        }),
+      return createDepartment({
+        name: department.name,
+        company: companyId,
+        manager: department.managerId || null,
+        parentDepartment: department.parentDepartmentId || null,
+        description: department.description,
+        costCenter: department.costCenter,
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create department");
-      }
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", companyId] });
@@ -293,17 +262,7 @@ const DepartmentsDataGrid: React.FC<{
   // Delete department mutation
   const deleteDepartmentMutation = useMutation({
     mutationFn: async (departmentId: string) => {
-      const response = await fetch(
-        `/api/departments?departmentId=${departmentId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete department");
-      }
-      return response.json();
+      return deleteDepartment(departmentId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", companyId] });
@@ -316,6 +275,14 @@ const DepartmentsDataGrid: React.FC<{
       showSnackbar({ message: err.message, severity: "error" });
     },
   });
+
+  const handleConfirmDelete = async () => {
+    if (departmentToDelete) {
+      await deleteDepartmentMutation.mutateAsync(departmentToDelete);
+      setDeleteDialogOpen(false);
+      setDepartmentToDelete(null);
+    }
+  };
 
   const handleRowUpdate = async (newRow: any) => {
     try {
@@ -355,10 +322,9 @@ const DepartmentsDataGrid: React.FC<{
     }
   };
 
-  const handleDeleteDepartment = async (departmentId: string) => {
-    if (window.confirm("Are you sure you want to delete this department?")) {
-      await deleteDepartmentMutation.mutateAsync(departmentId);
-    }
+  const handleDeleteDepartment = (departmentId: string) => {
+    setDepartmentToDelete(departmentId);
+    setDeleteDialogOpen(true);
   };
 
   const handleAddDepartment = async () => {
@@ -678,7 +644,33 @@ const DepartmentsDataGrid: React.FC<{
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this department? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <LoadingButton
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            loading={deleteDepartmentMutation.isPending}
+          >
+            Delete
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
+    </Box >
   );
 };
 

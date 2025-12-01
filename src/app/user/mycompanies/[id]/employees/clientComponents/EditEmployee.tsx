@@ -96,7 +96,7 @@ const EditEmployeeForm: React.FC<{
   };
 
   const fetchEmployeesData = async () => {
-    return fetchEmployees({ companyId });
+    return fetchEmployees({ companyId: companyId || undefined });
   };
 
   const {
@@ -125,7 +125,7 @@ const EditEmployeeForm: React.FC<{
     gcTime: GC_TIME,
   });
 
-  const { data: departments } = useQuery({
+  const { data: departments, isLoading: isLoadingDepartments } = useQuery({
     queryKey: ["departments", companyId],
     queryFn: fetchDepartmentsData,
     enabled: !!companyId,
@@ -206,7 +206,7 @@ const EditEmployeeForm: React.FC<{
     showSnackbar,
   ]);
 
-  const loading = isLoadingEmployee || isLoadingCompany || isLoading;
+  const loading = isLoadingEmployee || isLoadingCompany || isLoading || isLoadingDepartments;
 
   // Unified handle change for all fields
   const handleChange = (
@@ -521,6 +521,29 @@ const EditEmployeeForm: React.FC<{
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6}>
+            <FormControl fullWidth error={!!errors.department}>
+              <InputLabel id="department-label">Department</InputLabel>
+              <Select
+                labelId="department-label"
+                label="Department"
+                name="department"
+                value={formFields.department || ""}
+                onChange={handleChange}
+                variant="outlined"
+                readOnly={!isEditing}
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {departments?.map((dept: any) => (
+                  <MenuItem key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth error={!!errors.basic}>
               <TextField
                 label="Basic"
@@ -595,8 +618,8 @@ const EditEmployeeForm: React.FC<{
                   value={
                     formFields.startedAt
                       ? dayjs(
-                          ddmmyyyy_to_mmddyyyy(formFields.startedAt as string)
-                        )
+                        ddmmyyyy_to_mmddyyyy(formFields.startedAt as string)
+                      )
                       : null
                   }
                   views={["year", "month", "day"]}
@@ -630,8 +653,8 @@ const EditEmployeeForm: React.FC<{
                   value={
                     formFields.resignedAt
                       ? dayjs(
-                          ddmmyyyy_to_mmddyyyy(formFields.resignedAt as string)
-                        )
+                        ddmmyyyy_to_mmddyyyy(formFields.resignedAt as string)
+                      )
                       : null
                   }
                   views={["year", "month", "day"]}
@@ -1201,94 +1224,94 @@ const EditEmployeeForm: React.FC<{
         {
           //if admin
           user.role === "admin" &&
-            formFields.overrides?.probabilities &&
-            (formFields.otMethod === "random" ||
-              formFields.otMethod === "noOt") && (
-              <>
-                <div className="my-5" />
-                <Grid item xs={12}>
-                  <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="h5">Probabilities</Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Grid container spacing={3} mt={2}>
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <TextField
-                              label="Work on Off Days (%)"
-                              name="probabilities.workOnOff"
-                              type="number"
-                              value={formFields.probabilities?.workOnOff}
-                              onChange={handleChange}
-                              variant="filled"
-                              InputProps={{
-                                readOnly: !isEditing,
-                              }}
-                            />
-                          </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <TextField
-                              label="Work on Holidays (%)"
-                              name="probabilities.workOnHoliday"
-                              type="number"
-                              value={formFields.probabilities?.workOnHoliday}
-                              onChange={handleChange}
-                              variant="filled"
-                              InputProps={{ readOnly: !isEditing }}
-                            />
-                          </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <TextField
-                              label="Absent (%)"
-                              name="probabilities.absent"
-                              type="number"
-                              value={formFields.probabilities?.absent}
-                              onChange={handleChange}
-                              variant="filled"
-                              InputProps={{ readOnly: !isEditing }}
-                            />
-                          </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <TextField
-                              label="Late (%)"
-                              name="probabilities.late"
-                              type="number"
-                              value={formFields.probabilities?.late}
-                              onChange={handleChange}
-                              variant="filled"
-                              InputProps={{ readOnly: !isEditing }}
-                            />
-                          </FormControl>
-                        </Grid>
-                        {formFields.otMethod !== "noOt" && (
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                              <TextField
-                                label="OT (%)"
-                                name="probabilities.ot"
-                                type="number"
-                                value={formFields.probabilities?.ot}
-                                onChange={handleChange}
-                                variant="filled"
-                                InputProps={{ readOnly: !isEditing }}
-                              />
-                            </FormControl>
-                          </Grid>
-                        )}
+          formFields.overrides?.probabilities &&
+          (formFields.otMethod === "random" ||
+            formFields.otMethod === "noOt") && (
+            <>
+              <div className="my-5" />
+              <Grid item xs={12}>
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h5">Probabilities</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3} mt={2}>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Work on Off Days (%)"
+                            name="probabilities.workOnOff"
+                            type="number"
+                            value={formFields.probabilities?.workOnOff}
+                            onChange={handleChange}
+                            variant="filled"
+                            InputProps={{
+                              readOnly: !isEditing,
+                            }}
+                          />
+                        </FormControl>
                       </Grid>
-                    </AccordionDetails>
-                  </Accordion>
-                </Grid>
-              </>
-            )
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Work on Holidays (%)"
+                            name="probabilities.workOnHoliday"
+                            type="number"
+                            value={formFields.probabilities?.workOnHoliday}
+                            onChange={handleChange}
+                            variant="filled"
+                            InputProps={{ readOnly: !isEditing }}
+                          />
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Absent (%)"
+                            name="probabilities.absent"
+                            type="number"
+                            value={formFields.probabilities?.absent}
+                            onChange={handleChange}
+                            variant="filled"
+                            InputProps={{ readOnly: !isEditing }}
+                          />
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Late (%)"
+                            name="probabilities.late"
+                            type="number"
+                            value={formFields.probabilities?.late}
+                            onChange={handleChange}
+                            variant="filled"
+                            InputProps={{ readOnly: !isEditing }}
+                          />
+                        </FormControl>
+                      </Grid>
+                      {formFields.otMethod !== "noOt" && (
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <TextField
+                              label="OT (%)"
+                              name="probabilities.ot"
+                              type="number"
+                              value={formFields.probabilities?.ot}
+                              onChange={handleChange}
+                              variant="filled"
+                              InputProps={{ readOnly: !isEditing }}
+                            />
+                          </FormControl>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+              </Grid>
+            </>
+          )
         }
 
         <Grid mt={3} item xs={12}>

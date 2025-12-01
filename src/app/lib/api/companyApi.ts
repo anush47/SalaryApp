@@ -1,13 +1,13 @@
 // Company API utilities
 
 import { apiFetch } from './commonApi';
-import { ApiResponse } from '../apiResponse';
 
 /**
  * Fetch companies with consistent response handling
  */
 export async function fetchCompanies(params: {
   companyId?: string;
+  userId?: string;
   page?: number;
   limit?: number;
   needUsers?: boolean;
@@ -15,14 +15,13 @@ export async function fetchCompanies(params: {
   const queryParams = new URLSearchParams();
 
   if (params.companyId) queryParams.append('companyId', params.companyId);
+  if (params.userId) queryParams.append('userId', params.userId);
   if (params.page) queryParams.append('page', params.page.toString());
   if (params.limit) queryParams.append('limit', params.limit.toString());
   if (params.needUsers) queryParams.append('needUsers', 'true');
 
   const url = `/api/companies?${queryParams.toString()}`;
   const data = await apiFetch(url);
-
-  // Handle response structure: could be { companies: [] } or { data: { companies: [] } }
   if (data && Array.isArray(data)) {
     return data;
   }

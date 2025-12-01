@@ -1,28 +1,4 @@
-// Department API utilities
-
-import { ApiResponse } from '../apiResponse';
-
-/**
- * Generic API fetch function with consistent error handling for department operations
- */
-async function departmentApiFetch<T = any>(url: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
-
-  const result: ApiResponse<T> = await response.json();
-
-  if (!response.ok || !result.success) {
-    const errorMessage = result.error?.message || result.message || `HTTP error! status: ${response.status}`;
-    throw new Error(errorMessage);
-  }
-
-  return result.data || result as T;
-}
+import { apiFetch } from './commonApi';
 
 /**
  * Fetch departments for a company
@@ -30,79 +6,71 @@ async function departmentApiFetch<T = any>(url: string, options: RequestInit = {
 export async function fetchDepartments(companyId: string) {
   const queryParams = new URLSearchParams();
   queryParams.append('companyId', companyId);
-  
+
   const url = `/api/departments?${queryParams.toString()}`;
-  const data = await departmentApiFetch(url);
-  
+  const data = await apiFetch(url);
+
   // Handle response structure
   if (data && Array.isArray(data)) {
     return data;
   }
-  
+
+  // Handle paginated response structure: { data: { data: [], pagination: {} } }
+  // apiFetch returns result.data, so 'data' here is { data: [], pagination: {} }
+  if (data && data.data && Array.isArray(data.data)) {
+    return data.data;
+  }
+
   if (data && data.departments) {
     return Array.isArray(data.departments) ? data.departments : [data.departments];
   }
-  
-  if (data && data.data && data.data.departments) {
-    return Array.isArray(data.data.departments) ? data.data.departments : [data.data.departments];
-  }
-  
+
   return [];
+}
+
+/**
+ * Fetch a single department by ID
+ */
+export async function fetchDepartmentById(departmentId: string) {
+  const url = `/api/departments/${departmentId}`;
+  const data = await apiFetch(url);
+  return data.department;
 }
 
 /**
  * Create a department
  */
 export async function createDepartment(departmentData: any) {
-  const response = await fetch('/api/departments', {
+  return apiFetch('/api/departments', {
     method: 'POST',
     body: JSON.stringify(departmentData),
   });
-  
-  const result: ApiResponse = await response.json();
-  
-  if (!response.ok || !result.success) {
-    const errorMessage = result.error?.message || result.message || `HTTP error! status: ${response.status}`;
-    throw new Error(errorMessage);
-  }
-  
-  return result;
 }
 
 /**
  * Update a department
  */
 export async function updateDepartment(departmentData: any) {
-  const response = await fetch('/api/departments', {
+  return apiFetch('/api/departments', {
     method: 'PUT',
     body: JSON.stringify(departmentData),
   });
-  
-  const result: ApiResponse = await response.json();
-  
-  if (!response.ok || !result.success) {
-    const errorMessage = result.error?.message || result.message || `HTTP error! status: ${response.status}`;
-    throw new Error(errorMessage);
-  }
-  
-  return result;
 }
 
 /**
  * Delete a department
  */
 export async function deleteDepartment(departmentId: string) {
-  const response = await fetch('/api/departments', {
+  return apiFetch(`/api/departments?departmentId=${departmentId}`, {
     method: 'DELETE',
-    body: JSON.stringify({ id: departmentId }),
   });
-  
-  const result: ApiResponse = await response.json();
-  
-  if (!response.ok || !result.success) {
-    const errorMessage = result.error?.message || result.message || `HTTP error! status: ${response.status}`;
-    throw new Error(errorMessage);
-  }
-  
-  return result;
+}
+
+/**
+ * Fetch department hierarchy
+ */
+export async function fetchDepartmentHierarchy(companyId: string) {
+  const url = `/api/departments/hierarchy?companyId=${companyId}`;
+  const data = await apiFetch(url);
+  return data.hierarchy;
 }

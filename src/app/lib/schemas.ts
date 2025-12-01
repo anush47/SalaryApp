@@ -530,3 +530,24 @@ export const pdfGenerationSchema = z.object({
   salaryIds: z.array(z.string()).optional(),
   pdfType: pdfTypeSchema,
 });
+
+// Department-related schemas
+export const departmentCreateSchema = z.object({
+  name: z.string().min(1, "Department name is required"),
+  company: objectIdSchema,
+  manager: z.union([objectIdSchema, z.string().length(0), z.null()]).optional(),
+  parentDepartment: z.union([objectIdSchema, z.string().length(0), z.null()]).optional(),
+  description: z.string().optional(),
+  costCenter: z.string().optional(),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const departmentUpdateSchema = z.object({
+  id: objectIdSchema,
+  name: z.string().min(1, "Department name is required").optional(),
+  manager: z.union([objectIdSchema, z.string().length(0), z.null()]).optional(),
+  parentDepartment: z.union([objectIdSchema, z.string().length(0), z.null()]).optional(),
+  description: z.string().optional(),
+  costCenter: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
