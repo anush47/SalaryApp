@@ -488,3 +488,27 @@ Before deployment, ensure:
 - **Scalable Architecture**: Foundation for future development with consistent patterns
 - **Reduced Code Duplication**: Shared schemas and types eliminate redundancy
 - **Enhanced Developer Experience**: Clear file structure and predictable patterns
+
+## 8. Next Focus Areas
+
+Based on the current progress, the following areas should be prioritized:
+
+### 8.1. Complete High-Priority API Refactors
+Focus on refactoring the core operational APIs to the new Service-Controller pattern:
+1.  **Leave Requests (`/api/leave-requests`)**: Critical for daily operations.
+2.  **Salaries (`/api/salaries`)**: Complex logic that benefits most from the Service pattern.
+3.  **Leave Types (`/api/leave-types`)**: Already partially updated, needs full standardization.
+
+### 8.2. UI Consistency Audit
+Apply the recent theming improvements to the rest of the application:
+*   **Admin Dashboard**: Ensure all admin pages use `action.hover` and theme palette colors.
+*   **Employee Portal**: Update the employee-facing dashboard for a consistent look and feel.
+*   **Forms & Dialogs**: Standardize background colors and input styles across all modals.
+
+### 8.3. Testing & Validation
+*   **Unit Tests**: Write unit tests for the new `EntityService` methods to ensure business logic is robust.
+*   **Integration Tests**: Verify the end-to-end flow for Leave Creation -> Approval -> Salary Deduction.
+
+### 8.4. Performance Optimization
+*   **Database Indexing**: Review MongoDB indexes for the new query patterns (especially for filtered lists).
+*   **Bundle Size**: Analyze the build output to ensure the new UI components aren't bloating the bundle.

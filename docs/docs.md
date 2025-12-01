@@ -107,7 +107,7 @@ Each leave type includes:
 *   `requiresApproval` - Whether manager approval is needed
 *   `requiresDocument` - Whether supporting documents are required
 *   `isPaid` - Paid vs. unpaid leave
-*   `applicableFor` - Employee types (permanent/contract/intern/temporary)
+*   `applicableFor` - Employee types (Array: `["permanent", "contract", ...]` or `["all"]`). Note: "all" is mutually exclusive with specific types.
 *   `gender` - Gender restrictions (male/female/all)
 
 #### 3.3.5. Leave Period Examples
@@ -347,7 +347,12 @@ The frontend components follow a consistent pattern:
 * Centralized data fetching with TanStack Query
 * Caching and stale time management
 * Optimistic updates where appropriate
-* Consistent query keys across the application
+*   Consistent query keys across the application
+
+### 5.3. UI Theming
+*   **Theme Palette:** Use MUI theme palette colors (e.g., `primary.main`, `success.main`, `warning.main`, `error.main`) instead of hardcoded hex values.
+*   **Backgrounds:** Use `action.hover` or `background.default` for background colors to ensure consistency and dark mode compatibility.
+*   **Icons:** Inherit colors from the theme or parent components where possible.
 
 ## 6. Database Connection
 
