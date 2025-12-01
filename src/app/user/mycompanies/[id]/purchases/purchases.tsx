@@ -14,12 +14,10 @@ import { Add } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
 import NewPurchaseForm from "./newPurchaseForm";
 import Link from "next/link";
+import UpdatePurchaseForm from "@/app/user/purchases/updatePurchaseForm";
 
 // Lazily load PurchasesDataGrid
 const PurchasesDataGrid = lazy(() => import("./purchasesDataGrid"));
-
-export let purchaseId: string | null;
-export let newPurchase: string | null;
 
 const Purchases = ({
   user,
@@ -31,8 +29,8 @@ const Purchases = ({
   const [isAdding, setIsAdding] = useState(false);
 
   const searchParams = useSearchParams();
-  purchaseId = searchParams?.get("purchaseId") || null;
-  newPurchase = searchParams?.get("newPurchase") || null;
+  const purchaseId = searchParams?.get("purchaseId");
+  const newPurchase = searchParams?.get("newPurchase");
 
   const handleBackClick = () => {
     //go back
@@ -44,6 +42,25 @@ const Purchases = ({
       setIsAdding(true);
     }
   }, [newPurchase]);
+
+  if (purchaseId) {
+    return (
+      <Box>
+        <Card
+          sx={{
+            minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+            overflowY: "auto",
+          }}
+        >
+          <UpdatePurchaseForm
+            handleBackClick={handleBackClick}
+            purchaseId={purchaseId}
+            viewOnly={true}
+          />
+        </Card>
+      </Box>
+    );
+  }
 
   return (
     <Box>

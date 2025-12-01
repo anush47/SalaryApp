@@ -31,6 +31,7 @@ import Image from "next/image";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchPurchase } from "@/app/lib/api";
 
 interface ChipData {
   key: number;
@@ -49,19 +50,13 @@ const formatPrice = (price: number) => {
 interface UpdatePurchaseFormProps {
   handleBackClick: () => void;
   purchaseId: string;
+  viewOnly?: boolean;
 }
-
-const fetchPurchase = async (purchaseId: string) => {
-  const res = await fetch(`/api/purchases/?purchaseId=${purchaseId}`);
-  if (!res.ok) {
-    throw new Error("Failed to fetch purchase details");
-  }
-  return res.json();
-};
 
 const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   handleBackClick,
   purchaseId,
+  viewOnly = false,
 }) => {
   const [periods, setPeriods] = useState<ChipData[]>([]);
   const [price, setPrice] = useState<number | null>(null);
@@ -94,22 +89,22 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
 
   useEffect(() => {
     if (purchase) {
-      setPrice(purchase.purchase.price);
+      setPrice(purchase.price);
       setPeriods(
-        purchase.purchase.periods.map((period: string, index: number) => ({
+        purchase.periods.map((period: string, index: number) => ({
           key: index,
           label: period,
         }))
       );
-      setStatus(purchase.purchase.approvedStatus);
-      setRemark(purchase.purchase.remark);
-      setCompanyId(purchase.purchase.company);
-      setCompanyName(purchase.purchase.companyName);
-      setEmployerNo(purchase.purchase.companyEmployerNo);
-      setTotalPrice(purchase.purchase.totalPrice);
-      if (purchase.purchase.request) {
+      setStatus(purchase.approvedStatus);
+      setRemark(purchase.remark);
+      setCompanyId(purchase.company);
+      setCompanyName(purchase.companyName);
+      setEmployerNo(purchase.companyEmployerNo);
+      setTotalPrice(purchase.totalPrice);
+      if (purchase.request) {
         const fetchImage = async () => {
-          const imageResponse = await fetch(purchase.purchase.request);
+          const imageResponse = await fetch(purchase.request);
           const imageBlob = await imageResponse.blob();
           setImage(
             new File([imageBlob], "image.jpg", { type: imageBlob.type })
@@ -391,7 +386,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
             </Grid>
           )}
           <Grid item xs={12} sm={6}>
-            {image && (
+            {image && !viewOnly && (
               <>
                 <Tooltip title="Delete Media" arrow>
                   <span className="mb-2">
@@ -420,6 +415,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
                 onChange={(event) => setRemark(event.target.value)}
                 multiline
                 rows={2}
+                disabled={viewOnly}
                 sx={{
                   mb: 2,
                 }}
@@ -434,6 +430,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
                 value={totalPrice}
                 onChange={(event) => setTotalPrice(event.target.value)}
                 type="number"
+                disabled={viewOnly}
                 sx={{
                   mb: 2,
                 }}
@@ -449,6 +446,7 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
                 value={status}
                 displayEmpty
                 fullWidth
+                disabled={viewOnly}
                 className="mb-2"
               >
                 <MenuItem value="pending">
@@ -466,47 +464,51 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
                 </MenuItem>
               </Select>
             </FormControl>
-            <Tooltip title="Update purchase" arrow>
-              <span>
-                <Button
-                  variant="contained"
-                  color={
-                    status === "approved"
-                      ? "success"
-                      : status === "rejected"
-                      ? "error"
-                      : "warning"
-                  }
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={24} /> : null}
-                >
-                  {loading
-                    ? "Updating..."
-                    : (
-                        {
-                          approved: "Approve",
-                          pending: "Pending",
-                          rejected: "Reject",
-                        } as { [key: string]: string }
-                      )[status as "approved" | "pending" | "rejected"]}
-                </Button>
-              </span>
-            </Tooltip>
-            <hr className="my-3" />
-            <Tooltip title="Delete Entry" arrow>
-              <span className="mb-2">
-                <Button
-                  variant="outlined"
-                  color={"error"}
-                  onClick={() => setDeleteDialogOpen(true)}
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={24} /> : null}
-                >
-                  {loading ? "Loading..." : "Delete Entry"}
-                </Button>
-              </span>
-            </Tooltip>
+            {!viewOnly && (
+              <>
+                <Tooltip title="Update purchase" arrow>
+                  <span>
+                    <Button
+                      variant="contained"
+                      color={
+                        status === "approved"
+                          ? "success"
+                          : status === "rejected"
+                            ? "error"
+                            : "warning"
+                      }
+                      onClick={handleSubmit}
+                      disabled={loading}
+                      startIcon={loading ? <CircularProgress size={24} /> : null}
+                    >
+                      {loading
+                        ? "Updating..."
+                        : (
+                          {
+                            approved: "Approve",
+                            pending: "Pending",
+                            rejected: "Reject",
+                          } as { [key: string]: string }
+                        )[status as "approved" | "pending" | "rejected"]}
+                    </Button>
+                  </span>
+                </Tooltip>
+                <hr className="my-3" />
+                <Tooltip title="Delete Entry" arrow>
+                  <span className="mb-2">
+                    <Button
+                      variant="outlined"
+                      color={"error"}
+                      onClick={() => setDeleteDialogOpen(true)}
+                      disabled={loading}
+                      startIcon={loading ? <CircularProgress size={24} /> : null}
+                    >
+                      {loading ? "Loading..." : "Delete Entry"}
+                    </Button>
+                  </span>
+                </Tooltip>
+              </>
+            )}
           </Grid>
         </Grid>
       </Box>

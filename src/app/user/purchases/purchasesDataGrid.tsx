@@ -22,18 +22,15 @@ export interface Purchase {
   approvedStatus: string;
 }
 
-const fetchPurchases = async (): Promise<Purchase[]> => {
-  const response = await fetch(`/api/purchases/?companyId=all`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch purchases");
-  }
-  const data = await response.json();
-  return data.purchases.map((purchase: any) => ({
+import { fetchPurchases } from "@/app/lib/api";
+
+const fetchPurchasesData = async (): Promise<Purchase[]> => {
+  const data = await fetchPurchases({ companyId: "all" });
+  return (data.purchases || []).map((purchase: any) => ({
     ...purchase,
     id: purchase._id,
-    price: `${purchase.periods.length} x ${
-      purchase.price?.toLocaleString() || "0"
-    } = ${purchase.totalPrice?.toLocaleString() || "0"}`,
+    price: `${purchase.periods.length} x ${purchase.price?.toLocaleString() || "0"
+      } = ${purchase.totalPrice?.toLocaleString() || "0"}`,
   }));
 };
 
@@ -51,7 +48,7 @@ const PurchasesDataGrid: React.FC<{
     error,
   } = useQuery<Purchase[], Error>({
     queryKey: ["purchases"],
-    queryFn: fetchPurchases,
+    queryFn: fetchPurchasesData,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -114,9 +111,8 @@ const PurchasesDataGrid: React.FC<{
       flex: 1,
       renderCell: (params) => (
         <Link
-          href={`user/mycompanies/${
-            purchases?.find((purchase) => purchase.id === params.id)?.company
-          }?companyPageSelect=details`}
+          href={`user/mycompanies/${purchases?.find((purchase) => purchase.id === params.id)?.company
+            }?companyPageSelect=details`}
         >
           <Button variant="text">{params.value}</Button>
         </Link>

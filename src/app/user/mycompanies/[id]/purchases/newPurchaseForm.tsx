@@ -22,6 +22,12 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  fetchCompany,
+  fetchPurchases,
+  createPurchase,
+  fetchPrice,
+} from "@/app/lib/api";
 interface ChipData {
   key: number;
   label: string;
@@ -48,7 +54,7 @@ const formatPrice = (price: number) => {
 };
 const NewPurchaseForm: React.FC<{
   handleBackClick: () => void;
-  companyId: String;
+  companyId: string;
 }> = ({ handleBackClick, companyId }) => {
   const [periods, setPeriods] = useState<ChipData[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
@@ -81,12 +87,13 @@ const NewPurchaseForm: React.FC<{
     const currentMonth = dayjs().format("MM");
     const currentYear = dayjs().format("YYYY");
     setSelectedPeriod(`${currentMonth}-${currentYear}`);
-    const fetchCompany = async () => {
+    const loadCompany = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/companies?companyId=${companyId}`);
-        const data = await res.json();
-        setPrice(data.companies[0].monthlyPrice);
+        const company = await fetchCompany(companyId);
+        if (company) {
+          setPrice(company.monthlyPrice);
+        }
       } catch (err) {
         showSnackbar({
           message: "Failed to fetch company details",
@@ -96,15 +103,11 @@ const NewPurchaseForm: React.FC<{
         setLoading(false);
       }
     };
-    const fetchPurchases = async () => {
+    const loadPurchases = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/purchases/?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch purchases");
-        }
-        const data = await response.json();
-        const purchases = data.purchases
+        const data = await fetchPurchases({ companyId });
+        const purchases = (data.purchases || [])
           .filter((purchase: any) => purchase.approvedStatus !== "rejected")
           .map((purchase: any) => purchase.periods)
           .flat();
@@ -121,9 +124,10 @@ const NewPurchaseForm: React.FC<{
         setLoading(false);
       }
     };
-    fetchCompany();
-    fetchPurchases();
+    loadCompany();
+    loadPurchases();
   }, [companyId, showSnackbar]);
+
   useEffect(() => {
     if (image) {
       const reader = new FileReader();
@@ -135,6 +139,7 @@ const NewPurchaseForm: React.FC<{
       setImagePreview(null);
     }
   }, [image]);
+
   const handleAddPeriod = () => {
     if (selectedPeriod && isValidMonthYear(selectedPeriod)) {
       if (purchasedPeriods.includes(formatPeriod(selectedPeriod))) {
@@ -174,6 +179,7 @@ const NewPurchaseForm: React.FC<{
       setImage(event.target.files[0]);
     }
   };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -184,15 +190,7 @@ const NewPurchaseForm: React.FC<{
       request: image ? await convertImageToBase64(image) : null,
     };
     try {
-      const response = await fetch("/api/purchases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to create purchase");
-      }
+      await createPurchase(payload);
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       showSnackbar({
         message: "Purchase Requested successfully",
@@ -209,6 +207,7 @@ const NewPurchaseForm: React.FC<{
       setLoading(false);
     }
   };
+
   const convertImageToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -219,19 +218,14 @@ const NewPurchaseForm: React.FC<{
       reader.readAsDataURL(file);
     });
   };
+
   useEffect(() => {
-    async function fetchPrice() {
+    async function getPrice() {
       setLoading(true);
       try {
         if (!companyId || periods.length === 0) return;
-        const monthsParam = periods.map((p) => p.label).join("+");
-        const res = await fetch(
-          `/api/purchases/price?companyId=${companyId}&months=${monthsParam}`
-        );
-        if (!res.ok) {
-          throw new Error("Failed to fetch price details");
-        }
-        const data = await res.json();
+        const months = periods.map((p) => p.label);
+        const data = await fetchPrice(companyId, months);
         setFinalTotalPrice(data.finalTotalPrice);
         setTotalPrice(data.totalPrice);
       } catch (err) {
@@ -243,8 +237,9 @@ const NewPurchaseForm: React.FC<{
         setLoading(false);
       }
     }
-    if (periods && companyId) fetchPrice();
+    if (periods && companyId) getPrice();
   }, [companyId, periods, showSnackbar]);
+
   const oneMonthPrice = price ?? 3000;
   const handleDateChange = (newDate: any) => {
     if (newDate) {
