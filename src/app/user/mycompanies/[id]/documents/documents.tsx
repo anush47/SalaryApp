@@ -38,25 +38,11 @@ import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
-const fetchPurchased = async (companyId: string, period: string) => {
-  const response = await fetch(
-    `/api/purchases/check?companyId=${companyId}&month=${period}`
-  );
-  if (!response.ok) {
-    throw new Error("Failed to check purchase status");
-  }
-  const data = await response.json();
-  return data?.purchased === "approved";
-};
-
-const fetchCompany = async (companyId: string) => {
-  const response = await fetch(`/api/companies?companyId=${companyId}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch company details");
-  }
-  const data = await response.json();
-  return data.companies[0];
-};
+import {
+  fetchCompany,
+  checkPurchased,
+  generatePdf,
+} from "@/app/lib/api";
 
 const Documents = ({
   user,
@@ -79,7 +65,7 @@ const Documents = ({
     Error
   >({
     queryKey: ["purchases", "check", companyId, period],
-    queryFn: () => fetchPurchased(companyId, period),
+    queryFn: () => checkPurchased(companyId, period),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -120,38 +106,13 @@ const Documents = ({
           });
           return;
         }
-        salaryIds = rowSelectionModel;
+        salaryIds = rowSelectionModel as string[];
       } else {
         salaryIds = undefined;
       }
-      const response = await fetch("/api/pdf/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          companyId: companyId,
-          period: period,
-          pdfType,
-          salaryIds,
-        }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        //if data . message and starts with payment data not found show it in snack bar
-        if (data.message) {
-          if (data.message.includes("data not found for")) {
-            showSnackbar({ message: data.message, severity: "error" });
-            return;
-          } else if (data.message.includes("not Purchased")) {
-            showSnackbar({ message: data.message, severity: "error" });
-            return;
-          }
-        }
-        throw new Error("Failed to generate PDF");
-      }
-      //response is a pdf
-      const blob = await response.blob();
+
+      const blob = await generatePdf(companyId, period, pdfType, salaryIds);
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -162,16 +123,20 @@ const Documents = ({
         message: "PDF generated successfully",
         severity: "success",
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message) {
+        if (error.message.includes("data not found for")) {
+          showSnackbar({ message: error.message, severity: "error" });
+          return;
+        } else if (error.message.includes("not Purchased")) {
+          showSnackbar({ message: error.message, severity: "error" });
+          return;
+        }
+      }
       showSnackbar({ message: "Error generating pdf", severity: "error" });
     } finally {
       setLoading(false);
     }
-    if (customSalaries) {
-    }
-    setTimeout(() => {
-      setLoading(false);
-    }, 5000);
   };
 
   return (
@@ -286,9 +251,8 @@ const Documents = ({
                                     <>
                                       {!purchased && (
                                         <Link
-                                          href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                                            period.split("-")[1]
-                                          }-${period.split("-")[0]}`}
+                                          href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${period.split("-")[1]
+                                            }-${period.split("-")[0]}`}
                                         >
                                           <Button
                                             variant="contained"

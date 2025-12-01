@@ -281,12 +281,12 @@ const QuickTools = ({
     ) => {
       const salaryIds = undefined;
       try {
-        const blob = await generatePdf({
-          companyId: companyId,
-          period: period,
+        const blob = await generatePdf(
+          companyId,
+          period,
           pdfType,
-          salaryIds,
-        });
+          salaryIds
+        );
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;

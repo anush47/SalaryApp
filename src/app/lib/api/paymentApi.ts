@@ -91,28 +91,4 @@ export async function deletePayments(paymentIds: string[]) {
     });
 }
 
-/**
- * Generate PDF
- */
-export async function generatePdf(data: {
-    companyId: string;
-    period: string;
-    pdfType: string;
-    salaryIds?: string[];
-}) {
-    const response = await fetch('/api/pdf/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-    });
 
-    if (!response.ok) {
-        const result = await response.json();
-        const errorMessage = result.error?.message || result.message || `HTTP error! status: ${response.status}`;
-        throw new Error(errorMessage);
-    }
-
-    return response.blob();
-}

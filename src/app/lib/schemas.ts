@@ -512,3 +512,21 @@ export const periodFormatSchema = z
   .string()
   .min(1, "Period is required")
   .regex(/^\d{4}-\d{2}$/i, "Period must match the pattern YYYY-MM");
+
+// PDF-related schemas
+export const pdfTypeSchema = z.union([
+  z.literal("etf"),
+  z.literal("salary"),
+  z.literal("epf"),
+  z.literal("payslip"),
+  z.literal("all"),
+  z.literal("print"),
+  z.literal("attendance"),
+]);
+
+export const pdfGenerationSchema = z.object({
+  companyId: objectIdSchema,
+  period: periodFormatSchema,
+  salaryIds: z.array(z.string()).optional(),
+  pdfType: pdfTypeSchema,
+});
