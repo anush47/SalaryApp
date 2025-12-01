@@ -126,7 +126,12 @@ const QuickTools = ({
   const handleGenerateSalariesForPreview = async () => {
     setIsPreviewLoading(true);
     try {
-      const data = await generateSalaries({ companyId, period, inOut });
+      const data = await generateSalaries({
+        companyId,
+        period,
+        inOut,
+        employees: employees?.map((e) => e.id) || [],
+      });
       if (data.salaries.length === 0) {
         showSnackbar({
           message: data.message || "No salaries to generate",
@@ -185,7 +190,12 @@ const QuickTools = ({
 
   const generateAndSaveSalariesMutation = useMutation({
     mutationFn: async () => {
-      const data = await generateSalaries({ companyId, period, inOut });
+      const data = await generateSalaries({
+        companyId,
+        period,
+        inOut,
+        employees: employees?.map((e) => e.id) || [],
+      });
 
       if (data.salaries.length === 0) {
         throw new Error(data.message || "No salaries to generate");
