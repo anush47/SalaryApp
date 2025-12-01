@@ -3,6 +3,48 @@ import { z } from "zod";
 // Common validation schemas used across the application
 export const objectIdSchema = z.string().length(24, "ID must be a valid ObjectId");
 export const idSchema = z.string().min(1, "ID is required");
+export const userIdSchema = z.string().min(1, "User ID is required");
+
+// User-related schemas
+export const userCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["admin", "user"]).default("user"),
+  image: z.string().optional(),
+});
+
+export const userUpdateSchema = z.object({
+  _id: objectIdSchema,
+  name: z.string().min(1, "Name is required").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  role: z.enum(["admin", "user"]).optional(),
+  image: z.string().optional(),
+});
+
+// Payment-related schemas
+export const paymentSaveSchema = z.object({
+  _id: z.string().optional(),
+  company: objectIdSchema,
+  period: z.string(),
+  epfReferenceNo: z.string().optional(),
+  epfAmount: z.number().gt(0, { message: "EPF amount must be above 0" }),
+  epfSurcharges: z.number().optional(),
+  epfPaymentMethod: z.string().optional(),
+  epfChequeNo: z.string().optional(),
+  epfPayDay: z.string().optional(),
+  etfAmount: z.number().gt(0, { message: "ETF amount must be above 0" }),
+  etfSurcharges: z.number().optional(),
+  etfPaymentMethod: z.string().optional(),
+  etfChequeNo: z.string().optional(),
+  etfPayDay: z.string().optional(),
+  remark: z.string().optional(),
+});
+
+export const paymentUpdateSchema = paymentSaveSchema.extend({
+  _id: objectIdSchema,
+});
 
 // Employee-related schemas
 export const employeeCreateSchema = z.object({
@@ -424,3 +466,49 @@ export const salaryGenerateSchema = z.object({
   update: z.boolean().optional(),
   existingSalaries: z.array(z.any()).optional(),
 });
+
+// Purchase-related schemas
+export const purchaseSchema = z.object({
+  periods: z
+    .array(z.string().min(1, "Period is required"))
+    .min(1, "At least one period is required"),
+  company: z
+    .string()
+    .min(1, "Company ID is required")
+    .refine((id) => /^[0-9a-fA-F]{24}$/.test(id), "Invalid company ID"),
+  price: z.number().min(0, "Price must be a positive number"),
+  totalPrice: z.number().min(0, "Total price must be a positive number"),
+  request: z.union([z.string().optional(), z.null()]),
+  requestDay: z.string().min(1, "Request day is required"),
+  remark: z.string().optional(),
+  approvedStatus: z.enum(["approved", "pending", "rejected"]).optional(),
+});
+
+export const purchaseUpdateSchema = z.object({
+  _id: z.string().min(1, "Purchase ID is required"),
+  approvedStatus: z.enum(["approved", "pending", "rejected"]).optional(),
+  request: z.union([z.string().optional(), z.null()]),
+  remark: z.string().optional(),
+  totalPrice: z
+    .number()
+    .min(0, "Total price must be a positive number")
+    .optional(),
+});
+
+export type PaymentCalculationResult = {
+  epfAmount: number;
+  etfAmount: number;
+};
+
+export const employerNoSchema = z
+  .string()
+  .min(1, "Employer Number is required")
+  .regex(
+    /^[A-Z]\/*\d{4,5}$/i,
+    "Employer Number must match the pattern A/12345 or a/12345"
+  );
+
+export const periodFormatSchema = z
+  .string()
+  .min(1, "Period is required")
+  .regex(/^\d{4}-\d{2}$/i, "Period must match the pattern YYYY-MM");

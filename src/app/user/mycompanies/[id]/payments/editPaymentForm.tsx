@@ -32,7 +32,6 @@ import {
   Search,
   Sync,
 } from "@mui/icons-material";
-import { paymentId } from "./payments";
 import { LoadingButton } from "@mui/lab";
 import { Payment } from "./paymentsDataGrid";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -41,15 +40,23 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
 import "dayjs/locale/en-gb";
-import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import {
+  fetchPayment,
+  updatePayment,
+  deletePayments,
+  generatePayments,
+} from "@/app/lib/api/paymentApi";
+import { getReferenceNoName } from "@/app/lib/api/companyApi";
 
 const EditPaymentForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   handleBackClick: () => void;
   companyId: string;
-}> = ({ user, handleBackClick, companyId }) => {
+  paymentId: string;
+}> = ({ user, handleBackClick, companyId, paymentId }) => {
   const [loading, setLoading] = useState(false);
   const [ReferenceLoading, setReferenceLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -79,24 +86,15 @@ const EditPaymentForm: React.FC<{
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const queryClient = useQueryClient();
 
-  const fetchPaymentData = async (): Promise<Payment> => {
-    const response = await fetch(`/api/payments/?paymentId=${paymentId}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch Payment");
-    }
-    const data = await response.json();
-    return data.payments[0];
-  };
-
   const {
     data: paymentData,
     isLoading,
     isError,
     error,
   } = useQuery<Payment, Error>({
-    queryKey: ["payments", companyId, formFields.period],
-    queryFn: fetchPaymentData,
-    enabled: !!paymentId, // Only run the query if paymentId is available
+    queryKey: ["payments", companyId, paymentId],
+    queryFn: () => fetchPayment(paymentId),
+    enabled: !!paymentId,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -117,22 +115,7 @@ const EditPaymentForm: React.FC<{
   //gen salary
   const generatePaymentUpdate = async () => {
     try {
-      //post with period body
-      const response = await fetch("/api/payments/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          companyId: companyId,
-          period: formFields.period,
-          regenerate: true,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch payments");
-      }
-      const data = await response.json();
+      const data = await generatePayments(companyId, formFields.period, true);
       const paymentNew = data.payment;
       if (!paymentNew) {
         showSnackbar({
@@ -176,44 +159,26 @@ const EditPaymentForm: React.FC<{
 
     setLoading(true);
     try {
-      // Perform POST request to add a new payment record
-      const response = await fetch("/api/payments", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          payment: { ...formFields },
-        }),
+      const result = await updatePayment(formFields);
+
+      showSnackbar({
+        message: "Payment saved successfully!",
+        severity: "success",
       });
+      setIsEditing(false);
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
 
-      const result = await response.json();
+      // Wait before clearing the form
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-      if (response.ok) {
-        showSnackbar({
-          message: "Payment saved successfully!",
-          severity: "success",
-        });
-        setIsEditing(false);
-        const queryKey = [
-          "payments",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        setErrors({});
-      } else {
-        showSnackbar({
-          message: result.message || "Error saving payment. Please try again.",
-          severity: "error",
-        });
-      }
+      setErrors({});
     } catch (error) {
       showSnackbar({
-        message: "Error saving payment. Please try again.",
+        message: error instanceof Error ? error.message : "Error saving payment. Please try again.",
         severity: "error",
       });
     } finally {
@@ -281,44 +246,26 @@ const EditPaymentForm: React.FC<{
   const onDeleteClick = async () => {
     setLoading(true);
     try {
-      // Perform DELETE request to delete the salary record
-      const response = await fetch(`/api/payments/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          paymentIds: [formFields._id],
-        }),
+      await deletePayments([formFields._id]);
+
+      showSnackbar({
+        message: "Payment deleted successfully!",
+        severity: "success",
       });
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
 
-      const result = await response.json();
-
-      if (response.ok) {
-        showSnackbar({
-          message: "Payment deleted successfully!",
-          severity: "success",
-        });
-        const queryKey = [
-          "payments",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-        setErrors({});
-        window.history.back();
-      } else {
-        showSnackbar({
-          message:
-            result.message || "Error deleting payment. Please try again.",
-          severity: "error",
-        });
-      }
+      // Wait before clearing the form
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
+      setErrors({});
+      window.history.back();
     } catch (error) {
       showSnackbar({
-        message: "Error deleting payment. Please try again.",
+        message:
+          error instanceof Error ? error.message : "Error deleting payment. Please try again.",
         severity: "error",
       });
     } finally {
@@ -331,17 +278,7 @@ const EditPaymentForm: React.FC<{
     setReferenceLoading(true);
     //fetch epf reference no
     try {
-      const response = await fetch("/api/companies/getReferenceNoName", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          employerNo: formFields.companyEmployerNo,
-          period: formFields.period,
-        }),
-      });
-      const result = await response.json();
+      const result = await getReferenceNoName(formFields.companyEmployerNo, formFields.period);
 
       const referenceNo = result.referenceNo;
       if (!referenceNo) {

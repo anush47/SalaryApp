@@ -2,7 +2,7 @@ import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
 import Salary from "@/app/models/Salary";
-import { checkPurchased } from "../purchases/check/checkPurchased";
+import { PurchaseService } from "../purchases/service";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import {
@@ -287,7 +287,7 @@ export class SalaryService {
                     (company.mode === "visit" || company.mode === "aided")
                 )
             ) {
-                const purchasedStatus = await checkPurchased(
+                const purchasedStatus = await PurchaseService.checkPurchased(
                     employee.company,
                     parsedSalary.period
                 );
@@ -544,7 +544,7 @@ export class SalaryService {
                 (company.mode === "visit" || company.mode === "aided")
             )
         ) {
-            const purchasedStatus = await checkPurchased(companyId, period);
+            const purchasedStatus = await PurchaseService.checkPurchased(companyId, period);
             if (purchasedStatus !== "approved") {
                 throw new BadRequestError(`Month not Purchased for ${period}. Purchase is ${purchasedStatus}`);
             }

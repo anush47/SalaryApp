@@ -22,8 +22,6 @@ const PaymentsDataGrid = lazy(() => import("./paymentsDataGrid"));
 const NewPaymentForm = lazy(() => import("./newPaymentForm"));
 const EditPaymentForm = lazy(() => import("./editPaymentForm"));
 
-export let paymentId: string | null;
-
 const Payments = ({
   user,
   companyId,
@@ -37,7 +35,7 @@ const Payments = ({
   //fetch query from url
   const searchParams = useSearchParams();
   const gen = searchParams ? searchParams.get("gen") : null;
-  paymentId = searchParams ? searchParams.get("paymentId") : null;
+  const paymentId = searchParams ? searchParams.get("paymentId") : null;
 
   //open the form if gen is true
   useEffect(() => {
@@ -56,6 +54,7 @@ const Payments = ({
           <EditPaymentForm
             companyId={companyId}
             user={user}
+            paymentId={paymentId}
             handleBackClick={() => {
               //go back in browser
               window.history.back();

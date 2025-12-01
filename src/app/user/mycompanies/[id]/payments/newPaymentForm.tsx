@@ -34,8 +34,14 @@ import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import Link from "next/link";
 import SalariesDataGrid from "../salaries/salariesDataGrid";
-import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
+import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  createPayment,
+  generatePayments,
+} from "@/app/lib/api/paymentApi";
+import { fetchCompany, getReferenceNoName } from "@/app/lib/api/companyApi";
+import { checkPurchased } from "@/app/lib/api/purchaseApi";
 
 const NewPaymentForm = ({
   handleBackClick,
@@ -93,20 +99,19 @@ const NewPaymentForm = ({
 
   // Fetch company
   useEffect(() => {
-    const fetchCompany = async () => {
+    const loadCompany = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/companies?companyId=${companyId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch Company");
+        const data = await fetchCompany(companyId);
+        if (!data) {
+          throw new Error("Company not found");
         }
-        const data = await response.json();
-        setCompany(data.companies[0]);
-        setFormFields({
-          ...formFields,
-          epfPaymentMethod: data.companies[0].paymentMethod,
-          etfPaymentMethod: data.companies[0].paymentMethod,
-        });
+        setCompany(data);
+        setFormFields((prev) => ({
+          ...prev,
+          epfPaymentMethod: data.paymentMethod,
+          etfPaymentMethod: data.paymentMethod,
+        }));
       } catch (error) {
         showSnackbar({
           message:
@@ -119,28 +124,18 @@ const NewPaymentForm = ({
     };
 
     if (companyId?.length === 24) {
-      fetchCompany();
+      loadCompany();
     } else {
       showSnackbar({ message: "Invalid Company ID", severity: "error" });
     }
-  }, [companyId]); // Added formFields, showSnackbar to dependencies
+  }, [companyId]);
 
   useEffect(() => {
-    const checkPurchased = async () => {
+    const verifyPurchase = async () => {
       try {
         setLoading(true);
-        const response = await fetch(
-          `/api/purchases/check?companyId=${companyId}&month=${period}`,
-          {
-            method: "GET",
-          }
-        );
-        try {
-          const result = await response.json();
-          setPurchased(result?.purchased === "approved");
-        } catch (error) {
-          setPurchased(false); // or handle the error state as needed
-        }
+        const isPurchased = await checkPurchased(companyId, period);
+        setPurchased(isPurchased);
       } catch (error) {
         showSnackbar({
           message: "Error checking purchase.",
@@ -151,29 +146,14 @@ const NewPaymentForm = ({
       }
     };
 
-    checkPurchased();
-  }, [period]);
+    verifyPurchase();
+  }, [period, companyId]);
 
   // generate payment function
   const generatePayment = async () => {
     try {
       setLoading(true);
-      //post with period body
-      const response = await fetch("/api/payments/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          companyId: companyId,
-          period: period,
-          update: false,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error("Failed to generate payment :" + data.message);
-      }
+      const data = await generatePayments(companyId, period);
       const paymentNew = data.payment;
       if (!paymentNew) {
         showSnackbar({
@@ -221,20 +201,8 @@ const NewPaymentForm = ({
     setReferenceLoading(true);
     //fetch epf reference no
     try {
-      const response = await fetch("/api/companies/getReferenceNoName", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          employerNo: company.employerNo,
-          period: period,
-        }),
-      });
-      const result = await response.json();
+      const result = await getReferenceNoName(company.employerNo, period);
 
-      // Simulate fetching company name
-      //const name = await fetchCompanyName(formFields.employerNo);
       const referenceNo = result.referenceNo;
       if (!referenceNo) {
         showSnackbar({
@@ -270,48 +238,32 @@ const NewPaymentForm = ({
 
     setLoading(true);
     try {
-      // Perform POST request to add a new payment record
-      const response = await fetch("/api/payments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          payment: {
-            ...formFields, // The form data becomes the first element of the array
-            company: companyId,
-            period: period,
-          },
-        }),
+      const paymentData = {
+        ...formFields,
+        company: companyId,
+        period: period,
+      };
+
+      await createPayment(paymentData);
+
+      showSnackbar({
+        message: "Payment record saved successfully!",
+        severity: "success",
       });
 
-      const result = await response.json();
+      const queryKey = [
+        "payments",
+        ...(user.role === "admin" ? [companyId] : []),
+      ];
+      queryClient.invalidateQueries({ queryKey });
+      // Wait before clearing the form
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
 
-      if (response.ok) {
-        showSnackbar({
-          message: "Payment record saved successfully!",
-          severity: "success",
-        });
-
-        const queryKey = [
-          "payments",
-          ...(user.role === "admin" ? [companyId] : []),
-        ];
-        queryClient.invalidateQueries({ queryKey });
-        // Wait before clearing the form
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
-
-        // Clear the form after successful save
-        setErrors({});
-      } else {
-        showSnackbar({
-          message: result.message || "Error saving payment. Please try again.",
-          severity: "error",
-        });
-      }
+      // Clear the form after successful save
+      setErrors({});
     } catch (error) {
       showSnackbar({
-        message: "Error saving payment. Please try again.",
+        message: error instanceof Error ? error.message : "Error saving payment. Please try again.",
         severity: "error",
       });
     } finally {
@@ -424,9 +376,8 @@ const NewPaymentForm = ({
                               <>
                                 {!purchased && (
                                   <Link
-                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                                      period.split("-")[1]
-                                    }-${period.split("-")[0]}`}
+                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${period.split("-")[1]
+                                      }-${period.split("-")[0]}`}
                                   >
                                     <Button
                                       variant="contained"

@@ -30,6 +30,7 @@ import dayjs from "dayjs";
 import { ddmmyyyy_to_mmddyyyy } from "../[id]/employees/clientComponents/employeesDataGrid";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createCompany, getReferenceNoName } from "@/app/lib/api";
 
 const AddCompanyForm: React.FC<{
   user: { id: string; name: string; email: string };
@@ -95,20 +96,7 @@ const AddCompanyForm: React.FC<{
 
   const addCompanyMutation = useMutation({
     mutationFn: async (newCompany: any) => {
-      const response = await fetch("/api/companies", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newCompany),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Error saving company. Please try again."
-        );
-      }
-      return result;
+      return createCompany(newCompany);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
@@ -175,16 +163,7 @@ const AddCompanyForm: React.FC<{
   const onFetchNameClick = async () => {
     setNameLoading(true);
     try {
-      const response = await fetch("/api/companies/getReferenceNoName", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          employerNo: formFields.employerNo,
-        }),
-      });
-      const result = await response.json();
+      const result = await getReferenceNoName(formFields.employerNo, "");
 
       const name = result.name;
       if (!name) {
@@ -328,8 +307,8 @@ const AddCompanyForm: React.FC<{
                   value={
                     formFields.startedAt
                       ? dayjs(
-                          ddmmyyyy_to_mmddyyyy(formFields.startedAt as string)
-                        )
+                        ddmmyyyy_to_mmddyyyy(formFields.startedAt as string)
+                      )
                       : null
                   }
                   views={["year", "month", "day"]}

@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
-import { calculateMonthlyPrice } from "../purchases/price/priceUtils";
+import { PurchaseService } from "../purchases/service";
 import { BadRequestError, NotFoundError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import {
@@ -25,18 +25,18 @@ export class CompanyService {
       user?: string;
       _id?: string;
     } = { _id: companyId };
-    
+
     if (context.user?.role !== "admin") {
       filter.user = context.user?.id;
     }
 
     // Fetch company from the database
     const company = await Company.findOne(filter).lean(); // Use .lean() for better performance
-    
+
     if (!company) {
       throw new NotFoundError("Company not found");
     }
-    
+
     return [company];
   }
 
@@ -51,7 +51,7 @@ export class CompanyService {
       user?: string;
       _id?: string;
     } = {};
-    
+
     if (context.user?.role !== "admin") {
       filter.user = context.user?.id;
     }
@@ -74,7 +74,7 @@ export class CompanyService {
         .limit(limit)
         .lean();
     }
-    
+
     if (!companies) {
       throw new NotFoundError("Companies not found");
     }
@@ -111,7 +111,7 @@ export class CompanyService {
     await dbConnect();
 
     //setMonthlyPrice
-    body.monthlyPrice = calculateMonthlyPrice(null, 0, 0);
+    body.monthlyPrice = PurchaseService.calculateMonthlyPrice(null, 0, 0);
     body.monthlyPriceOverride = false;
     body.workingDays = {
       mon: "full",
@@ -205,7 +205,7 @@ export class CompanyService {
         Employee.countDocuments({ company: companyId }),
         Employee.countDocuments({ company: companyId, active: true }),
       ]);
-      const price = calculateMonthlyPrice(
+      const price = PurchaseService.calculateMonthlyPrice(
         company,
         employeeCount,
         activeEmployeeCount
@@ -260,4 +260,163 @@ export class CompanyService {
 
     return { message: "Company deleted successfully" };
   }
+
+  static async getReferenceNoName(employerNo: string, period: string) {
+    const [employer_no_zn, employer_no_number] = employerNo.split("/");
+    const formattedPeriod = period.replace("-", "");
+
+    // Try to get cached VIEWSTATE and EVENTVALIDATION first
+    let viewState = "";
+    let eventValidation = "";
+    let usedCachedViewState = false;
+
+    const viewStateCacheKey = "cbsl_viewstate";
+    const cachedViewState = viewStateCache.get(viewStateCacheKey);
+
+    if (cachedViewState && Date.now() - cachedViewState.timestamp < VIEWSTATE_CACHE_TTL) {
+      viewState = cachedViewState.viewState;
+      eventValidation = cachedViewState.eventValidation;
+      usedCachedViewState = true;
+    } else {
+      // Fetch fresh VIEWSTATE and EVENTVALIDATION
+      try {
+        const initialResponse = await fetch("https://www.cbsl.lk/EPFCRef/", {
+          headers: {
+            accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-language": "en-LK,en-GB;q=0.9,en-US;q=0.8,en;q=0.7,si;q=0.6",
+            "cache-control": "no-cache",
+            "sec-ch-ua":
+              '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "same-origin",
+            "upgrade-insecure-requests": "1",
+            Referer: "https://www.cbsl.lk/EPFCRef/",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+          },
+          method: "GET",
+        });
+
+        if (!initialResponse.ok) {
+          throw new Error(`Failed to fetch initial page: ${initialResponse.statusText}`);
+        }
+
+        const initialText = await initialResponse.text();
+
+        // Extract VIEWSTATE and EVENTVALIDATION dynamically
+        const viewStateMatch = initialText.match(/id="__VIEWSTATE"[^>]*value="([^"]*)"/);
+        const eventValidationMatch = initialText.match(/id="__EVENTVALIDATION"[^>]*value="([^"]*)"/);
+
+        if (!viewStateMatch || !eventValidationMatch) {
+          throw new Error("Failed to extract VIEWSTATE or EVENTVALIDATION from the page");
+        }
+
+        viewState = viewStateMatch[1];
+        eventValidation = eventValidationMatch[1];
+
+        // Cache the VIEWSTATE and EVENTVALIDATION
+        viewStateCache.set(viewStateCacheKey, {
+          viewState,
+          eventValidation,
+          timestamp: Date.now()
+        });
+      } catch (error) {
+        console.error("Error fetching VIEWSTATE and EVENTVALIDATION:", error);
+        throw error;
+      }
+    }
+
+    try {
+      // Make the POST request with the VIEWSTATE and EVENTVALIDATION
+      const response = await fetch("https://www.cbsl.lk/EPFCRef/", {
+        headers: {
+          accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+          "accept-language": "en-LK,en-GB;q=0.9,en-US;q=0.8,en;q=0.7,si;q=0.6",
+          "cache-control": "no-cache",
+          "content-type": "application/x-www-form-urlencoded",
+          pragma: "no-cache",
+          priority: "u=0, i",
+          "sec-ch-ua":
+            '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": '"Windows"',
+          "sec-fetch-dest": "document",
+          "sec-fetch-mode": "navigate",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-user": "?1",
+          "upgrade-insecure-requests": "1",
+          Referer: "https://www.cbsl.lk/EPFCRef/",
+          "Referrer-Policy": "strict-origin-when-cross-origin",
+        },
+        body: `__VIEWSTATE=${encodeURIComponent(viewState)}&__VIEWSTATEGENERATOR=7BA8A1FC&__EVENTVALIDATION=${encodeURIComponent(eventValidation)}&zn=${employer_no_zn}&em=${employer_no_number}&mn=${formattedPeriod}&sb=&checkb=Get+Reference`,
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+
+      const text = await response.text();
+
+      // Extract employer name with improved regex
+      const nameMatch = text.match(/<span[^>]*id=["']empnm["'][^>]*>(.*?)<\/span>/i);
+      const employer_name = nameMatch
+        ? nameMatch[1]
+          .replace(/<[^>]*>/g, "")
+          .split(":")[1]
+          ?.trim() || null
+        : null;
+
+      // Extract reference number with improved regex
+      const refMatch = text.match(/<span[^>]*id=["']refno["'][^>]*>(.*?)<\/span>/i);
+      const reference_no = refMatch
+        ? refMatch[1]
+          .replace(/<[^>]*>/g, "")
+          .split(":")[1]
+          ?.trim() || null
+        : null;
+
+      // If we got data, return it
+      if (reference_no && employer_name) {
+        return { referenceNo: reference_no, name: employer_name };
+      }
+
+      // If we didn't get data but used cached viewstate, try again with fresh viewstate
+      if (usedCachedViewState) {
+        console.log("Retrying with fresh VIEWSTATE and EVENTVALIDATION");
+        // Remove cached viewstate and try again
+        viewStateCache.delete(viewStateCacheKey);
+        // Recursively call with fresh viewstate
+        return await CompanyService.getReferenceNoName(employerNo, period);
+      }
+
+      // If we didn't get data and didn't use cached viewstate, throw an error
+      throw new Error("Failed to extract reference number or employer name from response");
+    } catch (error) {
+      // If we used cached viewstate and failed, try again with fresh viewstate
+      if (usedCachedViewState) {
+        console.log("Retrying with fresh VIEWSTATE and EVENTVALIDATION after error");
+        // Remove cached viewstate and try again
+        viewStateCache.delete(viewStateCacheKey);
+        // Recursively call with fresh viewstate
+        return await CompanyService.getReferenceNoName(employerNo, period);
+      }
+
+      if (error instanceof Error) {
+        console.error("An error occurred in get_ref_no_name:", error.message);
+      } else {
+        console.error("An unknown error occurred in get_ref_no_name");
+      }
+      // Return null values to indicate failure
+      return { referenceNo: null, name: null };
+    }
+  }
 }
+
+// In-memory cache for VIEWSTATE and EVENTVALIDATION
+const viewStateCache = new Map<string, { viewState: string; eventValidation: string; timestamp: number }>();
+const VIEWSTATE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds

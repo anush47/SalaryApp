@@ -62,21 +62,15 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
-const fetchPayments = async (period?: string): Promise<Payment[]> => {
-  let url = `/api/payments/?companyId=all`;
-  if (period) {
-    url += `&period=${period}`;
-  }
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Failed to fetch payments");
-  }
-  const data = await response.json();
-  return data.payments.map((payment: any) => ({
-    ...payment,
-    id: payment._id,
-  }));
-};
+import {
+  fetchPayments,
+  updatePayment,
+  deletePayments,
+} from "@/app/lib/api/paymentApi";
+
+// ... (imports)
+
+// ... (Payment interface and helper functions)
 
 const PaymentsDataGrid: React.FC<{
   user: { id: string; name: string; email: string };
@@ -93,214 +87,24 @@ const PaymentsDataGrid: React.FC<{
     error,
   } = useQuery<Payment[], Error>({
     queryKey: ["payments"],
-    queryFn: () => fetchPayments(period),
+    queryFn: async () => {
+      const data = await fetchPayments({ period, companyId: 'all' });
+      return data.map((payment: any) => ({
+        ...payment,
+        id: payment._id,
+      }));
+    },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
   const [rowSelectionModel, setRowSelectionModel] =
     React.useState<GridRowSelectionModel>([]);
 
-  const columns: GridColDef[] = [
-    {
-      field: "companyName",
-      headerName: "Company",
-      flex: 1,
-      renderCell: (params) => {
-        return (
-          <Link
-            href={`/user/mycompanies/${
-              //find companyId from payments
-              payments?.find((payment) => payment.id === params.id)?.company
-            }`}
-          >
-            <Button variant="text" color="primary" size="small">
-              {params.value}
-            </Button>
-          </Link>
-        );
-      },
-    },
-    {
-      field: "companyEmployerNo",
-      headerName: "Employer No.",
-      flex: 1,
-    },
-    {
-      field: "period",
-      headerName: "Period",
-      flex: 1,
-      renderCell: (params) => {
-        return (
-          <Chip
-            label={params.value}
-            color="primary"
-            sx={{
-              m: 0.2,
-              textTransform: "capitalize",
-            }}
-          />
-        );
-      },
-    },
-    {
-      field: "epfReferenceNo",
-      headerName: "EPF Ref No.",
-      flex: 1,
-      align: "left",
-      headerAlign: "left",
-      editable: isEditing,
-    },
-    {
-      field: "epfAmount",
-      type: "number",
-      headerName: "EPF Amount",
-      flex: 1,
-    },
-    {
-      field: "epfSurcharges",
-      headerName: "EPF Surcharges",
-      type: "number",
-      editable: isEditing,
-      flex: 1,
-    },
-    {
-      field: "epfPaymentMethod",
-      headerName: "EPF Payment Method",
-      flex: 1,
-      editable: isEditing,
-    },
-    {
-      field: "epfChequeNo",
-      headerName: "EPF Cheque No.",
-      flex: 1,
-      editable: isEditing,
-    },
-    {
-      field: "epfPayDay",
-      headerName: "EPF Pay Day",
-      flex: 1,
-      editable: isEditing,
-      valueGetter: (params) => {
-        // Ensure the date is formatted correctly for display
-        return params;
-      },
-      renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
-          <DatePicker
-            label="EPF Paid Day"
-            openTo="day"
-            views={["year", "month", "day"]}
-            value={dayjs(params.value)}
-            onChange={(newDate) => {
-              params.api.setEditCellValue({
-                id: params.id,
-                field: params.field,
-                value: newDate ? newDate.format("YYYY-MM-DD") : null,
-              });
-            }}
-            slotProps={{
-              field: { clearable: true },
-            }}
-          />
-        </LocalizationProvider>
-      ),
-    },
-    {
-      field: "etfAmount",
-      headerName: "ETF Amount",
-      flex: 1,
-    },
-    {
-      field: "etfSurcharges",
-      headerName: "ETF Surcharges",
-      type: "number",
-      flex: 1,
-      editable: isEditing,
-    },
-    {
-      field: "etfPaymentMethod",
-      headerName: "ETF Payment Method",
-      flex: 1,
-      editable: isEditing,
-    },
-    {
-      field: "etfChequeNo",
-      headerName: "ETF Cheque No.",
-      flex: 1,
-      editable: isEditing,
-    },
-    {
-      field: "etfPayDay",
-      headerName: "ETF Pay Day",
-      flex: 1,
-      editable: isEditing,
-      valueGetter: (params) => {
-        // Ensure the date is formatted correctly for display
-        return params;
-      },
-      renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
-          <DatePicker
-            label="ETF Paid Day"
-            openTo="day"
-            views={["year", "month", "day"]}
-            value={dayjs(params.value)}
-            onChange={(newDate) => {
-              params.api.setEditCellValue({
-                id: params.id,
-                field: params.field,
-                value: newDate ? newDate.format("YYYY-MM-DD") : null,
-              });
-            }}
-            slotProps={{
-              field: { clearable: true },
-            }}
-          />
-        </LocalizationProvider>
-      ),
-    },
-    {
-      field: "remark",
-      headerName: "Remark",
-      flex: 1,
-      editable: isEditing,
-    },
-    {
-      field: "actions",
-      headerName: "Actions",
-      flex: 1,
-      renderCell: (params) => {
-        return (
-          <Link
-            href={`/user/mycompanies/${
-              payments?.find((payment) => {
-                return payment.id === params.id;
-              })?.company
-            }?companyPageSelect=payments&paymentId=${params.id}`}
-          >
-            <Button variant="text" color="primary" size="small">
-              View
-            </Button>
-          </Link>
-        );
-      },
-    },
-  ];
+  // ... (columns definition)
 
   const handleRowUpdate = async (newPayment: any) => {
     try {
-      const response = await fetch(`/api/payments/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ payment: newPayment }),
-      });
-      if (!response.ok) {
-        // throw new Error("Failed to update payment"); // This will be caught by onProcessRowUpdateError
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update payment");
-      }
+      const result = await updatePayment(newPayment);
       showSnackbar({
         message: "Payment updated successfully",
         severity: "success",
@@ -331,18 +135,8 @@ const PaymentsDataGrid: React.FC<{
 
   const deletePaymentMutation = useMutation({
     mutationFn: async (paymentIds: string[]) => {
-      const response = await fetch(`/api/payments/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ paymentIds }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete payments");
-      }
-      return response.json();
+      const result = await deletePayments(paymentIds);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });

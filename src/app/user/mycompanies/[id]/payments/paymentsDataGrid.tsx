@@ -61,24 +61,15 @@ export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
-const fetchPayments = async (
-  companyId: string,
-  period?: string
-): Promise<Payment[]> => {
-  let url = `/api/payments/?companyId=${companyId}`;
-  if (period) {
-    url += `&period=${period}`;
-  }
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Failed to fetch payments");
-  }
-  const data = await response.json();
-  return data.payments.map((payment: any) => ({
-    ...payment,
-    id: payment._id,
-  }));
-};
+import {
+  fetchPayments,
+  updatePayment,
+  deletePayments,
+} from "@/app/lib/api/paymentApi";
+
+// ... (imports)
+
+// ... (Payment interface and helper functions)
 
 const PaymentsDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -96,22 +87,18 @@ const PaymentsDataGrid: React.FC<{
     error,
   } = useQuery<Payment[], Error>({
     queryKey: ["payments", companyId, period],
-    queryFn: () => fetchPayments(companyId, period),
+    queryFn: async () => {
+      const data = await fetchPayments({ companyId, period });
+      return data.map((payment: any) => ({
+        ...payment,
+        id: payment._id,
+      }));
+    },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
 
   const columns: GridColDef[] = [
-    {
-      field: "companyName",
-      headerName: "Company",
-      flex: 1,
-    },
-    {
-      field: "companyEmployerNo",
-      headerName: "Employer No.",
-      flex: 1,
-    },
     {
       field: "period",
       headerName: "Period",
@@ -182,7 +169,7 @@ const PaymentsDataGrid: React.FC<{
               params.api.setEditCellValue({
                 id: params.id,
                 field: params.field,
-                value: newDate ? newDate.format("YYYY-MM-DD") : "",
+                value: newDate ? newDate.format("YYYY-MM-DD") : null,
               });
             }}
             slotProps={{
@@ -236,7 +223,7 @@ const PaymentsDataGrid: React.FC<{
               params.api.setEditCellValue({
                 id: params.id,
                 field: params.field,
-                value: newDate ? newDate.format("YYYY-MM-DD") : "",
+                value: newDate ? newDate.format("YYYY-MM-DD") : null,
               });
             }}
             slotProps={{
@@ -253,56 +240,40 @@ const PaymentsDataGrid: React.FC<{
       editable: isEditing,
     },
     {
-      field: "delete",
-      headerName: "Delete",
-      flex: 1,
-      renderCell: (params) => {
-        return (
-          <Button
-            variant="text"
-            color="error"
-            disabled={!isEditing}
-            onClick={() => {
-              handleDeleteClick(params.id.toString());
-            }}
-          >
-            Delete
-          </Button>
-        );
-      },
-    },
-    {
       field: "actions",
       headerName: "Actions",
       flex: 1,
       renderCell: (params) => {
         return (
-          <Link
-            href={`/user/mycompanies/${companyId}?companyPageSelect=payments&paymentId=${params.id}`}
-          >
-            <Button variant="text" color="primary" size="small">
-              View
-            </Button>
-          </Link>
+          <Box>
+            <Link
+              href={`/user/mycompanies/${companyId}?companyPageSelect=payments&paymentId=${params.id}`}
+            >
+              <Button variant="text" color="primary" size="small">
+                View
+              </Button>
+            </Link>
+            {isEditing && (
+              <Button
+                variant="text"
+                color="error"
+                size="small"
+                onClick={() => handleDeleteClick(params.id as string)}
+              >
+                Delete
+              </Button>
+            )}
+          </Box>
         );
       },
     },
   ];
 
+
   const updatePaymentMutation = useMutation({
     mutationFn: async (newPayment: Payment) => {
-      const response = await fetch(`/api/payments/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ payment: newPayment }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update payment");
-      }
-      return response.json();
+      const result = await updatePayment(newPayment);
+      return result;
     },
     onSuccess: () => {
       const queryKey = [
@@ -322,18 +293,8 @@ const PaymentsDataGrid: React.FC<{
 
   const deletePaymentMutation = useMutation({
     mutationFn: async (paymentIds: string[]) => {
-      const response = await fetch(`/api/payments/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ paymentIds }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete payments");
-      }
-      return response.json();
+      const result = await deletePayments(paymentIds);
+      return result;
     },
     onSuccess: () => {
       const queryKey = [
@@ -537,7 +498,7 @@ const PaymentsDataGrid: React.FC<{
         open={dialogOpen}
         onClose={handleDialogClose}
         title="Confirm Deletion"
-        message={`Are you sure you want to delete the salary record(s) ?`}
+        message={`Are you sure you want to delete the payment record(s) ?`}
       />
     </Box>
   );

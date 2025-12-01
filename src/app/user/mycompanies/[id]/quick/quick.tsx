@@ -221,7 +221,7 @@ const QuickTools = ({
     mutationFn: async () => {
       const fetchReferenceNo = async () => {
         try {
-          const result = await getReferenceNoName(company?.employerNo, period);
+          const result = await getReferenceNoName(company?.employerNo || "", period);
           const referenceNo = result.referenceNo;
           if (!referenceNo) {
             throw new Error("Reference number not found. Please try again.");

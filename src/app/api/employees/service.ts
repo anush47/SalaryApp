@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/db";
 import Employee from "@/app/models/Employee";
 import Department from "@/app/models/Department";
-import { calculateMonthlyPrice } from "../purchases/price/priceUtils";
+import { PurchaseService } from "../purchases/service";
 import Company from "@/app/models/Company";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
@@ -23,14 +23,14 @@ export class EmployeeService {
     await dbConnect();
 
     const employee = await Employee.findById(employeeId).populate('user', 'email name');
-    
+
     if (!employee) {
       throw new NotFoundError("Employee record not found");
     }
 
     // Verify user has access to this company
     const { authorized, response } = await checkCompanyAccess(context, employee.company.toString());
-    
+
     if (!authorized && response) {
       throw new ForbiddenError("Access denied. You cannot access this employee.");
     }
@@ -182,7 +182,7 @@ export class EmployeeService {
 
     // Verify user has access to this company
     const { authorized, response } = await checkCompanyAccess(context, parsedBody.company);
-    
+
     if (!authorized && response) {
       throw new ForbiddenError("Access denied. You cannot add employees to this company.");
     }
@@ -232,7 +232,7 @@ export class EmployeeService {
         Employee.countDocuments({ company: parsedBody.company }),
         Employee.countDocuments({ company: parsedBody.company, active: true }),
       ]);
-      const price = calculateMonthlyPrice(
+      const price = PurchaseService.calculateMonthlyPrice(
         company,
         employeeCount,
         activeEmployeeCount
@@ -257,7 +257,7 @@ export class EmployeeService {
     // Convert to number
     body.memberNo = parseInt(body.memberNo);
     body.basic = parseFloat(body.basic);
-    
+
     // Remove empty string values
     if (body.email === "") {
       delete body.email;
@@ -280,7 +280,7 @@ export class EmployeeService {
 
     // Verify user has access to this company
     const { authorized, response } = await checkCompanyAccess(context, parsedBody.company);
-    
+
     if (!authorized && response) {
       throw new ForbiddenError("Access denied. You cannot update employees in this company.");
     }
@@ -373,7 +373,7 @@ export class EmployeeService {
 
     // Verify user has access to this company
     const { authorized, response } = await checkCompanyAccess(context, employee.company.toString());
-    
+
     if (!authorized && response) {
       throw new ForbiddenError("Access denied. You cannot delete employees in this company.");
     }
@@ -401,7 +401,7 @@ export class EmployeeService {
         Employee.countDocuments({ company: company._id }),
         Employee.countDocuments({ company: company._id, active: true }),
       ]);
-      const price = calculateMonthlyPrice(
+      const price = PurchaseService.calculateMonthlyPrice(
         company,
         employeeCount,
         activeEmployeeCount

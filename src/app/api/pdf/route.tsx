@@ -8,7 +8,7 @@ import { getServerSession } from "next-auth";
 import { options } from "../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
-import { checkPurchased } from "../purchases/check/checkPurchased";
+import { PurchaseService } from "../purchases/service";
 import Employee from "@/app/models/Employee";
 import Salary from "@/app/models/Salary";
 
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         (companyCheck.mode === "visit" || companyCheck.mode === "aided")
       )
     ) {
-      const purchasedStatus = await checkPurchased(companyId, period);
+      const purchasedStatus = await PurchaseService.checkPurchased(companyId, period);
       if (purchasedStatus !== "approved") {
         return NextResponse.json(
           {
