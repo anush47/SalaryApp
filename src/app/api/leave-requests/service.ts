@@ -3,6 +3,7 @@ import LeaveType from "@/app/models/LeaveType";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
 import Department from "@/app/models/Department";
+import { EmployeeService } from "../employees/service";
 import { isInManagementChain } from "@/app/lib/employeeHierarchy";
 import {
     getPaginationParams,
@@ -190,9 +191,37 @@ export class LeaveRequestService {
         // Check if employee has sufficient leave balance (only for paid leaves)
         if (leaveType.isPaid) {
             // Find employee's leave balance for this type
-            const employeeLeaveBalance = employee.leaveTypes.find(
+            let employeeLeaveBalance = employee.leaveTypes.find(
                 (lt: any) => lt.leaveType.toString() === data.leaveTypeId
             );
+
+            // If not found, try to initialize balances (in case they are missing for this employee)
+            if (!employeeLeaveBalance) {
+                const { initializeLeaveBalances } = await import("@/app/lib/leaveBalance");
+                await initializeLeaveBalances(employee._id);
+
+                // Re-fetch employee to get updated leave types
+                const updatedEmployee = await Employee.findById(data.employeeId);
+                if (updatedEmployee) {
+                    employeeLeaveBalance = updatedEmployee.leaveTypes.find(
+                        (lt: any) => lt.leaveType.toString() === data.leaveTypeId
+                    );
+
+                    // Also update the local employee object reference for later balance deduction
+                    const balanceIndex = updatedEmployee.leaveTypes.findIndex(
+                        (lt: any) => lt.leaveType.toString() === data.leaveTypeId
+                    );
+                    if (balanceIndex !== -1) {
+                        // We can't easily replace the whole mongoose document in-memory here for the later deduction logic (lines 282+)
+                        // But the deduction logic (lines 282+) re-finds it from 'employee', so we need to ensure 'employee' has it or we re-fetch there too.
+                        // Actually, standardizing: line 282 uses 'employee' which is the old const.
+                        // Let's rely on the fact that we need to pass the check here first.
+
+                        // Hack: Update the in-memory employee.leaveTypes for the subsequent check in this function
+                        employee.leaveTypes = updatedEmployee.leaveTypes;
+                    }
+                }
+            }
 
             if (!employeeLeaveBalance) {
                 return ApiResponseUtils.sendBadRequest(
@@ -254,8 +283,8 @@ export class LeaveRequestService {
             }
         }
 
-        // Auto-approve if no approval required or no approver found
-        const autoApprove = !leaveType.requiresApproval || !approver;
+        // Auto-approve only if approval is not required
+        const autoApprove = !leaveType.requiresApproval;
 
         // Create leave request
         const leaveRequest = new LeaveRequest({
@@ -284,6 +313,8 @@ export class LeaveRequestService {
             );
             if (leaveBalance) {
                 leaveBalance.balance -= totalDays;
+                // Repair legacy data before saving
+                await EmployeeService.ensureValidLeaveTypes(employee);
                 await employee.save();
             }
         }
@@ -407,6 +438,8 @@ export class LeaveRequestService {
                     );
                     if (leaveBalance) {
                         leaveBalance.balance -= leaveRequest.totalDays;
+                        // Repair legacy data before saving
+                        await EmployeeService.ensureValidLeaveTypes(employee);
                         await employee.save();
                     }
                 }
@@ -456,6 +489,8 @@ export class LeaveRequestService {
                     );
                     if (leaveBalance) {
                         leaveBalance.balance += leaveRequest.totalDays;
+                        // Repair legacy data before saving
+                        await EmployeeService.ensureValidLeaveTypes(employee);
                         await employee.save();
                     }
                 }

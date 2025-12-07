@@ -99,6 +99,7 @@ export interface Employee {
     probabilities: boolean;
     paymentStructure: boolean;
     calendar: boolean;
+    leaveTypes: boolean;
   };
   shifts: {
     start: string;
@@ -145,6 +146,15 @@ export interface Employee {
   editable?: boolean;
   documents?: Record<string, string>;
   taxType?: "company" | "individual";
+  leaveTypes?: {
+    leaveType: string | any;
+    maxDaysPerPeriod: number;
+    balance: number;
+    carryForward: boolean;
+    currentPeriodStart?: string;
+    lastAccrualDate?: string;
+    carriedForwardBalance?: number;
+  }[];
 }
 
 // Default values for Employee
@@ -179,7 +189,9 @@ export const defaultEmployee: Employee = {
     probabilities: false,
     paymentStructure: false,
     calendar: false,
+    leaveTypes: false,
   },
+  leaveTypes: [],
   shifts: [{ start: "08:00", end: "17:00", break: 1 }],
   probabilities: {
     workOnOff: 1,

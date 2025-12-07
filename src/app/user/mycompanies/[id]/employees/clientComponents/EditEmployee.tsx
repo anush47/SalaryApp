@@ -69,6 +69,7 @@ import { Company } from "../../../clientComponents/companiesDataGrid";
 import { MenuItem } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import Documents from "../../../../clientComponents/employee/Documents";
+import { LeaveOverrides } from "./LeaveOverrides";
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -85,6 +86,7 @@ const EditEmployeeForm: React.FC<{
   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leaveOverrideWarningOpen, setLeaveOverrideWarningOpen] = useState(false);
 
   const fetchEmployeeData = async (): Promise<Employee> => {
     return fetchEmployee(employeeId!);
@@ -476,6 +478,45 @@ const EditEmployeeForm: React.FC<{
             disabled={loading}
           >
             {loading ? <CircularProgress size={20} /> : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
+  const LeaveOverrideWarningDialog = () => {
+    return (
+      <Dialog
+        open={leaveOverrideWarningOpen}
+        onClose={() => setLeaveOverrideWarningOpen(false)}
+      >
+        <DialogTitle>Disable Leave Overrides?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Turning off leave overrides will revert all employee leave entitlements to the company defaults.
+            All custom changes made to this employee's leave types will be lost.
+            Are you sure you want to proceed?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeaveOverrideWarningOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              // Manually trigger the change properly
+              const fakeEvent = {
+                target: {
+                  name: "overrides.leaveTypes",
+                  checked: false,
+                  value: false
+                }
+              };
+              handleChange(fakeEvent);
+              setLeaveOverrideWarningOpen(false);
+            }}
+            color="warning"
+            variant="contained"
+          >
+            Confirm & Disable
           </Button>
         </DialogActions>
       </Dialog>
@@ -1211,6 +1252,25 @@ const EditEmployeeForm: React.FC<{
                     }
                     label="Probabilities"
                   />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formFields.overrides?.leaveTypes || false}
+                        name="overrides.leaveTypes"
+                        onChange={(e) => {
+                          if (!e.target.checked) {
+                            // If unchecking, show warning
+                            setLeaveOverrideWarningOpen(true);
+                          } else {
+                            // If checking, proceed normally
+                            handleChange(e);
+                          }
+                        }}
+                        disabled={!isEditing || loading}
+                      />
+                    }
+                    label="Leave Types"
+                  />
                 </Grid>
               </Grid>
             </AccordionDetails>
@@ -1298,6 +1358,33 @@ const EditEmployeeForm: React.FC<{
                       <MenuItem value="other">Other</MenuItem>
                     </Select>
                   </FormControl>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+          </>
+        )}
+
+        {formFields.overrides?.leaveTypes && (
+          <>
+            <div className="my-5" />
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h5">Leave Types</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid item xs={12}>
+                  <LeaveOverrides
+                    isEditing={isEditing}
+                    employeeLeaveTypes={formFields.leaveTypes || []}
+                    setEmployeeLeaveTypes={(leaveTypes: any) => {
+                      setFormFields(prev => ({
+                        ...prev,
+                        leaveTypes: leaveTypes
+                      }));
+                    }}
+                    companyId={companyId!}
+                    employeeType={formFields.employeeType}
+                  />
                 </Grid>
               </AccordionDetails>
             </Accordion>
@@ -1468,6 +1555,7 @@ const EditEmployeeForm: React.FC<{
 
       <DeleteDialog />
       <DeleteUserDialog />
+      <LeaveOverrideWarningDialog />
 
       <UserCreationDialog
         open={createUserDialogOpen}

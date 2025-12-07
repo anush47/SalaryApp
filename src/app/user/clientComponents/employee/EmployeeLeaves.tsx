@@ -42,6 +42,11 @@ import {
 } from "@/app/lib/api/leaveRequestApi";
 import { fetchLeaveBalance, fetchEmployees } from "@/app/lib/api/employeeApi";
 
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs, { Dayjs } from "dayjs";
+
 interface UserProps {
   user: {
     name: string;
@@ -80,8 +85,8 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
   // Apply form state
   const [selectedLeaveType, setSelectedLeaveType] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState<Dayjs | null>(null);
+  const [endDate, setEndDate] = useState<Dayjs | null>(null);
   const [halfDay, setHalfDay] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -171,8 +176,8 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       });
       // Reset form
       setSelectedLeaveType("");
-      setStartDate("");
-      setEndDate("");
+      setStartDate(null);
+      setEndDate(null);
       setHalfDay(false);
       setReason("");
       setErrors({
@@ -239,11 +244,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       newErrors.startDate = "Start date is required";
       isValid = false;
     } else {
-      const start = new Date(startDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = dayjs().startOf('day');
 
-      if (start < today) {
+      if (startDate.isBefore(today)) {
         newErrors.startDate = "Start date cannot be in the past";
         isValid = false;
       }
@@ -254,17 +257,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       newErrors.endDate = "End date is required";
       isValid = false;
     } else if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      if (end < start) {
+      if (endDate.isBefore(startDate)) {
         newErrors.endDate = "End date must be on or after start date";
         isValid = false;
       }
 
       // Check if date range is too long (optional check)
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = endDate.diff(startDate, 'day') + 1;
 
       if (diffDays > 365) {
         newErrors.endDate = "Leave period cannot exceed 365 days";
@@ -292,13 +291,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       return;
     }
 
-    if (!employee) return;
+    if (!employee || !startDate || !endDate) return;
 
     createLeaveMutation.mutate({
       employeeId: employee._id,
       leaveTypeId: selectedLeaveType,
-      startDate,
-      endDate,
+      startDate: startDate.format('YYYY-MM-DD'),
+      endDate: endDate.format('YYYY-MM-DD'),
       halfDay,
       reason: reason.trim(),
     });
@@ -386,149 +385,151 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
               </Typography>
               <Divider sx={{ mb: 3 }} />
 
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <FormControl fullWidth error={!!errors.leaveType}>
-                    <InputLabel>Leave Type *</InputLabel>
-                    <Select
-                      value={selectedLeaveType}
-                      label="Leave Type *"
-                      onChange={(e) => {
-                        setSelectedLeaveType(e.target.value);
-                        setErrors((prev) => ({ ...prev, leaveType: "" }));
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <FormControl fullWidth error={!!errors.leaveType}>
+                      <InputLabel>Leave Type *</InputLabel>
+                      <Select
+                        value={selectedLeaveType}
+                        label="Leave Type *"
+                        onChange={(e) => {
+                          setSelectedLeaveType(e.target.value);
+                          setErrors((prev) => ({ ...prev, leaveType: "" }));
+                        }}
+                        disabled={createLeaveMutation.isPending}
+                      >
+                        {leaveTypes.length === 0 ? (
+                          <MenuItem value="" disabled>
+                            No leave types available
+                          </MenuItem>
+                        ) : (
+                          leaveTypes.map((type: any) => (
+                            <MenuItem key={type._id} value={type._id}>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Chip
+                                  label={type.code}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: type.color,
+                                    color: "white",
+                                  }}
+                                />
+                                <Typography>{type.name}</Typography>
+                              </Box>
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                      {errors.leaveType && (
+                        <Typography
+                          variant="caption"
+                          color="error"
+                          sx={{ mt: 0.5, ml: 1.5 }}
+                        >
+                          {errors.leaveType}
+                        </Typography>
+                      )}
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <DatePicker
+                      label="Start Date *"
+                      value={startDate}
+                      onChange={(newValue) => {
+                        setStartDate(newValue);
+                        setErrors((prev) => ({ ...prev, startDate: "" }));
                       }}
+                      minDate={dayjs()}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!errors.startDate,
+                          helperText: errors.startDate,
+                          disabled: createLeaveMutation.isPending
+                        }
+                      }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <DatePicker
+                      label="End Date *"
+                      value={endDate}
+                      onChange={(newValue) => {
+                        setEndDate(newValue);
+                        setErrors((prev) => ({ ...prev, endDate: "" }));
+                      }}
+                      minDate={startDate || dayjs()}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!errors.endDate,
+                          helperText: errors.endDate,
+                          disabled: createLeaveMutation.isPending
+                        }
+                      }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={halfDay}
+                          onChange={(e) => setHalfDay(e.target.checked)}
+                          disabled={createLeaveMutation.isPending}
+                        />
+                      }
+                      label="Half Day Leave"
+                    />
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      sx={{ ml: 4 }}
+                    >
+                      Enable this if you&apos;re applying for half-day leave only
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Reason"
+                      multiline
+                      rows={3}
+                      value={reason}
+                      onChange={(e) => {
+                        setReason(e.target.value);
+                        setErrors((prev) => ({ ...prev, reason: "" }));
+                      }}
+                      placeholder="Enter reason for leave (optional)..."
+                      helperText="Provide a brief explanation for your leave request (optional)"
+                      disabled={createLeaveMutation.isPending}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={
+                        createLeaveMutation.isPending ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <Send />
+                        )
+                      }
+                      onClick={handleApplyLeave}
                       disabled={createLeaveMutation.isPending}
                     >
-                      {leaveTypes.length === 0 ? (
-                        <MenuItem value="" disabled>
-                          No leave types available
-                        </MenuItem>
-                      ) : (
-                        leaveTypes.map((type: any) => (
-                          <MenuItem key={type._id} value={type._id}>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Chip
-                                label={type.code}
-                                size="small"
-                                sx={{
-                                  backgroundColor: type.color,
-                                  color: "white",
-                                }}
-                              />
-                              <Typography>{type.name}</Typography>
-                            </Box>
-                          </MenuItem>
-                        ))
-                      )}
-                    </Select>
-                    {errors.leaveType && (
-                      <Typography
-                        variant="caption"
-                        color="error"
-                        sx={{ mt: 0.5, ml: 1.5 }}
-                      >
-                        {errors.leaveType}
-                      </Typography>
-                    )}
-                  </FormControl>
+                      Submit Leave Request
+                    </Button>
+                  </Grid>
                 </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Start Date *"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      setErrors((prev) => ({ ...prev, startDate: "" }));
-                    }}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{
-                      min: new Date().toISOString().split("T")[0],
-                    }}
-                    error={!!errors.startDate}
-                    helperText={errors.startDate}
-                    disabled={createLeaveMutation.isPending}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="End Date *"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
-                      setErrors((prev) => ({ ...prev, endDate: "" }));
-                    }}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{
-                      min: startDate || new Date().toISOString().split("T")[0],
-                    }}
-                    error={!!errors.endDate}
-                    helperText={errors.endDate}
-                    disabled={createLeaveMutation.isPending}
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={halfDay}
-                        onChange={(e) => setHalfDay(e.target.checked)}
-                        disabled={createLeaveMutation.isPending}
-                      />
-                    }
-                    label="Half Day Leave"
-                  />
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                    sx={{ ml: 4 }}
-                  >
-                    Enable this if you&apos;re applying for half-day leave only
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Reason"
-                    multiline
-                    rows={3}
-                    value={reason}
-                    onChange={(e) => {
-                      setReason(e.target.value);
-                      setErrors((prev) => ({ ...prev, reason: "" }));
-                    }}
-                    placeholder="Enter reason for leave (optional)..."
-                    helperText="Provide a brief explanation for your leave request (optional)"
-                    disabled={createLeaveMutation.isPending}
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    startIcon={
-                      createLeaveMutation.isPending ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        <Send />
-                      )
-                    }
-                    onClick={handleApplyLeave}
-                    disabled={createLeaveMutation.isPending}
-                  >
-                    Submit Leave Request
-                  </Button>
-                </Grid>
-              </Grid>
+              </LocalizationProvider>
             </Grid>
 
             {/* Leave Balance Summary */}

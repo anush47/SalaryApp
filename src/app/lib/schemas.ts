@@ -130,6 +130,7 @@ export const employeeCreateSchema = z.object({
       probabilities: z.boolean(),
       paymentStructure: z.boolean(),
       calendar: z.boolean(),
+      leaveTypes: z.boolean(),
     })
     .default({
       shifts: false,
@@ -137,7 +138,17 @@ export const employeeCreateSchema = z.object({
       probabilities: false,
       paymentStructure: false,
       calendar: false,
+      leaveTypes: false,
     }),
+  leaveTypes: z.array(z.object({
+    leaveType: z.string(),
+    maxDaysPerPeriod: z.number().min(0).optional(),
+    balance: z.number().min(0).optional(),
+    carryForward: z.boolean().optional(),
+    currentPeriodStart: z.string().optional(),
+    lastAccrualDate: z.string().optional(),
+    carriedForwardBalance: z.number().optional(),
+  })).optional(),
   calendar: z.enum(["default", "other"]).optional().default("default"),
   // Personal information fields
   fullName: z.string().optional(),
@@ -181,8 +192,18 @@ export const employeeUpdateSchema = z.object({
       probabilities: z.boolean().optional(),
       paymentStructure: z.boolean().optional(),
       calendar: z.boolean().optional(),
+      leaveTypes: z.boolean().optional(),
     })
     .optional(),
+  leaveTypes: z.array(z.object({
+    leaveType: z.string(),
+    maxDaysPerPeriod: z.number().min(0).optional(),
+    balance: z.number().min(0).optional(),
+    carryForward: z.boolean().optional(),
+    currentPeriodStart: z.string().optional(),
+    lastAccrualDate: z.string().optional(),
+    carriedForwardBalance: z.number().optional(),
+  })).optional(),
   probabilities: z
     .object({
       workOnOff: z.number().optional(),

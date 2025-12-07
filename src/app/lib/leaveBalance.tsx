@@ -9,6 +9,7 @@ import {
   splitDaysAcrossPeriods,
   formatPeriodLabel,
 } from "@/app/lib/leavePeriodCalculations";
+import { EmployeeService } from "@/app/api/employees/service";
 
 /**
  * Get leave balance summary for an employee
@@ -48,81 +49,82 @@ export async function getLeaveBalanceSummary(employeeId: string) {
     }
 
     // Populate leave type details and calculate usage
-    const summary = await Promise.all(
-      leaveTypes.map(async (lt: any) => {
-        const leaveType = await LeaveType.findById(lt.leaveType);
-        if (!leaveType) return null;
+    const summary = [];
+    for (const lt of leaveTypes) {
+      const leaveType = await LeaveType.findById(lt.leaveType);
+      if (!leaveType) continue;
 
-        // Get current period for this leave type
-        const currentPeriod = getCurrentPeriod(leaveType, new Date());
+      // Get current period for this leave type
+      const currentPeriod = getCurrentPeriod(leaveType, new Date());
 
-        // Check if we need to reset period
-        const needsReset = !lt.currentPeriodStart ||
-          new Date(lt.currentPeriodStart).getTime() !== currentPeriod.periodStart.getTime();
+      // Check if we need to reset period
+      const needsReset = !lt.currentPeriodStart ||
+        new Date(lt.currentPeriodStart).getTime() !== currentPeriod.periodStart.getTime();
 
-        if (needsReset) {
-          // Period has changed - reset balance
-          await resetPeriodBalance(employee, lt, leaveType, currentPeriod);
-        }
+      if (needsReset) {
+        // Period has changed - reset balance
+        // Note: This saves the employee document. Since we are in a loop, sequential execution
+        // prevents VersionError (optimistic concurrency control)
+        await resetPeriodBalance(employee, lt, leaveType, currentPeriod);
+      }
 
-        // Calculate available leaves based on accrual method
-        const availableLeaves = calculateAvailableLeaves(
-          leaveType,
-          new Date(employee.startedAt || new Date()),
-          new Date()
-        );
+      // Calculate available leaves based on accrual method
+      const availableLeaves = calculateAvailableLeaves(
+        leaveType,
+        new Date(employee.startedAt || new Date()),
+        new Date()
+      );
 
-        // Calculate used leaves in current period
-        const usedLeaves = await LeaveRequest.aggregate([
-          {
-            $match: {
-              employee: employee._id,
-              leaveType: leaveType._id,
-              status: { $in: ["approved", "pending"] },
-              startDate: {
-                $gte: currentPeriod.periodStart,
-                $lte: currentPeriod.periodEnd,
-              },
+      // Calculate used leaves in current period
+      const usedLeaves = await LeaveRequest.aggregate([
+        {
+          $match: {
+            employee: employee._id,
+            leaveType: leaveType._id,
+            status: { $in: ["approved", "pending"] },
+            startDate: {
+              $gte: currentPeriod.periodStart,
+              $lte: currentPeriod.periodEnd,
             },
           },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: "$totalDays" },
-            },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$totalDays" },
           },
-        ]);
+        },
+      ]);
 
-        const used = usedLeaves.length > 0 ? usedLeaves[0].total : 0;
+      const used = usedLeaves.length > 0 ? usedLeaves[0].total : 0;
 
-        return {
-          leaveType: {
-            _id: leaveType._id,
-            name: leaveType.name,
-            code: leaveType.code,
-            color: leaveType.color,
-            isPaid: leaveType.isPaid,
-            requiresApproval: leaveType.requiresApproval,
-            requiresDocument: leaveType.requiresDocument,
-            maxConsecutiveDays: leaveType.maxConsecutiveDays,
-            accrualPeriod: leaveType.accrualPeriod,
-            accrualMethod: leaveType.accrualMethod,
-          },
-          maxDaysPerPeriod: lt.maxDaysPerYear,
-          availableLeaves,
-          used,
-          balance: lt.balance,
-          available: Math.max(0, lt.balance - used),
-          carryForward: lt.carryForward,
-          carriedForwardBalance: lt.carriedForwardBalance || 0,
-          currentPeriod: {
-            start: currentPeriod.periodStart,
-            end: currentPeriod.periodEnd,
-            label: formatPeriodLabel(currentPeriod),
-          },
-        };
-      })
-    );
+      summary.push({
+        leaveType: {
+          _id: leaveType._id,
+          name: leaveType.name,
+          code: leaveType.code,
+          color: leaveType.color,
+          isPaid: leaveType.isPaid,
+          requiresApproval: leaveType.requiresApproval,
+          requiresDocument: leaveType.requiresDocument,
+          maxConsecutiveDays: leaveType.maxConsecutiveDays,
+          accrualPeriod: leaveType.accrualPeriod,
+          accrualMethod: leaveType.accrualMethod,
+        },
+        maxDaysPerPeriod: lt.maxDaysPerYear,
+        availableLeaves,
+        used,
+        balance: lt.balance,
+        available: Math.max(0, lt.balance - used),
+        carryForward: lt.carryForward,
+        carriedForwardBalance: lt.carriedForwardBalance || 0,
+        currentPeriod: {
+          start: currentPeriod.periodStart,
+          end: currentPeriod.periodEnd,
+          label: formatPeriodLabel(currentPeriod),
+        },
+      });
+    }
 
     return summary.filter((s) => s !== null);
   } catch (error) {
@@ -164,6 +166,8 @@ async function resetPeriodBalance(
       employee.leaveTypes[leaveTypeIndex].carriedForwardBalance = carriedForward;
       employee.leaveTypes[leaveTypeIndex].maxDaysPerYear = maxForPeriod;
 
+      // Repair legacy data before saving
+      await EmployeeService.ensureValidLeaveTypes(employee);
       await employee.save();
     }
   } catch (error) {
@@ -356,6 +360,8 @@ export async function deductLeaveBalance(
     }
 
     leaveBalance.balance -= days;
+    // Repair legacy data before saving
+    await EmployeeService.ensureValidLeaveTypes(employee);
     await employee.save();
 
     return leaveBalance;
@@ -400,6 +406,7 @@ export async function restoreLeaveBalance(
       leaveBalance.balance = leaveBalance.maxDaysPerYear;
     }
 
+    await EmployeeService.ensureValidLeaveTypes(employee);
     await employee.save();
 
     return leaveBalance;
@@ -518,6 +525,7 @@ export async function carryForwardLeaves(
       });
     }
 
+    await EmployeeService.ensureValidLeaveTypes(employee);
     await employee.save();
 
     return results;
@@ -577,6 +585,7 @@ export async function initializeLeaveBalances(employeeId: string) {
     }
 
     if (missingLeaveTypes.length > 0) {
+      await EmployeeService.ensureValidLeaveTypes(employee);
       await employee.save();
     }
 

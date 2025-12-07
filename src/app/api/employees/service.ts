@@ -1,6 +1,7 @@
 import dbConnect from "@/app/lib/db";
 import Employee from "@/app/models/Employee";
 import Department from "@/app/models/Department";
+import LeaveType from "@/app/models/LeaveType";
 import { PurchaseService } from "../purchases/service";
 import Company from "@/app/models/Company";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
@@ -219,6 +220,11 @@ export class EmployeeService {
       }
     }
 
+    // Auto-populate leave types if override enabled
+    if (parsedBody.overrides?.leaveTypes) {
+      await EmployeeService.populateLeaveTypes(parsedBody, parsedBody.company);
+    }
+
     // Create and save the new employee
     const newEmployee = new Employee({
       ...parsedBody,
@@ -324,6 +330,11 @@ export class EmployeeService {
       }
     }
 
+    // Auto-populate leave types if override enabled
+    if (parsedBody.overrides?.leaveTypes) {
+      await EmployeeService.populateLeaveTypes(parsedBody, parsedBody.company);
+    }
+
     const updateData = { ...parsedBody };
     const unsetFields: Record<string, number> = {};
     // Handle field updates and unsetting
@@ -333,6 +344,7 @@ export class EmployeeService {
     if (!parsedBody.overrides?.paymentStructure)
       unsetFields.paymentStructure = 1;
     if (!parsedBody.overrides?.calendar) unsetFields.calendar = 1;
+    if (!parsedBody.overrides?.leaveTypes) unsetFields.leaveTypes = 1;
 
     // Remove fields from updateData if they are to be unset
     Object.keys(unsetFields).forEach((field) => {
@@ -414,5 +426,87 @@ export class EmployeeService {
     }
 
     return { message: "Employee deleted successfully" };
+  }
+
+  /**
+   * Repairs and creates leave types for a mongoose document or plain object
+   * Ensures maxDaysPerPeriod and balance are present to satisfy schema validation
+   */
+  public static async ensureValidLeaveTypes(employee: any) {
+    const companyId = typeof employee.company === 'object' ? employee.company._id : employee.company;
+
+    // Fetch available leave types
+    const availableLeaveTypes = await LeaveType.find({
+      company: companyId,
+      isActive: true,
+    }).lean();
+
+    const employeeType = employee.employeeType || "permanent";
+
+    // Filter applicable types
+    const applicableTypes = availableLeaveTypes.filter((lt: any) =>
+      lt.applicableFor.includes(employeeType) || lt.applicableFor.includes("all")
+    );
+
+    const currentLeaveTypes = employee.leaveTypes || [];
+    // If working with a Mongoose document, we might need to modify the array in place or set it
+    // But since this is a reference, modifying the objects inside the array should work if it's a plain object
+    // If it's a Mongoose array, we need to be careful. Best to map to new objects and re-assign.
+
+    const updatedLeaveTypes = currentLeaveTypes.map((elt: any) => {
+      const leaveTypeId =
+        typeof elt.leaveType === "object"
+          ? elt.leaveType._id?.toString()
+          : elt.leaveType.toString();
+
+      const companyDefault: any = availableLeaveTypes.find(
+        (lt: any) => lt._id.toString() === leaveTypeId
+      );
+
+      // Plain object structure to ensure validity
+      return {
+        leaveType: elt.leaveType, // Keep original reference (ObjectId or populated)
+        maxDaysPerPeriod: elt.maxDaysPerPeriod ?? (companyDefault?.maxDaysPerPeriod ?? 0),
+        balance: elt.balance ?? (companyDefault?.maxDaysPerPeriod ?? 0),
+        carryForward: elt.carryForward ?? (companyDefault?.carryForward ?? false),
+        // Preserve common fields
+        currentPeriodStart: elt.currentPeriodStart,
+        lastAccrualDate: elt.lastAccrualDate,
+        carriedForwardBalance: elt.carriedForwardBalance,
+        _id: elt._id // Preserve subdocument _id if it exists
+      };
+    });
+
+    // Add missing applicable types
+    applicableTypes.forEach((lt: any) => {
+      const exists = updatedLeaveTypes.some((elt: any) => {
+        const eltId =
+          typeof elt.leaveType === "object"
+            ? elt.leaveType._id?.toString()
+            : elt.leaveType.toString();
+        return eltId === lt._id.toString();
+      });
+
+      if (!exists) {
+        updatedLeaveTypes.push({
+          leaveType: lt._id,
+          maxDaysPerPeriod: lt.maxDaysPerPeriod ?? 0,
+          balance: lt.maxDaysPerPeriod ?? 0,
+          carryForward: lt.carryForward ?? false,
+        });
+      }
+    });
+
+    employee.leaveTypes = updatedLeaveTypes;
+    return employee;
+  }
+
+
+  private static async populateLeaveTypes(employeeData: any, companyId: string) {
+    // Re-use the new public method, but we need to ensure companyId context is set if missing in data
+    if (!employeeData.company) {
+      employeeData.company = companyId;
+    }
+    return this.ensureValidLeaveTypes(employeeData);
   }
 }
