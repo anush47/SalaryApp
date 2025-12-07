@@ -56,6 +56,7 @@ import dayjs from "dayjs";
 //import { Company } from "./companiesDataGrid";
 //import { CompanyValidation } from "./companyValidation";
 import Dialog from "@mui/material/Dialog";
+import UserCreationDialog from "./UserCreationDialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
@@ -81,6 +82,8 @@ const EditEmployeeForm: React.FC<{
   const [errors, setErrors] = useState<Record<string, string | any>>({});
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
+  const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const fetchEmployeeData = async (): Promise<Employee> => {
@@ -413,6 +416,66 @@ const EditEmployeeForm: React.FC<{
             endIcon={<Delete />}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
+  const handleDeleteUser = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/employees/enable-login?employeeId=${employeeId}`,
+        {
+          method: "DELETE",
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete user account");
+      }
+      showSnackbar({
+        message: "User account deleted successfully",
+        severity: "success",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["employees"],
+      });
+      setFormFields((prev) => ({ ...prev, user: undefined, canLogin: false }));
+      setDeleteUserDialogOpen(false);
+    } catch (error: any) {
+      showSnackbar({
+        message: error.message,
+        severity: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const DeleteUserDialog = () => {
+    return (
+      <Dialog
+        open={deleteUserDialogOpen}
+        onClose={() => setDeleteUserDialogOpen(false)}
+      >
+        <DialogTitle>Delete User Account?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete the user account for this employee?
+            They will no longer be able to log in.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteUserDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleDeleteUser}
+            color="error"
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -967,7 +1030,7 @@ const EditEmployeeForm: React.FC<{
             <Divider />
             <Documents
               documents={formFields.documents}
-              setDocuments={(docs) =>
+              setDocuments={(docs: any) =>
                 setFormFields({ ...formFields, documents: docs })
               }
               editable={isEditing}
@@ -1329,62 +1392,46 @@ const EditEmployeeForm: React.FC<{
           </Link>
         </Grid>
 
-        {formFields.canLogin && !formFields.user && (
-          <Grid mt={3} item xs={12}>
+        <Grid mt={3} item xs={12}>
+          {formFields.user ? (
             <Button
-              variant="contained"
-              color="secondary"
-              onClick={async () => {
-                if (!formFields.email) {
-                  showSnackbar({
-                    message: "Email is required to create a user account",
-                    severity: "error",
-                  });
-                  return;
-                }
-                try {
-                  setIsLoading(true);
-                  const response = await fetch("/api/employees/enable-login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      employeeId: employeeId,
-                      userId: user.id,
-                    }),
-                  });
-                  const data = await response.json();
-                  if (!response.ok) {
-                    throw new Error(
-                      data.error || "Failed to create user account"
-                    );
-                  }
-                  showSnackbar({
-                    message: `User account created! Temporary password: ${data.temporaryPassword}`,
-                    severity: "success",
-                  });
-                  queryClient.invalidateQueries({
-                    queryKey: ["employees", companyId, employeeId],
-                  });
-                } catch (error: any) {
-                  showSnackbar({ message: error.message, severity: "error" });
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
+              variant="outlined"
+              color="error"
+              startIcon={<Delete />}
+              onClick={() => setDeleteUserDialogOpen(true)}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : "Create User Account"}
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : (
+                "Delete User Account"
+              )}
             </Button>
-            <Typography
-              variant="caption"
-              color="textSecondary"
-              sx={{ ml: 2, display: "block", mt: 1 }}
-            >
-              Note: Employee must have an email address to create a login
-              account.
-            </Typography>
-          </Grid>
-        )}
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => setCreateUserDialogOpen(true)}
+                disabled={loading}
+              >
+                {loading ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  "Create User Account"
+                )}
+              </Button>
+              <Typography
+                variant="caption"
+                color="textSecondary"
+                sx={{ ml: 2, display: "block", mt: 1 }}
+              >
+                Note: Employee must have an email address to create a login
+                account.
+              </Typography>
+            </>
+          )}
+        </Grid>
 
         <Grid mt={3} item xs={12}>
           <Button
@@ -1400,6 +1447,15 @@ const EditEmployeeForm: React.FC<{
       </CardContent>
 
       <DeleteDialog />
+      <DeleteUserDialog />
+
+      <UserCreationDialog
+        open={createUserDialogOpen}
+        onClose={() => setCreateUserDialogOpen(false)}
+        defaultEmail={formFields.email || ""}
+        employeeId={employeeId}
+        userId={user.id}
+      />
     </>
   );
 };

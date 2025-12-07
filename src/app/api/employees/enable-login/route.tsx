@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     const body = await req.json();
-    const { employeeId, userId } = body;
+    const { employeeId, userId, email } = body;
 
     if (!employeeId) {
       return NextResponse.json(
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if employee has an email
-    if (!employee.email) {
+    // Check if employee has an email or one is provided
+    if (!employee.email && !email) {
       return NextResponse.json(
         { error: "Employee must have an email address to create a login account" },
         { status: 400 }
@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if a user with this email already exists
-    const existingUser = await User.findOne({ email: employee.email });
+    const userEmail = email || employee.email;
+    const existingUser = await User.findOne({ email: userEmail });
     if (existingUser) {
       return NextResponse.json(
         { error: "A user account with this email already exists" },
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     // Create the user account
     const newUser = new User({
       name: employee.name,
-      email: employee.email,
+      email: email || employee.email,
       password: hashedPassword,
       role: "employee",
       employee: employee._id,
@@ -95,6 +96,52 @@ export async function POST(req: NextRequest) {
     console.error("Error enabling employee login:", error);
     return NextResponse.json(
       { error: "Failed to create user account" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const employeeId = searchParams.get("employeeId");
+
+    if (!employeeId) {
+      return NextResponse.json(
+        { error: "Employee ID is required" },
+        { status: 400 }
+      );
+    }
+
+    await dbConnect();
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return NextResponse.json(
+        { error: "Employee not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!employee.user) {
+      return NextResponse.json(
+        { error: "Employee does not have a user account" },
+        { status: 400 }
+      );
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(employee.user);
+
+    // Update employee to remove user reference
+    employee.user = undefined;
+    employee.canLogin = false;
+    await employee.save();
+
+    return NextResponse.json({ message: "User account deleted successfully" });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Failed to delete user account" },
       { status: 500 }
     );
   }
