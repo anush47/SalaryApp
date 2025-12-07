@@ -37,7 +37,7 @@ const GenerateSalaryAll = ({
   const queryClient = useQueryClient();
   const [inOut, setInOut] = useState<string>("");
   const [generatedSalaries, setGeneratedSalaries] = useState<Salary[]>([]);
-  const [employeeIds, setEmployeeIds] = useState<String[]>([]);
+  const [employeeIds, setEmployeeIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [openDialog, setOpenDialog] = useState(false);
 
@@ -116,7 +116,7 @@ const GenerateSalaryAll = ({
     }
   };
 
-  const handleIncludeChange = (employeeId: String) => {
+  const handleIncludeChange = (employeeId: string) => {
     setEmployeeIds((prevEmployeeIds) =>
       prevEmployeeIds.includes(employeeId)
         ? prevEmployeeIds.filter((id) => id !== employeeId)

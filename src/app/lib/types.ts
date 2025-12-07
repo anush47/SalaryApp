@@ -84,7 +84,6 @@ export interface Employee {
   basic: number;
   divideBy: 240 | 200;
   designation?: string;
-  remark?: string;
   otMethod: string;
   startedAt?: string;
   resignedAt?: string;
@@ -92,7 +91,7 @@ export interface Employee {
   canLogin: boolean;
   user?: any; // User reference
   email?: string;
-  otMethod: string;
+
   totalSalary: string;
   workingDays: {
     [key: string]: "full" | "half" | "off";
@@ -115,11 +114,10 @@ export interface Employee {
       affectTotalEarnings: boolean;
     }[];
   };
-  startedAt: string;
-  resignedAt: string;
+
   company: string | Company; // Can be ID or populated object
   phoneNumber?: string;
-  email?: string;
+
   address?: string;
   department?: any; // Department reference
   manager?: any; // Manager reference

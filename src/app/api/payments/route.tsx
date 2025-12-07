@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);
       }
       if (error instanceof Error) {
-        if (error.message === "Access denied") return ApiResponseUtils.sendError("Access denied", 403);
-        if (error.message === "Payment not found") return ApiResponseUtils.sendError("Payment not found", 404);
+        if (error.message === "Access denied") return ApiResponseUtils.sendForbidden("Access denied");
+        if (error.message === "Payment not found") return ApiResponseUtils.sendNotFound("Payment not found");
         if (error.message === "Company ID or payment ID is required") return ApiResponseUtils.sendBadRequest(error.message);
       }
       throw error;
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);
       }
       if (error instanceof Error) {
-        if (error.message === "Access denied") return ApiResponseUtils.sendError("Access denied", 403);
+        if (error.message === "Access denied") return ApiResponseUtils.sendForbidden("Access denied");
         if (error.message === "Payment already exists") return ApiResponseUtils.sendBadRequest(error.message);
         if (error.message.includes("not Purchased")) return ApiResponseUtils.sendBadRequest(error.message);
       }
@@ -71,8 +71,8 @@ export async function PUT(req: NextRequest) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);
       }
       if (error instanceof Error) {
-        if (error.message === "Access denied") return ApiResponseUtils.sendError("Access denied", 403);
-        if (error.message === "Payment not found") return ApiResponseUtils.sendError("Payment not found", 404);
+        if (error.message === "Access denied") return ApiResponseUtils.sendForbidden("Access denied");
+        if (error.message === "Payment not found") return ApiResponseUtils.sendNotFound("Payment not found");
       }
       throw error;
     }
@@ -90,8 +90,8 @@ export async function DELETE(req: NextRequest) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);
       }
       if (error instanceof Error) {
-        if (error.message === "Access denied") return ApiResponseUtils.sendError("Access denied", 403);
-        if (error.message.includes("not allowed to delete")) return ApiResponseUtils.sendError(error.message, 403);
+        if (error.message === "Access denied") return ApiResponseUtils.sendForbidden("Access denied");
+        if (error.message.includes("not allowed to delete")) return ApiResponseUtils.sendForbidden(error.message);
       }
       throw error;
     }

@@ -11,7 +11,7 @@ import { ApiResponse, RequestContext } from '@/app/lib/apiResponse';
 export async function authenticateRequest(req: NextRequest): Promise<{ authenticated: boolean; context?: RequestContext; response?: NextResponse }> {
   try {
     const session = await getServerSession(options);
-    
+
     if (!session || !session.user || !session.user.id) {
       const response: ApiResponse = {
         success: false,
@@ -76,9 +76,9 @@ export async function authenticateRequest(req: NextRequest): Promise<{ authentic
     const context: RequestContext = {
       user: {
         id: session.user.id,
-        email: session.user.email,
-        role: session.user.role,
-        isActive: session.user.isActive,
+        email: session.user.email || "",
+        role: session.user.role || "",
+        isActive: session.user.isActive || false,
         canLogin: session.user.canLogin,
       },
       requestId,
@@ -94,7 +94,7 @@ export async function authenticateRequest(req: NextRequest): Promise<{ authentic
     return { authenticated: true, context };
   } catch (error) {
     logger.error('Authentication error', { error: error instanceof Error ? error.message : String(error) }, error as Error);
-    
+
     const response: ApiResponse = {
       success: false,
       error: {

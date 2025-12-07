@@ -71,16 +71,16 @@ export class PaymentService {
         if (companyId === "all") {
             let companies: any[] = [];
             if (currentUser.role === "admin") {
-                companies = (await Company.find({}).select("_id name employerNo paymentMethod").lean()).map(c => ({
+                companies = (await Company.find({}).select("_id name employerNo paymentMethod").lean<ICompany[]>()).map((c) => ({
                     ...c,
-                    _id: c._id.toString()
+                    _id: (c._id as any).toString()
                 }));
             } else {
                 companies = (await Company.find({ user: userId })
                     .select("_id name employerNo paymentMethod")
-                    .lean()).map(c => ({
+                    .lean<ICompany[]>()).map((c) => ({
                         ...c,
-                        _id: c._id.toString()
+                        _id: (c._id as any).toString()
                     }));
                 const companyIds = companies.map((c) => c._id);
                 paymentFilter = { company: { $in: companyIds } };

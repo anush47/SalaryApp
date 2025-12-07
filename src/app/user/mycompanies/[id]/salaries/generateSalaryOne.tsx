@@ -156,6 +156,14 @@ const GenerateSalaryOne = ({
         return;
       }
 
+      const data = await generateSalaries({
+        companyId,
+        employees: [employeeId],
+        period,
+        inOut,
+      });
+
+
       //check if data.salaries[0] is in correct form
       if (
         !data.salaries[0] ||

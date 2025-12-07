@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
           },
         });
       }
+
+      return ApiResponseUtils.sendBadRequest("Invalid parameters");
     } catch (error) {
       if (error instanceof z.ZodError) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);

@@ -1,7 +1,7 @@
 import { Schema, model, models, Document } from "mongoose";
 
 // Define an interface for the TaxConfiguration document
-interface ITaxConfiguration extends Document {
+export interface ITaxConfiguration extends Document {
   year: number;
   country: string;
   taxSlabs: {

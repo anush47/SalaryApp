@@ -101,6 +101,28 @@ const PaymentsDataGrid: React.FC<{
     React.useState<GridRowSelectionModel>([]);
 
   // ... (columns definition)
+  const columns: GridColDef[] = [
+    { field: "companyName", headerName: "Company Name", width: 200 },
+    { field: "companyEmployerNo", headerName: "Employer No", width: 150 },
+    { field: "period", headerName: "Period", width: 120 },
+    { field: "epfReferenceNo", headerName: "EPF Ref No", width: 150, editable: isEditing },
+    { field: "epfAmount", headerName: "EPF Amount", width: 130, valueFormatter: (value: any) => value?.toLocaleString(), editable: isEditing },
+    { field: "etfAmount", headerName: "ETF Amount", width: 130, valueFormatter: (value: any) => value?.toLocaleString(), editable: isEditing },
+    { field: "epfPaymentMethod", headerName: "EPF Method", width: 130, editable: isEditing },
+    { field: "etfPaymentMethod", headerName: "ETF Method", width: 130, editable: isEditing },
+    {
+      field: "epfPayDay", headerName: "EPF Paid Date", width: 150, type: "date",
+      valueGetter: (value: any) => value && new Date(value),
+      editable: isEditing
+    },
+    {
+      field: "etfPayDay", headerName: "ETF Paid Date", width: 150, type: "date",
+      valueGetter: (value: any) => value && new Date(value),
+      editable: isEditing
+    },
+    { field: "epfChequeNo", headerName: "EPF Cheque No", width: 150, editable: isEditing },
+    { field: "etfChequeNo", headerName: "ETF Cheque No", width: 150, editable: isEditing },
+  ];
 
   const handleRowUpdate = async (newPayment: any) => {
     try {

@@ -29,6 +29,7 @@ interface TaxConfig {
   country: string;
   companyId?: string;
   isDefault: boolean;
+  isOverride?: boolean;
   taxSlabs: TaxSlab[];
   personalAllowance: {
     monthly: number;
@@ -113,7 +114,7 @@ const CompanyTaxConfigurationPage: React.FC<{ companyId: string, user: any }> = 
       setLoading(false);
     }
   };
-  
+
   const handleOpenDialog = (isEditMode: boolean) => {
     setEditMode(isEditMode);
     setDialogOpen(true);

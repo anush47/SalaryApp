@@ -1,7 +1,7 @@
 import { Schema, model, models, Document } from "mongoose";
 
 // Define an interface for the Salary document
-interface ISalary extends Document {
+export interface ISalary extends Document {
   employee: Schema.Types.ObjectId;
   period: string;
   basic: number;

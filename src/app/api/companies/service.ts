@@ -261,7 +261,7 @@ export class CompanyService {
     return { message: "Company deleted successfully" };
   }
 
-  static async getReferenceNoName(employerNo: string, period: string) {
+  static async getReferenceNoName(employerNo: string, period: string): Promise<{ referenceNo: string | null; name: string | null }> {
     const [employer_no_zn, employer_no_number] = employerNo.split("/");
     const formattedPeriod = period.replace("-", "");
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { options } from "../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
-import TaxConfiguration from "@/app/models/TaxConfiguration";
+import TaxConfiguration, { ITaxConfiguration } from "@/app/models/TaxConfiguration";
 import Company from "@/app/models/Company";
 
 /**
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       year,
       country: "LK",
       isActive: true,
-    }).lean();
+    }).lean<ITaxConfiguration>();
 
     if (!baseConfig) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
           personalAllowance: override.personalAllowance || baseConfig.personalAllowance,
           isOverride: true, // Add a flag to indicate this is an override
         };
-        delete mergedConfig.overrides; // Clean up the response
+        delete (mergedConfig as any).overrides; // Clean up the response
 
         return NextResponse.json({
           success: true,
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 
     // If no companyId or no override found, return the default base config
     const defaultConfig = { ...baseConfig, isOverride: false };
-    delete defaultConfig.overrides;
+    delete (defaultConfig as any).overrides;
 
     return NextResponse.json({
       success: true,
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (session.user.role === 'employee') {
-       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await dbConnect();
@@ -120,19 +120,19 @@ export async function POST(req: NextRequest) {
       personalAllowance,
     } = body;
 
-    if (!year || !companyId ) {
+    if (!year || !companyId) {
       return NextResponse.json(
         { error: "Missing required fields: year, companyId" },
         { status: 400 }
       );
     }
-    
+
     // Security Check: Ensure employer is modifying their own company
     if (session.user.role === 'employer') {
-        const company = await Company.findById(companyId);
-        if (!company || company.user.toString() !== session.user.id) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+      const company = await Company.findById(companyId);
+      if (!company || company.user.toString() !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const baseConfig = await TaxConfiguration.findOne({ year, country: "LK" });
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       // For now, let's handle creating a base config if admin.
       if (session.user.role === 'admin' && !companyId) {
         const newBaseConfig = await TaxConfiguration.create(body);
-         return NextResponse.json(
+        return NextResponse.json(
           {
             success: true,
             message: "Base tax configuration created successfully.",
@@ -158,18 +158,18 @@ export async function POST(req: NextRequest) {
     }
 
     const overrideIndex = baseConfig.overrides.findIndex(
-      (o) => o.companyId.toString() === companyId
+      (o: any) => o.companyId.toString() === companyId
     );
 
     const overrideData = {
-        companyId,
-        taxSlabs,
-        personalAllowance
+      companyId,
+      taxSlabs,
+      personalAllowance
     };
 
     if (overrideIndex > -1) {
       // Update existing override
-       baseConfig.overrides[overrideIndex] = { ...baseConfig.overrides[overrideIndex].toObject(), ...overrideData };
+      baseConfig.overrides[overrideIndex] = { ...baseConfig.overrides[overrideIndex].toObject(), ...overrideData };
     } else {
       // Add new override
       baseConfig.overrides.push(overrideData);
@@ -265,7 +265,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (session.user.role === 'employee') {
-       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await dbConnect();
@@ -282,13 +282,13 @@ export async function DELETE(req: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Security Check: Ensure employer is modifying their own company
     if (session.user.role === 'employer') {
-        const company = await Company.findById(companyId);
-        if (!company || company.user.toString() !== session.user.id) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+      const company = await Company.findById(companyId);
+      if (!company || company.user.toString() !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const result = await TaxConfiguration.updateOne(

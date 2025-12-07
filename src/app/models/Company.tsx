@@ -1,7 +1,7 @@
 import { Schema, model, models, Document } from "mongoose";
 
 // Define an interface for the Company document
-interface ICompany extends Document {
+export interface ICompany extends Document {
   name: string;
   employerNo: string;
   address: string;

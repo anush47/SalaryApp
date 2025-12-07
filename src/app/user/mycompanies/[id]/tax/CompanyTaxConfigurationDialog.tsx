@@ -22,14 +22,16 @@ import {
   Close as CloseIcon,
 } from "@mui/icons-material";
 
+interface TaxSlab {
+  min: number;
+  max: number;
+  rate: number;
+  fixedAmount: number;
+}
+
 interface TaxOverrideData {
   year: number;
-  taxSlabs: {
-    min: number;
-    max: number;
-    rate: number;
-    fixedAmount: number;
-  }[];
+  taxSlabs: TaxSlab[];
   personalAllowance: {
     monthly: number;
     annual: number;
@@ -41,6 +43,7 @@ interface Props {
   onClose: (refresh?: boolean) => void;
   config: (TaxOverrideData & { isOverride?: boolean }) | null;
   companyId: string;
+  editMode?: boolean;
 }
 
 const CompanyTaxConfigurationDialog: React.FC<Props> = ({
@@ -59,16 +62,16 @@ const CompanyTaxConfigurationDialog: React.FC<Props> = ({
 
   useEffect(() => {
     if (open) {
-        const initialData = config ? config : {
-            year: new Date().getFullYear(),
-            taxSlabs: [],
-            personalAllowance: { monthly: 0, annual: 0 },
-        };
-        setFormData({
-            year: initialData.year,
-            taxSlabs: initialData.taxSlabs,
-            personalAllowance: initialData.personalAllowance
-        });
+      const initialData = config ? config : {
+        year: new Date().getFullYear(),
+        taxSlabs: [],
+        personalAllowance: { monthly: 0, annual: 0 },
+      };
+      setFormData({
+        year: initialData.year,
+        taxSlabs: initialData.taxSlabs,
+        personalAllowance: initialData.personalAllowance
+      });
     }
   }, [config, open]);
 
@@ -121,7 +124,7 @@ const CompanyTaxConfigurationDialog: React.FC<Props> = ({
       if (!response.ok) {
         throw new Error(data.error || "Failed to save tax configuration");
       }
-      
+
       onClose(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -265,7 +268,7 @@ const CompanyTaxConfigurationDialog: React.FC<Props> = ({
                       label="Max Amount"
                       type="number"
                       value={slab.max === Infinity ? '' : slab.max}
-                      onChange={(e) => handleSlabChange( index, "max", e.target.value ? parseFloat(e.target.value) : Infinity)}
+                      onChange={(e) => handleSlabChange(index, "max", e.target.value ? parseFloat(e.target.value) : Infinity)}
                       size="small"
                       placeholder="Infinity"
                     />
@@ -286,7 +289,7 @@ const CompanyTaxConfigurationDialog: React.FC<Props> = ({
                       label="Fixed Amount"
                       type="number"
                       value={slab.fixedAmount}
-                      onChange={(e) => handleSlabChange( index, "fixedAmount", parseFloat(e.target.value))}
+                      onChange={(e) => handleSlabChange(index, "fixedAmount", parseFloat(e.target.value))}
                       size="small"
                     />
                   </Grid>

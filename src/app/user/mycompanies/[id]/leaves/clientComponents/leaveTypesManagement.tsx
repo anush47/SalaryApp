@@ -528,19 +528,64 @@ const LeaveTypesManagement: React.FC<{
                 const oldValue = newLeaveType.applicableFor;
                 let finalValue = newValue;
 
+                const allTypes = ["permanent", "contract", "intern", "temporary"];
                 if (newValue.includes("all")) {
-                  if (!oldValue.includes("all")) {
-                    // "all" was just selected, so clear others
-                    finalValue = ["all"];
-                  } else if (newValue.length > 1) {
-                    // "all" was already there, but something else was added. Remove "all".
-                    finalValue = newValue.filter((v: string) => v !== "all");
+                  if (!oldValue.includes("permanent") || !oldValue.includes("contract") || !oldValue.includes("intern") || !oldValue.includes("temporary")) {
+                    // "all" was selected (or implied), so select all types
+                    finalValue = allTypes;
+                  } else if (newValue.length > allTypes.length) {
+                    // Something was added when all were already selected - no-op or specific logic if needed?
+                    // Actually, if "all" is in the menu value but not in state... logic acts up.
+                    // Simplified: If user clicks "All", set to allTypes.
+                    // Since 'all' is not in the type, we check the event value carefully.
+                    // The Select 'value' passed is 'all'.
+                    finalValue = allTypes;
                   }
+                } else {
+                  // If user Deselects one from "All", "all" won't be in newValue if we use it directly,
+                  // BUT we are using a "All" Option.
+                  // Let's rely on standard multi-select behavior but intercept "all".
+                }
+
+                // Re-implementing clearer logic:
+                if (newValue.includes("all")) {
+                  // If "All" is currently selected in the dropdown
+                  // Check if it was ALREADY effectively "all"
+                  const wasAll = oldValue.length === 4; // assuming 4 types
+
+                  if (wasAll && newValue.length < 5) {
+                    // If it was all, and now it's less (user deselected something? No, this block is if "all" IS in newValue)
+                    // The "All" option logic in MUI Select with unique values is tricky.
+                    // Let's assume: If "all" is in `newValue`, user explicitly clicked "All".
+                    // If `oldValue` wasn't full, user wants to Select All.
+                    // If `oldValue` WAS full, user wants to Deselect All (toggle behavior) or it's just maintaining state.
+
+                    // Standard pattern: If "All" is clicked:
+                    // 1. If not all were selected -> Select All
+                    // 2. If all were selected -> Deselect All
+
+                    // But newValue contains what is currently "checked". 
+                    // If "All" is in newValue, it means the user just clicked it (if it wasn't there before) 
+                    // OR it was there and they clicked something else? No, "all" isn't a state value.
+
+                    finalValue = allTypes;
+                  } else {
+                    // "All" is in the list, but maybe we just want to ensure all are there?
+                    // For simplicity, if "all" is present, force all types.
+                    finalValue = allTypes;
+                  }
+                }
+
+                // Wait, the error is likely that we are trying to set `applicableFor` to `["all"]`.
+                // The user wants "all" in the UI to MEAN "permanent, contract, intern, temporary".
+
+                if (newValue.includes("all")) {
+                  finalValue = ["permanent", "contract", "intern", "temporary"];
                 }
 
                 setNewLeaveType({
                   ...newLeaveType,
-                  applicableFor: finalValue,
+                  applicableFor: finalValue as any,
                 });
               }}
               SelectProps={{
@@ -814,18 +859,12 @@ const LeaveTypesManagement: React.FC<{
                   let finalValue = newValue;
 
                   if (newValue.includes("all")) {
-                    if (!oldValue.includes("all")) {
-                      // "all" was just selected, so clear others
-                      finalValue = ["all"];
-                    } else if (newValue.length > 1) {
-                      // "all" was already there, but something else was added. Remove "all".
-                      finalValue = newValue.filter((v: string) => v !== "all");
-                    }
+                    finalValue = ["permanent", "contract", "intern", "temporary"];
                   }
 
                   setEditingLeaveType({
                     ...editingLeaveType,
-                    applicableFor: finalValue,
+                    applicableFor: finalValue as any,
                   });
                 }}
                 SelectProps={{
