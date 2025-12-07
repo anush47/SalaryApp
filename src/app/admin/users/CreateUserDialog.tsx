@@ -39,14 +39,26 @@ export default function CreateUserDialog({
         if (data.message && data.message.startsWith("E11000")) {
           throw new Error("Email already exists");
         }
-        throw new Error(data.message || "An error occurred");
+        // Handle error structure: { success: false, error: { message: "..." } }
+        const errorMessage =
+          data.error?.message || data.message || "An error occurred";
+        throw new Error(errorMessage);
       }
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      // content data structure: { success: true, data: { user: ... }, message: "..." }
+      // we try to use the message from API, or fallback to constructed message
+      // and we must access user via data.data.user
+      const user = data.data?.user || data.user;
+      const successMessage =
+        data.message ||
+        data.data?.message ||
+        `${user?.name || "User"} created successfully`;
+
       showSnackbar({
-        message: `${data.user.name} created successfully`,
+        message: successMessage,
         severity: "success",
       });
       setFormVisible(false);
