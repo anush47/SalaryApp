@@ -15,6 +15,20 @@ declare module "next-auth" {
       image?: string | null;
       isActive?: boolean;
       canLogin?: boolean;
+      forcePasswordChange?: boolean;
     };
+  }
+}
+
+import { JWT } from "next-auth/jwt";
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+    role?: string | null;
+    isActive?: boolean;
+    canLogin?: boolean;
+    forcePasswordChange?: boolean;
+    error?: string;
   }
 }

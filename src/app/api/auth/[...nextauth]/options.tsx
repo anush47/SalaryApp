@@ -87,12 +87,14 @@ export const options: NextAuthOptions = {
       const user = await User.findOne({ email: token.email });
 
       if (!user) {
-        return token;
+        // User deleted
+        return { ...token, error: "UserDeleted" };
       }
 
       token.id = user.id;
       token.role = user.role;
       token.isActive = user.isActive;
+      token.forcePasswordChange = user.forcePasswordChange;
 
       // For employees, check canLogin permission
       if (user.role === "employee" && user.employee) {
@@ -151,12 +153,21 @@ export const options: NextAuthOptions = {
     },
 
     async session({ session, user, token }) {
+      if (token.error === "UserDeleted") {
+        // If the user is deleted, return null or an empty object to invalidate the session
+        // However, returning null here might break types or expectation.
+        // It is better to return a session that indicates error, or reliance on token.
+        // But throwing errors here usually crashes the client.
+        // Returning default null often triggers signOut on client.
+        return null as any;
+      }
       return {
         ...session,
         user: {
           ...session.user,
           role: token.role,
           id: token.id,
+          forcePasswordChange: token.forcePasswordChange,
         },
       };
     },

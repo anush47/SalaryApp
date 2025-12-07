@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     // Hash the new password
     const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
     user.password = hashedNewPassword;
+    user.forcePasswordChange = false;
+    user.passwordChangedAt = new Date();
     await user.save();
 
     return NextResponse.json(
