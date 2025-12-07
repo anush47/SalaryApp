@@ -144,6 +144,7 @@ export interface Employee {
   emergencyContact?: string;
   editable?: boolean;
   documents?: Record<string, string>;
+  taxType?: "company" | "individual";
 }
 
 // Default values for Employee

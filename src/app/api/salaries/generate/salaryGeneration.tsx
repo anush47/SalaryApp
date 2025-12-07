@@ -486,21 +486,36 @@ export async function generateSalaryForOneEmployee(
       .join("; ");
 
     // Calculate tax based on salary components
-    // Tax is calculated on: basic + holidayPay + additions affecting earnings
-    // EPF 8% is deducted before tax calculation
-    // Final tax includes APIT + stamp duty
-    const taxCalculation = await calculateTax(
-      source.basic,
-      holidayPay,
-      parsedAdditions,
-      ot,
-      employee.company?.toString(), // Pass company ID for company-specific tax config
-      period
-    );
+    // TaxConfig: check employee.taxType
+    // If not selected (!taxType) or "company", tax is calculated and deducted.
+    // If "individual", tax is NOT calculated (and thus not deducted).
+
+    let taxCalculation = {
+      apitAmount: 0,
+      stampDuty: 0,
+      totalTax: 0,
+      taxableIncome: 0,
+      grossSalary: 0,
+    };
+
+    if (employee.taxType !== "individual") {
+      taxCalculation = await calculateTax(
+        source.basic,
+        holidayPay,
+        parsedAdditions,
+        ot,
+        employee.company?.toString(), // Pass company ID for company-specific tax config
+        period
+      );
+    }
 
     // Final salary calculation:
     // basic + holidayPay + totalAdditions + ot - totalDeductions - totalNoPay - totalTax
     // Note: EPF 8% is already in totalDeductions, and tax is calculated after EPF deduction
+
+    // If taxType is individual, totalTax is 0.
+    // If taxType is company or undefined, totalTax is calculated value.
+
     const finalSalary =
       employee.basic +
       holidayPay +

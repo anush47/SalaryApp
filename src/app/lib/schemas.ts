@@ -149,6 +149,7 @@ export const employeeCreateSchema = z.object({
   emergencyContact: z.string().optional(),
   editable: z.boolean().optional().default(false),
   documents: z.record(z.string()).optional(),
+  taxType: z.enum(["company", "individual"]).optional(),
 });
 
 export const employeeUpdateSchema = z.object({
@@ -253,6 +254,7 @@ export const employeeUpdateSchema = z.object({
   emergencyContact: z.string().optional(),
   editable: z.boolean().optional(),
   documents: z.record(z.string()).optional(),
+  taxType: z.enum(["company", "individual"]).optional(),
 });
 
 export const employeeIdSchema = z.string().min(1, "Employee ID is required");

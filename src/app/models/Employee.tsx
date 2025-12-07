@@ -25,6 +25,7 @@ interface IEmployee extends Document {
   manager: Schema.Types.ObjectId;
   employeeType: "permanent" | "contract" | "intern" | "temporary";
   canLogin: boolean;
+  taxType?: "company" | "individual";
   // Leave customization with override pattern
   overrides: {
     shifts: boolean;
@@ -145,6 +146,11 @@ const employeeSchema = new Schema<IEmployee>(
     canLogin: {
       type: Boolean,
       default: false,
+    },
+    taxType: {
+      type: String,
+      enum: ["company", "individual"],
+      required: false,
     },
     overrides: {
       type: {

@@ -758,6 +758,26 @@ const EditEmployeeForm: React.FC<{
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
+              <InputLabel id="taxType-label">Tax Payed By</InputLabel>
+              <Select
+                labelId="taxType-label"
+                label="Tax Payed By"
+                name="taxType"
+                value={formFields.taxType || ""}
+                onChange={handleChange}
+                variant="outlined"
+                readOnly={!isEditing}
+              >
+                <MenuItem value="company">Company</MenuItem>
+                <MenuItem value="individual">Individual</MenuItem>
+                <MenuItem value="">
+                  <em>Not Selected (No Tax)</em>
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
               <FormControlLabel
                 control={
                   <Checkbox
