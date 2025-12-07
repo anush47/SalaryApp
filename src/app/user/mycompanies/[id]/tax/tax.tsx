@@ -2,12 +2,23 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Paper,
   Typography,
   Button,
   CircularProgress,
   Alert,
   Grid,
+  Card,
+  CardHeader,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Divider,
+  Chip,
+  Stack,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -127,92 +138,276 @@ const CompanyTaxConfigurationPage: React.FC<{ companyId: string, user: any }> = 
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ mb: 3 }}>
-        {error}
-      </Alert>
-    );
-  }
+  const Header = () => (
+    <CardHeader
+      title={
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 2,
+          }}
+        >
+          <Typography variant="h4" component="h1">
+            Tax Configuration
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {taxConfig?.isDefault ? (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog(false)}
+              >
+                Override and Customize
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => handleOpenDialog(true)}
+                >
+                  Edit Override
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<RestoreIcon />}
+                  onClick={handleResetToDefault}
+                  disabled={loading}
+                >
+                  Reset to Global Default
+                </Button>
+              </>
+            )}
+          </Box>
+        </Box>
+      }
+    />
+  );
 
   return (
-    <Paper sx={{ p: 3, mt: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }} >
-        <Typography variant="h4">Tax Configuration</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {taxConfig?.isDefault ? (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog(false)}
-            >
-              Override and Customize
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="outlined"
-                startIcon={<EditIcon />}
-                onClick={() => handleOpenDialog(true)}
-              >
-                Edit Override
-              </Button>
-              <Button
-                variant="outlined"
-                color="secondary"
-                startIcon={<RestoreIcon />}
-                onClick={handleResetToDefault}
-                disabled={loading}
-              >
-                Reset to Global Default
-              </Button>
-            </>
-          )}
-        </Box>
-      </Box>
-
-      {taxConfig ? (
-        <>
-          {taxConfig.isDefault && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              This company is using the global default tax configuration. You can override it to create a company-specific configuration.
+    <Box>
+      <Card
+        sx={{
+          minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+          overflowY: "auto",
+        }}
+      >
+        <Header />
+        <CardContent
+          sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
+        >
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
             </Alert>
-          )}
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}><Typography><strong>Year:</strong> {taxConfig.year}</Typography></Grid>
-            <Grid item xs={12} sm={6}><Typography><strong>Annual Personal Allowance:</strong> LKR {taxConfig.personalAllowance.annual.toLocaleString()}</Typography></Grid>
-            <Grid item xs={12}>
-              <Typography variant="h6">Tax Slabs</Typography>
-              <ul>
-                {taxConfig.taxSlabs.map((slab, index) => (
-                  <li key={index}>
-                    LKR {slab.min?.toLocaleString() ?? 0} - {slab.max === Infinity ? 'Above' : `LKR ${slab.max?.toLocaleString() ?? 0}`} @ {(slab.rate * 100)}% + LKR {slab.fixedAmount?.toLocaleString() ?? 0}
-                  </li>
-                ))}
-              </ul>
-            </Grid>
-          </Grid>
-        </>
-      ) : (
-        <Typography>No tax configuration found.</Typography>
-      )}
+          ) : taxConfig ? (
+            <Stack spacing={4}>
+              {taxConfig.isDefault && (
+                <Alert severity="info">
+                  This company is using the global default tax configuration. You
+                  can override it to create a company-specific configuration.
+                </Alert>
+              )}
 
-      <CompanyTaxConfigurationDialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        config={taxConfig}
-        companyId={companyId}
-        editMode={editMode}
-      />
-    </Paper>
+              {/* General Settings Section */}
+              <Box>
+                <Typography variant="h6" gutterBottom color="primary">
+                  General Settings
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Tax Year
+                      </Typography>
+                      <Typography variant="h6">{taxConfig.year}</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Annual Personal Allowance
+                      </Typography>
+                      <Typography variant="h6">
+                        LKR{" "}
+                        {taxConfig.personalAllowance.annual.toLocaleString(
+                          undefined,
+                          { minimumFractionDigits: 2 }
+                        )}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Monthly Personal Allowance
+                      </Typography>
+                      <Typography variant="h6">
+                        LKR{" "}
+                        {taxConfig.personalAllowance.monthly.toLocaleString(
+                          undefined,
+                          { minimumFractionDigits: 2 }
+                        )}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        EPF Relief Rate
+                      </Typography>
+                      <Typography variant="h6">
+                        {(taxConfig.qualifyingPaymentRelief.epfRate * 100).toFixed(
+                          1
+                        )}
+                        %
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              <Divider />
+
+              {/* Tax Slabs Section */}
+              <Box>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Tax Slabs
+                </Typography>
+                <TableContainer
+                  component={Box}
+                  sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}
+                >
+                  <Table size="medium">
+                    <TableHead sx={{ bgcolor: "action.hover" }}>
+                      <TableRow>
+                        <TableCell width="40%">Taxable Income Range (Monthly)</TableCell>
+                        <TableCell align="right" width="20%">Rate</TableCell>
+                        <TableCell align="right" width="40%">Cumulative Fixed Tax</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {taxConfig.taxSlabs.map((slab, index) => (
+                        <TableRow key={index} hover>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Chip
+                                label={`Tier ${index + 1}`}
+                                size="small"
+                                color="default"
+                                variant="outlined"
+                              />
+                              <Typography variant="body2">
+                                LKR {slab.min?.toLocaleString()} -{" "}
+                                {slab.max === Infinity
+                                  ? "Unlimited"
+                                  : `LKR ${slab.max?.toLocaleString()}`}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Chip
+                              label={`${(slab.rate * 100).toFixed(0)}%`}
+                              color={slab.rate > 0 ? "error" : "success"}
+                              size="small"
+                              variant={slab.rate > 0 ? "filled" : "outlined"}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="medium">
+                              LKR{" "}
+                              {slab.fixedAmount?.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                              }) ?? "0.00"}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+
+              <Divider />
+
+              {/* Other Information Section */}
+              <Box>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Other Information
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" gutterBottom>Qualifying Payment Relief</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Max Monthly Relief: {taxConfig.qualifyingPaymentRelief.maxMonthly ? `LKR ${taxConfig.qualifyingPaymentRelief.maxMonthly.toLocaleString()}` : "Unlimited"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" gutterBottom>Stamp Duty</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Applied if salary &gt; LKR {taxConfig.stampDuty?.threshold?.toLocaleString() ?? 0}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Amount: LKR {taxConfig.stampDuty?.amount?.toLocaleString() ?? 0}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            </Stack>
+          ) : (
+            <Typography>No tax configuration found.</Typography>
+          )}
+
+          <CompanyTaxConfigurationDialog
+            open={dialogOpen}
+            onClose={handleCloseDialog}
+            config={taxConfig}
+            companyId={companyId}
+            editMode={editMode}
+          />
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 
