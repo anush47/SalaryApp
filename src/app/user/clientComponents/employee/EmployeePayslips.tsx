@@ -24,6 +24,10 @@ import {
   AccordionDetails,
   FormControl,
   TableHead,
+  Chip,
+  Stack,
+  TextField,
+  MenuItem,
 } from "@mui/material";
 import {
   Download,
@@ -33,8 +37,6 @@ import {
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { InOutTable } from "../../mycompanies/[id]/salaries/inOutTable";
-import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { fetchSalaries } from "@/app/lib/api/salaryApi";
 
@@ -47,6 +49,8 @@ interface UserProps {
     image: string;
   };
 }
+
+
 
 const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
@@ -166,10 +170,8 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+    <Box
+      sx={{ opacity: 1 }}
     >
       <Box>
         <Card
@@ -228,31 +230,19 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
               <Grid container spacing={3}>
                 {/* Period Selector */}
                 <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                      <DatePicker
-                        label="Select Period"
-                        views={["month", "year"]}
-                        value={dayjs(selectedPeriod)}
-                        onChange={(newValue) => {
-                          if (newValue) {
-                            handlePeriodChange(newValue.format("YYYY-MM"));
-                          }
-                        }}
-                        slotProps={{
-                          textField: {
-                            fullWidth: true
-                          }
-                        }}
-                        shouldDisableDate={(date) => {
-                          // Disable dates that don't have a salary (optional, but good UX if feasible)
-                          // Here we can checking if any salary matches the YYYY-MM
-                          const dateStr = date.format("YYYY-MM");
-                          return !sortedSalaries.some((s: any) => s.period === dateStr);
-                        }}
-                      />
-                    </LocalizationProvider>
-                  </FormControl>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Select Pay Period"
+                    value={selectedPeriod}
+                    onChange={(e) => handlePeriodChange(e.target.value)}
+                  >
+                    {sortedSalaries.map((salary: any) => (
+                      <MenuItem key={salary._id} value={salary.period}>
+                        {dayjs(salary.period).format("MMMM YYYY")}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
 
                 {selectedSalary && (
@@ -577,8 +567,8 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
             )}
           </CardContent>
         </Card>
-      </Box>
-    </motion.div>
+      </Box >
+    </Box >
   );
 };
 
