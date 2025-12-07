@@ -185,7 +185,7 @@ const AddEmployeeForm: React.FC<{
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: Employee) => {
-      const body = { ...employeeData, userId: user.id };
+      const body = { ...employeeData };
       const fieldsToCheck = [
         "shifts",
         "workingDays",

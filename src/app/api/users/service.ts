@@ -181,8 +181,8 @@ export class UserService {
 
         const _user = await User.findById(_userId).select("_id role");
 
-        if (_user?.role === "admin") {
-            throw new Error("Cannot delete an admin user");
+        if (_user?.role === "admin" || _user?.role === "employer") {
+            throw new Error("Cannot delete an admin or employer user");
         }
 
         await User.deleteOne({ _id: _userId });

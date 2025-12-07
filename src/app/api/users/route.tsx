@@ -94,7 +94,7 @@ export async function DELETE(req: NextRequest) {
       if (error instanceof Error && error.message === "Unauthorized") {
         return ApiResponseUtils.sendUnauthorized("Unauthorized");
       }
-      if (error instanceof Error && (error.message === "User has companies associated with them" || error.message === "Cannot delete an admin user")) {
+      if (error instanceof Error && (error.message === "User has companies associated with them" || error.message === "Cannot delete an admin user" || error.message === "Cannot delete an admin or employer user")) {
         return ApiResponseUtils.sendBadRequest(error.message);
       }
       throw error;

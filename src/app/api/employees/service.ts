@@ -222,7 +222,7 @@ export class EmployeeService {
     // Create and save the new employee
     const newEmployee = new Employee({
       ...parsedBody,
-      user: company.user,
+      // user: company.user, // Do not automatically assign the company owner as the employee's user
     });
     await newEmployee.save();
 

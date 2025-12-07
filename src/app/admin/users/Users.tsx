@@ -152,7 +152,7 @@ const Users = ({
       headerName: "Delete",
       flex: 1,
       renderCell: (params) => {
-        if (params.row?.role !== "admin") {
+        if (params.row?.role !== "admin" && params.row?.role !== "employer") {
           return (
             <div>
               <Button
