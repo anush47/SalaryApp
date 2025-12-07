@@ -1,5 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchUser } from "@/app/lib/api";
+import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import {
   Box,
   Card,
@@ -33,29 +36,22 @@ interface UserProps {
 
 const ProfileForm: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
-  const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: fetchedUser, isLoading, isError, error } = useQuery({
+    queryKey: ["user", user.id],
+    queryFn: () => fetchUser(user.id),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+  });
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/users?me=true`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch user data");
-        }
-        const data = await response.json();
-        setUserData(data.users[0]);
-      } catch (error: any) {
-        showSnackbar({ message: error.message, severity: "error" });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [user.id]);
+    if (fetchedUser) {
+      setUserData(fetchedUser);
+    }
+  }, [fetchedUser]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -75,6 +71,7 @@ const ProfileForm: React.FC<UserProps> = ({ user }) => {
         throw new Error("Failed to update profile");
       }
 
+      queryClient.invalidateQueries({ queryKey: ["user", user.id] });
       showSnackbar({
         message: "Profile updated successfully",
         severity: "success",
@@ -86,8 +83,12 @@ const ProfileForm: React.FC<UserProps> = ({ user }) => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return <CircularProgress />;
+  }
+
+  if (isError) {
+    return <Alert severity="error">{error?.message || "Could not load user data."}</Alert>;
   }
 
   if (!userData) {
