@@ -5,6 +5,8 @@ import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 import Company from "@/app/models/Company";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 // GET: Fetch price based on months and company ID
 export async function GET(req: NextRequest) {
   return ApiMiddleware.authenticated(req, async (req, context) => {

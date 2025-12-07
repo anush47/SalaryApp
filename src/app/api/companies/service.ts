@@ -1,6 +1,7 @@
 import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
+import LeaveType from "@/app/models/LeaveType";
 import { PurchaseService } from "../purchases/service";
 import { BadRequestError, NotFoundError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
@@ -139,6 +140,66 @@ export class CompanyService {
     try {
       // Save the new company to the database
       await newCompany.save();
+
+      // Create default leave types
+      const defaultLeaveTypes = [
+        {
+          name: "Annual Leave",
+          company: newCompany._id,
+          code: "AL",
+          accrualPeriod: "yearly",
+          maxDaysPerPeriod: 14, // Standard 14 days
+          accrualMethod: "upfront",
+          requiresApproval: true,
+          isPaid: true,
+          color: "#4CAF50", // Green
+          description: "Standard annual leave allowance",
+          applicableFor: ["permanent", "contract"],
+        },
+        {
+          name: "Casual Leave",
+          company: newCompany._id,
+          code: "CL",
+          accrualPeriod: "yearly",
+          maxDaysPerPeriod: 7, // Standard 7 days
+          accrualMethod: "upfront",
+          requiresApproval: true,
+          isPaid: true,
+          color: "#2196F3", // Blue
+          description: "Casual leave for personal matters",
+          applicableFor: ["permanent", "contract"],
+        },
+        {
+          name: "Sick Leave",
+          company: newCompany._id,
+          code: "SL",
+          accrualPeriod: "yearly",
+          maxDaysPerPeriod: 7, // Standard 7 days
+          accrualMethod: "upfront",
+          requiresApproval: true,
+          requiresDocument: true, // Often requires medical cert
+          isPaid: true,
+          color: "#FF9800", // Orange
+          description: "Leave for medical reasons",
+          applicableFor: ["permanent", "contract", "intern"],
+        },
+        {
+          name: "No Pay Leave",
+          company: newCompany._id,
+          code: "NPL",
+          accrualPeriod: "yearly",
+          maxDaysPerPeriod: 365, // Effectively unlimited
+          accrualMethod: "upfront",
+          requiresApproval: true,
+          isPaid: false,
+          color: "#F44336", // Red
+          description: "Unpaid leave",
+          applicableFor: ["permanent", "contract", "intern", "temporary"],
+        },
+      ];
+
+      await LeaveType.insertMany(defaultLeaveTypes);
+
     } catch (error) {
       // Handle duplicate key error
       if ((error as any).code === 11000) {
