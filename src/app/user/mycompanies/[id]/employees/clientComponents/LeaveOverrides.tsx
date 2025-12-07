@@ -108,6 +108,9 @@ export const LeaveOverrides: React.FC<LeaveOverridesProps> = ({
             updatedLeaveTypes[existingIndex] = {
                 ...updatedLeaveTypes[existingIndex],
                 [field]: value,
+                // If updating Max Days, automatically update Balance to match (refill wallet)
+                // This ensures the robust "Safety Cap" logic (Min(Balance, Max-Used)) has a high enough Balance to grant the new days.
+                ...(field === 'maxDaysPerPeriod' ? { balance: value } : {})
             };
         } else {
             const companyLeaveType = availableLeaveTypes.find(lt => lt._id === leaveTypeId);
@@ -115,7 +118,7 @@ export const LeaveOverrides: React.FC<LeaveOverridesProps> = ({
                 updatedLeaveTypes.push({
                     leaveType: leaveTypeId,
                     maxDaysPerPeriod: field === 'maxDaysPerPeriod' ? value : (companyLeaveType.maxDaysPerPeriod ?? 0),
-                    balance: field === 'balance' ? value : (companyLeaveType.maxDaysPerPeriod ?? 0),
+                    balance: field === 'balance' ? value : (field === 'maxDaysPerPeriod' ? value : (companyLeaveType.maxDaysPerPeriod ?? 0)),
                     carryForward: field === 'carryForward' ? value : false,
                 });
             }
@@ -126,10 +129,35 @@ export const LeaveOverrides: React.FC<LeaveOverridesProps> = ({
     const columns: GridColDef[] = [
         { field: 'name', headerName: 'Leave Name', flex: 1, minWidth: 150 },
         {
+            field: 'period',
+            headerName: 'Period',
+            flex: 1.5,
+            minWidth: 200,
+            valueGetter: (value, row) => {
+                // Determine period description from the *Company Policy* (source of truth for period logic)
+                const leaveTypeId = row._id;
+                const companyLeaveType = availableLeaveTypes.find((lt) => lt._id === leaveTypeId);
+
+                if (!companyLeaveType) return "Unknown";
+
+                const { accrualPeriod, resetDay, customPeriodDays } = companyLeaveType;
+
+                switch (accrualPeriod) {
+                    case "yearly": return "Yearly (Jan 1 - Dec 31)";
+                    case "monthly": return `Monthly (Resets on ${resetDay || 1}${getOrdinalSuffix(resetDay || 1)})`;
+                    case "weekly": return `Weekly (Resets on ${getDayName(resetDay || 0)})`; // Default Monday (1) or Sunday (0) logic check needed
+                    case "quarterly": return "Quarterly (Jan, Apr, Jul, Oct)";
+                    case "half-yearly": return "Half-Yearly (Jan, Jul)";
+                    case "custom": return `Custom (Every ${customPeriodDays || 30} days)`;
+                    default: return accrualPeriod;
+                }
+            }
+        },
+        {
             field: 'maxDaysPerPeriod',
-            headerName: 'Max Days',
+            headerName: 'Max Days (Override)',
             flex: 1,
-            minWidth: 120,
+            minWidth: 150,
             renderCell: (params) => {
                 const leaveTypeId = params.row._id;
                 const employeeLeave = employeeLeaveTypes.find((lt) => {
@@ -148,61 +176,33 @@ export const LeaveOverrides: React.FC<LeaveOverridesProps> = ({
                         variant="standard"
                         InputProps={{ disableUnderline: true }}
                         sx={{ width: '100%' }}
-                    />
-                );
-            }
-        },
-        {
-            field: 'balance',
-            headerName: 'Balance',
-            flex: 1,
-            minWidth: 120,
-            renderCell: (params) => {
-                const leaveTypeId = params.row._id;
-                const employeeLeave = employeeLeaveTypes.find((lt) => {
-                    const id = typeof lt.leaveType === 'object' ? (lt.leaveType as any)._id : lt.leaveType;
-                    return id === leaveTypeId;
-                });
-                const value = employeeLeave ? employeeLeave.balance : params.row.maxDaysPerPeriod; // Default to max days
-
-                return (
-                    <TextField
-                        type="number"
-                        size="small"
-                        value={value}
-                        onChange={(e) => handleLeaveChange(leaveTypeId, "balance", parseFloat(e.target.value))}
-                        disabled={!isEditing}
-                        variant="standard"
-                        InputProps={{ disableUnderline: true }}
-                        sx={{ width: '100%' }}
-                    />
-                );
-            }
-        },
-        {
-            field: 'carryForward',
-            headerName: 'Carry Forward',
-            flex: 0.5,
-            minWidth: 100,
-            renderCell: (params) => {
-                const leaveTypeId = params.row._id;
-                const employeeLeave = employeeLeaveTypes.find((lt) => {
-                    const id = typeof lt.leaveType === 'object' ? (lt.leaveType as any)._id : lt.leaveType;
-                    return id === leaveTypeId;
-                });
-                const value = employeeLeave ? employeeLeave.carryForward : false;
-
-                return (
-                    <Switch
-                        checked={value}
-                        onChange={(e) => handleLeaveChange(leaveTypeId, "carryForward", e.target.checked)}
-                        disabled={!isEditing}
-                        size="small"
+                        helperText={!employeeLeave ? "Default Policy" : "Overridden"}
                     />
                 );
             }
         }
     ];
+
+    // Helper functions for period display
+    function getOrdinalSuffix(i: number) {
+        var j = i % 10,
+            k = i % 100;
+        if (j == 1 && k != 11) {
+            return "st";
+        }
+        if (j == 2 && k != 12) {
+            return "nd";
+        }
+        if (j == 3 && k != 13) {
+            return "rd";
+        }
+        return "th";
+    }
+
+    function getDayName(dayIndex: number) {
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        return days[dayIndex] || "Day " + dayIndex;
+    }
 
     if (loading) {
         return <CircularProgress size={20} />;

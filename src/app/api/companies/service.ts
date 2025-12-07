@@ -152,6 +152,7 @@ export class CompanyService {
           accrualMethod: "upfront",
           requiresApproval: true,
           isPaid: true,
+          resetDay: 1, // Default reset day (1st) for robustness
           color: "#4CAF50", // Green
           description: "Standard annual leave allowance",
           applicableFor: ["permanent", "contract"],
@@ -165,6 +166,7 @@ export class CompanyService {
           accrualMethod: "upfront",
           requiresApproval: true,
           isPaid: true,
+          resetDay: 1,
           color: "#2196F3", // Blue
           description: "Casual leave for personal matters",
           applicableFor: ["permanent", "contract"],
@@ -179,6 +181,7 @@ export class CompanyService {
           requiresApproval: true,
           requiresDocument: true, // Often requires medical cert
           isPaid: true,
+          resetDay: 1,
           color: "#FF9800", // Orange
           description: "Leave for medical reasons",
           applicableFor: ["permanent", "contract", "intern"],
@@ -192,6 +195,7 @@ export class CompanyService {
           accrualMethod: "upfront",
           requiresApproval: true,
           isPaid: false,
+          resetDay: 1,
           color: "#F44336", // Red
           description: "Unpaid leave",
           applicableFor: ["permanent", "contract", "intern", "temporary"],

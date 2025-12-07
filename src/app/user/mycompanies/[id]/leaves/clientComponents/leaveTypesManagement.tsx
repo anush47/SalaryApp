@@ -21,6 +21,7 @@ import {
   MenuItem,
   FormControlLabel,
   Checkbox,
+  Typography,
 } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Add } from "@mui/icons-material";
@@ -411,6 +412,8 @@ const LeaveTypesManagement: React.FC<{
                   setNewLeaveType({
                     ...newLeaveType,
                     accrualPeriod: e.target.value as any,
+                    // Auto-set standard defaults as per user request
+                    resetDay: e.target.value === "weekly" ? 0 : 1,
                   })
                 }
                 helperText="How often does the leave balance reset?"
@@ -422,6 +425,16 @@ const LeaveTypesManagement: React.FC<{
                 <MenuItem value="half-yearly">Half-Yearly</MenuItem>
                 <MenuItem value="custom">Custom Period</MenuItem>
               </TextField>
+              <Box sx={{ mt: -1, mb: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {newLeaveType.accrualPeriod === "yearly" && "Resets annually on January 1st to December 31st."}
+                  {newLeaveType.accrualPeriod === "monthly" && "Resets on the 1st of every month."}
+                  {newLeaveType.accrualPeriod === "weekly" && "Resets every Sunday."}
+                  {newLeaveType.accrualPeriod === "quarterly" && "Resets on Jan 1, Apr 1, Jul 1, Oct 1."}
+                  {newLeaveType.accrualPeriod === "half-yearly" && "Resets on Jan 1 and Jul 1."}
+                  {newLeaveType.accrualPeriod === "custom" && `Resets every ${newLeaveType.customPeriodDays || 30} days.`}
+                </Typography>
+              </Box>
               <TextField
                 label="Max Days Per Period"
                 type="number"
@@ -467,7 +480,9 @@ const LeaveTypesManagement: React.FC<{
                   helperText="Number of days in custom period (e.g., 30, 60, 90)"
                 />
               )}
-              {(newLeaveType.accrualPeriod === "monthly" || newLeaveType.accrualPeriod === "weekly") && (
+              {/* Monthly/Weekly Reset Day configuration hidden for simplicity as per user request */
+              /* Defaulting to 1st of month (Monthly) or Sunday (Weekly) */
+              /* {(newLeaveType.accrualPeriod === "monthly" || newLeaveType.accrualPeriod === "weekly") && (
                 <TextField
                   label="Reset Day"
                   type="number"
@@ -484,7 +499,7 @@ const LeaveTypesManagement: React.FC<{
                       : "Day of week (0=Sunday, 1=Monday, ...)"
                   }
                 />
-              )}
+              )} */}
               {newLeaveType.carryForward && (
                 <TextField
                   label="Max Carry Forward Days"
@@ -738,6 +753,8 @@ const LeaveTypesManagement: React.FC<{
                     setEditingLeaveType({
                       ...editingLeaveType,
                       accrualPeriod: e.target.value as any,
+                      // Auto-set standard defaults
+                      resetDay: e.target.value === "weekly" ? 0 : 1,
                     })
                   }
                   helperText="How often does the leave balance reset?"
@@ -749,6 +766,16 @@ const LeaveTypesManagement: React.FC<{
                   <MenuItem value="half-yearly">Half-Yearly</MenuItem>
                   <MenuItem value="custom">Custom Period</MenuItem>
                 </TextField>
+                <Box sx={{ mt: -1, mb: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {editingLeaveType.accrualPeriod === "yearly" && "Resets annually on January 1st to December 31st."}
+                    {editingLeaveType.accrualPeriod === "monthly" && "Resets on the 1st of every month."}
+                    {editingLeaveType.accrualPeriod === "weekly" && "Resets every Sunday."}
+                    {editingLeaveType.accrualPeriod === "quarterly" && "Resets on Jan 1, Apr 1, Jul 1, Oct 1."}
+                    {editingLeaveType.accrualPeriod === "half-yearly" && "Resets on Jan 1 and Jul 1."}
+                    {editingLeaveType.accrualPeriod === "custom" && `Resets every ${editingLeaveType.customPeriodDays || 30} days.`}
+                  </Typography>
+                </Box>
                 <TextField
                   label="Max Days Per Period"
                   type="number"
@@ -794,7 +821,7 @@ const LeaveTypesManagement: React.FC<{
                     helperText="Number of days in custom period (e.g., 30, 60, 90)"
                   />
                 )}
-                {(editingLeaveType.accrualPeriod === "monthly" || editingLeaveType.accrualPeriod === "weekly") && (
+                {/* {(editingLeaveType.accrualPeriod === "monthly" || editingLeaveType.accrualPeriod === "weekly") && (
                   <TextField
                     label="Reset Day"
                     type="number"
@@ -811,7 +838,7 @@ const LeaveTypesManagement: React.FC<{
                         : "Day of week (0=Sunday, 1=Monday, ...)"
                     }
                   />
-                )}
+                )} */}
                 {editingLeaveType.carryForward && (
                   <TextField
                     label="Max Carry Forward Days"

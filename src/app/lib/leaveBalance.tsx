@@ -75,8 +75,8 @@ export async function getLeaveBalanceSummary(employeeId: string) {
         new Date()
       );
 
-      // Calculate used leaves in current period
-      const usedLeaves = await LeaveRequest.aggregate([
+      // Calculate usage stats (approved vs pending)
+      const usageStats = await LeaveRequest.aggregate([
         {
           $match: {
             employee: employee._id,
@@ -90,13 +90,22 @@ export async function getLeaveBalanceSummary(employeeId: string) {
         },
         {
           $group: {
-            _id: null,
+            _id: "$status",
             total: { $sum: "$totalDays" },
           },
         },
       ]);
 
-      const used = usedLeaves.length > 0 ? usedLeaves[0].total : 0;
+      const approvedUsed = usageStats.find(s => s._id === "approved")?.total || 0;
+      const pendingUsed = usageStats.find(s => s._id === "pending")?.total || 0;
+
+      // Calculate effective balance robustly
+      const maxDays = lt.maxDaysPerYear || 0;
+      let effectiveBalance = lt.balance;
+
+      // Safety cap: Remaining cannot exceed (Max - Approved Usage)
+      const theoreticalRemaining = Math.max(0, maxDays - approvedUsed);
+      effectiveBalance = Math.min(effectiveBalance, theoreticalRemaining);
 
       summary.push({
         leaveType: {
@@ -113,9 +122,10 @@ export async function getLeaveBalanceSummary(employeeId: string) {
         },
         maxDaysPerPeriod: lt.maxDaysPerYear,
         availableLeaves,
-        used,
-        balance: lt.balance,
-        available: Math.max(0, lt.balance - used),
+        used: approvedUsed,
+        pending: pendingUsed,
+        balance: effectiveBalance,
+        available: Math.max(0, effectiveBalance - pendingUsed),
         carryForward: lt.carryForward,
         carriedForwardBalance: lt.carriedForwardBalance || 0,
         currentPeriod: {

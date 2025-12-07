@@ -494,7 +494,7 @@ const EditEmployeeForm: React.FC<{
         <DialogContent>
           <DialogContentText>
             Turning off leave overrides will revert all employee leave entitlements to the company defaults.
-            All custom changes made to this employee's leave types will be lost.
+            All custom changes made to this employee&apos;s leave types will be lost.
             Are you sure you want to proceed?
           </DialogContentText>
         </DialogContent>
