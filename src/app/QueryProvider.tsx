@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { signOut } from "next-auth/react";
 import ForcePasswordChange from "./clientComponents/ForcePasswordChange";
 
@@ -42,7 +42,9 @@ export default function QueryProvider({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ForcePasswordChange />
+      <Suspense fallback={null}>
+        <ForcePasswordChange />
+      </Suspense>
       {children}
     </QueryClientProvider>
   );
