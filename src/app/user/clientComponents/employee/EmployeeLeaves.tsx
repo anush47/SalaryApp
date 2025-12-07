@@ -40,7 +40,7 @@ import {
   createLeaveRequest,
   updateLeaveRequest,
 } from "@/app/lib/api/leaveRequestApi";
-import { fetchLeaveBalance } from "@/app/lib/api/employeeApi";
+import { fetchLeaveBalance, fetchEmployees } from "@/app/lib/api/employeeApi";
 
 interface UserProps {
   user: {
@@ -113,11 +113,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   } = useQuery({
     queryKey: ["employee", user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/employees?user=${user.id}`);
-      if (!response.ok) throw new Error("Failed to fetch employee data");
-      const data = await response.json();
-      // Handle nested data correctly
-      const employees = data.employees || data.data?.employees || [];
+      const employees = await fetchEmployees({ user: user.id });
       if (employees.length === 0) {
         throw new Error("Employee profile not found");
       }
@@ -573,7 +569,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         color="text.secondary"
                         display="block"
                       >
-                        Used: {leave.used} / {leave.maxDaysPerYear}
+                        Used: {leave.used} / {leave.maxDaysPerPeriod}
                       </Typography>
                       {leave.currentPeriod && (
                         <Typography
@@ -585,13 +581,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                           Period: {leave.currentPeriod.label}
                         </Typography>
                       )}
-                      {leave.carriedForward > 0 && (
+                      {leave.carriedForwardBalance > 0 && (
                         <Typography
                           variant="caption"
                           color="success.main"
                           display="block"
                         >
-                          +{leave.carriedForward} days carried forward
+                          +{leave.carriedForwardBalance} days carried forward
                         </Typography>
                       )}
                     </Paper>

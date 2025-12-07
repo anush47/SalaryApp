@@ -9,6 +9,7 @@ import { ApiResponse } from '../apiResponse';
 export async function fetchEmployees(params: {
   employeeId?: string;
   companyId?: string;
+  user?: string;
   page?: number;
   limit?: number
 } = {}) {
@@ -16,6 +17,7 @@ export async function fetchEmployees(params: {
 
   if (params.employeeId) queryParams.append('employeeId', params.employeeId);
   if (params.companyId) queryParams.append('companyId', params.companyId);
+  if (params.user) queryParams.append('user', params.user);
   if (params.page) queryParams.append('page', params.page.toString());
   if (params.limit) queryParams.append('limit', params.limit.toString());
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { options } from "../../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import { getLeaveBalanceSummary } from "@/app/lib/leaveBalance";
+import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(options);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return ApiResponseUtils.sendUnauthorized("Unauthorized");
     }
 
     await dbConnect();
@@ -20,21 +21,18 @@ export async function GET(req: NextRequest) {
     const employeeId = searchParams.get("employeeId");
 
     if (!employeeId) {
-      return NextResponse.json(
-        { error: "employeeId is required" },
-        { status: 400 }
-      );
+      return ApiResponseUtils.sendBadRequest("employeeId is required");
     }
 
     // Get leave balance summary
     const summary = await getLeaveBalanceSummary(employeeId);
 
-    return NextResponse.json({ summary }, { status: 200 });
+    return ApiResponseUtils.sendSuccess({ summary }, "Leave balance retrieved successfully");
   } catch (error) {
     console.error("Error fetching leave balance:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch leave balance" },
-      { status: 500 }
-    );
+    if (error instanceof Error) {
+      return ApiResponseUtils.sendInternalError(error.message);
+    }
+    return ApiResponseUtils.sendInternalError("Failed to fetch leave balance");
   }
 }

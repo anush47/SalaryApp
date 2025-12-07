@@ -61,10 +61,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   } = useQuery({
     queryKey: ["employee", user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/employees?user=${user.id}`);
-      if (!response.ok) throw new Error("Failed to fetch employee data");
-      const data = await response.json();
-      const employees = data.employees || data.data?.employees || [];
+      const employees = await fetchEmployees({ user: user.id });
       if (employees.length === 0) {
         throw new Error("Employee profile not found. Please contact your employer.");
       }
@@ -312,20 +309,20 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                             </Typography>
                             <LinearProgress
                               variant="determinate"
-                              value={(leave.available / leave.maxDaysPerYear) * 100}
+                              value={(leave.available / leave.maxDaysPerPeriod) * 100}
                               sx={{ mb: 1, height: 8, borderRadius: 4 }}
                             />
                             <Typography variant="caption" color="text.secondary" display="block">
-                              {leave.used} used of {leave.maxDaysPerYear} days
+                              {leave.used} used of {leave.maxDaysPerPeriod} days
                             </Typography>
                             {leave.currentPeriod && (
                               <Typography variant="caption" color="primary" display="block" sx={{ mt: 0.5 }}>
                                 {leave.currentPeriod.label}
                               </Typography>
                             )}
-                            {leave.carriedForward > 0 && (
+                            {leave.carriedForwardBalance > 0 && (
                               <Typography variant="caption" color="success.main" display="block">
-                                +{leave.carriedForward} carried
+                                +{leave.carriedForwardBalance} carried
                               </Typography>
                             )}
                           </CardContent>
@@ -759,7 +756,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                                                   fontWeight="bold"
                                                 >
                                                   {leave.available}/
-                                                  {leave.maxDaysPerYear}
+                                                  {leave.maxDaysPerPeriod}
                                                 </Typography>
                                               </Box>
                                             </Grid>
