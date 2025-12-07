@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Box,
   Card,
@@ -29,7 +30,13 @@ import {
   Work,
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
+import {
+  fetchEmployees,
+  fetchLeaveBalance,
+  fetchManagerDashboard,
+} from "@/app/lib/api/employeeApi";
 import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
+import { fetchSalaries } from "@/app/lib/api/salaryApi";
 
 interface UserProps {
   user: {
@@ -43,116 +50,95 @@ interface UserProps {
 
 const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [employeeData, setEmployeeData] = useState<any>(null);
-  const [leaveBalance, setLeaveBalance] = useState<any[]>([]);
-  const [upcomingLeaves, setUpcomingLeaves] = useState<any[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
-  const [recentSalaries, setRecentSalaries] = useState<any[]>([]);
-  const [managerData, setManagerData] = useState<any>(null);
-  const [isManager, setIsManager] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch employee data
-        const empResponse = await fetch(`/api/employees?user=${user.id}`);
-        if (!empResponse.ok) throw new Error("Failed to fetch employee data");
-        const empData = await empResponse.json();
-
-        if (!empData.employees || empData.employees.length === 0) {
-          setError("Employee profile not found. Please contact your employer.");
-          setLoading(false);
-          return;
-        }
-
-        const employee = empData.employees[0];
-        setEmployeeData(employee);
-
-        // Fetch leave balance (using the helper function via API)
-        try {
-          const balanceResponse = await fetch(
-            `/api/employees/leave-balance?employeeId=${employee._id}`
-          );
-          if (balanceResponse.ok) {
-            const balanceData = await balanceResponse.json();
-            setLeaveBalance(balanceData.summary || []);
-          }
-        } catch (err) {
-          console.error("Error fetching leave balance:", err);
-        }
-
-        // Fetch upcoming leaves
-        try {
-          const leavesResult = await fetchLeaveRequests(employee.company._id, {
-            employeeId: employee._id,
-            status: "approved",
-          });
-          const today = new Date();
-          const upcoming = leavesResult.data
-            .filter((req: any) => new Date(req.startDate) >= today)
-            .slice(0, 5);
-          setUpcomingLeaves(upcoming);
-        } catch (err) {
-          console.error("Error fetching upcoming leaves:", err);
-        }
-
-        // Fetch pending approvals (if this employee is a manager)
-        try {
-          const approvalsResult = await fetchLeaveRequests(employee.company._id, {
-            pendingApprovals: true,
-          });
-          setPendingApprovals(approvalsResult.data || []);
-
-          // If there are pending approvals, this is a manager
-          if (approvalsResult.data && approvalsResult.data.length > 0) {
-            setIsManager(true);
-
-            // Fetch manager dashboard data
-            try {
-              const managerResponse = await fetch(
-                `/api/dashboard/manager?employeeId=${employee._id}`
-              );
-              if (managerResponse.ok) {
-                const managerDashboard = await managerResponse.json();
-                setManagerData(managerDashboard);
-              }
-            } catch (manErr) {
-              console.error("Error fetching manager data:", manErr);
-            }
-          }
-        } catch (err) {
-          console.error("Error fetching pending approvals:", err);
-        }
-
-        // Fetch recent salaries
-        try {
-          const salariesResponse = await fetch(
-            `/api/salaries?employee=${employee._id}&limit=3`
-          );
-          if (salariesResponse.ok) {
-            const salariesData = await salariesResponse.json();
-            setRecentSalaries(salariesData.salaries || []);
-          }
-        } catch (err) {
-          console.error("Error fetching salaries:", err);
-        }
-
-        setLoading(false);
-      } catch (err: any) {
-        setError(err.message || "Failed to load dashboard data");
-        setLoading(false);
+  // 1. Fetch Employee Data
+  const {
+    data: employee,
+    isLoading: loadingEmployee,
+    error: employeeError
+  } = useQuery({
+    queryKey: ["employee", user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/employees?user=${user.id}`);
+      if (!response.ok) throw new Error("Failed to fetch employee data");
+      const data = await response.json();
+      const employees = data.employees || data.data?.employees || [];
+      if (employees.length === 0) {
+        throw new Error("Employee profile not found. Please contact your employer.");
       }
-    };
+      return employees[0];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-    fetchData();
-  }, [user.id]);
+  // 2. Fetch Dependent Data
+  const employeeId = employee?._id;
+  const companyId = employee?.company?._id;
 
-  if (loading) {
+  // Leave Balance
+  const { data: leaveBalance = [] } = useQuery({
+    queryKey: ["leaveBalance", employeeId],
+    queryFn: () => fetchLeaveBalance(employeeId),
+    enabled: !!employeeId,
+  });
+
+  // Upcoming Leaves
+  const { data: upcomingLeavesData } = useQuery({
+    queryKey: ["upcomingLeaves", companyId, employeeId],
+    queryFn: () =>
+      fetchLeaveRequests(companyId, {
+        employeeId: employeeId,
+        status: "approved",
+      }),
+    enabled: !!companyId && !!employeeId,
+  });
+
+  const upcomingLeaves = useMemo(() => {
+    if (!upcomingLeavesData?.data) return [];
+    const today = new Date();
+    return upcomingLeavesData.data
+      .filter((req: any) => new Date(req.startDate) >= today)
+      .slice(0, 5);
+  }, [upcomingLeavesData]);
+
+  // Pending Approvals (for managers)
+  const { data: pendingApprovalsData } = useQuery({
+    queryKey: ["pendingApprovals", companyId],
+    queryFn: () =>
+      fetchLeaveRequests(companyId, {
+        pendingApprovals: true,
+      }),
+    enabled: !!companyId,
+  });
+
+  const pendingApprovals = pendingApprovalsData?.data || [];
+  const isManager = pendingApprovals.length > 0;
+
+  // Manager Dashboard (if manager)
+  const { data: managerData } = useQuery({
+    queryKey: ["managerDashboard", employeeId],
+    queryFn: () => fetchManagerDashboard(employeeId),
+    enabled: !!employeeId && isManager,
+  });
+
+  // Recent Salaries
+  const { data: recentSalariesResponse } = useQuery({
+    queryKey: ["recentSalaries", employeeId],
+    queryFn: async () => {
+      const res = await fetch(`/api/salaries?employee=${employeeId}&limit=3`);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!employeeId
+  });
+
+  const recentSalaries = recentSalariesResponse?.salaries || [];
+
+  // Helper for leave balance summary logic
+  // If fetchLeaveBalance returns { summary: [] }, accessing it:
+  const actualLeaveBalance = (leaveBalance as any)?.summary || (Array.isArray(leaveBalance) ? leaveBalance : []);
+
+  if (loadingEmployee) {
     return (
       <Box
         display="flex"
@@ -165,15 +151,15 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
     );
   }
 
-  if (error) {
+  if (employeeError) {
     return (
       <Box p={3}>
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error">{(employeeError as Error).message}</Alert>
       </Box>
     );
   }
 
-  if (!employeeData) {
+  if (!employee) {
     return (
       <Box p={3}>
         <Alert severity="warning">Employee data not available</Alert>
@@ -200,22 +186,22 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 color="primary.contrastText"
                 gutterBottom
               >
-                Welcome back, {employeeData.name}!
+                Welcome back, {employee.name}!
               </Typography>
               <Typography
                 variant="body1"
                 color="primary.contrastText"
                 sx={{ opacity: 0.9 }}
               >
-                {employeeData.designation || "Employee"} • Member #
-                {employeeData.memberNo}
+                {employee.designation || "Employee"} • Member #
+                {employee.memberNo}
               </Typography>
               <Typography
                 variant="body2"
                 color="primary.contrastText"
                 sx={{ opacity: 0.8 }}
               >
-                {employeeData.company?.name || ""}
+                {employee.company?.name || ""}
               </Typography>
             </Box>
             <Box textAlign="right">
@@ -243,12 +229,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
             Leave Balance
           </Typography>
           <Grid container spacing={2}>
-            {leaveBalance.length === 0 ? (
+            {actualLeaveBalance.length === 0 ? (
               <Grid item xs={12}>
                 <Alert severity="info">No leave types available</Alert>
               </Grid>
             ) : (
-              leaveBalance.map((leave: any, index: number) => (
+              actualLeaveBalance.map((leave: any, index: number) => (
                 <Grid item xs={12} sm={6} md={3} key={index}>
                   <Card>
                     <CardContent>

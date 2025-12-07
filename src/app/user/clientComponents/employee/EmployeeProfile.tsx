@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Card,
@@ -12,10 +13,6 @@ import {
   Divider,
   Avatar,
   TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   List,
   ListItem,
   ListItemText,
@@ -23,20 +20,13 @@ import {
   Checkbox,
 } from "@mui/material";
 import {
-  Edit,
-  Lock,
-  Business,
   Person,
-  Email,
-  Phone,
-  Badge,
+  Business,
   Work,
-  CalendarToday,
-  AttachMoney,
-  Save,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import Documents from "./Documents";
+import { updateEmployee } from "@/app/lib/api/employeeApi";
 
 interface UserProps {
   user: {
@@ -50,10 +40,54 @@ interface UserProps {
 
 const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [employeeData, setEmployeeData] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+
+  // 1. Fetch Employee Data
+  const {
+    data: fetchedEmployee,
+    isLoading: loadingEmployee,
+    error: employeeError,
+  } = useQuery({
+    queryKey: ["employee", user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/employees?user=${user.id}`);
+      if (!response.ok) throw new Error("Failed to fetch employee data");
+      const data = await response.json();
+      const employees = data.employees || data.data?.employees || [];
+      if (employees.length === 0) {
+        throw new Error("Employee profile not found");
+      }
+      return employees[0];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Sync state with fetched data for editing
+  useEffect(() => {
+    if (fetchedEmployee) {
+      setEmployeeData(fetchedEmployee);
+    }
+  }, [fetchedEmployee]);
+
+  // Mutation for updating profile
+  const updateProfileMutation = useMutation({
+    mutationFn: updateEmployee,
+    onSuccess: (updatedEmployee) => {
+      showSnackbar({
+        message: "Profile updated successfully",
+        severity: "success",
+      });
+      setIsEditing(false);
+      // Invalidate query to refetch fresh data
+      queryClient.setQueryData(["employee", user.id], updatedEmployee); // Optimistic update or just set data
+      queryClient.invalidateQueries({ queryKey: ["employee", user.id] });
+    },
+    onError: (error: any) => {
+      showSnackbar({ message: error.message, severity: "error" });
+    },
+  });
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = event.target;
@@ -65,57 +99,11 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
     setEmployeeData({ ...employeeData, [name]: finalValue });
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const response = await fetch(`/api/employees`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(employeeData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update profile");
-      }
-
-      showSnackbar({
-        message: "Profile updated successfully",
-        severity: "success",
-      });
-      setIsEditing(false);
-    } catch (error: any) {
-      showSnackbar({ message: error.message, severity: "error" });
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSave = () => {
+    updateProfileMutation.mutate(employeeData);
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch employee data
-        const empResponse = await fetch(`/api/employees?user=${user.id}`);
-        if (!empResponse.ok) throw new Error("Failed to fetch employee data");
-        const empData = await empResponse.json();
-
-        if (!empData.employees || empData.employees.length === 0) {
-          throw new Error("Employee profile not found");
-        }
-
-        setEmployeeData(empData.employees[0]);
-        setLoading(false);
-      } catch (error: any) {
-        showSnackbar({ message: error.message, severity: "error" });
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [user.id]);
-
-  if (loading) {
+  if (loadingEmployee) {
     return (
       <Box
         display="flex"
@@ -124,6 +112,14 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
         minHeight="80vh"
       >
         <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (employeeError) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{(employeeError as Error).message}</Alert>
       </Box>
     );
   }
@@ -275,7 +271,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     secondary={
                       employeeData.employeeType
                         ? employeeData.employeeType.charAt(0).toUpperCase() +
-                          employeeData.employeeType.slice(1)
+                        employeeData.employeeType.slice(1)
                         : "Permanent"
                     }
                   />
@@ -472,9 +468,9 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                     <Button
                       variant="contained"
                       onClick={handleSave}
-                      disabled={isSaving}
+                      disabled={updateProfileMutation.isPending}
                     >
-                      {isSaving ? (
+                      {updateProfileMutation.isPending ? (
                         <CircularProgress size={24} />
                       ) : (
                         "Save Changes"

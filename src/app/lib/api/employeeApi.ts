@@ -75,3 +75,17 @@ export async function deleteEmployee(employeeId: string) {
     body: JSON.stringify({ employeeId }),
   });
 }
+
+/**
+ * Fetch leave balance for an employee
+ */
+export async function fetchLeaveBalance(employeeId: string) {
+  return apiFetch(`/api/employees/leave-balance?employeeId=${employeeId}`);
+}
+
+/**
+ * Fetch manager dashboard data
+ */
+export async function fetchManagerDashboard(employeeId: string) {
+  return apiFetch(`/api/dashboard/manager?employeeId=${employeeId}`);
+}

@@ -97,7 +97,12 @@ export class SalaryService {
                 ...(period ? { period } : {}),
             }).select("+inOut").lean();
 
-            return { salaries };
+            return {
+                data: salaries,
+                page: 1,
+                limit: salaries.length,
+                total: salaries.length
+            };
         }
 
         let employees: {

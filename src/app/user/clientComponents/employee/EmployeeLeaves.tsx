@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Card,
-  CardContent,
   Typography,
   Tabs,
   Tab,
@@ -18,25 +18,20 @@ import {
   CircularProgress,
   Chip,
   List,
-  ListItem,
-  ListItemText,
-  Divider,
+  Paper,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Switch,
   FormControlLabel,
-  Paper,
-  IconButton,
+  Divider,
 } from "@mui/material";
 import {
   Send,
   Cancel,
   CheckCircle,
   Block,
-  AttachFile,
-  Close,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { fetchLeaveTypes } from "@/app/lib/api/leaveTypeApi";
@@ -45,6 +40,7 @@ import {
   createLeaveRequest,
   updateLeaveRequest,
 } from "@/app/lib/api/leaveRequestApi";
+import { fetchLeaveBalance } from "@/app/lib/api/employeeApi";
 
 interface UserProps {
   user: {
@@ -79,13 +75,8 @@ function TabPanel(props: TabPanelProps) {
 
 const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const [tabValue, setTabValue] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [employeeData, setEmployeeData] = useState<any>(null);
-  const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
-  const [leaveBalance, setLeaveBalance] = useState<any[]>([]);
-  const [myLeaves, setMyLeaves] = useState<any[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
 
   // Apply form state
   const [selectedLeaveType, setSelectedLeaveType] = useState("");
@@ -93,7 +84,6 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const [endDate, setEndDate] = useState("");
   const [halfDay, setHalfDay] = useState(false);
   const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   // Validation errors
   const [errors, setErrors] = useState({
@@ -115,66 +105,122 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   });
   const [remarks, setRemarks] = useState("");
 
-  const fetchEmployeeData = async () => {
-    try {
-      const empResponse = await fetch(`/api/employees?user=${user.id}`);
-      if (!empResponse.ok) throw new Error("Failed to fetch employee data");
-      const empData = await empResponse.json();
-      if (!empData.employees || empData.employees.length === 0) {
+  // 1. Fetch Employee Data
+  const {
+    data: employee,
+    isLoading: loadingEmployee,
+    error: employeeError,
+  } = useQuery({
+    queryKey: ["employee", user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/employees?user=${user.id}`);
+      if (!response.ok) throw new Error("Failed to fetch employee data");
+      const data = await response.json();
+      // Handle nested data correctly
+      const employees = data.employees || data.data?.employees || [];
+      if (employees.length === 0) {
         throw new Error("Employee profile not found");
       }
-      return empData.employees[0];
-    } catch (error: any) {
-      showSnackbar({ message: error.message, severity: "error" });
-      return null;
-    }
-  };
+      return employees[0];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const fetchAllData = async () => {
-    setLoading(true);
-    const employee = await fetchEmployeeData();
-    if (!employee) {
-      setLoading(false);
-      return;
-    }
+  const employeeId = employee?._id;
+  const companyId = employee?.company?._id;
 
-    setEmployeeData(employee);
+  // 2. Fetch Dependent Data
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ["leaveTypes", companyId],
+    queryFn: () => fetchLeaveTypes(companyId),
+    enabled: !!companyId,
+  });
 
-    try {
-      // Fetch leave types
-      const types = await fetchLeaveTypes(employee.company._id);
-      setLeaveTypes(types || []);
+  const { data: leaveBalanceData } = useQuery({
+    queryKey: ["leaveBalance", employeeId],
+    queryFn: () => fetchLeaveBalance(employeeId),
+    enabled: !!employeeId,
+  });
 
-      // Fetch leave balance
-      const balanceResponse = await fetch(
-        `/api/employees/leave-balance?employeeId=${employee._id}`
-      );
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        setLeaveBalance(balanceData.summary || []);
-      }
+  // Handle leave balance structure
+  const leaveBalance = (leaveBalanceData as any)?.summary || (Array.isArray(leaveBalanceData) ? leaveBalanceData : []);
 
-      // Fetch my leaves
-      const myLeavesResult = await fetchLeaveRequests(employee.company._id, {
+  const { data: myLeavesData } = useQuery({
+    queryKey: ["myLeaves", companyId, employeeId],
+    queryFn: () =>
+      fetchLeaveRequests(companyId, {
         myRequests: true,
-      });
-      setMyLeaves(myLeavesResult.data || []);
+      }),
+    enabled: !!companyId && !!employeeId,
+  });
+  const myLeaves = myLeavesData?.data || [];
 
-      // Fetch pending approvals
-      const approvalsResult = await fetchLeaveRequests(employee.company._id, {
+  const { data: pendingApprovalsData } = useQuery({
+    queryKey: ["pendingApprovals", companyId],
+    queryFn: () =>
+      fetchLeaveRequests(companyId, {
         pendingApprovals: true,
+      }),
+    enabled: !!companyId,
+  });
+  const pendingApprovals = pendingApprovalsData?.data || [];
+
+  // Mutations
+  const createLeaveMutation = useMutation({
+    mutationFn: createLeaveRequest,
+    onSuccess: () => {
+      showSnackbar({
+        message: "Leave request submitted successfully",
+        severity: "success",
       });
-      setPendingApprovals(approvalsResult.data || []);
-    } catch (error: any) {
-      showSnackbar({ message: error.message, severity: "error" });
-    }
+      // Reset form
+      setSelectedLeaveType("");
+      setStartDate("");
+      setEndDate("");
+      setHalfDay(false);
+      setReason("");
+      setErrors({
+        leaveType: "",
+        startDate: "",
+        endDate: "",
+        reason: "",
+      });
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
+      queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["upcomingLeaves"] }); // From dashboard
+    },
+    onError: (error: any) => {
+      showSnackbar({
+        message: error.message || "Failed to submit leave request",
+        severity: "error",
+      });
+    },
+  });
 
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAllData();
-  }, [user.id]);
+  const updateLeaveMutation = useMutation({
+    mutationFn: updateLeaveRequest,
+    onSuccess: (_, variables) => {
+      showSnackbar({
+        message: `Leave request ${variables.action}d successfully`,
+        severity: "success",
+      });
+      setActionDialog({ open: false, leaveRequest: null, action: null });
+      setRemarks("");
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
+      queryClient.invalidateQueries({ queryKey: ["pendingApprovals"] });
+      queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["upcomingLeaves"] });
+      queryClient.invalidateQueries({ queryKey: ["managerDashboard"] });
+    },
+    onError: (error: any) => {
+      showSnackbar({
+        message: error.message || `Failed to update leave request`,
+        severity: "error",
+      });
+    },
+  });
 
   const validateForm = (): boolean => {
     const newErrors = {
@@ -234,8 +280,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     return isValid;
   };
 
-  const handleApplyLeave = async () => {
-    // Clear previous errors
+  const handleApplyLeave = () => {
     setErrors({
       leaveType: "",
       startDate: "",
@@ -243,7 +288,6 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       reason: "",
     });
 
-    // Validate form
     if (!validateForm()) {
       showSnackbar({
         message: "Please fix the errors in the form",
@@ -252,77 +296,26 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       return;
     }
 
-    if (!employeeData) {
-      showSnackbar({
-        message: "Employee data not available",
-        severity: "error",
-      });
-      return;
-    }
+    if (!employee) return;
 
-    setSubmitting(true);
-    try {
-      await createLeaveRequest({
-        employeeId: employeeData._id,
-        leaveTypeId: selectedLeaveType,
-        startDate,
-        endDate,
-        halfDay,
-        reason: reason.trim(),
-      });
-
-      showSnackbar({
-        message: "Leave request submitted successfully",
-        severity: "success",
-      });
-      // Reset form
-      setSelectedLeaveType("");
-      setStartDate("");
-      setEndDate("");
-      setHalfDay(false);
-      setReason("");
-      setErrors({
-        leaveType: "",
-        startDate: "",
-        endDate: "",
-        reason: "",
-      });
-      // Refresh data
-      fetchAllData();
-    } catch (error: any) {
-      showSnackbar({
-        message: error.message || "Failed to submit leave request",
-        severity: "error",
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    createLeaveMutation.mutate({
+      employeeId: employee._id,
+      leaveTypeId: selectedLeaveType,
+      startDate,
+      endDate,
+      halfDay,
+      reason: reason.trim(),
+    });
   };
 
-  const handleLeaveAction = async () => {
+  const handleLeaveAction = () => {
     if (!actionDialog.leaveRequest || !actionDialog.action) return;
 
-    try {
-      await updateLeaveRequest({
-        leaveRequestId: actionDialog.leaveRequest._id,
-        action: actionDialog.action,
-        remarks: remarks.trim(),
-      });
-
-      showSnackbar({
-        message: `Leave request ${actionDialog.action}d successfully`,
-        severity: "success",
-      });
-      setActionDialog({ open: false, leaveRequest: null, action: null });
-      setRemarks("");
-      fetchAllData();
-    } catch (error: any) {
-      showSnackbar({
-        message:
-          error.message || `Failed to ${actionDialog.action} leave request`,
-        severity: "error",
-      });
-    }
+    updateLeaveMutation.mutate({
+      leaveRequestId: actionDialog.leaveRequest._id,
+      action: actionDialog.action,
+      remarks: remarks.trim(),
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -338,7 +331,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     }
   };
 
-  if (loading) {
+  if (loadingEmployee) {
     return (
       <Box
         display="flex"
@@ -351,7 +344,15 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     );
   }
 
-  if (!employeeData) {
+  if (employeeError) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{(employeeError as Error).message}</Alert>
+      </Box>
+    );
+  }
+
+  if (!employee) {
     return (
       <Box p={3}>
         <Alert severity="error">Employee data not available</Alert>
@@ -400,14 +401,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         setSelectedLeaveType(e.target.value);
                         setErrors((prev) => ({ ...prev, leaveType: "" }));
                       }}
-                      disabled={submitting}
+                      disabled={createLeaveMutation.isPending}
                     >
                       {leaveTypes.length === 0 ? (
                         <MenuItem value="" disabled>
                           No leave types available
                         </MenuItem>
                       ) : (
-                        leaveTypes.map((type) => (
+                        leaveTypes.map((type: any) => (
                           <MenuItem key={type._id} value={type._id}>
                             <Box display="flex" alignItems="center" gap={1}>
                               <Chip
@@ -452,7 +453,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     }}
                     error={!!errors.startDate}
                     helperText={errors.startDate}
-                    disabled={submitting}
+                    disabled={createLeaveMutation.isPending}
                   />
                 </Grid>
 
@@ -472,7 +473,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     }}
                     error={!!errors.endDate}
                     helperText={errors.endDate}
-                    disabled={submitting}
+                    disabled={createLeaveMutation.isPending}
                   />
                 </Grid>
 
@@ -482,7 +483,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                       <Switch
                         checked={halfDay}
                         onChange={(e) => setHalfDay(e.target.checked)}
-                        disabled={submitting}
+                        disabled={createLeaveMutation.isPending}
                       />
                     }
                     label="Half Day Leave"
@@ -510,7 +511,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     }}
                     placeholder="Enter reason for leave (optional)..."
                     helperText="Provide a brief explanation for your leave request (optional)"
-                    disabled={submitting}
+                    disabled={createLeaveMutation.isPending}
                   />
                 </Grid>
 
@@ -519,10 +520,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     variant="contained"
                     size="large"
                     startIcon={
-                      submitting ? <CircularProgress size={20} /> : <Send />
+                      createLeaveMutation.isPending ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <Send />
+                      )
                     }
                     onClick={handleApplyLeave}
-                    disabled={submitting}
+                    disabled={createLeaveMutation.isPending}
                   >
                     Submit Leave Request
                   </Button>
@@ -540,7 +545,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 <Alert severity="info">No leave balance available</Alert>
               ) : (
                 <List>
-                  {leaveBalance.map((leave, index) => (
+                  {leaveBalance.map((leave: any, index: number) => (
                     <Paper key={index} sx={{ mb: 1, p: 2 }}>
                       <Box
                         display="flex"
@@ -563,16 +568,29 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                       <Typography variant="body2" color="text.secondary">
                         {leave.leaveType.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                      >
                         Used: {leave.used} / {leave.maxDaysPerYear}
                       </Typography>
                       {leave.currentPeriod && (
-                        <Typography variant="caption" color="primary" display="block" sx={{ mt: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          color="primary"
+                          display="block"
+                          sx={{ mt: 0.5 }}
+                        >
                           Period: {leave.currentPeriod.label}
                         </Typography>
                       )}
                       {leave.carriedForward > 0 && (
-                        <Typography variant="caption" color="success.main" display="block">
+                        <Typography
+                          variant="caption"
+                          color="success.main"
+                          display="block"
+                        >
                           +{leave.carriedForward} days carried forward
                         </Typography>
                       )}
@@ -595,7 +613,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
             <Alert severity="info">No leave requests found</Alert>
           ) : (
             <List>
-              {myLeaves.map((leave) => (
+              {myLeaves.map((leave: any) => (
                 <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={3}>
@@ -699,7 +717,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
             <Divider sx={{ mb: 2 }} />
 
             <List>
-              {pendingApprovals.map((leave) => (
+              {pendingApprovals.map((leave: any) => (
                 <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={3}>
@@ -798,25 +816,11 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
           {actionDialog.action === "cancel" && "Cancel Leave Request"}
         </DialogTitle>
         <DialogContent>
-          {actionDialog.leaveRequest && (
-            <Box>
-              <Typography variant="body2" gutterBottom>
-                Employee: {actionDialog.leaveRequest.employee?.name || "You"}
-              </Typography>
-              <Typography variant="body2" gutterBottom>
-                Leave Type: {actionDialog.leaveRequest.leaveType.name}
-              </Typography>
-              <Typography variant="body2" gutterBottom>
-                Duration:{" "}
-                {new Date(
-                  actionDialog.leaveRequest.startDate
-                ).toLocaleDateString()}{" "}
-                -{" "}
-                {new Date(
-                  actionDialog.leaveRequest.endDate
-                ).toLocaleDateString()}{" "}
-                ({actionDialog.leaveRequest.totalDays} days)
-              </Typography>
+          <Typography gutterBottom>
+            Are you sure you want to {actionDialog.action} this leave request?
+          </Typography>
+          {(actionDialog.action === "reject" ||
+            actionDialog.action === "approve") && (
               <TextField
                 fullWidth
                 label="Remarks (Optional)"
@@ -826,23 +830,37 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 onChange={(e) => setRemarks(e.target.value)}
                 sx={{ mt: 2 }}
               />
-            </Box>
-          )}
+            )}
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() =>
-              setActionDialog({ open: false, leaveRequest: null, action: null })
+              setActionDialog({
+                open: false,
+                leaveRequest: null,
+                action: null,
+              })
             }
           >
-            Cancel
+            Close
           </Button>
           <Button
             variant="contained"
-            color={actionDialog.action === "approve" ? "success" : "error"}
+            color={
+              actionDialog.action === "approve"
+                ? "success"
+                : actionDialog.action === "reject"
+                  ? "error"
+                  : "primary"
+            }
             onClick={handleLeaveAction}
+            disabled={updateLeaveMutation.isPending}
           >
-            Confirm {actionDialog.action}
+            {updateLeaveMutation.isPending ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Confirm"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

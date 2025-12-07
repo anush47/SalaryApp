@@ -11,6 +11,7 @@ export async function fetchSalaries(params: {
     limit?: number;
     period?: string;
     salaryId?: string;
+    employeeId?: string;
 } = {}): Promise<PaginatedResponse | any> {
     const queryParams = new URLSearchParams();
 
@@ -19,6 +20,7 @@ export async function fetchSalaries(params: {
     if (params.limit) queryParams.append('limit', params.limit.toString());
     if (params.period) queryParams.append('period', params.period);
     if (params.salaryId) queryParams.append('salaryId', params.salaryId);
+    if (params.employeeId) queryParams.append('employee', params.employeeId);
 
     const url = `/api/salaries?${queryParams.toString()}`;
     const data = await apiFetch(url);

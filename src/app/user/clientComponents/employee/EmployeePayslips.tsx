@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Box,
   Card,
@@ -10,34 +11,30 @@ import {
   Alert,
   Button,
   Divider,
-  Chip,
   Table,
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
   TableRow,
   Paper,
   Accordion,
   AccordionSummary,
   AccordionDetails,
   FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  TableHead,
 } from "@mui/material";
 import {
   Download,
   ExpandMore,
   TrendingUp,
   TrendingDown,
-  Receipt,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { InOutTable } from "../../mycompanies/[id]/salaries/inOutTable";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import { fetchSalaries } from "@/app/lib/api/salaryApi";
 
 interface UserProps {
   user: {
@@ -51,65 +48,66 @@ interface UserProps {
 
 const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
-  const [loading, setLoading] = useState(true);
-  const [employeeData, setEmployeeData] = useState<any>(null);
-  const [salaries, setSalaries] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [selectedSalary, setSelectedSalary] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch employee data
-        const empResponse = await fetch(`/api/employees?user=${user.id}`);
-        if (!empResponse.ok) throw new Error("Failed to fetch employee data");
-        const empData = await empResponse.json();
-
-        if (!empData.employees || empData.employees.length === 0) {
-          throw new Error("Employee profile not found");
-        }
-
-        const employee = empData.employees[0];
-        setEmployeeData(employee);
-
-        // Fetch salaries
-        const salariesResponse = await fetch(
-          `/api/salaries?employee=${employee._id}`
-        );
-        if (!salariesResponse.ok) throw new Error("Failed to fetch salaries");
-        const salariesData = await salariesResponse.json();
-
-        const sortedSalaries = (salariesData.salaries || []).sort(
-          (a: any, b: any) => b.period.localeCompare(a.period)
-        );
-        setSalaries(sortedSalaries);
-
-        // Auto-select latest salary
-        if (sortedSalaries.length > 0) {
-          setSelectedPeriod(sortedSalaries[0].period);
-          setSelectedSalary(sortedSalaries[0]);
-        }
-
-        setLoading(false);
-      } catch (error: any) {
-        showSnackbar({ message: error.message, severity: "error" });
-        setLoading(false);
+  // 1. Fetch Employee Data
+  const {
+    data: employee,
+    isLoading: loadingEmployee,
+    error: employeeError,
+  } = useQuery({
+    queryKey: ["employee", user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/employees?user=${user.id}`);
+      if (!response.ok) throw new Error("Failed to fetch employee data");
+      const data = await response.json();
+      const employees = data.employees || data.data?.employees || [];
+      if (employees.length === 0) {
+        throw new Error("Employee profile not found");
       }
-    };
+      return employees[0];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-    fetchData();
-  }, [user.id]);
+  const employeeId = employee?._id;
+
+  // 2. Fetch Salaries
+  const { data: salariesData, isLoading: loadingSalaries } = useQuery({
+    queryKey: ["salaries", employeeId],
+    queryFn: () => fetchSalaries({ employeeId: employeeId }),
+    enabled: !!employeeId,
+  });
+
+  const rawSalaries = salariesData?.salaries || salariesData?.data?.salaries || (Array.isArray(salariesData) ? salariesData : []);
+  const salaries = Array.isArray(rawSalaries) ? rawSalaries.filter((s: any) => s.period) : [];
+  const sortedSalaries = salaries.sort(
+    (a: any, b: any) => b.period.localeCompare(a.period)
+  );
+
+  // Auto-select latest salary
+  useEffect(() => {
+    if (sortedSalaries && sortedSalaries.length > 0 && !selectedPeriod) {
+      // Only auto-select if nothing is selected yet to prevent overwriting user choice if re-fetched
+      const latest = sortedSalaries[0];
+      setSelectedPeriod(latest.period);
+      setSelectedSalary(latest);
+    } else if (sortedSalaries && sortedSalaries.length > 0 && selectedPeriod) {
+      // If period is selected, ensure we have the salary object (e.g. after refresh)
+      const current = sortedSalaries.find((s: any) => s.period === selectedPeriod);
+      if (current) setSelectedSalary(current);
+    }
+  }, [sortedSalaries, selectedPeriod]);
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period);
-    const salary = salaries.find((s) => s.period === period);
+    const salary = sortedSalaries.find((s: any) => s.period === period);
     setSelectedSalary(salary || null);
   };
 
   const handleDownloadPDF = async (pdfType: "payslip" | "attendance") => {
-    if (!selectedSalary || !employeeData) {
+    if (!selectedSalary || !employee) {
       showSnackbar({
         message: "No salary selected or employee data missing.",
         severity: "warning",
@@ -122,7 +120,7 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyId: employeeData.company._id,
+          companyId: employee.company._id,
           period: selectedSalary.period,
           salaryIds: [selectedSalary._id],
           pdfType: pdfType,
@@ -136,7 +134,7 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
     }
   };
 
-  if (loading) {
+  if (loadingEmployee || (loadingSalaries && !selectedPeriod)) {
     return (
       <Box
         display="flex"
@@ -149,7 +147,15 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
     );
   }
 
-  if (!employeeData) {
+  if (employeeError) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{(employeeError as Error).message}</Alert>
+      </Box>
+    );
+  }
+
+  if (!employee) {
     return (
       <Box p={3}>
         <Alert severity="error">Employee data not available</Alert>
@@ -187,7 +193,7 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
         )}
       </Box>
 
-      {salaries.length === 0 ? (
+      {sortedSalaries.length === 0 ? (
         <Alert severity="info">No payslips available</Alert>
       ) : (
         <Grid container spacing={3}>
@@ -203,6 +209,17 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                     if (newValue) {
                       handlePeriodChange(newValue.format("YYYY-MM"));
                     }
+                  }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true
+                    }
+                  }}
+                  shouldDisableDate={(date) => {
+                    // Disable dates that don't have a salary (optional, but good UX if feasible)
+                    // Here we can checking if any salary matches the YYYY-MM
+                    const dateStr = date.format("YYYY-MM");
+                    return !sortedSalaries.some((s: any) => s.period === dateStr);
                   }}
                 />
               </LocalizationProvider>
@@ -501,14 +518,14 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                       (record: any, index: number) => ({
                         ...record,
                         id: index,
-                        employeeName: employeeData?.name,
-                        employeeNIC: employeeData?.nic,
+                        employeeName: employee?.name,
+                        employeeNIC: employee?.nic,
                         basic: selectedSalary.basic,
                         divideBy: selectedSalary.divideBy,
                       })
                     )}
-                    setInOuts={() => {}}
-                    fetchSalary={() => {}}
+                    setInOuts={() => { }}
+                    fetchSalary={() => { }}
                     editable={false}
                     isDynamicHolidays={false}
                   />
