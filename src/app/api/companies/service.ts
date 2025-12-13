@@ -187,6 +187,22 @@ export class CompanyService {
           applicableFor: ["permanent", "contract", "intern"],
         },
         {
+          name: "Short Leave",
+          company: newCompany._id,
+          code: "SH",
+          accrualPeriod: "monthly",
+          maxDaysPerPeriod: 0,
+          accrualMethod: "upfront",
+          requiresApproval: true,
+          isPaid: true,
+          resetDay: 1,
+          color: "#9C27B0", // Purple
+          description: "Short leave (Max 2 hours, 3 per month)",
+          applicableFor: ["permanent", "contract", "intern"],
+          isShortLeave: true,
+          maxDurationMinutes: 120,
+        },
+        {
           name: "No Pay Leave",
           company: newCompany._id,
           code: "NPL",
