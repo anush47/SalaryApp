@@ -388,6 +388,7 @@ export const leaveRequestCreateSchema = z.object({
   endDate: z.string().min(1, "End date is required"),
   halfDay: z.boolean().optional().default(false),
   halfDayPeriod: z.enum(["morning", "afternoon"]).optional(),
+  totalMinutes: z.number().optional(),
   reason: z.string().optional(),
   documents: z.array(z.string()).optional(),
 });
@@ -417,6 +418,8 @@ export const leaveTypeCreateSchema = z.object({
   gender: z.enum(["male", "female", "all"]).optional().default("all"),
   color: z.string().optional(),
   description: z.string().optional(),
+  isShortLeave: z.boolean().optional().default(false),
+  maxDurationMinutes: z.number().optional(),
 });
 
 export const leaveTypeUpdateSchema = z.object({
@@ -438,6 +441,9 @@ export const leaveTypeUpdateSchema = z.object({
   color: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().optional(),
+  isShortLeave: z.boolean().optional(),
+  maxDurationMinutes: z.number().optional(),
+  maxRequestsPerMonth: z.number().optional(),
 });
 
 // Salary-related schemas

@@ -113,6 +113,7 @@ export class LeaveTypeService {
         // Create leave type
         const leaveType = new LeaveType({
             ...data,
+            company: data.companyId,
             code: data.code.toUpperCase(),
             isActive: true,
         });

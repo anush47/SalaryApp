@@ -65,6 +65,8 @@ const LeaveTypesManagement: React.FC<{
     applicableFor: ["all"] as string[],
     gender: "all" as "all" | "male" | "female",
     color: "#1976d2",
+    isShortLeave: false,
+    maxDurationMinutes: 120,
   });
 
   // Fetch leave types
@@ -113,6 +115,8 @@ const LeaveTypesManagement: React.FC<{
         applicableFor: ["all"],
         gender: "all",
         color: "#1976d2",
+        isShortLeave: false,
+        maxDurationMinutes: 120,
       });
     },
     onError: (err: Error) => {
@@ -692,6 +696,34 @@ const LeaveTypesManagement: React.FC<{
                 }
                 label="Carry Forward"
               />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={newLeaveType.isShortLeave || false}
+                    onChange={(e) =>
+                      setNewLeaveType({
+                        ...newLeaveType,
+                        isShortLeave: e.target.checked,
+                      })
+                    }
+                  />
+                }
+                label="Is Short Leave?"
+              />
+              {newLeaveType.isShortLeave && (
+                <TextField
+                  label="Max Duration (Minutes)"
+                  type="number"
+                  value={newLeaveType.maxDurationMinutes || ''}
+                  onChange={(e) =>
+                    setNewLeaveType({
+                      ...newLeaveType,
+                      maxDurationMinutes: parseInt(e.target.value),
+                    })
+                  }
+                  helperText="Maximum duration allowed per request"
+                />
+              )}
             </Box>
           </DialogContent>
           <DialogActions>
@@ -806,6 +838,35 @@ const LeaveTypesManagement: React.FC<{
                   <MenuItem value="monthly-accrual">Monthly Accrual (Gradual)</MenuItem>
                   <MenuItem value="pro-rata">Pro-Rata (Based on time worked)</MenuItem>
                 </TextField>
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={editingLeaveType.isShortLeave || false}
+                      onChange={(e) =>
+                        setEditingLeaveType({
+                          ...editingLeaveType,
+                          isShortLeave: e.target.checked,
+                        })
+                      }
+                    />
+                  }
+                  label="Is Short Leave?"
+                />
+                {editingLeaveType.isShortLeave && (
+                  <TextField
+                    label="Max Duration (Minutes)"
+                    type="number"
+                    value={editingLeaveType.maxDurationMinutes || ''}
+                    onChange={(e) =>
+                      setEditingLeaveType({
+                        ...editingLeaveType,
+                        maxDurationMinutes: parseInt(e.target.value),
+                      })
+                    }
+                    helperText="Maximum duration allowed per request"
+                  />
+                )}
                 {editingLeaveType.accrualPeriod === "custom" && (
                   <TextField
                     label="Custom Period Days"

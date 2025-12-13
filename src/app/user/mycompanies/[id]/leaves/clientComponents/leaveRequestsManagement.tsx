@@ -19,9 +19,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Typography,
 } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
-import { Check, Close } from "@mui/icons-material";
+import { Check, Close, Visibility } from "@mui/icons-material";
 import dayjs from "dayjs";
 
 import {
@@ -123,25 +124,42 @@ const LeaveRequestsManagement: React.FC<{
       field: "startDate",
       headerName: "Start Date",
       flex: 1,
-      minWidth: 120,
-      valueGetter: (value, row) => {
-        return dayjs(row.startDate).format("DD-MM-YYYY");
+      minWidth: 140,
+      renderCell: (params) => {
+        const date = dayjs(params.row.startDate);
+        if (params.row.leaveType.isShortLeave) {
+          return date.format("DD-MM-YYYY | HH:mm");
+        }
+        return date.format("DD-MM-YYYY");
       },
     },
     {
       field: "endDate",
       headerName: "End Date",
       flex: 1,
-      minWidth: 120,
-      valueGetter: (value, row) => {
-        return dayjs(row.endDate).format("DD-MM-YYYY");
+      minWidth: 140,
+      renderCell: (params) => {
+        const date = dayjs(params.row.endDate);
+        if (params.row.leaveType.isShortLeave) {
+          return date.format("DD-MM-YYYY | HH:mm");
+        }
+        return date.format("DD-MM-YYYY");
       },
     },
     {
       field: "totalDays",
-      headerName: "Days",
-      flex: 0.5,
-      maxWidth: 80,
+      headerName: "Duration",
+      flex: 0.8,
+      minWidth: 120,
+      valueGetter: (value, row) => {
+        if (row.leaveType.isShortLeave) {
+          return `${row.totalMinutes || 0} mins`;
+        }
+        if (row.halfDay) {
+          return `0.5 Days (${row.halfDayPeriod})`;
+        }
+        return `${row.totalDays} Days`;
+      }
     },
     {
       field: "reason",
@@ -187,54 +205,34 @@ const LeaveRequestsManagement: React.FC<{
       flex: 1,
       minWidth: 200,
       renderCell: (params) => {
-        const request = params.row;
         return (
-          <Box sx={{ display: "flex", gap: 1 }}>
-            {request.status === "pending" && (
-              <>
-                <Button
-                  variant="contained"
-                  size="small"
-                  color="success"
-                  startIcon={<Check />}
-                  onClick={() => handleActionClick(request, "approve")}
-                >
-                  Approve
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="error"
-                  startIcon={<Close />}
-                  onClick={() => handleActionClick(request, "reject")}
-                >
-                  Reject
-                </Button>
-              </>
-            )}
-            {(request.status === "pending" ||
-              request.status === "approved") && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => handleActionClick(request, "cancel")}
-                >
-                  Cancel
-                </Button>
-              )}
-          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Visibility />}
+            onClick={() => handleViewDetails(params.row)}
+          >
+            View
+          </Button>
         );
       },
     },
   ];
 
+  const handleViewDetails = (request: LeaveRequest) => {
+    setSelectedRequest(request);
+    setAction(null); // No specific action yet
+    setActionDialogOpen(true);
+  };
+
   const handleActionClick = (
-    request: LeaveRequest,
     actionType: "approve" | "reject" | "cancel"
   ) => {
-    setSelectedRequest(request);
     setAction(actionType);
-    setActionDialogOpen(true);
+    // Logic to handle confirmation within the dialog or separate
+    // Actually, we want to confirm immediately if clicked inside dialog? 
+    // Or set action state and show confirmation UI?
+    // Let's make the handleConfirmAction rely on the local state action.
   };
 
   const handleConfirmAction = () => {
@@ -357,73 +355,179 @@ const LeaveRequestsManagement: React.FC<{
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          {action === "approve"
-            ? "Approve Leave Request"
-            : action === "reject"
-              ? "Reject Leave Request"
-              : "Cancel Leave Request"}
-        </DialogTitle>
-        <DialogContent>
+        <DialogTitle>Leave Request Details</DialogTitle>
+        <DialogContent dividers>
           {selectedRequest && (
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ mb: 2 }}>
-                <strong>Employee:</strong> {selectedRequest.employee.name} (
-                {selectedRequest.employee.memberNo})
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <strong>Leave Type:</strong> {selectedRequest.leaveType.name}
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <strong>Duration:</strong>{" "}
-                {dayjs(selectedRequest.startDate).format("DD-MM-YYYY")} to{" "}
-                {dayjs(selectedRequest.endDate).format("DD-MM-YYYY")} (
-                {selectedRequest.totalDays} days)
-              </Box>
-              {selectedRequest.reason && (
-                <Box sx={{ mb: 2 }}>
-                  <strong>Reason:</strong> {selectedRequest.reason}
+            <Box sx={{ mt: 1 }}>
+
+              {/* Header Info */}
+              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    {selectedRequest.employee.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Member No: {selectedRequest.employee.memberNo}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Designation: {selectedRequest.employee.designation || 'N/A'}
+                  </Typography>
                 </Box>
-              )}
+                <Chip
+                  label={selectedRequest.status.toUpperCase()}
+                  color={
+                    selectedRequest.status === 'approved' ? 'success' :
+                      selectedRequest.status === 'rejected' ? 'error' :
+                        selectedRequest.status === 'pending' ? 'warning' : 'default'
+                  }
+                  variant="outlined"
+                />
+              </Box>
+
+              {/* Leave Details Grid */}
+              <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Leave Type
+                  </Typography>
+                  <Chip
+                    label={selectedRequest.leaveType.name}
+                    size="small"
+                    sx={{ bgcolor: selectedRequest.leaveType.color || 'primary.main', color: '#fff' }}
+                  />
+                </Box>
+
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Duration
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedRequest.leaveType.isShortLeave ? (
+                      <>
+                        {dayjs(selectedRequest.startDate).format("DD MMM YYYY")}
+                        <Box component="span" sx={{ mx: 1, color: 'text.secondary' }}>|</Box>
+                        {dayjs(selectedRequest.startDate).format("HH:mm")} - {dayjs(selectedRequest.endDate).format("HH:mm")}
+                        <Typography component="span" variant="body2" color="primary" sx={{ ml: 1 }}>
+                          ({selectedRequest.totalMinutes} mins)
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        {dayjs(selectedRequest.startDate).format("DD MMM YYYY")}
+                        {selectedRequest.startDate !== selectedRequest.endDate && ` - ${dayjs(selectedRequest.endDate).format("DD MMM YYYY")}`}
+                        <br />
+                        <Typography component="span" variant="body2" color="text.secondary">
+                          {selectedRequest.totalDays} Days
+                          {selectedRequest.halfDay && ` (${selectedRequest.halfDayPeriod} Half)`}
+                        </Typography>
+                      </>
+                    )}
+                  </Typography>
+                </Box>
+
+                {selectedRequest.reason && (
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Reason
+                    </Typography>
+                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      {selectedRequest.reason}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
               <TextField
-                label="Remarks (optional)"
+                label="Add Remarks / Rejection Reason"
                 multiline
-                rows={3}
+                rows={2}
                 fullWidth
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
+                sx={{ mt: 3 }}
+                placeholder="Enter remarks before approving or rejecting..."
               />
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setActionDialogOpen(false);
-              setSelectedRequest(null);
-              setAction(null);
-              setRemarks("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmAction}
-            variant="contained"
-            color={
-              action === "approve"
-                ? "success"
-                : action === "reject"
-                  ? "error"
-                  : "primary"
-            }
-          >
-            {action === "approve"
-              ? "Approve"
-              : action === "reject"
-                ? "Reject"
-                : "Cancel Leave"}
-          </Button>
+        <DialogActions sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: 2 }}>
+            <Button
+              onClick={() => {
+                setActionDialogOpen(false);
+                setSelectedRequest(null);
+                setAction(null);
+                setRemarks("");
+              }}
+              color="inherit"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
+              Close
+            </Button>
+
+            <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, width: { xs: '100%', sm: 'auto' } }}>
+              {selectedRequest && selectedRequest.status === "pending" && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Close />}
+                  onClick={() => {
+                    if (selectedRequest) {
+                      updateLeaveRequestMutation.mutate({
+                        leaveRequestId: selectedRequest._id,
+                        action: "reject",
+                        remarks,
+                      });
+                    }
+                  }}
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
+                  Reject
+                </Button>
+              )}
+
+              {selectedRequest &&
+                (selectedRequest.status === "pending" ||
+                  selectedRequest.status === "approved") && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    onClick={() => {
+                      if (selectedRequest) {
+                        updateLeaveRequestMutation.mutate({
+                          leaveRequestId: selectedRequest._id,
+                          action: "cancel",
+                          remarks,
+                        });
+                      }
+                    }}
+                    sx={{ width: { xs: '100%', sm: 'auto' } }}
+                  >
+                    Cancel Leave
+                  </Button>
+                )}
+
+              {selectedRequest && selectedRequest.status === "pending" && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  endIcon={<Check />}
+                  onClick={() => {
+                    if (selectedRequest) {
+                      updateLeaveRequestMutation.mutate({
+                        leaveRequestId: selectedRequest._id,
+                        action: "approve",
+                        remarks,
+                      });
+                    }
+                  }}
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
+                  Approve
+                </Button>
+              )}
+            </Box>
+          </Box>
         </DialogActions>
       </Dialog>
     </Box>

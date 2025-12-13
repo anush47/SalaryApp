@@ -26,6 +26,9 @@ import {
   Switch,
   FormControlLabel,
   Divider,
+  Radio,
+  RadioGroup,
+  FormLabel,
 } from "@mui/material";
 import {
   Send,
@@ -43,6 +46,7 @@ import {
 import { fetchLeaveBalance, fetchEmployees } from "@/app/lib/api/employeeApi";
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
@@ -88,6 +92,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
   const [halfDay, setHalfDay] = useState(false);
+  const [halfDayPeriod, setHalfDayPeriod] = useState<"morning" | "afternoon">("morning");
+  const [startTime, setStartTime] = useState<Dayjs | null>(null);
+  const [endTime, setEndTime] = useState<Dayjs | null>(null);
   const [reason, setReason] = useState("");
 
   // Validation errors
@@ -96,7 +103,11 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     startDate: "",
     endDate: "",
     reason: "",
+    startTime: "",
+    endTime: "",
+    halfDayPeriod: "",
   });
+
 
   // Dialog state
   const [actionDialog, setActionDialog] = useState<{
@@ -136,6 +147,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     queryFn: () => fetchLeaveTypes(companyId),
     enabled: !!companyId,
   });
+
+  const selectedTypeData = leaveTypes.find((lt: any) => lt._id === selectedLeaveType);
+  const isShortLeave = selectedTypeData?.isShortLeave;
 
   const { data: leaveBalanceData } = useQuery({
     queryKey: ["leaveBalance", employeeId],
@@ -178,13 +192,19 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       setSelectedLeaveType("");
       setStartDate(null);
       setEndDate(null);
+      setStartTime(null);
+      setEndTime(null);
       setHalfDay(false);
+      setHalfDayPeriod("morning");
       setReason("");
       setErrors({
         leaveType: "",
         startDate: "",
         endDate: "",
         reason: "",
+        startTime: "",
+        endTime: "",
+        halfDayPeriod: "",
       });
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
@@ -229,6 +249,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       startDate: "",
       endDate: "",
       reason: "",
+      startTime: "",
+      endTime: "",
+      halfDayPeriod: "",
     };
 
     let isValid = true;
@@ -239,34 +262,75 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       isValid = false;
     }
 
+    const selectedTypeData = leaveTypes.find((lt: any) => lt._id === selectedLeaveType);
+    const isShortLeave = selectedTypeData?.isShortLeave;
+
     // Validate start date
     if (!startDate) {
-      newErrors.startDate = "Start date is required";
+      newErrors.startDate = "Date is required";
       isValid = false;
     } else {
       const today = dayjs().startOf('day');
 
-      if (startDate.isBefore(today)) {
+      // Allow retroactive short leaves, but restrict others unless needed
+      if (!isShortLeave && startDate.isBefore(today)) {
         newErrors.startDate = "Start date cannot be in the past";
         isValid = false;
       }
     }
 
-    // Validate end date
-    if (!endDate) {
-      newErrors.endDate = "End date is required";
-      isValid = false;
-    } else if (startDate && endDate) {
-      if (endDate.isBefore(startDate)) {
-        newErrors.endDate = "End date must be on or after start date";
+    if (isShortLeave) {
+      // Short Leave Validation
+      if (!startTime) {
+        newErrors.startTime = "Start time is required";
+        isValid = false;
+      }
+      if (!endTime) {
+        newErrors.endTime = "End time is required";
         isValid = false;
       }
 
-      // Check if date range is too long (optional check)
-      const diffDays = endDate.diff(startDate, 'day') + 1;
+      if (startTime && endTime) {
+        if (endTime.isBefore(startTime)) {
+          newErrors.endTime = "End time must be after start time";
+          isValid = false;
+        }
 
-      if (diffDays > 365) {
-        newErrors.endDate = "Leave period cannot exceed 365 days";
+        // Check max duration
+        if (selectedTypeData?.maxDurationMinutes) {
+          const durationMinutes = endTime.diff(startTime, 'minute');
+          if (durationMinutes > selectedTypeData.maxDurationMinutes) {
+            newErrors.endTime = `Duration cannot exceed ${selectedTypeData.maxDurationMinutes} minutes`;
+            isValid = false;
+          }
+        }
+      }
+
+    } else {
+      // Normal Leave Validation
+
+      // Validate end date
+      if (!endDate) {
+        newErrors.endDate = "End date is required";
+        isValid = false;
+      } else if (startDate && endDate) {
+        if (endDate.isBefore(startDate)) {
+          newErrors.endDate = "End date must be on or after start date";
+          isValid = false;
+        }
+
+        // Check if date range is too long (optional check)
+        const diffDays = endDate.diff(startDate, 'day') + 1;
+
+        if (diffDays > 365) {
+          newErrors.endDate = "Leave period cannot exceed 365 days";
+          isValid = false;
+        }
+      }
+
+      // Validate Half Day Period
+      if (halfDay && !halfDayPeriod) {
+        newErrors.halfDayPeriod = "Please select a period (Morning/Afternoon)";
         isValid = false;
       }
     }
@@ -281,6 +345,9 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       startDate: "",
       endDate: "",
       reason: "",
+      startTime: "",
+      endTime: "",
+      halfDayPeriod: ""
     });
 
     if (!validateForm()) {
@@ -291,14 +358,29 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       return;
     }
 
-    if (!employee || !startDate || !endDate) return;
+    if (!employee || !startDate) return;
+
+    const selectedTypeData = leaveTypes.find((lt: any) => lt._id === selectedLeaveType);
+    const isShortLeave = selectedTypeData?.isShortLeave;
+
+    if (!isShortLeave && !endDate) return;
+
+    // For short leave, start and end dates are the same day mixed with time
+    let finalStartDate = startDate;
+    let finalEndDate = isShortLeave ? startDate : endDate;
+
+    if (isShortLeave && startTime && endTime) {
+      finalStartDate = startDate.hour(startTime.hour()).minute(startTime.minute());
+      finalEndDate = startDate.hour(endTime.hour()).minute(endTime.minute());
+    }
 
     createLeaveMutation.mutate({
       employeeId: employee._id,
       leaveTypeId: selectedLeaveType,
-      startDate: startDate.format('YYYY-MM-DD'),
-      endDate: endDate.format('YYYY-MM-DD'),
-      halfDay,
+      startDate: finalStartDate?.format('YYYY-MM-DD HH:mm') || "", // Use helper if needed, but ISO handling in backend should work or custom format
+      endDate: finalEndDate?.format('YYYY-MM-DD HH:mm') || "",
+      halfDay: isShortLeave ? false : halfDay,
+      halfDayPeriod: (halfDay && !isShortLeave) ? halfDayPeriod : undefined,
       reason: reason.trim(),
     });
   };
@@ -435,13 +517,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
                   <Grid item xs={12} sm={6}>
                     <DatePicker
-                      label="Start Date *"
+                      label={isShortLeave ? "Date *" : "Start Date *"}
                       value={startDate}
                       onChange={(newValue) => {
                         setStartDate(newValue);
                         setErrors((prev) => ({ ...prev, startDate: "" }));
                       }}
-                      minDate={dayjs()}
+                      minDate={!isShortLeave ? dayjs() : undefined} // Relax constraint for short leave if needed, or keep dayjs()
                       slotProps={{
                         textField: {
                           fullWidth: true,
@@ -453,46 +535,119 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <DatePicker
-                      label="End Date *"
-                      value={endDate}
-                      onChange={(newValue) => {
-                        setEndDate(newValue);
-                        setErrors((prev) => ({ ...prev, endDate: "" }));
-                      }}
-                      minDate={startDate || dayjs()}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!errors.endDate,
-                          helperText: errors.endDate,
-                          disabled: createLeaveMutation.isPending
-                        }
-                      }}
-                    />
-                  </Grid>
+                  {!isShortLeave && (
+                    <Grid item xs={12} sm={6}>
+                      <DatePicker
+                        label="End Date *"
+                        value={endDate}
+                        onChange={(newValue) => {
+                          setEndDate(newValue);
+                          setErrors((prev) => ({ ...prev, endDate: "" }));
+                        }}
+                        minDate={startDate || dayjs()}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            error: !!errors.endDate,
+                            helperText: errors.endDate,
+                            disabled: createLeaveMutation.isPending
+                          }
+                        }}
+                      />
+                    </Grid>
+                  )}
 
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={halfDay}
-                          onChange={(e) => setHalfDay(e.target.checked)}
-                          disabled={createLeaveMutation.isPending}
+                  {isShortLeave && (
+                    <>
+                      <Grid item xs={12} sm={6}>
+                        <TimePicker
+                          label="Start Time *"
+                          value={startTime}
+                          onChange={(newValue) => {
+                            setStartTime(newValue);
+                            setErrors((prev) => ({ ...prev, startTime: "" }));
+                          }}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true,
+                              error: !!errors.startTime,
+                              helperText: errors.startTime,
+                              disabled: createLeaveMutation.isPending
+                            }
+                          }}
                         />
-                      }
-                      label="Half Day Leave"
-                    />
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      sx={{ ml: 4 }}
-                    >
-                      Enable this if you&apos;re applying for half-day leave only
-                    </Typography>
-                  </Grid>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TimePicker
+                          label="End Time *"
+                          value={endTime}
+                          onChange={(newValue) => {
+                            setEndTime(newValue);
+                            setErrors((prev) => ({ ...prev, endTime: "" }));
+                          }}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true,
+                              error: !!errors.endTime,
+                              helperText: errors.endTime,
+                              disabled: createLeaveMutation.isPending
+                            }
+                          }}
+                        />
+                      </Grid>
+                    </>
+                  )}
+
+                  {!isShortLeave && (
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                        <Box>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={halfDay}
+                                onChange={(e) => setHalfDay(e.target.checked)}
+                                disabled={createLeaveMutation.isPending}
+                              />
+                            }
+                            label="Half Day Leave"
+                          />
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            sx={{ ml: 4 }}
+                          >
+                            Enable this if you&apos;re applying for half-day leave only
+                          </Typography>
+                        </Box>
+
+                        {halfDay && (
+                          <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1, p: 2, pt: 1 }}>
+                            <FormLabel id="half-day-period-label">Half Day Period *</FormLabel>
+                            <RadioGroup
+                              row
+                              aria-labelledby="half-day-period-label"
+                              name="half-day-period"
+                              value={halfDayPeriod}
+                              onChange={(e) => {
+                                setHalfDayPeriod(e.target.value as "morning" | "afternoon");
+                                setErrors((prev) => ({ ...prev, halfDayPeriod: "" }));
+                              }}
+                            >
+                              <FormControlLabel value="morning" control={<Radio size="small" />} label="Morning" />
+                              <FormControlLabel value="afternoon" control={<Radio size="small" />} label="Afternoon" />
+                            </RadioGroup>
+                            {errors.halfDayPeriod && (
+                              <Typography variant="caption" color="error">
+                                {errors.halfDayPeriod}
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                    </Grid>
+                  )}
 
                   <Grid item xs={12}>
                     <TextField
@@ -630,12 +785,27 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         Dates
                       </Typography>
                       <Typography variant="body1">
-                        {new Date(leave.startDate).toLocaleDateString()} -{" "}
-                        {new Date(leave.endDate).toLocaleDateString()}
+                        {leave.leaveType.isShortLeave ? (
+                          <>
+                            {new Date(leave.startDate).toLocaleDateString()} <br />
+                            {new Date(leave.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(leave.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </>
+                        ) : (
+                          <>
+                            {new Date(leave.startDate).toLocaleDateString()} -{" "}
+                            {new Date(leave.endDate).toLocaleDateString()}
+                          </>
+                        )}
                       </Typography>
                       <Typography variant="caption">
-                        {leave.totalDays} day{leave.totalDays > 1 ? "s" : ""}
-                        {leave.halfDay && " (Half Day)"}
+                        {leave.leaveType.isShortLeave ? (
+                          `${leave.totalMinutes || 0} minutes`
+                        ) : (
+                          <>
+                            {leave.totalDays} day{leave.totalDays !== 1 ? "s" : ""}
+                            {leave.halfDay && ` (Half Day - ${leave.halfDayPeriod})`}
+                          </>
+                        )}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} sm={3}>

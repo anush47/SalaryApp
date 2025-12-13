@@ -21,6 +21,8 @@ export interface LeaveType {
     color: string;
     description?: string;
     isActive: boolean;
+    isShortLeave: boolean;
+    maxDurationMinutes?: number;
     createdAt: string;
     updatedAt: string;
 }

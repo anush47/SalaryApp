@@ -13,10 +13,12 @@ export interface LeaveRequest {
         name: string;
         code: string;
         color: string;
+        isShortLeave?: boolean;
     };
     startDate: string;
     endDate: string;
     totalDays: number;
+    totalMinutes?: number;
     halfDay: boolean;
     halfDayPeriod?: "morning" | "afternoon";
     reason: string;

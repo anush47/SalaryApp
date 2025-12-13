@@ -22,6 +22,9 @@ interface ILeaveType extends Document {
   color: string;
   description: string;
   isActive: boolean;
+  // Short Leave fields
+  isShortLeave: boolean;
+  maxDurationMinutes?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -115,6 +118,15 @@ const leaveTypeSchema = new Schema<ILeaveType>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    // Short Leave fields
+    isShortLeave: {
+      type: Boolean,
+      default: false,
+    },
+    maxDurationMinutes: {
+      type: Number,
+      // Only used if isShortLeave is true
     },
   },
   {

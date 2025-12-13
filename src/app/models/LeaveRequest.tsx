@@ -8,6 +8,7 @@ interface ILeaveRequest extends Document {
   startDate: Date;
   endDate: Date;
   totalDays: number;
+  totalMinutes?: number; // For short leaves
   halfDay: boolean;
   halfDayPeriod: "morning" | "afternoon";
   reason: string;
@@ -54,6 +55,10 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
     totalDays: {
       type: Number,
       required: true,
+    },
+    totalMinutes: {
+      type: Number,
+      // Only for short leaves
     },
     halfDay: {
       type: Boolean,
