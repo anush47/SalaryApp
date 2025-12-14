@@ -352,7 +352,7 @@ const LeaveRequestsManagement: React.FC<{
           setAction(null);
           setRemarks("");
         }}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>Leave Request Details</DialogTitle>
@@ -430,7 +430,7 @@ const LeaveRequestsManagement: React.FC<{
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Reason
                     </Typography>
-                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
                       {selectedRequest.reason}
                     </Typography>
                   </Box>
