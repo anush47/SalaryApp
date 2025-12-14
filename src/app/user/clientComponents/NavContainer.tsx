@@ -12,7 +12,7 @@ export type Selected =
   | "settings"
   | "purchases"
   | "employees"
-  | "organization"
+  | "departments"
   | "salaries"
   | "payments"
   | "taxSettings"
@@ -50,7 +50,7 @@ const NavContainer = ({
         "settings",
         "purchases",
         "employees",
-        "organization",
+        "departments",
         "salaries",
         "payments",
         "taxSettings",
@@ -74,11 +74,11 @@ const NavContainer = ({
         user={
           user
             ? {
-                name: user.name ?? "",
-                email: user.email ?? "",
-                role: user.role ?? "",
-                image: user.image ?? "",
-              }
+              name: user.name ?? "",
+              email: user.email ?? "",
+              role: user.role ?? "",
+              image: user.image ?? "",
+            }
             : { name: "", email: "", role: "", image: "" }
         }
       />
@@ -87,12 +87,12 @@ const NavContainer = ({
         user={
           user
             ? {
-                name: user.name ?? "",
-                email: user.email ?? "",
-                id: user.id ?? "",
-                role: user.role ?? "",
-                image: user.image ?? "",
-              }
+              name: user.name ?? "",
+              email: user.email ?? "",
+              id: user.id ?? "",
+              role: user.role ?? "",
+              image: user.image ?? "",
+            }
             : { name: "", email: "", id: "", role: "", image: "" }
         }
       />

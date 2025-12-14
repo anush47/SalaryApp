@@ -218,6 +218,9 @@ const EditEmployeeForm: React.FC<{
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any
   ) => {
     let { name, value } = event.target;
+    if (name === "department" || name === "manager") {
+      value = value === "" ? null : value;
+    }
     if (
       name === "active" ||
       name === "canLogin" ||

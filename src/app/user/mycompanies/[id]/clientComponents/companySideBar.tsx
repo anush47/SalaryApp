@@ -97,8 +97,8 @@ const CompanySideBar: React.FC<Props> = ({
       icon: <Groups />,
     },
     {
-      name: "Organization",
-      key: "organization",
+      name: "Departments",
+      key: "departments",
       icon: <AccountTree />,
     },
     {
@@ -171,8 +171,8 @@ const CompanySideBar: React.FC<Props> = ({
               return "Company Details";
             case "employees":
               return "Employees";
-            case "organization":
-              return "Organization";
+            case "departments":
+              return "Departments";
             case "leaves":
               return "Leaves";
             case "salaries":

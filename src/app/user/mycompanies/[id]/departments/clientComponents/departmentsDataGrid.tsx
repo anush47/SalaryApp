@@ -16,16 +16,17 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  DialogContentText,
   TextField,
   MenuItem,
   Chip,
 } from "@mui/material";
+import { LoadingButton } from "@mui/lab";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Add } from "@mui/icons-material";
 import {
   fetchDepartments,
   fetchEmployees,
-  fetchCompanies,
   createDepartment,
   updateDepartment,
   deleteDepartment,
@@ -63,55 +64,40 @@ export interface Employee {
 
 const DepartmentsDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
+  companyId: string;
   isEditingDepartment: boolean;
-}> = ({ user, isEditingDepartment }) => {
+}> = ({ user, companyId, isEditingDepartment }) => {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
-    null
-  );
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(
     null
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState<string | null>(null);
 
-  // Fetch user's companies first
-  const { data: companies } = useQuery<any[]>({
-    queryKey: ["companies", user.id],
-    queryFn: () => fetchCompanies({ userId: user.id }),
-    staleTime: STALE_TIME,
-    gcTime: GC_TIME,
-  });
-
-  // Set default company when companies load
-  React.useEffect(() => {
-    if (companies && companies.length > 0 && !selectedCompanyId) {
-      setSelectedCompanyId(companies[0]._id);
-    }
-  }, [companies, selectedCompanyId]);
-
-  // Fetch departments for selected company
+  // Fetch departments for this company
   const {
     data: departments,
     isLoading,
     isError,
     error,
   } = useQuery<Department[], Error>({
-    queryKey: ["departments", selectedCompanyId],
-    queryFn: () => fetchDepartments(selectedCompanyId!),
+    queryKey: ["departments", companyId],
+    queryFn: () => fetchDepartments(companyId),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
-    enabled: !!selectedCompanyId,
+    enabled: !!companyId,
   });
 
   // Fetch employees for manager dropdown
   const { data: employees } = useQuery<Employee[], Error>({
-    queryKey: ["employees", selectedCompanyId],
-    queryFn: () => fetchEmployees({ companyId: selectedCompanyId! }),
+    queryKey: ["employees", companyId],
+    queryFn: () => fetchEmployees({ companyId }),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
-    enabled: !!selectedCompanyId,
+    enabled: !!companyId,
   });
 
   // Form state for new department
@@ -201,14 +187,6 @@ const DepartmentsDataGrid: React.FC<{
           >
             Edit
           </Button>
-          <Button
-            variant="text"
-            size="small"
-            color="error"
-            onClick={() => handleDeleteDepartment(params.row._id)}
-          >
-            Delete
-          </Button>
         </Box>
       ),
     },
@@ -228,9 +206,7 @@ const DepartmentsDataGrid: React.FC<{
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["departments", selectedCompanyId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["departments", companyId] });
       showSnackbar({
         message: "Department updated successfully!",
         severity: "success",
@@ -248,7 +224,7 @@ const DepartmentsDataGrid: React.FC<{
     mutationFn: async (department: any) => {
       return createDepartment({
         name: department.name,
-        company: selectedCompanyId,
+        company: companyId,
         manager: department.managerId || null,
         parentDepartment: department.parentDepartmentId || null,
         description: department.description,
@@ -256,9 +232,7 @@ const DepartmentsDataGrid: React.FC<{
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["departments", selectedCompanyId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["departments", companyId] });
       showSnackbar({
         message: "Department created successfully!",
         severity: "success",
@@ -283,18 +257,26 @@ const DepartmentsDataGrid: React.FC<{
       return deleteDepartment(departmentId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["departments", selectedCompanyId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["departments", companyId] });
       showSnackbar({
         message: "Department deleted successfully!",
         severity: "success",
       });
+      setEditDialogOpen(false);
+      setEditingDepartment(null);
     },
     onError: (err: Error) => {
       showSnackbar({ message: err.message, severity: "error" });
     },
   });
+
+  const handleConfirmDelete = async () => {
+    if (departmentToDelete) {
+      await deleteDepartmentMutation.mutateAsync(departmentToDelete);
+      setDeleteDialogOpen(false);
+      setDepartmentToDelete(null);
+    }
+  };
 
   const handleRowUpdate = async (newRow: any) => {
     try {
@@ -334,10 +316,9 @@ const DepartmentsDataGrid: React.FC<{
     }
   };
 
-  const handleDeleteDepartment = async (departmentId: string) => {
-    if (window.confirm("Are you sure you want to delete this department?")) {
-      await deleteDepartmentMutation.mutateAsync(departmentId);
-    }
+  const handleDeleteDepartment = (departmentId: string) => {
+    setDepartmentToDelete(departmentId);
+    setDeleteDialogOpen(true);
   };
 
   const handleAddDepartment = async () => {
@@ -349,22 +330,6 @@ const DepartmentsDataGrid: React.FC<{
       costCenter: false,
       description: false,
     });
-
-  if (!companies || companies.length === 0) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Alert severity="info">
-          No companies found. Please create a company first.
-        </Alert>
-      </Box>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -408,19 +373,6 @@ const DepartmentsDataGrid: React.FC<{
       }}
     >
       <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center" }}>
-        <TextField
-          select
-          label="Company"
-          value={selectedCompanyId || ""}
-          onChange={(e) => setSelectedCompanyId(e.target.value)}
-          sx={{ minWidth: 300 }}
-        >
-          {companies?.map((company) => (
-            <MenuItem key={company._id} value={company._id}>
-              {company.name} ({company.employerNo})
-            </MenuItem>
-          ))}
-        </TextField>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -668,25 +620,65 @@ const DepartmentsDataGrid: React.FC<{
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
           <Button
             onClick={() => {
-              setEditDialogOpen(false);
-              setEditingDepartment(null);
+              if (editingDepartment) {
+                handleDeleteDepartment(editingDepartment._id);
+              }
             }}
+            color="error"
+            variant="outlined"
           >
-            Cancel
+            Delete
           </Button>
-          <Button
-            onClick={handleUpdateDepartment}
-            variant="contained"
-            disabled={!editingDepartment?.name.trim()}
-          >
-            Update
-          </Button>
+          <Box>
+            <Button
+              onClick={() => {
+                setEditDialogOpen(false);
+                setEditingDepartment(null);
+              }}
+              sx={{ mr: 1 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateDepartment}
+              variant="contained"
+              disabled={!editingDepartment?.name.trim()}
+            >
+              Update
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this department? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <LoadingButton
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            loading={deleteDepartmentMutation.isPending}
+          >
+            Delete
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
+    </Box >
   );
 };
 

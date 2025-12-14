@@ -10,7 +10,7 @@ const MyCompanies = lazy(() => import("../mycompanies/myCompanies"));
 const Settings = lazy(() => import("../settings/settings"));
 const Payments = lazy(() => import("../payments/payments"));
 const Employees = lazy(() => import("../employees/employees"));
-const Organization = lazy(() => import("../organization/organization"));
+const Department = lazy(() => import("../departments/departments"));
 const Purchases = lazy(() => import("../purchases/purchases"));
 const Salaries = lazy(() => import("../salaries/salaries"));
 // Employee components
@@ -49,7 +49,7 @@ const UserMainBox = ({
 
   const RenderComponent = () => {
     // Employer-only pages
-    const employerOnlyPages = ["mycompanies", "employees", "organization", "salaries", "payments", "purchases", "employerDashboard", "taxSettings"];
+    const employerOnlyPages = ["mycompanies", "employees", "departments", "salaries", "payments", "purchases", "employerDashboard", "taxSettings"];
 
     // If employee tries to access employer-only pages, show dashboard instead
     const effectiveSelected = (user.role === "employee" && employerOnlyPages.includes(selected))
@@ -97,10 +97,10 @@ const UserMainBox = ({
                   <Employees user={user} />
                 </Suspense>
               );
-            case "organization":
+            case "departments":
               return (
                 <Suspense fallback={fallback}>
-                  <Organization user={user} />
+                  <Department user={user} />
                 </Suspense>
               );
             case "purchases":

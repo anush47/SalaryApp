@@ -37,7 +37,7 @@ interface HierarchyProps {
   };
 }
 
-const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
+const DepartmentHierarchy: React.FC<HierarchyProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -74,7 +74,7 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
         setHierarchy(hierarchyData || []);
         setLoading(false);
       } catch (err: any) {
-        setError(err.message || "Failed to load organization hierarchy");
+        setError(err.message || "Failed to load department hierarchy");
         setLoading(false);
       }
     };
@@ -254,7 +254,7 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
     return (
       <Box p={3}>
         <Alert severity="info">
-          No companies found. Create a company to view organization hierarchy.
+          No companies found. Create a company to view department hierarchy.
         </Alert>
       </Box>
     );
@@ -268,7 +268,7 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
         justifyContent="space-between"
         alignItems="center"
       >
-        <Typography variant="h6">Organization Hierarchy</Typography>
+        <Typography variant="h6">Department Hierarchy</Typography>
         {companies.length > 0 && (
           <FormControl sx={{ minWidth: 250 }}>
             <InputLabel>Select Company</InputLabel>
@@ -303,7 +303,7 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
           <CardContent>
             <Alert severity="info">
               No departments found for this company. Create departments in the
-              organization section to view the hierarchy.
+              departments section to view the hierarchy.
             </Alert>
           </CardContent>
         </Card>
@@ -314,4 +314,4 @@ const OrganizationHierarchy: React.FC<HierarchyProps> = ({ user }) => {
   );
 };
 
-export default OrganizationHierarchy;
+export default DepartmentHierarchy;

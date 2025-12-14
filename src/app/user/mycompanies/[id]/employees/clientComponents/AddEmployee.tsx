@@ -250,6 +250,9 @@ const AddEmployeeForm: React.FC<{
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any
   ) => {
     let { name, value } = event.target;
+    if (name === "department" || name === "manager") {
+      value = value === "" ? null : value;
+    }
     if (
       name === "active" ||
       name === "canLogin" ||
@@ -431,6 +434,28 @@ const AddEmployeeForm: React.FC<{
                 {departmentsData?.map((dept: any) => (
                   <MenuItem key={dept._id} value={dept._id}>
                     {dept.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth error={!!errors.manager}>
+              <InputLabel id="manager-label">Manager</InputLabel>
+              <Select
+                labelId="manager-label"
+                label="Manager"
+                name="manager"
+                value={formFields.manager || ""}
+                onChange={handleChange}
+                variant="outlined"
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {employeesData?.map((emp: any) => (
+                  <MenuItem key={emp._id} value={emp._id}>
+                    {emp.name} ({emp.memberNo})
                   </MenuItem>
                 ))}
               </Select>

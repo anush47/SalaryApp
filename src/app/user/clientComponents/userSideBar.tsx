@@ -119,8 +119,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
           icon: <Group />,
         },
         {
-          name: "Organization",
-          key: "organization",
+          name: "Departments",
+          key: "departments",
           icon: <AccountTree />,
         },
         {
@@ -176,8 +176,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               return "Companies";
             case "employees":
               return "Employees";
-            case "organization":
-              return "Organization";
+            case "departments":
+              return "Departments";
             case "purchases":
               return "Purchases";
             case "settings":

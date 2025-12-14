@@ -17,7 +17,7 @@ const DepartmentsDataGrid = lazy(
   () => import("./clientComponents/departmentsDataGrid")
 );
 
-const Organization = ({
+const Department = ({
   user,
   companyId,
 }: {
@@ -46,7 +46,7 @@ const Organization = ({
               }}
             >
               <Typography variant="h4" component="h1">
-                Organization
+                Departments
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {isEditingDepartment ? (
@@ -90,4 +90,4 @@ const Organization = ({
   );
 };
 
-export default Organization;
+export default Department;

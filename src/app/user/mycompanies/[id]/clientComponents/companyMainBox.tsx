@@ -7,7 +7,7 @@ import { Selected } from "./NavContainer";
 // Lazy load the components
 const CompanyDetails = lazy(() => import("../companyDetails/companyDetails"));
 const Employees = lazy(() => import("../employees/employees"));
-const Organization = lazy(() => import("../organization/organization"));
+const Department = lazy(() => import("../departments/departments"));
 const Leaves = lazy(() => import("../leaves/leaves"));
 const QuickTools = lazy(() => import("../quick/quick"));
 const Payments = lazy(() => import("../payments/payments"));
@@ -53,8 +53,8 @@ const CompanyMainBox = ({
               return <CompanyDetails user={user} companyId={companyId} />;
             case "employees":
               return <Employees user={user} companyId={companyId} />;
-            case "organization":
-              return <Organization user={user} companyId={companyId} />;
+            case "departments":
+              return <Department user={user} companyId={companyId} />;
             case "leaves":
               return <Leaves user={user} companyId={companyId} />;
             case "payments":

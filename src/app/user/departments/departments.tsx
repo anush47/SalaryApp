@@ -18,11 +18,11 @@ import { Done, Edit, AccountTree, TableChart } from "@mui/icons-material";
 const DepartmentsDataGrid = lazy(
   () => import("./clientComponents/departmentsDataGrid")
 );
-const OrganizationHierarchy = lazy(
-  () => import("./clientComponents/OrganizationHierarchy")
+const DepartmentHierarchy = lazy(
+  () => import("./clientComponents/DepartmentHierarchy")
 );
 
-const Organization = ({
+const Department = ({
   user,
 }: {
   user: { name: string; email: string; id: string; role: string };
@@ -112,7 +112,7 @@ const Organization = ({
         >
           <Suspense fallback={<CircularProgress />}>
             {viewMode === "hierarchy" ? (
-              <OrganizationHierarchy user={user} />
+              <DepartmentHierarchy user={user} />
             ) : (
               <DepartmentsDataGrid
                 user={user}
@@ -126,4 +126,4 @@ const Organization = ({
   );
 };
 
-export default Organization;
+export default Department;
