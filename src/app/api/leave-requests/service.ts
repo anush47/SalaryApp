@@ -172,6 +172,16 @@ export class LeaveRequestService {
             );
         }
 
+        // Validate Gender
+        const { getNICDetails } = await import("@/app/lib/nicUtils");
+        const { gender } = employee.nic ? getNICDetails(employee.nic) : { gender: "" };
+
+        if (leaveType.gender && leaveType.gender !== "all" && leaveType.gender !== gender) {
+            return ApiResponseUtils.sendBadRequest(
+                `This leave type is restricted to ${leaveType.gender} employees.`
+            );
+        }
+
         // Validate dates
         const start = new Date(data.startDate);
         const end = new Date(data.endDate);

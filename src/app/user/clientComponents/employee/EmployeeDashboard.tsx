@@ -38,6 +38,7 @@ import {
 } from "@/app/lib/api/employeeApi";
 import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
 import { fetchSalaries } from "@/app/lib/api/salaryApi";
+import { getNICDetails } from "@/app/lib/nicUtils";
 
 interface UserProps {
   user: {
@@ -135,6 +136,16 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   // Helper for leave balance summary logic
   // If fetchLeaveBalance returns { summary: [] }, accessing it:
   const actualLeaveBalance = (leaveBalance as any)?.summary || (Array.isArray(leaveBalance) ? leaveBalance : []);
+
+  // Filter Leave Balance by Gender
+  const employeeNIC = employee?.nic;
+  const { gender } = employeeNIC ? getNICDetails(employeeNIC) : { gender: "" };
+
+  const filteredLeaveBalance = actualLeaveBalance.filter((leave: any) => {
+    const leaveGender = leave.leaveType.gender;
+    if (!leaveGender || leaveGender === "all") return true;
+    return leaveGender === gender;
+  });
 
   if (loadingEmployee) {
     return (
@@ -269,12 +280,12 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 <Grid item xs={12} display="flex" justifyContent="center" p={2}>
                   <CircularProgress size={30} />
                 </Grid>
-              ) : actualLeaveBalance.length === 0 ? (
+              ) : filteredLeaveBalance.length === 0 ? (
                 <Grid item xs={12}>
                   <Alert severity="info">No leave types available</Alert>
                 </Grid>
               ) : (
-                actualLeaveBalance.map((leave: any, index: number) => (
+                filteredLeaveBalance.map((leave: any, index: number) => (
                   <Grid item xs={12} sm={6} md={3} key={index}>
                     <Card>
                       <CardContent>

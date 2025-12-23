@@ -48,6 +48,7 @@ import {
   updateLeaveRequest,
 } from "@/app/lib/api/leaveRequestApi";
 import { fetchLeaveBalance, fetchEmployees } from "@/app/lib/api/employeeApi";
+import { getNICDetails } from "@/app/lib/nicUtils";
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -172,7 +173,15 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     enabled: !!companyId,
   });
 
-  const selectedTypeData = leaveTypes.find((lt: any) => lt._id === selectedLeaveType);
+  const employeeNIC = employee?.nic;
+  const { gender } = employeeNIC ? getNICDetails(employeeNIC) : { gender: "" };
+
+  const filteredLeaveTypes = leaveTypes.filter((lt: any) => {
+    if (!lt.gender || lt.gender === "all") return true;
+    return lt.gender === gender;
+  });
+
+  const selectedTypeData = filteredLeaveTypes.find((lt: any) => lt._id === selectedLeaveType);
   const isShortLeave = selectedTypeData?.isShortLeave;
 
   const { data: leaveBalanceData, isLoading: loadingLeaveBalance } = useQuery({
@@ -182,7 +191,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   });
 
   // Handle leave balance structure
-  const leaveBalance = (leaveBalanceData as any)?.summary || (Array.isArray(leaveBalanceData) ? leaveBalanceData : []);
+  const leaveBalanceRaw = (leaveBalanceData as any)?.summary || (Array.isArray(leaveBalanceData) ? leaveBalanceData : []);
+
+  const leaveBalance = leaveBalanceRaw.filter((leave: any) => {
+    const leaveGender = leave.leaveType.gender;
+    if (!leaveGender || leaveGender === "all") return true;
+    return leaveGender === gender;
+  });
 
   const { data: myLeavesData, isLoading: loadingMyLeaves } = useQuery({
     queryKey: ["myLeaves", companyId, employeeId],
@@ -530,12 +545,12 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                               <Typography>Loading leave types...</Typography>
                             </Box>
                           </MenuItem>
-                        ) : leaveTypes.length === 0 ? (
+                        ) : filteredLeaveTypes.length === 0 ? (
                           <MenuItem value="" disabled>
                             No leave types available
                           </MenuItem>
                         ) : (
-                          leaveTypes.map((type: any) => (
+                          filteredLeaveTypes.map((type: any) => (
                             <MenuItem key={type._id} value={type._id}>
                               <Box display="flex" alignItems="center" gap={1}>
                                 <Chip

@@ -9,18 +9,23 @@ import {
   splitDaysAcrossPeriods,
   formatPeriodLabel,
 } from "@/app/lib/leavePeriodCalculations";
+import { getNICDetails } from "@/app/lib/nicUtils";
 import { EmployeeService } from "@/app/api/employees/service";
 
 /**
  * Get leave balance summary for an employee
  * Returns all leave types with current balances and usage
  */
+
 export async function getLeaveBalanceSummary(employeeId: string) {
   try {
     const employee = await Employee.findById(employeeId).populate("company");
     if (!employee) {
       throw new Error("Employee not found");
     }
+
+    // Determine gender from NIC
+    const { gender } = employee.nic ? getNICDetails(employee.nic) : { gender: "" };
 
     const company = await Company.findById(employee.company);
 
@@ -53,6 +58,11 @@ export async function getLeaveBalanceSummary(employeeId: string) {
     for (const lt of leaveTypes) {
       const leaveType = await LeaveType.findById(lt.leaveType);
       if (!leaveType) continue;
+
+      // Filter by Gender
+      if (leaveType.gender && leaveType.gender !== "all" && leaveType.gender !== gender) {
+        continue;
+      }
 
       // Get current period for this leave type
       const currentPeriod = getCurrentPeriod(leaveType, new Date());
