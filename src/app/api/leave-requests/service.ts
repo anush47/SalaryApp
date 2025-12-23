@@ -412,6 +412,7 @@ export class LeaveRequestService {
         }
 
         const { leaveRequestId, action, remarks } = validation.data;
+        const inputDocuments = validation.data.documents;
 
         // Find leave request
         const leaveRequest = await LeaveRequest.findById(leaveRequestId)
@@ -485,6 +486,23 @@ export class LeaveRequestService {
                     );
                 }
 
+                // Update documents if provided
+                if (inputDocuments) {
+                    const oldDocuments = leaveRequest.documents || [];
+                    const newDocuments = inputDocuments;
+                    const filesToDelete = oldDocuments.filter((doc: string) => !newDocuments.includes(doc));
+
+                    if (filesToDelete.length > 0) {
+                        try {
+                            const { StorageService } = await import("@/app/lib/services/storageService");
+                            await Promise.all(filesToDelete.map((key: string) => StorageService.deleteFile(key)));
+                        } catch (e) {
+                            console.error("R2 delete error", e);
+                        }
+                    }
+                    leaveRequest.documents = inputDocuments;
+                }
+
                 leaveRequest.status = "approved";
                 const approvingEmployee = await Employee.findOne({
                     user: session.user.id,
@@ -516,6 +534,23 @@ export class LeaveRequestService {
                     return ApiResponseUtils.sendBadRequest(
                         "Only pending requests can be rejected"
                     );
+                }
+
+                // Update documents if provided
+                if (inputDocuments) {
+                    const oldDocuments = leaveRequest.documents || [];
+                    const newDocuments = inputDocuments;
+                    const filesToDelete = oldDocuments.filter((doc: string) => !newDocuments.includes(doc));
+
+                    if (filesToDelete.length > 0) {
+                        try {
+                            const { StorageService } = await import("@/app/lib/services/storageService");
+                            await Promise.all(filesToDelete.map((key: string) => StorageService.deleteFile(key)));
+                        } catch (e) {
+                            console.error("R2 delete error", e);
+                        }
+                    }
+                    leaveRequest.documents = inputDocuments;
                 }
 
                 leaveRequest.status = "rejected";
@@ -562,11 +597,29 @@ export class LeaveRequestService {
 
                 leaveRequest.status = "cancelled";
                 leaveRequest.remarks = remarks || "";
+                if (inputDocuments) {
+                    // Check for removed files
+                    const oldDocuments = leaveRequest.documents || [];
+                    const newDocuments = inputDocuments;
+
+                    const filesToDelete = oldDocuments.filter((doc: string) => !newDocuments.includes(doc));
+
+                    if (filesToDelete.length > 0) {
+                        try {
+                            const { StorageService } = await import("@/app/lib/services/storageService");
+                            await Promise.all(filesToDelete.map((key: string) => StorageService.deleteFile(key)));
+                            console.log(`Deleted ${filesToDelete.length} files from R2`);
+                        } catch (error) {
+                            console.error("Failed to delete files from R2:", error);
+                        }
+                    }
+                    leaveRequest.documents = inputDocuments;
+                }
+
                 await leaveRequest.save();
                 break;
 
-            default:
-                return ApiResponseUtils.sendBadRequest("Invalid action");
+
         }
 
         await leaveRequest.populate([

@@ -58,9 +58,9 @@ export async function GET(req: NextRequest) {
                     return ApiResponseUtils.sendForbidden("You do not have access to this company's files.");
                 }
 
-                // CASE A: Own Documents (Profile or Contracts)
-                // Path: companies/{cid}/employees/{myEmployeeId}/...
-                if (folder === 'employees' && entityId === currentEmployee._id.toString()) {
+                // CASE A: Own Documents (Profile, Contracts, Leaves)
+                // Path: companies/{cid}/employees/{myEmployeeId}/... OR companies/{cid}/leaves/{myEmployeeId}/...
+                if ((folder === 'employees' || folder === 'leaves') && entityId === currentEmployee._id.toString()) {
                     const downloadUrl = await StorageService.getPresignedDownloadUrl(key);
                     return ApiResponseUtils.sendSuccess({ downloadUrl });
                 }

@@ -409,6 +409,7 @@ export const leaveRequestUpdateSchema = z.object({
   leaveRequestId: idSchema,
   action: z.enum(["approve", "reject", "cancel"]),
   remarks: z.string().optional(),
+  documents: z.array(z.string()).optional(),
 });
 
 export const leaveTypeCreateSchema = z.object({

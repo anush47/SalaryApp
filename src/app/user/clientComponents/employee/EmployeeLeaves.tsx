@@ -100,6 +100,25 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const [reason, setReason] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]); // New state for attachments
 
+
+  const getCleanFilename = (key: string) => {
+    try {
+      // Key: companies/{cid}/leaves/{eid}/{timestamp}-{filename}
+      // We want to remove the timestamp part (first 13 digits + dash) if possible, or just take the last part.
+      // Usually format is: .../1234567890123-filename.ext
+      const parts = key.split('/');
+      const fileNameWithTimestamp = parts[parts.length - 1];
+      // Splitting by first dash which usually separates timestamp
+      const match = fileNameWithTimestamp.match(/^\d{13}-(.+)$/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      return fileNameWithTimestamp;
+    } catch (e) {
+      return "Attachment";
+    }
+  };
+
   // Validation errors
   const [errors, setErrors] = useState({
     leaveType: "",
@@ -673,44 +692,41 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" gutterBottom>
-                      Attachments (Optional)
+                      Attachment (Optional)
                     </Typography>
                     <Box display="flex" flexDirection="column" gap={1}>
-                      {attachments.map((key, index) => (
-                        <Box key={index} display="flex" alignItems="center" gap={1}>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            Uploaded File {index + 1}
+                      {attachments.length > 0 ? (
+                        <Box display="flex" flexDirection="column" gap={1} alignItems="flex-start">
+                          <Box display="flex" alignItems="center" gap={2} sx={{ p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                            <FileViewer fileKey={attachments[0]} filename={getCleanFilename(attachments[0])} showPreview={true} />
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            To change the file, please remove the current one.
                           </Typography>
                           <Button
                             size="small"
                             color="error"
-                            onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                            variant="outlined"
+                            onClick={() => setAttachments([])}
                           >
-                            Remove
+                            Remove & Replace
                           </Button>
                         </Box>
-                      ))}
-                      <Box sx={{ maxWidth: 200 }}>
-                        <FileUpload
-                          folder="leaves"
-                          entityId={employee?._id || "temp"} // Ideally we have leave ID, but for creation we use temp or employee ID folder structure. 
-                          // Actually API creates structure: companies/{companyId}/{folder}/{entityId}
-                          // If we don't have leave ID yet, maybe use employee ID as entityId for now? 
-                          // Or better: the upload APi uses entityId in path. 
-                          // If we use employeeId here, all files go to employee's folder. 
-                          // Wait, the plan was: Upload to `leaves/requestID`. But requestID doesn't exist yet. 
-                          // So we should upload to `leaves/employeeID/temp` or just `leaves/employeeID` and then move? 
-                          // R2 doesn't support easy moves. 
-                          // Simpler: Store in `leaves/{employeeId}`. The backend `documents` array just stores the key.
-                          // So `entityId` here refers to the grouping folder. 
-                          // Let's use `employeeId` for `entityId` param, so files are stored under the employee.
-                          companyId={companyId}
-                          label="Add Attachment"
-                          onUploadComplete={(key) => {
-                            setAttachments(prev => [...prev, key]);
-                          }}
-                        />
-                      </Box>
+                      ) : (
+                        <Box sx={{ maxWidth: 200 }}>
+                          <FileUpload
+                            folder="leaves"
+                            entityId={employee?._id || "temp"}
+                            companyId={companyId}
+                            label="Add Attachment"
+                            maxSizeMB={10}
+                            accept="image/*,application/pdf"
+                            onUploadComplete={(key) => {
+                              setAttachments([key]);
+                            }}
+                          />
+                        </Box>
+                      )}
                     </Box>
                   </Grid>
 
@@ -939,100 +955,102 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         </TabPanel>
 
         {/* Tab 3: Pending Approvals */}
-        {pendingApprovals.length > 0 && (
-          <TabPanel value={tabValue} index={2}>
-            <Typography variant="h6" gutterBottom>
-              Leave Requests Pending Your Approval
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+        {
+          pendingApprovals.length > 0 && (
+            <TabPanel value={tabValue} index={2}>
+              <Typography variant="h6" gutterBottom>
+                Leave Requests Pending Your Approval
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
 
-            <List>
-              {pendingApprovals.map((leave: any) => (
-                <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="subtitle1">
-                        {leave.employee.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {leave.employee.designation || "Employee"}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Chip
-                        label={leave.leaveType.code}
-                        sx={{
-                          backgroundColor: leave.leaveType.color,
-                          color: "white",
-                        }}
-                      />
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        {leave.leaveType.name}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="body2" color="text.secondary">
-                        Dates
-                      </Typography>
-                      <Typography variant="body1">
-                        {new Date(leave.startDate).toLocaleDateString()} -{" "}
-                        {new Date(leave.endDate).toLocaleDateString()}
-                      </Typography>
-                      <Typography variant="caption">
-                        {leave.totalDays} day{leave.totalDays > 1 ? "s" : ""}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Box display="flex" gap={1}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="success"
-                          startIcon={<CheckCircle />}
-                          onClick={() =>
-                            setActionDialog({
-                              open: true,
-                              leaveRequest: leave,
-                              action: "approve",
-                            })
-                          }
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          startIcon={<Block />}
-                          onClick={() =>
-                            setActionDialog({
-                              open: true,
-                              leaveRequest: leave,
-                              action: "reject",
-                            })
-                          }
-                        >
-                          Reject
-                        </Button>
-                      </Box>
-                    </Grid>
-                    {leave.reason && (
-                      <Grid item xs={12}>
-                        <Typography variant="body2" color="text.secondary">
-                          Reason: {leave.reason}
+              <List>
+                {pendingApprovals.map((leave: any) => (
+                  <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="subtitle1">
+                          {leave.employee.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {leave.employee.designation || "Employee"}
                         </Typography>
                       </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-              ))}
-            </List>
-          </TabPanel>
-        )}
-      </Card>
+                      <Grid item xs={12} sm={3}>
+                        <Chip
+                          label={leave.leaveType.code}
+                          sx={{
+                            backgroundColor: leave.leaveType.color,
+                            color: "white",
+                          }}
+                        />
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          {leave.leaveType.name}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="body2" color="text.secondary">
+                          Dates
+                        </Typography>
+                        <Typography variant="body1">
+                          {new Date(leave.startDate).toLocaleDateString()} -{" "}
+                          {new Date(leave.endDate).toLocaleDateString()}
+                        </Typography>
+                        <Typography variant="caption">
+                          {leave.totalDays} day{leave.totalDays > 1 ? "s" : ""}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Box display="flex" gap={1}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            startIcon={<CheckCircle />}
+                            onClick={() =>
+                              setActionDialog({
+                                open: true,
+                                leaveRequest: leave,
+                                action: "approve",
+                              })
+                            }
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            startIcon={<Block />}
+                            onClick={() =>
+                              setActionDialog({
+                                open: true,
+                                leaveRequest: leave,
+                                action: "reject",
+                              })
+                            }
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      </Grid>
+                      {leave.reason && (
+                        <Grid item xs={12}>
+                          <Typography variant="body2" color="text.secondary">
+                            Reason: {leave.reason}
+                          </Typography>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                ))}
+              </List>
+            </TabPanel>
+          )
+        }
+      </Card >
 
       {/* Action Dialog */}
-      <Dialog
+      < Dialog
         open={actionDialog.open}
         onClose={() =>
           setActionDialog({ open: false, leaveRequest: null, action: null })
@@ -1093,8 +1111,8 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
             )}
           </Button>
         </DialogActions>
-      </Dialog>
-    </Box>
+      </Dialog >
+    </Box >
   );
 };
 

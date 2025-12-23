@@ -77,6 +77,7 @@ export async function updateLeaveRequest(data: {
     leaveRequestId: string;
     action: "approve" | "reject" | "cancel";
     remarks?: string;
+    documents?: string[];
 }): Promise<LeaveRequest> {
     return apiFetch<LeaveRequest>("/api/leave-requests", {
         method: "PUT",

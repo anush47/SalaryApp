@@ -47,6 +47,21 @@ const LeaveRequestsManagement: React.FC<{
     null
   );
   const [remarks, setRemarks] = useState("");
+  const [updatedDocuments, setUpdatedDocuments] = useState<string[]>([]);
+
+  const getCleanFilename = (key: string) => {
+    try {
+      const parts = key.split('/');
+      const fileNameWithTimestamp = parts[parts.length - 1];
+      const match = fileNameWithTimestamp.match(/^\d{13}-(.+)$/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      return fileNameWithTimestamp;
+    } catch (e) {
+      return "Attachment";
+    }
+  };
 
   // Fetch leave requests
   const {
@@ -72,11 +87,13 @@ const LeaveRequestsManagement: React.FC<{
       leaveRequestId,
       action,
       remarks,
+      documents,
     }: {
       leaveRequestId: string;
       action: "approve" | "reject" | "cancel";
       remarks?: string;
-    }) => updateLeaveRequest({ leaveRequestId, action, remarks }),
+      documents?: string[];
+    }) => updateLeaveRequest({ leaveRequestId, action, remarks, documents }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leaveRequests", companyId] });
       showSnackbar({
@@ -222,6 +239,7 @@ const LeaveRequestsManagement: React.FC<{
 
   const handleViewDetails = (request: LeaveRequest) => {
     setSelectedRequest(request);
+    setUpdatedDocuments(request.documents || []);
     setAction(null); // No specific action yet
     setActionDialogOpen(true);
   };
@@ -242,6 +260,7 @@ const LeaveRequestsManagement: React.FC<{
         leaveRequestId: selectedRequest._id,
         action,
         remarks,
+        documents: updatedDocuments,
       });
     }
   };
@@ -437,15 +456,26 @@ const LeaveRequestsManagement: React.FC<{
                   </Box>
                 )}
 
-                {selectedRequest.documents && selectedRequest.documents.length > 0 && (
+                {updatedDocuments && updatedDocuments.length > 0 && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Attachments
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {selectedRequest.documents.map((docKey, index) => (
-                        <Box key={index} sx={{ minWidth: 200 }}>
-                          <FileViewer fileKey={docKey} filename={`Attachment ${index + 1}`} />
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      {updatedDocuments.map((docKey, index) => (
+                        <Box key={docKey} sx={{ position: 'relative', p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                          <FileViewer fileKey={docKey} filename={getCleanFilename(docKey)} showPreview={true} />
+                          {selectedRequest.status === 'pending' && (
+                            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => setUpdatedDocuments(prev => prev.filter(d => d !== docKey))}
+                              >
+                                Remove
+                              </Button>
+                            </Box>
+                          )}
                         </Box>
                       ))}
                     </Box>
@@ -493,6 +523,7 @@ const LeaveRequestsManagement: React.FC<{
                         leaveRequestId: selectedRequest._id,
                         action: "reject",
                         remarks,
+                        documents: updatedDocuments,
                       });
                     }
                   }}
@@ -514,6 +545,7 @@ const LeaveRequestsManagement: React.FC<{
                           leaveRequestId: selectedRequest._id,
                           action: "cancel",
                           remarks,
+                          documents: updatedDocuments,
                         });
                       }
                     }}
@@ -534,6 +566,7 @@ const LeaveRequestsManagement: React.FC<{
                         leaveRequestId: selectedRequest._id,
                         action: "approve",
                         remarks,
+                        documents: updatedDocuments,
                       });
                     }
                   }}
