@@ -24,14 +24,14 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
-import { ArrowBack, ArrowForward, HideImage } from "@mui/icons-material";
+import { ArrowBack, ArrowForward } from "@mui/icons-material";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
-import Image from "next/image";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import { fetchPurchase } from "@/app/lib/api";
+import { FileViewer } from "@/app/components/FileViewer";
 
 interface ChipData {
   key: number;
@@ -67,10 +67,8 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
-  const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | ArrayBuffer | null>(
-    null
-  );
+  const [attachmentKey, setAttachmentKey] = useState<string | null>(null);
+
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [employerNo, setEmployerNo] = useState<string | null>(null);
@@ -102,30 +100,9 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       setCompanyName(purchase.companyName);
       setEmployerNo(purchase.companyEmployerNo);
       setTotalPrice(purchase.totalPrice);
-      if (purchase.request) {
-        const fetchImage = async () => {
-          const imageResponse = await fetch(purchase.request);
-          const imageBlob = await imageResponse.blob();
-          setImage(
-            new File([imageBlob], "image.jpg", { type: imageBlob.type })
-          );
-        };
-        fetchImage();
-      }
+      setAttachmentKey(purchase.attachmentKey);
     }
   }, [purchase]);
-
-  useEffect(() => {
-    if (image) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(image);
-    } else {
-      setImagePreview(null);
-    }
-  }, [image]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -135,8 +112,8 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
       approvedStatus: status,
       _id: purchaseId,
       remark,
-      request: image ? null : "delete",
       totalPrice: parseInt(totalPrice),
+      attachmentKey: attachmentKey,
     };
 
     try {
@@ -229,11 +206,6 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
   };
 
   const oneMonthPrice = price ?? 0;
-
-  function handleImageDelete(event: React.MouseEvent<HTMLButtonElement>): void {
-    event.preventDefault();
-    setImage(null);
-  }
 
   if (isFetchingPurchase) {
     return <CircularProgress />;
@@ -353,59 +325,32 @@ const UpdatePurchaseForm: React.FC<UpdatePurchaseFormProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          {image && (
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                {imagePreview && (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      borderRadius: 1,
-                      overflow: "hidden",
-                      bgcolor: "background.default",
-                    }}
-                  >
-                    {image?.type === "application/pdf" ? (
-                      <embed
-                        src={imagePreview as string}
-                        type="application/pdf"
-                        width="100%"
-                        height="400px"
-                      />
-                    ) : (
-                      <Image
-                        src={imagePreview as string}
-                        alt="Uploaded Preview"
-                        width={400}
-                        height={400}
-                      />
-                    )}
-                  </Box>
-                )}
-              </FormControl>
-            </Grid>
-          )}
+
           <Grid item xs={12} sm={6}>
-            {image && !viewOnly && (
-              <>
-                <Tooltip title="Delete Media" arrow>
-                  <span className="mb-2">
-                    <Button
-                      variant="outlined"
-                      color={"error"}
-                      onClick={handleImageDelete}
-                      disabled={loading}
-                      startIcon={
-                        loading ? <CircularProgress size={24} /> : <HideImage />
-                      }
-                    >
-                      {loading ? "Loading..." : "Delete Media"}
-                    </Button>
-                  </span>
-                </Tooltip>
-                <div className="mb-5" />
-              </>
-            )}
+            <FormControl fullWidth>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6">Proof of Payment</Typography>
+                {attachmentKey && !viewOnly && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    onClick={() => setAttachmentKey(null)}
+                  >
+                    Delete Media
+                  </Button>
+                )}
+              </Box>
+              {attachmentKey ? (
+                <FileViewer fileKey={attachmentKey} filename="Payment Proof" showPreview={true} />
+              ) : (
+                <Typography variant="body2" color="text.secondary">No proof attached.</Typography>
+              )}
+            </FormControl>
+          </Grid>
+
+
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <TextField
                 label="Remark"

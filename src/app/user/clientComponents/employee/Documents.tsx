@@ -7,32 +7,39 @@ import {
   Button,
   Typography,
   IconButton,
+  Box,
 } from "@mui/material";
 import { Add, Delete } from "@mui/icons-material";
+import { FileUpload } from "@/app/components/FileUpload";
+import { FileViewer } from "@/app/components/FileViewer";
 
 interface DocumentsProps {
   documents: Record<string, string> | undefined;
   setDocuments?: (documents: Record<string, string>) => void;
   editable: boolean;
+  companyId: string;
+  employeeId: string;
 }
 
-const Documents: React.FC<DocumentsProps> = ({ 
-  documents = {}, 
-  setDocuments, 
-  editable 
+const Documents: React.FC<DocumentsProps> = ({
+  documents = {},
+  setDocuments,
+  editable,
+  companyId,
+  employeeId
 }) => {
   const [newDocName, setNewDocName] = useState("");
-  const [newDocLink, setNewDocLink] = useState("");
+  const [newDocKey, setNewDocKey] = useState("");
 
   const handleAddDocument = () => {
-    if (newDocName.trim() && newDocLink.trim() && setDocuments) {
+    if (newDocName.trim() && newDocKey.trim() && setDocuments) {
       const updatedDocuments = {
         ...documents,
-        [newDocName.trim()]: newDocLink.trim(),
+        [newDocName.trim()]: newDocKey.trim(),
       };
       setDocuments(updatedDocuments);
       setNewDocName("");
-      setNewDocLink("");
+      setNewDocKey("");
     }
   };
 
@@ -49,37 +56,28 @@ const Documents: React.FC<DocumentsProps> = ({
       <Typography variant="h6" gutterBottom>
         Documents
       </Typography>
-      {Object.entries(documents).map(([key, value]) => (
-        <Grid container spacing={2} key={key} alignItems="center" mb={1}>
+      {Object.entries(documents).map(([name, key]) => (
+        <Grid container spacing={2} key={name} alignItems="center" mb={1}>
           <Grid item xs={5}>
             <TextField
               fullWidth
               label="Document Name"
-              value={key}
+              value={name}
               InputProps={{
-                readOnly: !editable,
+                readOnly: true,
               }}
               variant="outlined"
               size="small"
             />
           </Grid>
           <Grid item xs={5}>
-            <TextField
-              fullWidth
-              label="Document Link"
-              value={value as string}
-              InputProps={{
-                readOnly: !editable,
-              }}
-              variant="outlined"
-              size="small"
-            />
+            <FileViewer fileKey={key} filename={name} showPreview={false} />
           </Grid>
           {editable && (
             <Grid item xs={2}>
               <IconButton
                 color="error"
-                onClick={() => handleRemoveDocument(key)}
+                onClick={() => handleRemoveDocument(name)}
                 size="small"
               >
                 <Delete />
@@ -101,20 +99,35 @@ const Documents: React.FC<DocumentsProps> = ({
             />
           </Grid>
           <Grid item xs={5}>
-            <TextField
-              fullWidth
-              label="Document Link"
-              value={newDocLink}
-              onChange={(e) => setNewDocLink(e.target.value)}
-              variant="outlined"
-              size="small"
-            />
+            {newDocKey ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="caption" noWrap sx={{ maxWidth: 150 }}>
+                  File Uploaded
+                </Typography>
+                <IconButton size="small" onClick={() => setNewDocKey("")} color="error">
+                  <Delete fontSize="small" />
+                </IconButton>
+              </Box>
+            ) : (
+              <FileUpload
+                folder="employees"
+                entityId={employeeId}
+                companyId={companyId}
+                onUploadComplete={(key, filename) => {
+                  setNewDocKey(key);
+                  if (!newDocName) {
+                    setNewDocName(filename);
+                  }
+                }}
+                label="Upload Doc"
+              />
+            )}
           </Grid>
           <Grid item xs={2}>
             <Button
               variant="contained"
               onClick={handleAddDocument}
-              disabled={!newDocName.trim() || !newDocLink.trim()}
+              disabled={!newDocName.trim() || !newDocKey.trim()}
               startIcon={<Add />}
             >
               Add

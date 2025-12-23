@@ -24,6 +24,7 @@ import {
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Check, Close, Visibility } from "@mui/icons-material";
 import dayjs from "dayjs";
+import { FileViewer } from "@/app/components/FileViewer";
 
 import {
   fetchLeaveRequests,
@@ -433,6 +434,21 @@ const LeaveRequestsManagement: React.FC<{
                     <Typography variant="body2" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
                       {selectedRequest.reason}
                     </Typography>
+                  </Box>
+                )}
+
+                {selectedRequest.documents && selectedRequest.documents.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Attachments
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {selectedRequest.documents.map((docKey, index) => (
+                        <Box key={index} sx={{ minWidth: 200 }}>
+                          <FileViewer fileKey={docKey} filename={`Attachment ${index + 1}`} />
+                        </Box>
+                      ))}
+                    </Box>
                   </Box>
                 )}
               </Box>

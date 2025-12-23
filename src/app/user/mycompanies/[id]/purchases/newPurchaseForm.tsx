@@ -28,6 +28,9 @@ import {
   createPurchase,
   fetchPrice,
 } from "@/app/lib/api";
+import { FileUpload } from "@/app/components/FileUpload";
+import { FileViewer } from "@/app/components/FileViewer";
+
 interface ChipData {
   key: number;
   label: string;
@@ -52,6 +55,7 @@ const formatPeriod = (value: string) => {
 const formatPrice = (price: number) => {
   return price.toLocaleString("en-LK", { style: "currency", currency: "LKR" });
 };
+
 const NewPurchaseForm: React.FC<{
   handleBackClick: () => void;
   companyId: string;
@@ -62,15 +66,14 @@ const NewPurchaseForm: React.FC<{
   const [loading, setLoading] = useState<boolean>(false);
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
-  const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | ArrayBuffer | null>(
-    null
-  );
+  const [attachmentKey, setAttachmentKey] = useState<string | null>(null);
+
   const [purchasedPeriods, setPurchasedPeriods] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [finalTotalPrice, setFinalTotalPrice] = useState<number | null>(null);
   const searchParams = useSearchParams();
   const periodsInitial = searchParams ? searchParams.get("periods") : null;
+
   useEffect(() => {
     if (periodsInitial) {
       const periods = periodsInitial.split(" ");
@@ -83,6 +86,7 @@ const NewPurchaseForm: React.FC<{
       );
     }
   }, [periodsInitial]);
+
   useEffect(() => {
     const currentMonth = dayjs().format("MM");
     const currentYear = dayjs().format("YYYY");
@@ -128,17 +132,6 @@ const NewPurchaseForm: React.FC<{
     loadPurchases();
   }, [companyId, showSnackbar]);
 
-  useEffect(() => {
-    if (image) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(image);
-    } else {
-      setImagePreview(null);
-    }
-  }, [image]);
 
   const handleAddPeriod = () => {
     if (selectedPeriod && isValidMonthYear(selectedPeriod)) {
@@ -157,7 +150,7 @@ const NewPurchaseForm: React.FC<{
         return;
       }
       const formattedPeriod = formatPeriod(selectedPeriod);
-      setPeriods([...periods, { key: periods.length, label: formattedPeriod }]);
+      setPeriods([...periods, { key: Date.now(), label: formattedPeriod }]);
       const [month, year] = selectedPeriod.split("-");
       const date = dayjs(`${year}-${month}-01`);
       const nextMonth = date.add(1, "month");
@@ -174,11 +167,6 @@ const NewPurchaseForm: React.FC<{
       chips.filter((chip) => chip.key !== chipToDelete.key)
     );
   };
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setImage(event.target.files[0]);
-    }
-  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -187,9 +175,14 @@ const NewPurchaseForm: React.FC<{
       periods: periods.map((p) => p.label),
       price: price ?? 0,
       company: companyId,
-      request: image ? await convertImageToBase64(image) : null,
+      request: null,
+      attachmentKey: attachmentKey || undefined,
     };
     try {
+      if (!attachmentKey && !loading) {
+        // Optional validation
+      }
+
       await createPurchase(payload);
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       showSnackbar({
@@ -206,17 +199,6 @@ const NewPurchaseForm: React.FC<{
     } finally {
       setLoading(false);
     }
-  };
-
-  const convertImageToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   };
 
   useEffect(() => {
@@ -245,51 +227,6 @@ const NewPurchaseForm: React.FC<{
     if (newDate) {
       setSelectedPeriod(newDate.format("MM-YYYY"));
     }
-  };
-  const periodChip = (data: ChipData) => {
-    return (
-      <AnimatePresence>
-        <motion.div
-          key={data.key}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Chip
-            label={data.label}
-            onDelete={handleDeletePeriod(data)}
-            color="primary"
-            variant="outlined"
-            sx={{
-              py: 1,
-              px: 1.5,
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              borderRadius: 3,
-              boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-              bgcolor: "background.paper",
-              color: "primary.main",
-              borderColor: "primary.main",
-              transition: "all 0.3s ease-in-out",
-              "&:hover": {
-                bgcolor: "primary.light",
-                color: "primary.contrastText",
-                borderColor: "primary.light",
-                boxShadow: "0 6px 12px rgba(0,0,0,0.25)",
-              },
-              "& .MuiChip-deleteIcon": {
-                color: "error.main",
-                transition: "color 0.3s ease",
-                "&:hover": { color: "error.dark" },
-              },
-            }}
-          />
-        </motion.div>
-      </AnimatePresence>
-    );
   };
   return (
     <motion.div
@@ -358,7 +295,49 @@ const NewPurchaseForm: React.FC<{
                       alignItems: "flex-start",
                     }}
                   >
-                    {periods.map((data) => periodChip(data))}
+                    <AnimatePresence>
+                      {periods.map((data) => (
+                        <motion.div
+                          key={data.key}
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Chip
+                            label={data.label}
+                            onDelete={handleDeletePeriod(data)}
+                            color="primary"
+                            variant="outlined"
+                            sx={{
+                              py: 1,
+                              px: 1.5,
+                              fontSize: "0.875rem",
+                              fontWeight: 500,
+                              borderRadius: 3,
+                              boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+                              bgcolor: "background.paper",
+                              color: "primary.main",
+                              borderColor: "primary.main",
+                              transition: "all 0.3s ease-in-out",
+                              "&:hover": {
+                                bgcolor: "primary.light",
+                                color: "primary.contrastText",
+                                borderColor: "primary.light",
+                                boxShadow: "0 6px 12px rgba(0,0,0,0.25)",
+                              },
+                              "& .MuiChip-deleteIcon": {
+                                color: "error.main",
+                                transition: "color 0.3s ease",
+                                "&:hover": { color: "error.dark" },
+                              },
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </Paper>
                 </Box>
                 <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
@@ -517,47 +496,42 @@ const NewPurchaseForm: React.FC<{
                     alignItems: "flex-start",
                   }}
                 >
-                  <Button
-                    variant="outlined"
-                    component="label"
-                    disabled={(totalPrice ?? 0) <= 0}
-                    startIcon={<ShoppingBag />}
-                    sx={{ mb: 2 }}
-                  >
-                    Upload Payment Slip
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      hidden
-                      onChange={handleImageChange}
-                    />
-                  </Button>
-                  {imagePreview && (
-                    <Box
-                      sx={{
-                        width: "100%",
-                        borderRadius: 1,
-                        overflow: "hidden",
-                        bgcolor: "background.default",
-                      }}
-                    >
-                      {image?.type === "application/pdf" ? (
-                        <embed
-                          src={imagePreview as string}
-                          type="application/pdf"
-                          width="100%"
-                          height="400px"
-                        />
-                      ) : (
-                        <Image
-                          src={imagePreview as string}
-                          alt="Payment Slip"
-                          width={400}
-                          height={400}
-                        />
-                      )}
-                    </Box>
-                  )}
+                  <Box sx={{ width: '100%' }}>
+                    {!attachmentKey ? (
+                      <FileUpload
+                        label="Upload Payment Slip"
+                        folder="purchases"
+                        entityId={companyId}
+                        companyId={companyId}
+                        maxSizeMB={10}
+                        accept="image/*,application/pdf"
+                        onUploadComplete={(key) => {
+                          setAttachmentKey(key);
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Attached Proof:
+                        </Typography>
+                        <FileViewer fileKey={attachmentKey} filename="Payment Slip" showPreview={true} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                          <Typography variant="caption" color="success.main" sx={{ fontWeight: 'bold' }}>
+                            ✓ Uploaded successfully
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            color="warning"
+                            size="small"
+                            onClick={() => setAttachmentKey(null)}
+                          >
+                            Replace
+                          </Button>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+
                   <Button
                     variant="contained"
                     color="success"

@@ -1098,6 +1098,8 @@ const EditEmployeeForm: React.FC<{
                 setFormFields({ ...formFields, documents: docs })
               }
               editable={isEditing}
+              companyId={companyId!}
+              employeeId={employeeId!}
             />
           </Grid>
 

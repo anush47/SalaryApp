@@ -544,6 +544,7 @@ export const purchaseSchema = z.object({
   requestDay: z.string().min(1, "Request day is required"),
   remark: z.string().optional(),
   approvedStatus: z.enum(["approved", "pending", "rejected"]).optional(),
+  attachmentKey: z.string().optional(),
 });
 
 export const purchaseUpdateSchema = z.object({
@@ -555,6 +556,7 @@ export const purchaseUpdateSchema = z.object({
     .number()
     .min(0, "Total price must be a positive number")
     .optional(),
+  attachmentKey: z.string().nullable().optional(),
 });
 
 export type PaymentCalculationResult = {

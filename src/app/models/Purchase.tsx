@@ -10,6 +10,7 @@ interface IPurchase extends Document {
   requestDay: string;
   remark: string;
   approvedStatus: "approved" | "pending" | "rejected";
+  attachmentKey?: string; // S3/R2 key of the proof document
 }
 
 // Define the schema for the Purchases model
@@ -48,6 +49,10 @@ const purchaseSchema = new Schema<IPurchase>(
       enum: ["approved", "pending", "rejected"],
       required: true,
     },
+    attachmentKey: {
+      type: String,
+      required: false
+    }
   },
   {
     timestamps: true, // Optionally add timestamps for createdAt and updatedAt

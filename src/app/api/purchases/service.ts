@@ -264,6 +264,20 @@ export class PurchaseService {
             return ApiResponseUtils.sendForbidden("Access denied.");
         }
 
+        // Check if attachmentKey is changing/removed and delete old file
+        if (
+            (parsedBody.attachmentKey === null || (parsedBody.attachmentKey && parsedBody.attachmentKey !== existingPurchase.attachmentKey)) &&
+            existingPurchase.attachmentKey
+        ) {
+            try {
+                const { StorageService } = require("@/app/lib/services/storageService"); // Dynamic import or top-level if possible
+                await StorageService.deleteFile(existingPurchase.attachmentKey);
+            } catch (err) {
+                console.error("Failed to delete old file from R2:", err);
+                // Non-blocking error
+            }
+        }
+
         const updatedPurchase = await Purchase.findByIdAndUpdate(
             parsedBody._id,
             parsedBody,

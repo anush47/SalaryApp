@@ -37,6 +37,8 @@ import {
   Block,
 } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { FileUpload } from "@/app/components/FileUpload"; // Imported
+import { FileViewer } from "@/app/components/FileViewer"; // Imported
 import { fetchLeaveTypes } from "@/app/lib/api/leaveTypeApi";
 import {
   fetchLeaveRequests,
@@ -96,6 +98,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const [startTime, setStartTime] = useState<Dayjs | null>(null);
   const [endTime, setEndTime] = useState<Dayjs | null>(null);
   const [reason, setReason] = useState("");
+  const [attachments, setAttachments] = useState<string[]>([]); // New state for attachments
 
   // Validation errors
   const [errors, setErrors] = useState({
@@ -206,6 +209,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         endTime: "",
         halfDayPeriod: "",
       });
+      setAttachments([]); // Clear attachments
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
       queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
@@ -382,6 +386,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       halfDay: isShortLeave ? false : halfDay,
       halfDayPeriod: (halfDay && !isShortLeave) ? halfDayPeriod : undefined,
       reason: reason.trim(),
+      documents: attachments, // Add attachments
     });
   };
 
@@ -667,6 +672,50 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                   </Grid>
 
                   <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Attachments (Optional)
+                    </Typography>
+                    <Box display="flex" flexDirection="column" gap={1}>
+                      {attachments.map((key, index) => (
+                        <Box key={index} display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                            Uploaded File {index + 1}
+                          </Typography>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                          >
+                            Remove
+                          </Button>
+                        </Box>
+                      ))}
+                      <Box sx={{ maxWidth: 200 }}>
+                        <FileUpload
+                          folder="leaves"
+                          entityId={employee?._id || "temp"} // Ideally we have leave ID, but for creation we use temp or employee ID folder structure. 
+                          // Actually API creates structure: companies/{companyId}/{folder}/{entityId}
+                          // If we don't have leave ID yet, maybe use employee ID as entityId for now? 
+                          // Or better: the upload APi uses entityId in path. 
+                          // If we use employeeId here, all files go to employee's folder. 
+                          // Wait, the plan was: Upload to `leaves/requestID`. But requestID doesn't exist yet. 
+                          // So we should upload to `leaves/employeeID/temp` or just `leaves/employeeID` and then move? 
+                          // R2 doesn't support easy moves. 
+                          // Simpler: Store in `leaves/{employeeId}`. The backend `documents` array just stores the key.
+                          // So `entityId` here refers to the grouping folder. 
+                          // Let's use `employeeId` for `entityId` param, so files are stored under the employee.
+                          companyId={companyId}
+                          label="Add Attachment"
+                          onUploadComplete={(key) => {
+                            setAttachments(prev => [...prev, key]);
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Grid>
+
+
+                  <Grid item xs={12}>
                     <Button
                       variant="contained"
                       size="large"
@@ -866,6 +915,20 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         <Typography variant="body2" color="text.secondary">
                           Reason: {leave.reason}
                         </Typography>
+                      </Grid>
+                    )}
+                    {leave.documents && leave.documents.length > 0 && (
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                          Attachments:
+                        </Typography>
+                        <Box display="flex" gap={1} flexWrap="wrap" mt={0.5}>
+                          {leave.documents.map((docKey: string, idx: number) => (
+                            <Box key={idx} sx={{ maxWidth: 150 }}>
+                              <FileViewer fileKey={docKey} filename={`Attachment ${idx + 1}`} showPreview={false} />
+                            </Box>
+                          ))}
+                        </Box>
                       </Grid>
                     )}
                   </Grid>

@@ -5,7 +5,7 @@ import {
   GridColumnVisibilityModel,
   GridToolbar,
 } from "@mui/x-data-grid";
-import { Box, Alert, CircularProgress, Button, Chip } from "@mui/material";
+import { Box, Alert, CircularProgress, Button, Chip, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import Link from "next/link";
@@ -24,11 +24,14 @@ export interface Purchase {
 
 import { fetchPurchases } from "@/app/lib/api";
 
+import { FileViewer } from "@/app/components/FileViewer";
+
 const fetchPurchasesData = async (companyId: string): Promise<Purchase[]> => {
   const data = await fetchPurchases({ companyId });
   return (data.purchases || []).map((purchase: any) => ({
     ...purchase,
     id: purchase._id,
+    attachmentKey: purchase.attachmentKey,
     price: `${purchase.periods.length} x ${purchase.price?.toLocaleString() || "0"
       } = ${purchase.totalPrice?.toLocaleString() || "0"}`,
   }));
@@ -161,6 +164,15 @@ const PurchasesDataGrid: React.FC<{
       field: "requestDay",
       headerName: "Request Day",
       flex: 1,
+    },
+    {
+      field: "attachmentKey",
+      headerName: "Proof",
+      flex: 1,
+      renderCell: (params) => {
+        if (!params.value) return <Typography variant="caption" color="text.secondary">No Proof</Typography>;
+        return <FileViewer fileKey={params.value} filename="Proof" showPreview={false} />;
+      },
     },
     {
       field: "approvedStatus",
