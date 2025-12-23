@@ -32,7 +32,7 @@ const Documents: React.FC<DocumentsProps> = ({
   const [newDocKey, setNewDocKey] = useState("");
 
   const handleAddDocument = () => {
-    if (newDocName.trim() && newDocKey.trim() && setDocuments) {
+    if (newDocName.trim() && setDocuments) {
       const updatedDocuments = {
         ...documents,
         [newDocName.trim()]: newDocKey.trim(),
@@ -71,7 +71,30 @@ const Documents: React.FC<DocumentsProps> = ({
             />
           </Grid>
           <Grid item xs={5}>
-            <FileViewer fileKey={key} filename={name} showPreview={false} />
+            {key ? (
+              <FileViewer fileKey={key} filename={name} showPreview={false} />
+            ) : (
+              editable ? (
+                <FileUpload
+                  folder="employees"
+                  entityId={employeeId}
+                  companyId={companyId}
+                  onUploadComplete={(newKey) => {
+                    if (setDocuments) {
+                      setDocuments({
+                        ...documents,
+                        [name]: newKey
+                      });
+                    }
+                  }}
+                  label="Upload"
+                  maxSizeMB={10}
+                  accept="image/*,application/pdf"
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary">No file</Typography>
+              )
+            )}
           </Grid>
           {editable && (
             <Grid item xs={2}>
@@ -120,6 +143,8 @@ const Documents: React.FC<DocumentsProps> = ({
                   }
                 }}
                 label="Upload Doc"
+                maxSizeMB={10}
+                accept="image/*,application/pdf"
               />
             )}
           </Grid>
@@ -127,7 +152,7 @@ const Documents: React.FC<DocumentsProps> = ({
             <Button
               variant="contained"
               onClick={handleAddDocument}
-              disabled={!newDocName.trim() || !newDocKey.trim()}
+              disabled={!newDocName.trim()}
               startIcon={<Add />}
             >
               Add

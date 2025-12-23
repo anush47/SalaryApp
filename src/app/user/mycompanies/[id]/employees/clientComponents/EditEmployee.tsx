@@ -267,7 +267,26 @@ const EditEmployeeForm: React.FC<{
 
   const updateEmployeeMutation = useMutation({
     mutationFn: async (employeeData: Employee) => {
-      const body = { ...employeeData, userId: user.id };
+      // Create a shallow copy to avoid mutating the state directly
+      const body: any = { ...employeeData, userId: user.id };
+
+      // Sanitization: Ensure fields that might be populated objects are converted to IDs
+      if (body.company && typeof body.company === 'object') {
+        body.company = body.company._id;
+      }
+      if (body.department && typeof body.department === 'object') {
+        body.department = body.department._id;
+      }
+      if (body.manager && typeof body.manager === 'object') {
+        body.manager = body.manager._id;
+      }
+      if (body.leaveTypes) {
+        body.leaveTypes = body.leaveTypes.map((lt: any) => ({
+          ...lt,
+          leaveType: typeof lt.leaveType === 'object' ? lt.leaveType._id : lt.leaveType
+        }));
+      }
+
       if (body.name) {
         body.name = body.name.toUpperCase();
       }
@@ -1063,24 +1082,6 @@ const EditEmployeeForm: React.FC<{
                 InputProps={{
                   readOnly: !isEditing,
                 }}
-              />
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formFields.editable || false}
-                    size="large"
-                    name="editable"
-                    color="primary"
-                    value={formFields.editable}
-                    onChange={handleChange}
-                    disabled={!isEditing || loading}
-                  />
-                }
-                label="Employee Can Edit Details ?"
               />
             </FormControl>
           </Grid>

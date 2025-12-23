@@ -368,6 +368,41 @@ export class EmployeeService {
       throw new Error("Failed to update employee");
     }
 
+    // --- File Deletion Logic ---
+    // If documents are being updated, check if any files were removed
+    if (parsedBody.documents) {
+      const oldDocuments = existingEmployee.documents || {};
+      const newDocuments = parsedBody.documents;
+
+      let oldKeys: string[] = [];
+      if (existingEmployee.documents instanceof Map) {
+        oldKeys = Array.from(existingEmployee.documents.values());
+      } else if (typeof existingEmployee.documents === 'object') {
+        // Fallback if it's somehow a plain object (e.g. if lean() was used elsewhere, though not here)
+        oldKeys = Object.values(existingEmployee.documents || {});
+      }
+
+      const newKeys = Object.values(newDocuments) as string[];
+
+      // Find keys that are in old but not in new
+      const keysToDelete = oldKeys.filter((key) => key && !newKeys.includes(key));
+
+      if (keysToDelete.length > 0) {
+        // Delete from R2 asynchronously (fire and forget, or await if strict)
+        // Awaiting to ensure we don't return success if deletion fails?? 
+        // Better to log error and continue, but for now we can await.
+        try {
+          const { StorageService } = await import("@/app/lib/services/storageService"); // Dynamic import to avoid cycles if any
+          await Promise.all(keysToDelete.map((key) => StorageService.deleteFile(key)));
+          console.log(`Deleted ${keysToDelete.length} files from R2`);
+        } catch (error) {
+          console.error("Failed to delete files from R2:", error);
+          // We don't block the profile update if file deletion fails, 
+          // but we log it.
+        }
+      }
+    }
+
     return { message: "Employee updated successfully" };
   }
 

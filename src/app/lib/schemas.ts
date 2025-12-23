@@ -181,7 +181,10 @@ export const employeeUpdateSchema = z.object({
   totalSalary: z.union([z.string(), z.number(), z.null()]),
   startedAt: z.string().optional(),
   resignedAt: z.string().optional(),
-  company: z.string().min(1, "Company ID is required"),
+  company: z.union([z.string(), z.object({ _id: z.string() })]).transform((val) => {
+    if (typeof val === "object") return val._id;
+    return val;
+  }),
   designation: z.string().optional(),
   remark: z.string().optional(),
   otMethod: z.string(),
@@ -196,7 +199,10 @@ export const employeeUpdateSchema = z.object({
     })
     .optional(),
   leaveTypes: z.array(z.object({
-    leaveType: z.string(),
+    leaveType: z.union([z.string(), z.object({ _id: z.string() })]).transform((val) => {
+      if (typeof val === "object") return val._id;
+      return val;
+    }),
     maxDaysPerPeriod: z.number().min(0).optional(),
     balance: z.number().min(0).optional(),
     carryForward: z.boolean().optional(),
@@ -262,8 +268,14 @@ export const employeeUpdateSchema = z.object({
   email: z.string().email("Email must be a valid email").optional(),
   address: z.string().optional(),
   calendar: z.enum(["default", "other"]).optional(),
-  department: z.union([z.string(), z.null()]).optional(),
-  manager: z.union([z.string(), z.null()]).optional(),
+  department: z.union([z.string(), z.null(), z.object({ _id: z.string() })]).optional().transform((val) => {
+    if (typeof val === "object" && val !== null) return val._id;
+    return val;
+  }),
+  manager: z.union([z.string(), z.null(), z.object({ _id: z.string() })]).optional().transform((val) => {
+    if (typeof val === "object" && val !== null) return val._id;
+    return val;
+  }),
   employeeType: z.enum(["permanent", "contract", "intern", "temporary"]).optional(),
   // Personal information fields
   fullName: z.string().optional(),

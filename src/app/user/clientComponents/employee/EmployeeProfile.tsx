@@ -494,6 +494,8 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                             setEmployeeData({ ...employeeData, documents: docs })
                           }
                           editable={isEditing}
+                          companyId={employeeData.company?._id || employeeData.company}
+                          employeeId={employeeData._id}
                         />
                       </Grid>
 
