@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import {
   Box,
   Card,
@@ -170,405 +169,399 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
   }
 
   return (
-    <Box
-      sx={{ opacity: 1 }}
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
     >
-      <Box>
-        <Card
-          sx={{
-            minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
-            overflowY: "auto",
-          }}
-        >
-          <CardHeader
-            title={
+      <CardHeader
+        title={
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            flexDirection={{ xs: "column", sm: "row" }}
+            gap={2}
+          >
+            <Typography variant="h4" component="h1">
+              Payslips
+            </Typography>
+            {selectedSalary && (
               <Box
                 display="flex"
-                justifyContent="space-between"
-                alignItems={{ xs: "flex-start", sm: "center" }}
                 flexDirection={{ xs: "column", sm: "row" }}
-                gap={2}
+                gap={1}
+                width={{ xs: "100%", sm: "auto" }}
               >
-                <Typography variant="h4" component="h1">
-                  Payslips
-                </Typography>
-                {selectedSalary && (
-                  <Box
-                    display="flex"
-                    flexDirection={{ xs: "column", sm: "row" }}
-                    gap={1}
-                    width={{ xs: "100%", sm: "auto" }}
-                  >
-                    <Button
-                      variant="outlined"
-                      startIcon={<Download />}
-                      onClick={() => handleDownloadPDF("payslip")}
-                      fullWidth
-                    >
-                      Download PDF
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<Download />}
-                      onClick={() => handleDownloadPDF("attendance")}
-                      fullWidth
-                    >
-                      Attendance Report
-                    </Button>
-                  </Box>
-                )}
+                <Button
+                  variant="outlined"
+                  startIcon={<Download />}
+                  onClick={() => handleDownloadPDF("payslip")}
+                  fullWidth
+                >
+                  Download PDF
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<Download />}
+                  onClick={() => handleDownloadPDF("attendance")}
+                  fullWidth
+                >
+                  Attendance Report
+                </Button>
               </Box>
-            }
-          />
-          <CardContent
-            sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
-          >
+            )}
+          </Box>
+        }
+      />
+      <CardContent
+        sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
+      >
 
-            {sortedSalaries.length === 0 ? (
-              <Alert severity="info">No payslips available</Alert>
-            ) : (
-              <Grid container spacing={3}>
-                {/* Period Selector */}
+        {sortedSalaries.length === 0 ? (
+          <Alert severity="info">No payslips available</Alert>
+        ) : (
+          <Grid container spacing={3}>
+            {/* Period Selector */}
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Select Pay Period"
+                value={selectedPeriod}
+                onChange={(e) => handlePeriodChange(e.target.value)}
+              >
+                {sortedSalaries.map((salary: any) => (
+                  <MenuItem key={salary._id} value={salary.period}>
+                    {dayjs(salary.period).format("MMMM YYYY")}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {selectedSalary && (
+              <>
+                {/* Salary Summary Card */}
                 <Grid item xs={12}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Select Pay Period"
-                    value={selectedPeriod}
-                    onChange={(e) => handlePeriodChange(e.target.value)}
+                  <Card
+                    sx={{
+                      mb: 3,
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                    }}
                   >
-                    {sortedSalaries.map((salary: any) => (
-                      <MenuItem key={salary._id} value={salary.period}>
-                        {dayjs(salary.period).format("MMMM YYYY")}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    <CardContent>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
+                          <Typography
+                            variant="body2"
+                            color="primary.contrastText"
+                            sx={{ opacity: 0.9 }}
+                          >
+                            Period
+                          </Typography>
+                          <Typography
+                            variant="h5"
+                            color="primary.contrastText"
+                            sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
+                          >
+                            {selectedSalary.period}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
+                          <Typography
+                            variant="body2"
+                            color="primary.contrastText"
+                            sx={{ opacity: 0.9 }}
+                          >
+                            Basic Salary
+                          </Typography>
+                          <Typography
+                            variant="h5"
+                            color="primary.contrastText"
+                            sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
+                          >
+                            LKR {selectedSalary.basic?.toLocaleString()}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
+                          <Typography
+                            variant="body2"
+                            color="primary.contrastText"
+                            sx={{ opacity: 0.9 }}
+                          >
+                            Final Salary
+                          </Typography>
+                          <Typography
+                            variant="h4"
+                            color="primary.contrastText"
+                            fontWeight="bold"
+                            sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" }, wordBreak: "break-all" }}
+                          >
+                            LKR {selectedSalary.finalSalary?.toLocaleString()}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
                 </Grid>
 
-                {selectedSalary && (
-                  <>
-                    {/* Salary Summary Card */}
-                    <Grid item xs={12}>
-                      <Card
-                        sx={{
-                          mb: 3,
-                          bgcolor: "primary.main",
-                          color: "primary.contrastText",
-                        }}
-                      >
-                        <CardContent>
-                          <Grid container spacing={2} alignItems="center">
-                            <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
-                              <Typography
-                                variant="body2"
-                                color="primary.contrastText"
-                                sx={{ opacity: 0.9 }}
-                              >
-                                Period
-                              </Typography>
-                              <Typography
-                                variant="h5"
-                                color="primary.contrastText"
-                                sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
-                              >
-                                {selectedSalary.period}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
-                              <Typography
-                                variant="body2"
-                                color="primary.contrastText"
-                                sx={{ opacity: 0.9 }}
-                              >
-                                Basic Salary
-                              </Typography>
-                              <Typography
-                                variant="h5"
-                                color="primary.contrastText"
-                                sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
-                              >
+                {/* Earnings */}
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Box display="flex" alignItems="center" gap={1} mb={2}>
+                        <TrendingUp color="success" />
+                        <Typography variant="h6">Earnings</Typography>
+                      </Box>
+                      <Divider sx={{ mb: 2 }} />
+                      <TableContainer sx={{ overflowX: "auto" }}>
+                        <Table size="small">
+                          <TableBody>
+                            <TableRow>
+                              <TableCell>Basic Salary</TableCell>
+                              <TableCell align="right">
                                 LKR {selectedSalary.basic?.toLocaleString()}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
-                              <Typography
-                                variant="body2"
-                                color="primary.contrastText"
-                                sx={{ opacity: 0.9 }}
-                              >
-                                Final Salary
-                              </Typography>
-                              <Typography
-                                variant="h4"
-                                color="primary.contrastText"
-                                fontWeight="bold"
-                                sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" }, wordBreak: "break-all" }}
-                              >
-                                LKR {selectedSalary.finalSalary?.toLocaleString()}
-                              </Typography>
-                            </Grid>
-                          </Grid>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    {/* Earnings */}
-                    <Grid item xs={12} md={6}>
-                      <Card>
-                        <CardContent>
-                          <Box display="flex" alignItems="center" gap={1} mb={2}>
-                            <TrendingUp color="success" />
-                            <Typography variant="h6">Earnings</Typography>
-                          </Box>
-                          <Divider sx={{ mb: 2 }} />
-                          <TableContainer sx={{ overflowX: "auto" }}>
-                            <Table size="small">
-                              <TableBody>
-                                <TableRow>
-                                  <TableCell>Basic Salary</TableCell>
-                                  <TableCell align="right">
-                                    LKR {selectedSalary.basic?.toLocaleString()}
-                                  </TableCell>
-                                </TableRow>
-                                {selectedSalary.holidayPay > 0 && (
-                                  <TableRow>
-                                    <TableCell>Holiday Pay</TableCell>
-                                    <TableCell align="right">
-                                      LKR{" "}
-                                      {selectedSalary.holidayPay?.toLocaleString()}
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                                {selectedSalary.ot?.amount > 0 && (
-                                  <TableRow>
-                                    <TableCell>
-                                      Overtime
-                                      {selectedSalary.ot.reason && (
-                                        <Typography
-                                          variant="caption"
-                                          display="block"
-                                          color="text.secondary"
-                                        >
-                                          {selectedSalary.ot.reason}
-                                        </Typography>
-                                      )}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                      LKR {selectedSalary.ot.amount?.toLocaleString()}
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                                {selectedSalary.paymentStructure?.additions?.map(
-                                  (addition: any, index: number) => (
-                                    <TableRow key={index}>
-                                      <TableCell>{addition.name}</TableCell>
-                                      <TableCell align="right">
-                                        LKR {addition.amount?.toLocaleString()}
-                                      </TableCell>
-                                    </TableRow>
-                                  )
-                                )}
-                                <TableRow sx={{ backgroundColor: "success.light" }}>
-                                  <TableCell>
-                                    <strong>Total Earnings</strong>
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    <strong>
-                                      LKR{" "}
-                                      {(
-                                        selectedSalary.basic +
-                                        (selectedSalary.holidayPay || 0) +
-                                        (selectedSalary.ot?.amount || 0) +
-                                        (selectedSalary.paymentStructure?.additions?.reduce(
-                                          (sum: number, a: any) => sum + a.amount,
-                                          0
-                                        ) || 0)
-                                      ).toLocaleString()}
-                                    </strong>
-                                  </TableCell>
-                                </TableRow>
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    {/* Deductions */}
-                    <Grid item xs={12} md={6}>
-                      <Card>
-                        <CardContent>
-                          <Box display="flex" alignItems="center" gap={1} mb={2}>
-                            <TrendingDown color="error" />
-                            <Typography variant="h6">Deductions</Typography>
-                          </Box>
-                          <Divider sx={{ mb: 2 }} />
-                          <TableContainer sx={{ overflowX: "auto" }}>
-                            <Table size="small">
-                              <TableBody>
-                                {selectedSalary.paymentStructure?.deductions?.map(
-                                  (deduction: any, index: number) => (
-                                    <TableRow key={index}>
-                                      <TableCell>{deduction.name}</TableCell>
-                                      <TableCell align="right">
-                                        LKR {deduction.amount?.toLocaleString()}
-                                      </TableCell>
-                                    </TableRow>
-                                  )
-                                )}
-                                {selectedSalary.noPay?.amount > 0 && (
-                                  <TableRow>
-                                    <TableCell>
-                                      No Pay
-                                      {selectedSalary.noPay.reason && (
-                                        <Typography
-                                          variant="caption"
-                                          display="block"
-                                          color="text.secondary"
-                                        >
-                                          {selectedSalary.noPay.reason}
-                                        </Typography>
-                                      )}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                      LKR{" "}
-                                      {selectedSalary.noPay.amount?.toLocaleString()}
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                                {selectedSalary.advanceAmount > 0 && (
-                                  <TableRow>
-                                    <TableCell>Advance</TableCell>
-                                    <TableCell align="right">
-                                      LKR{" "}
-                                      {selectedSalary.advanceAmount?.toLocaleString()}
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                                <TableRow sx={{ backgroundColor: "error.light" }}>
-                                  <TableCell>
-                                    <strong>Total Deductions</strong>
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    <strong>
-                                      LKR{" "}
-                                      {(
-                                        (selectedSalary.paymentStructure?.deductions?.reduce(
-                                          (sum: number, d: any) => sum + d.amount,
-                                          0
-                                        ) || 0) +
-                                        (selectedSalary.noPay?.amount || 0) +
-                                        (selectedSalary.advanceAmount || 0)
-                                      ).toLocaleString()}
-                                    </strong>
-                                  </TableCell>
-                                </TableRow>
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    {/* Leave Deductions (if any) */}
-                    {selectedSalary.leaveDeductions &&
-                      selectedSalary.leaveDeductions.length > 0 && (
-                        <Grid item xs={12}>
-                          <Accordion>
-                            <AccordionSummary expandIcon={<ExpandMore />}>
-                              <Typography variant="h6">
-                                Leave Deductions (
-                                {selectedSalary.leaveDeductions.length})
-                              </Typography>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                              <TableContainer component={Paper}>
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow>
-                                      <TableCell>Leave Type</TableCell>
-                                      <TableCell align="center">Days</TableCell>
-                                      <TableCell align="right">Amount</TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {selectedSalary.leaveDeductions.map(
-                                      (ld: any, index: number) => (
-                                        <TableRow key={index}>
-                                          <TableCell>{ld.leaveType}</TableCell>
-                                          <TableCell align="center">
-                                            {ld.days}
-                                          </TableCell>
-                                          <TableCell align="right">
-                                            LKR {ld.amount?.toLocaleString()}
-                                          </TableCell>
-                                        </TableRow>
-                                      )
-                                    )}
-                                    <TableRow sx={{ backgroundColor: "grey.100" }}>
-                                      <TableCell>
-                                        <strong>Total Leave Deductions</strong>
-                                      </TableCell>
-                                      <TableCell align="center">
-                                        <strong>
-                                          {selectedSalary.leaveDeductions.reduce(
-                                            (sum: number, ld: any) => sum + ld.days,
-                                            0
-                                          )}
-                                        </strong>
-                                      </TableCell>
-                                      <TableCell align="right">
-                                        <strong>
-                                          LKR{" "}
-                                          {selectedSalary.leaveDeductions
-                                            .reduce(
-                                              (sum: number, ld: any) =>
-                                                sum + ld.amount,
-                                              0
-                                            )
-                                            .toLocaleString()}
-                                        </strong>
-                                      </TableCell>
-                                    </TableRow>
-                                  </TableBody>
-                                </Table>
-                              </TableContainer>
-                            </AccordionDetails>
-                          </Accordion>
-                        </Grid>
-                      )}
-
-                    {/* Attendance Details (if any) */}
-                    {selectedSalary.inOut && selectedSalary.inOut.length > 0 && (
-                      <Grid item xs={12}>
-                        <Box sx={{ overflowX: "auto" }}>
-                          <InOutTable
-                            inOuts={selectedSalary.inOut.map(
-                              (record: any, index: number) => ({
-                                ...record,
-                                id: index,
-                                employeeName: employee?.name,
-                                employeeNIC: employee?.nic,
-                                basic: selectedSalary.basic,
-                                divideBy: selectedSalary.divideBy,
-                              })
+                              </TableCell>
+                            </TableRow>
+                            {selectedSalary.holidayPay > 0 && (
+                              <TableRow>
+                                <TableCell>Holiday Pay</TableCell>
+                                <TableCell align="right">
+                                  LKR{" "}
+                                  {selectedSalary.holidayPay?.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
                             )}
-                            setInOuts={() => { }}
-                            fetchSalary={() => { }}
-                            editable={false}
-                            isDynamicHolidays={false}
-                          />
-                        </Box>
-                      </Grid>
-                    )}
-                  </>
+                            {selectedSalary.ot?.amount > 0 && (
+                              <TableRow>
+                                <TableCell>
+                                  Overtime
+                                  {selectedSalary.ot.reason && (
+                                    <Typography
+                                      variant="caption"
+                                      display="block"
+                                      color="text.secondary"
+                                    >
+                                      {selectedSalary.ot.reason}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell align="right">
+                                  LKR {selectedSalary.ot.amount?.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {selectedSalary.paymentStructure?.additions?.map(
+                              (addition: any, index: number) => (
+                                <TableRow key={index}>
+                                  <TableCell>{addition.name}</TableCell>
+                                  <TableCell align="right">
+                                    LKR {addition.amount?.toLocaleString()}
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            )}
+                            <TableRow sx={{ backgroundColor: "success.light" }}>
+                              <TableCell>
+                                <strong>Total Earnings</strong>
+                              </TableCell>
+                              <TableCell align="right">
+                                <strong>
+                                  LKR{" "}
+                                  {(
+                                    selectedSalary.basic +
+                                    (selectedSalary.holidayPay || 0) +
+                                    (selectedSalary.ot?.amount || 0) +
+                                    (selectedSalary.paymentStructure?.additions?.reduce(
+                                      (sum: number, a: any) => sum + a.amount,
+                                      0
+                                    ) || 0)
+                                  ).toLocaleString()}
+                                </strong>
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Deductions */}
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Box display="flex" alignItems="center" gap={1} mb={2}>
+                        <TrendingDown color="error" />
+                        <Typography variant="h6">Deductions</Typography>
+                      </Box>
+                      <Divider sx={{ mb: 2 }} />
+                      <TableContainer sx={{ overflowX: "auto" }}>
+                        <Table size="small">
+                          <TableBody>
+                            {selectedSalary.paymentStructure?.deductions?.map(
+                              (deduction: any, index: number) => (
+                                <TableRow key={index}>
+                                  <TableCell>{deduction.name}</TableCell>
+                                  <TableCell align="right">
+                                    LKR {deduction.amount?.toLocaleString()}
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            )}
+                            {selectedSalary.noPay?.amount > 0 && (
+                              <TableRow>
+                                <TableCell>
+                                  No Pay
+                                  {selectedSalary.noPay.reason && (
+                                    <Typography
+                                      variant="caption"
+                                      display="block"
+                                      color="text.secondary"
+                                    >
+                                      {selectedSalary.noPay.reason}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell align="right">
+                                  LKR{" "}
+                                  {selectedSalary.noPay.amount?.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {selectedSalary.advanceAmount > 0 && (
+                              <TableRow>
+                                <TableCell>Advance</TableCell>
+                                <TableCell align="right">
+                                  LKR{" "}
+                                  {selectedSalary.advanceAmount?.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow sx={{ backgroundColor: "error.light" }}>
+                              <TableCell>
+                                <strong>Total Deductions</strong>
+                              </TableCell>
+                              <TableCell align="right">
+                                <strong>
+                                  LKR{" "}
+                                  {(
+                                    (selectedSalary.paymentStructure?.deductions?.reduce(
+                                      (sum: number, d: any) => sum + d.amount,
+                                      0
+                                    ) || 0) +
+                                    (selectedSalary.noPay?.amount || 0) +
+                                    (selectedSalary.advanceAmount || 0)
+                                  ).toLocaleString()}
+                                </strong>
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Leave Deductions (if any) */}
+                {selectedSalary.leaveDeductions &&
+                  selectedSalary.leaveDeductions.length > 0 && (
+                    <Grid item xs={12}>
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="h6">
+                            Leave Deductions (
+                            {selectedSalary.leaveDeductions.length})
+                          </Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <TableContainer component={Paper}>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Leave Type</TableCell>
+                                  <TableCell align="center">Days</TableCell>
+                                  <TableCell align="right">Amount</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {selectedSalary.leaveDeductions.map(
+                                  (ld: any, index: number) => (
+                                    <TableRow key={index}>
+                                      <TableCell>{ld.leaveType}</TableCell>
+                                      <TableCell align="center">
+                                        {ld.days}
+                                      </TableCell>
+                                      <TableCell align="right">
+                                        LKR {ld.amount?.toLocaleString()}
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                )}
+                                <TableRow sx={{ backgroundColor: "grey.100" }}>
+                                  <TableCell>
+                                    <strong>Total Leave Deductions</strong>
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <strong>
+                                      {selectedSalary.leaveDeductions.reduce(
+                                        (sum: number, ld: any) => sum + ld.days,
+                                        0
+                                      )}
+                                    </strong>
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <strong>
+                                      LKR{" "}
+                                      {selectedSalary.leaveDeductions
+                                        .reduce(
+                                          (sum: number, ld: any) =>
+                                            sum + ld.amount,
+                                          0
+                                        )
+                                        .toLocaleString()}
+                                    </strong>
+                                  </TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </AccordionDetails>
+                      </Accordion>
+                    </Grid>
+                  )}
+
+                {/* Attendance Details (if any) */}
+                {selectedSalary.inOut && selectedSalary.inOut.length > 0 && (
+                  <Grid item xs={12}>
+                    <Box sx={{ overflowX: "auto" }}>
+                      <InOutTable
+                        inOuts={selectedSalary.inOut.map(
+                          (record: any, index: number) => ({
+                            ...record,
+                            id: index,
+                            employeeName: employee?.name,
+                            employeeNIC: employee?.nic,
+                            basic: selectedSalary.basic,
+                            divideBy: selectedSalary.divideBy,
+                          })
+                        )}
+                        setInOuts={() => { }}
+                        fetchSalary={() => { }}
+                        editable={false}
+                        isDynamicHolidays={false}
+                      />
+                    </Box>
+                  </Grid>
                 )}
-              </Grid>
+              </>
             )}
-          </CardContent>
-        </Card>
-      </Box >
-    </Box >
+          </Grid>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

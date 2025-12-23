@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Card,
+  CardHeader,
+  CardContent,
   Typography,
   Tabs,
   Tab,
@@ -462,12 +464,28 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   }
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" gutterBottom>
-        Leave Management
-      </Typography>
-
-      <Card>
+    <Card
+      sx={{
+        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+        overflowY: "auto",
+      }}
+    >
+      <CardHeader
+        title={
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            flexDirection={{ xs: "column", sm: "row" }}
+            gap={2}
+          >
+            <Typography variant="h4" component="h1">
+              Leave Management
+            </Typography>
+          </Box>
+        }
+      />
+      <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
         <Tabs
           value={tabValue}
           onChange={(e, newValue) => setTabValue(newValue)}
@@ -1055,7 +1073,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
             </TabPanel>
           )
         }
-      </Card >
+      </CardContent>
 
       {/* Action Dialog */}
       < Dialog
@@ -1120,7 +1138,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
           </Button>
         </DialogActions>
       </Dialog >
-    </Box >
+    </Card>
   );
 };
 
