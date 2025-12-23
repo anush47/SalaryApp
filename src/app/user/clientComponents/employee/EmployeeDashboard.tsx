@@ -74,14 +74,14 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   const companyId = employee?.company?._id;
 
   // Leave Balance
-  const { data: leaveBalance = [] } = useQuery({
+  const { data: leaveBalance = [], isLoading: loadingLeaveBalance } = useQuery({
     queryKey: ["leaveBalance", employeeId],
     queryFn: () => fetchLeaveBalance(employeeId),
     enabled: !!employeeId,
   });
 
   // Upcoming Leaves
-  const { data: upcomingLeavesData } = useQuery({
+  const { data: upcomingLeavesData, isLoading: loadingUpcomingLeaves } = useQuery({
     queryKey: ["upcomingLeaves", companyId, employeeId],
     queryFn: () =>
       fetchLeaveRequests(companyId, {
@@ -100,7 +100,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   }, [upcomingLeavesData]);
 
   // Pending Approvals (for managers)
-  const { data: pendingApprovalsData } = useQuery({
+  const { data: pendingApprovalsData, isLoading: loadingPendingApprovals } = useQuery({
     queryKey: ["pendingApprovals", companyId],
     queryFn: () =>
       fetchLeaveRequests(companyId, {
@@ -120,7 +120,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   });
 
   // Recent Salaries
-  const { data: recentSalariesResponse } = useQuery({
+  const { data: recentSalariesResponse, isLoading: loadingSalaries } = useQuery({
     queryKey: ["recentSalaries", employeeId],
     queryFn: async () => {
       const res = await fetch(`/api/salaries?employee=${employeeId}&limit=3`);
@@ -265,7 +265,11 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
               Leave Balance
             </Typography>
             <Grid container spacing={2}>
-              {actualLeaveBalance.length === 0 ? (
+              {loadingLeaveBalance ? (
+                <Grid item xs={12} display="flex" justifyContent="center" p={2}>
+                  <CircularProgress size={30} />
+                </Grid>
+              ) : actualLeaveBalance.length === 0 ? (
                 <Grid item xs={12}>
                   <Alert severity="info">No leave types available</Alert>
                 </Grid>
@@ -345,7 +349,11 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                   </Button>
                 </Box>
                 <Divider sx={{ mb: 2 }} />
-                {upcomingLeaves.length === 0 ? (
+                {loadingUpcomingLeaves ? (
+                  <Box display="flex" justifyContent="center" p={2}>
+                    <CircularProgress size={30} />
+                  </Box>
+                ) : upcomingLeaves.length === 0 ? (
                   <Alert severity="info">No upcoming leaves</Alert>
                 ) : (
                   <List dense>
@@ -442,7 +450,11 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                   </Button>
                 </Box>
                 <Divider sx={{ mb: 2 }} />
-                {recentSalaries.length === 0 ? (
+                {loadingSalaries ? (
+                  <Box display="flex" justifyContent="center" p={2}>
+                    <CircularProgress size={30} />
+                  </Box>
+                ) : recentSalaries.length === 0 ? (
                   <Alert severity="info">No payslips available</Alert>
                 ) : (
                   <List dense>

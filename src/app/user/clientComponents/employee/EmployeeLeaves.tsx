@@ -166,7 +166,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const companyId = employee?.company?._id;
 
   // 2. Fetch Dependent Data
-  const { data: leaveTypes = [] } = useQuery({
+  const { data: leaveTypes = [], isLoading: loadingLeaveTypes } = useQuery({
     queryKey: ["leaveTypes", companyId],
     queryFn: () => fetchLeaveTypes(companyId),
     enabled: !!companyId,
@@ -175,7 +175,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const selectedTypeData = leaveTypes.find((lt: any) => lt._id === selectedLeaveType);
   const isShortLeave = selectedTypeData?.isShortLeave;
 
-  const { data: leaveBalanceData } = useQuery({
+  const { data: leaveBalanceData, isLoading: loadingLeaveBalance } = useQuery({
     queryKey: ["leaveBalance", employeeId],
     queryFn: () => fetchLeaveBalance(employeeId),
     enabled: !!employeeId,
@@ -184,7 +184,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   // Handle leave balance structure
   const leaveBalance = (leaveBalanceData as any)?.summary || (Array.isArray(leaveBalanceData) ? leaveBalanceData : []);
 
-  const { data: myLeavesData } = useQuery({
+  const { data: myLeavesData, isLoading: loadingMyLeaves } = useQuery({
     queryKey: ["myLeaves", companyId, employeeId],
     queryFn: () =>
       fetchLeaveRequests(companyId, {
@@ -194,7 +194,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   });
   const myLeaves = myLeavesData?.data || [];
 
-  const { data: pendingApprovalsData } = useQuery({
+  const { data: pendingApprovalsData, isLoading: loadingPendingApprovals } = useQuery({
     queryKey: ["pendingApprovals", companyId],
     queryFn: () =>
       fetchLeaveRequests(companyId, {
@@ -523,7 +523,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         }}
                         disabled={createLeaveMutation.isPending}
                       >
-                        {leaveTypes.length === 0 ? (
+                        {loadingLeaveTypes ? (
+                          <MenuItem value="" disabled>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <CircularProgress size={20} />
+                              <Typography>Loading leave types...</Typography>
+                            </Box>
+                          </MenuItem>
+                        ) : leaveTypes.length === 0 ? (
                           <MenuItem value="" disabled>
                             No leave types available
                           </MenuItem>
@@ -776,7 +783,11 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 Leave Balance
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              {leaveBalance.length === 0 ? (
+              {loadingLeaveBalance ? (
+                <Box display="flex" justifyContent="center" p={2}>
+                  <CircularProgress size={30} />
+                </Box>
+              ) : leaveBalance.length === 0 ? (
                 <Alert severity="info">No leave balance available</Alert>
               ) : (
                 <List>
@@ -844,7 +855,11 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
           </Typography>
           <Divider sx={{ mb: 2 }} />
 
-          {myLeaves.length === 0 ? (
+          {loadingMyLeaves ? (
+            <Box display="flex" justifyContent="center" p={2}>
+              <CircularProgress size={30} />
+            </Box>
+          ) : myLeaves.length === 0 ? (
             <Alert severity="info">No leave requests found</Alert>
           ) : (
             <List>
