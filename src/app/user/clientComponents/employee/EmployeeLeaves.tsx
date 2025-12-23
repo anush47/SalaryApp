@@ -933,6 +933,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                         </Typography>
                       </Grid>
                     )}
+                    {leave.remarks && (
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color={leave.status === 'rejected' ? "error" : "text.secondary"} sx={{ fontWeight: leave.status === 'rejected' ? 500 : 400 }}>
+                          {leave.status === 'rejected' ? "Rejection Reason: " : "Remarks: "}
+                          {leave.remarks}
+                        </Typography>
+                      </Grid>
+                    )}
                     {leave.documents && leave.documents.length > 0 && (
                       <Grid item xs={12}>
                         <Typography variant="caption" color="text.secondary" gutterBottom>
