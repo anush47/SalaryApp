@@ -459,7 +459,7 @@ const DepartmentsDataGrid: React.FC<{
               }
             >
               <MenuItem value="">None</MenuItem>
-              {employees?.map((employee) => (
+              {employees?.map((employee: any) => (
                 <MenuItem key={employee._id} value={employee._id}>
                   {employee.name} ({employee.memberNo}) - {employee.designation}
                 </MenuItem>
@@ -558,7 +558,7 @@ const DepartmentsDataGrid: React.FC<{
                 }
               >
                 <MenuItem value="">None</MenuItem>
-                {employees?.map((employee) => (
+                {employees?.map((employee: any) => (
                   <MenuItem key={employee._id} value={employee._id}>
                     {employee.name} ({employee.memberNo}) -{" "}
                     {employee.designation}

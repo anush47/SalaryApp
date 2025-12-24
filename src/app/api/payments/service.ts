@@ -148,7 +148,7 @@ export class PaymentService {
                 const companyIdsMatchingName = companiesMatchingName.map(c => c._id);
 
                 // 2. Base scope companies
-                let allUserCompanies = [];
+                let allUserCompanies: any[] = [];
                 if (currentUser.role === "admin") {
                     // Admin sees all, no need to filter by user
                     // We can query payments directly with company IDs?

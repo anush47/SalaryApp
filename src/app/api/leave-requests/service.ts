@@ -98,14 +98,17 @@ export class LeaveRequestService {
             query.status = status;
         }
 
+        let searchRegex: any;
+        let matchingEmployeeIds: any[] = [];
+
         if (search) {
-            const searchRegex = { $regex: search, $options: "i" };
+            searchRegex = { $regex: search, $options: "i" };
             const matchingEmployees = await Employee.find({
                 name: searchRegex,
                 company: companyId,
             }).select("_id");
 
-            const matchingEmployeeIds = matchingEmployees.map(e => e._id);
+            matchingEmployeeIds = matchingEmployees.map(e => e._id);
 
             query.$or = [
                 { reason: searchRegex },

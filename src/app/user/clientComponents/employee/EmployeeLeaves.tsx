@@ -877,68 +877,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       </CardContent>
 
       {/* Action Dialog */}
-      < Dialog
-        open={actionDialog.open}
-        onClose={() =>
-          setActionDialog({ open: false, leaveRequest: null, action: null })
-        }
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          {actionDialog.action === "approve" && "Approve Leave Request"}
-          {actionDialog.action === "reject" && "Reject Leave Request"}
-          {actionDialog.action === "cancel" && "Cancel Leave Request"}
-        </DialogTitle>
-        <DialogContent>
-          <Typography gutterBottom>
-            Are you sure you want to {actionDialog.action} this leave request?
-          </Typography>
-          {(actionDialog.action === "reject" ||
-            actionDialog.action === "approve") && (
-              <TextField
-                fullWidth
-                label="Remarks (Optional)"
-                multiline
-                rows={3}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                sx={{ mt: 2 }}
-              />
-            )}
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() =>
-              setActionDialog({
-                open: false,
-                leaveRequest: null,
-                action: null,
-              })
-            }
-          >
-            Close
-          </Button>
-          <Button
-            variant="contained"
-            color={
-              actionDialog.action === "approve"
-                ? "success"
-                : actionDialog.action === "reject"
-                  ? "error"
-                  : "primary"
-            }
-            onClick={handleLeaveAction}
-            disabled={updateLeaveMutation.isPending}
-          >
-            {updateLeaveMutation.isPending ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Confirm"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog >
+
     </Card >
   );
 };
