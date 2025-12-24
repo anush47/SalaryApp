@@ -510,4 +510,62 @@ const handleSave = async () => {
 };
 ```
 
-**Note:** This pattern is applied to Employee Profile, Purchase Requests, and Leave Requests.
+
+## 9. Development Guidelines & Best Practices
+
+The following guidelines reflect learnings from the Next.js 16 upgrade and recent component standardizations.
+
+### 9.1. Next.js 16 Compatibility
+
+*   **Dynamic Routes:** In Next.js 15/16, accessing `params` in dynamic routes (e.g., `page.tsx`, `route.ts`) is asynchronous. You must `await params` before accessing properties like `params.id`.
+    ```typescript
+    // Correct
+    const { id } = await params;
+    ```
+*   **Client Components:** Any component using React hooks (`useState`, `useEffect`, `useQuery`) or event handlers must start with `"use client"`. This includes most interaction-heavy UI components.
+*   **Middleware:** The file `src/middleware.ts` is deprecated in favor of `src/proxy.ts` in some custom configurations, but standard Next.js uses `middleware.ts`. Ensure your middleware exports a config matcher.
+*   **MUI Compatibility:** We currently use `@mui/material` v6 with `@mui/x-data-grid` v7 to ensure compatibility with React 19.
+
+### 9.2. DataGrid Implementation Standard
+
+To ensure a consistent user experience across the application (Salaries, Payments, Employees, Leave Requests), follow this "Golden Standard" for DataGrids:
+
+1.  **Container Structure:**
+    *   Outer wrapper: `Box` (with width/flex settings if needed, but avoid height here).
+    *   Inner wrapper: `div` with `style={{ width: "100%" }}`.
+    *   Component: `DataGrid` with `sx={{ height: "calc(100vh - 230px)" }}`.
+    *   *Rationale:* This structure ensures the DataGrid takes up the correct vertical space without overflowing the main layout, and the `div` wrapper prevents width calculation issues.
+
+2.  **Server-Side Features:**
+    *   Always use server-side pagination and filtering for performance.
+    *   Props:
+        *   `paginationMode="server"`
+        *   `filterMode="server"`
+        *   `rowCount={total}` (from API meta)
+        *   `paginationModel={...}` & `onPaginationModelChange`
+        *   `filterModel={...}` & `onFilterModelChange` (for Quick Filter)
+
+3.  **Interactivity:**
+    *   **Clickable Links:** Use `renderCell` to make primary identifiers (e.g., Employee Name, Company Name) clickable links.
+    *   Use `Link` from `next/link` wrapping a `Button` (variant `text`) for consistent styling.
+    *   *Example:* Navigate to employee details via `?companyPageSelect=employees&employeeId=...` query params to maintain context.
+
+4.  **Component Modes:**
+    *   For complex DataGrids reusable in different contexts (e.g., "All Requests" vs "My Requests"), use a `mode` prop.
+    *   Adapt `columnVisibilityModel` and API query parameters based on the mode.
+
+### 9.3. State Management
+
+*   **React Query:** Continue using TanStack Query for all data fetching.
+*   **Query Keys:** Ensure query keys include all dependencies that should trigger a refetch, specifically **pagination state**, **search queries**, and **filters**.
+    ```typescript
+    queryKey: ["resource", companyId, page, limit, search, status]
+    ```
+
+## 10. API Development Patterns
+
+### 10.1. Search Implementation
+*   **Text Search:** Implement text search in the service layer using MongoDB regex queries (`$regex`) for string fields.
+*   **Relational Search:** For searching populated fields (e.g., Employee Name in Leave Request), pre-fetch matching IDs and use `$in`, or use aggregation pipelines if complex matching is required.
+*   **DTO Pattern:** Accepting a generic `params` object in service methods allows for flexible extension (filtering, searching, sorting) without changing the function signature.
+
