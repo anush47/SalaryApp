@@ -18,6 +18,7 @@ const EmployeeDashboard = lazy(() => import("./employee/EmployeeDashboard"));
 const EmployeeLeaves = lazy(() => import("./employee/EmployeeLeaves"));
 const EmployeePayslips = lazy(() => import("./employee/EmployeePayslips"));
 const EmployeeProfile = lazy(() => import("./employee/EmployeeProfile"));
+const EmployeeAttendance = lazy(() => import("./employee/EmployeeAttendance"));
 const ProfileForm = lazy(() => import("./employer/ProfileForm"));
 // Employer components
 const EmployerDashboard = lazy(() => import("./employer/EmployerDashboard"));
@@ -168,6 +169,12 @@ const UserMainBox = ({
                   </Suspense>
                 );
               }
+            case "attendance":
+              return (
+                <Suspense fallback={fallback}>
+                  <EmployeeAttendance user={user} />
+                </Suspense>
+              );
             default:
               return <div>Component not found</div>;
           }

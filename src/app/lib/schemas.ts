@@ -539,6 +539,7 @@ export const salaryGenerateSchema = z.object({
   period: z.string().regex(/^\d{4}-\d{2}$/, "Period must be in the format YYYY-MM"),
   inOut: z.any().optional(),
   update: z.boolean().optional(),
+  useLiveAttendance: z.boolean().optional(),
   existingSalaries: z.array(z.any()).optional(),
 });
 

@@ -34,6 +34,32 @@ interface IEmployee extends Document {
     paymentStructure: boolean;
     calendar: boolean;
     leaveTypes: boolean;
+    attendance: boolean;
+  };
+  attendanceOverrides: {
+    enabled: boolean;
+    features?: {
+      pwaCheckIn: boolean;
+      hardwareIntegration: boolean;
+      liveDashboard: boolean;
+      salaryIntegration: boolean;
+    };
+    geoFencing?: {
+      enabled: boolean;
+      latitude: number;
+      longitude: number;
+      radiusMeters: number;
+      enforceValidation: boolean;
+    };
+    allowRemoteCheckIn: boolean;
+    requireApproval: boolean;
+    isRemote: boolean; // Keeping for backward compat or alias to allowRemoteCheckIn
+    allowedLocations: {
+      lat: number;
+      lng: number;
+      radius: number;
+      name: string;
+    }[];
   };
   leaveTypes: {
     leaveType: Schema.Types.ObjectId;
@@ -178,7 +204,41 @@ const employeeSchema = new Schema<IEmployee>(
           type: Boolean,
           default: false,
         },
+        attendance: {
+          type: Boolean,
+          default: false,
+        },
+
+
       },
+    },
+
+    attendanceOverrides: {
+      enabled: { type: Boolean, default: false },
+      features: {
+        pwaCheckIn: { type: Boolean, default: false },
+        hardwareIntegration: { type: Boolean, default: false },
+        liveDashboard: { type: Boolean, default: false },
+        salaryIntegration: { type: Boolean, default: false },
+      },
+      geoFencing: {
+        enabled: { type: Boolean, default: false },
+        latitude: { type: Number, default: 0 },
+        longitude: { type: Number, default: 0 },
+        radiusMeters: { type: Number, default: 100 },
+        enforceValidation: { type: Boolean, default: false },
+      },
+      allowRemoteCheckIn: { type: Boolean, default: false },
+      requireApproval: { type: Boolean, default: false },
+      isRemote: { type: Boolean, default: false },
+      allowedLocations: [
+        {
+          lat: Number,
+          lng: Number,
+          radius: Number,
+          name: String,
+        },
+      ],
     },
     leaveTypes: [
       {

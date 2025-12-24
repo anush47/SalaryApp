@@ -21,6 +21,7 @@ export type Selected =
   | "leaves"
   | "payslips"
   | "profile"
+  | "attendance"
   // Employer-specific
   | "employerDashboard";
 
@@ -58,6 +59,7 @@ const NavContainer = ({
         "leaves",
         "payslips",
         "profile",
+        "attendance",
         "employerDashboard",
       ].includes(selectedParam)
     ) {

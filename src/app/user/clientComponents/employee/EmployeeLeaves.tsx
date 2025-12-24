@@ -799,67 +799,71 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 Leave Balance
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              {loadingLeaveBalance ? (
-                <Box display="flex" justifyContent="center" p={2}>
-                  <CircularProgress size={30} />
-                </Box>
-              ) : leaveBalance.length === 0 ? (
-                <Alert severity="info">No leave balance available</Alert>
-              ) : (
-                <List>
-                  {leaveBalance.map((leave: any, index: number) => (
-                    <Paper key={index} sx={{ mb: 1, p: 2 }}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        mb={1}
-                      >
-                        <Chip
-                          label={leave.leaveType.code}
-                          size="small"
-                          sx={{
-                            backgroundColor: leave.leaveType.color,
-                            color: "white",
-                          }}
-                        />
-                        <Typography variant="h6">
-                          {leave.available} days
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {leave.leaveType.name}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        display="block"
-                      >
-                        Used: {leave.used} / {leave.maxDaysPerPeriod}
-                      </Typography>
-                      {leave.currentPeriod && (
-                        <Typography
-                          variant="caption"
-                          color="primary"
-                          display="block"
-                          sx={{ mt: 0.5 }}
-                        >
-                          Period: {leave.currentPeriod.label}
-                        </Typography>
-                      )}
-                      {leave.carriedForwardBalance > 0 && (
-                        <Typography
-                          variant="caption"
-                          color="success.main"
-                          display="block"
-                        >
-                          +{leave.carriedForwardBalance} days carried forward
-                        </Typography>
-                      )}
-                    </Paper>
-                  ))}
-                </List>
-              )}
+              <Grid container spacing={2}>
+                {loadingLeaveBalance ? (
+                  <Grid item xs={12} display="flex" justifyContent="center" p={2}>
+                    <CircularProgress size={30} />
+                  </Grid>
+                ) : leaveBalance.length === 0 ? (
+                  <Grid item xs={12}>
+                    <Alert severity="info" sx={{ width: '100%' }}>No leave balance available</Alert>
+                  </Grid>
+                ) : (
+                  leaveBalance.map((leave: any, index: number) => (
+                    <Grid item xs={12} key={index}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            mb={1}
+                          >
+                            <Chip
+                              label={leave.leaveType.code}
+                              size="small"
+                              sx={{
+                                backgroundColor: leave.leaveType.color,
+                                color: "white",
+                              }}
+                            />
+                            <Typography variant="h6">
+                              {leave.available}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            {leave.leaveType.name}
+                          </Typography>
+
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Used: {leave.used} / {leave.maxDaysPerPeriod}
+                          </Typography>
+
+                          {leave.currentPeriod && (
+                            <Typography
+                              variant="caption"
+                              color="primary"
+                              display="block"
+                              sx={{ mt: 0.5 }}
+                            >
+                              Period: {leave.currentPeriod.label}
+                            </Typography>
+                          )}
+                          {leave.carriedForwardBalance > 0 && (
+                            <Typography
+                              variant="caption"
+                              color="success.main"
+                              display="block"
+                            >
+                              +{leave.carriedForwardBalance} carried
+                            </Typography>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))
+                )}
+              </Grid>
             </Grid>
           </Grid>
         </TabPanel>

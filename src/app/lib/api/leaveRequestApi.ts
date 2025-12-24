@@ -36,6 +36,8 @@ export interface LeaveRequest {
     approvedAt?: string;
     remarks?: string;
     documents?: string[];
+    rejectionReason?: string;
+    cancelReason?: string;
     createdAt: string;
 }
 

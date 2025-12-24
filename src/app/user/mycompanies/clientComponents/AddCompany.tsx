@@ -86,6 +86,24 @@ const AddCompanyForm: React.FC<{
     },
     shifts: [],
     calendar: "default",
+    attendanceConfig: {
+      enabled: false,
+      features: {
+        pwaCheckIn: false,
+        hardwareIntegration: false,
+        liveDashboard: false,
+        salaryIntegration: false,
+      },
+      geoFencing: {
+        enabled: false,
+        latitude: 0,
+        longitude: 0,
+        radiusMeters: 100,
+        enforceValidation: false,
+      },
+      allowRemoteCheckIn: false,
+      requireApproval: false,
+    },
   });
   const [nameLoading, setNameLoading] = useState<boolean>(false);
   const { showSnackbar } = useSnackbar();

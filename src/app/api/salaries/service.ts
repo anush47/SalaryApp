@@ -2,7 +2,9 @@ import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
 import Salary from "@/app/models/Salary";
+import Attendance from "@/app/models/Attendance";
 import { PurchaseService } from "../purchases/service";
+import { AttendanceService } from "../attendance/service";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import {
@@ -610,8 +612,54 @@ export class SalaryService {
             throw new NotFoundError("No active employees found for the company");
         }
 
-        // Generate salary for all employees
-        const inOutInitial = initialInOutProcess(inOut, employees);
+
+
+        // Inside generateSalaries method, before initialInOutProcess call:
+
+        let inOutInitial = initialInOutProcess(inOut, employees);
+
+        // --- Live Attendance Integration ---
+        if (parsedBody.useLiveAttendance) {
+            // Fetch validated attendance records using Service Layer
+            const liveAttendanceMap = await AttendanceService.getAttendanceForSalaryPeriod(
+                companyId,
+                period,
+                employees.map(e => e._id)
+            );
+
+            // Merge with existing inOutInitial
+            // inOutInitial can be ProcessedInOut (array) OR Dictionary of RawInOut
+            // However, initialInOutProcess returns a Dictionary of RawInOut (Date[])
+            // UNLESS parsedBody.inOut was already ProcessedInOut (which happens if update=true and we pass processed data back)
+
+            // To be safe, we only support merging if we are dealing with RawInOut Dictionaries.
+            // If inOutInitial is an Array (ProcessedInOut), it means we strictly passed back already calculated data,
+            // so we probably shouldn't be merging raw live data into it easily without re-processing.
+            // But usually, 'generate' calls come with Raw CSV strings.
+
+            if (!Array.isArray(inOutInitial)) {
+                // It is { [employeeId: string]: RawInOut }
+                Object.keys(liveAttendanceMap).forEach(empId => {
+                    if (!inOutInitial[empId]) {
+                        inOutInitial[empId] = [];
+                    }
+                    // Merge and Deduplicate (optional, but good practice)
+                    // converting to time string for unique checks
+                    const existingTimes = new Set(inOutInitial[empId].map(d => d.getTime()));
+
+                    liveAttendanceMap[empId].forEach(date => {
+                        if (!existingTimes.has(date.getTime())) {
+                            inOutInitial[empId].push(date);
+                        }
+                    });
+
+                    // Re-sort
+                    inOutInitial[empId].sort((a, b) => a.getTime() - b.getTime());
+                });
+            }
+        }
+        // -----------------------------------
+        // -----------------------------------
 
         const openHours = company.openHours;
 

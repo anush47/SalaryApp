@@ -48,6 +48,7 @@ import { ddmmyyyy_to_mmddyyyy } from "../employees/clientComponents/employeesDat
 import dayjs from "dayjs";
 import { Shifts } from "./shifts";
 import { WorkingDays } from "./workingDays";
+import { CompanyAttendanceSettings } from "./companyAttendanceSettings";
 import { LoadingButton } from "@mui/lab";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -631,6 +632,22 @@ const CompanyDetails = ({
                     ({
                       ...prev,
                       shifts,
+                    } as Company)
+                  );
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <CompanyAttendanceSettings
+                isEditing={isEditing}
+                attendanceConfig={formFields.attendanceConfig}
+                setAttendanceConfig={(attendanceConfig) => {
+                  setFormFields(
+                    (prev) =>
+                    ({
+                      ...prev,
+                      attendanceConfig,
                     } as Company)
                   );
                 }}

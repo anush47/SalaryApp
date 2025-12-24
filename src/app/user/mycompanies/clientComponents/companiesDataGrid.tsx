@@ -27,13 +27,13 @@ export interface Company {
   mode: string;
   active: boolean;
   requiredDocs:
-    | {
-        epf: boolean;
-        etf: boolean;
-        salary: boolean;
-        paySlip: boolean;
-      }
-    | undefined;
+  | {
+    epf: boolean;
+    etf: boolean;
+    salary: boolean;
+    paySlip: boolean;
+  }
+  | undefined;
   paymentMethod: String;
   monthlyPrice: String;
   monthlyPriceOverride: boolean;
@@ -77,6 +77,25 @@ export interface Company {
     }[];
   };
   calendar: "default" | "other";
+  attendanceConfig: {
+    enabled: boolean;
+    features: {
+      pwaCheckIn: boolean;
+      hardwareIntegration: boolean;
+      liveDashboard: boolean;
+      salaryIntegration: boolean;
+    };
+    geoFencing: {
+      enabled: boolean;
+      latitude: number;
+      longitude: number;
+      radiusMeters: number;
+      enforceValidation: boolean;
+    };
+    allowRemoteCheckIn: boolean;
+    requireApproval: boolean;
+    apiKey?: string;
+  };
 }
 
 interface PaginatedResponse {
@@ -150,10 +169,10 @@ const CompaniesDataGrid = ({
 
   useEffect(() => {
     if (isSuccess && data) {
-      const filtered = showActiveOnly 
-        ? data.data.filter((company) => company.active) 
+      const filtered = showActiveOnly
+        ? data.data.filter((company) => company.active)
         : data.data;
-      
+
       setCompanies(filtered);
       setTotal(data.total);
     }

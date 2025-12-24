@@ -1,0 +1,278 @@
+import dbConnect from "@/app/lib/db";
+import Attendance from "@/app/models/Attendance";
+import Company from "@/app/models/Company";
+import Employee from "@/app/models/Employee";
+import { BadRequestError, ForbiddenError, NotFoundError } from "@/app/lib/errorHandler";
+import { RequestContext } from "@/app/lib/apiResponse";
+import { z } from "zod";
+
+// Schemas
+export const attendanceCreateSchema = z.object({
+    type: z.enum(["in", "out"]),
+    location: z.object({
+        lat: z.number(),
+        lng: z.number(),
+        accuracy: z.number(),
+    }),
+    deviceId: z.string().optional(),
+});
+
+export const externalAttendanceSchema = z.object({
+    machineId: z.string(),
+    records: z.array(z.object({
+        memberNo: z.number(),
+        timestamp: z.string(), // ISO String
+        type: z.enum(["in", "out"]),
+        recordId: z.string().optional()
+    }))
+});
+
+// Helper: Haversine Distance Calculation (Meters)
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // Earth radius in meters
+    const q1 = (lat1 * Math.PI) / 180;
+    const q2 = (lat2 * Math.PI) / 180;
+    const dq = ((lat2 - lat1) * Math.PI) / 180;
+    const dl = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a = Math.sin(dq / 2) * Math.sin(dq / 2) +
+        Math.cos(q1) * Math.cos(q2) *
+        Math.sin(dl / 2) * Math.sin(dl / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+};
+
+export class AttendanceService {
+
+    // Client App Check-in/out
+    static async createAttendance(body: any, context: RequestContext) {
+        await dbConnect();
+
+        // 1. User Validation
+        if (!context.user || context.user.role !== 'employee') {
+            throw new ForbiddenError("Only employees can check in/out via this API.");
+        }
+
+        const { type, location, deviceId } = attendanceCreateSchema.parse(body);
+
+        const employee = await Employee.findOne({ user: context.user.id });
+        if (!employee) {
+            throw new NotFoundError("Employee record not found.");
+        }
+
+        const company = await Company.findById(employee.company);
+        if (!company) {
+            throw new NotFoundError("Company record not found.");
+        }
+
+        // 2. Feature Toggle Check
+        if (!company.attendanceConfig?.enabled) {
+            throw new ForbiddenError("Attendance system is disabled for this company.");
+        }
+        if (!company.attendanceConfig?.features?.pwaCheckIn) {
+            throw new ForbiddenError("Mobile check-in is disabled for this company.");
+        }
+
+        // 3. Geolocation Validation
+        let isVerified = false;
+        let allowedRadius = company.attendanceConfig.geoFencing?.radiusMeters || 100;
+
+        // Check Overrides
+        const overrides = employee.attendanceOverrides;
+        if (overrides?.enabled && overrides.isRemote) {
+            // Remote worker - Bypass check, but mark verified
+            isVerified = true;
+        } else {
+            // Standard Validation
+            let validLocations = [];
+
+            // Add Company Default Location
+            if (company.attendanceConfig.geoFencing?.enabled &&
+                company.attendanceConfig.geoFencing.latitude &&
+                company.attendanceConfig.geoFencing.longitude) {
+
+                validLocations.push({
+                    lat: company.attendanceConfig.geoFencing.latitude,
+                    lng: company.attendanceConfig.geoFencing.longitude,
+                    radius: allowedRadius
+                });
+            }
+
+            // Add Employee Specific Allowed Locations
+            if (overrides?.enabled && overrides.allowedLocations?.length > 0) {
+                validLocations.push(...overrides.allowedLocations);
+            }
+
+            // Check if user is within ANY valid location
+            if (validLocations.length === 0) {
+                // No locations set up - Assuming validation is open/not configured yet
+                isVerified = true;
+            } else {
+                for (const loc of validLocations) {
+                    const distance = getDistance(
+                        location.lat, location.lng,
+                        loc.lat, loc.lng
+                    );
+                    if (distance <= (loc.radius || allowedRadius)) {
+                        isVerified = true;
+                        break;
+                    }
+                }
+            }
+
+            // Enforcement
+            if (!isVerified && company.attendanceConfig.geoFencing?.enforceValidation) {
+                throw new ForbiddenError("You are not within the allowed clock-in range.");
+            }
+        }
+
+        // 4. Approval Check
+        let status: "pending" | "approved" = "approved";
+        const requireApproval = overrides?.enabled
+            ? overrides.requireApproval
+            : company.attendanceConfig?.requireApproval;
+
+        if (requireApproval) {
+            status = "pending";
+        }
+
+        // 5. Create Record
+        const attendance = await Attendance.create({
+            company: company._id,
+            employee: employee._id,
+            timestamp: new Date(),
+            type,
+            method: "web",
+            status,
+            location: {
+                ...location,
+                isVerified
+            },
+            deviceId
+        });
+
+        return attendance;
+    }
+
+    // Dashboard / Report
+    static async getAttendance(req: any, context: RequestContext) {
+        await dbConnect();
+
+        // Filters: Date Range, Employee, Company
+        const companyId = req.nextUrl.searchParams.get("companyId");
+        const date = req.nextUrl.searchParams.get("date"); // YYYY-MM-DD
+        const startDateParam = req.nextUrl.searchParams.get("startDate");
+        const endDateParam = req.nextUrl.searchParams.get("endDate");
+
+        if (!companyId) throw new BadRequestError("Company ID is required");
+
+        // Auth Check & Multi-role visibility logic
+        if (!context.user) throw new ForbiddenError("Authentication required");
+
+        const isEmployer = context.user.role === 'employer' || context.user.role === 'admin';
+        let filter: any = { company: companyId };
+
+        if (!isEmployer) {
+            // Find employee record for the current user
+            const currentEmployee = await Employee.findOne({ user: context.user.id });
+            if (!currentEmployee) throw new ForbiddenError("Employee record not found.");
+
+            // Check if this employee is a manager for others
+            const subordinates = await Employee.find({ manager: currentEmployee._id }, "_id");
+
+            if (subordinates.length > 0) {
+                // Manager: sees own and subordinates
+                const allowedEmployeeIds = [currentEmployee._id, ...subordinates.map(s => s._id)];
+                filter.employee = { $in: allowedEmployeeIds };
+            } else {
+                // Regular Employee: only sees own
+                filter.employee = currentEmployee._id;
+            }
+        }
+
+        // Date Range Logic
+        if (startDateParam || endDateParam) {
+            filter.timestamp = {};
+            if (startDateParam) filter.timestamp.$gte = new Date(startDateParam);
+            if (endDateParam) filter.timestamp.$lte = new Date(endDateParam);
+        } else if (date) {
+            const startOfDay = new Date(date);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(date);
+            endOfDay.setHours(23, 59, 59, 999);
+            filter.timestamp = { $gte: startOfDay, $lte: endOfDay };
+        }
+
+        // Fetch
+        const records = await Attendance.find(filter)
+            .populate("employee", "name memberNo nic designation")
+            .sort({ timestamp: -1 })
+            .lean();
+
+        return records;
+    }
+
+    static async recordApproval(attendanceId: string, status: "approved" | "rejected", context: RequestContext) {
+        await dbConnect();
+
+        if (!context.user) throw new ForbiddenError("Auth required");
+
+        const attendance = await Attendance.findById(attendanceId);
+        if (!attendance) throw new NotFoundError("Attendance record not found");
+
+        // Verify authority
+        const isEmployer = context.user.role === 'employer' || context.user.role === 'admin';
+
+        if (!isEmployer) {
+            // Check if user is the manager of the employee who marked attendance
+            const currentEmployee = await Employee.findOne({ user: context.user.id });
+            const targetEmployee = await Employee.findById(attendance.employee);
+
+            if (!currentEmployee || !targetEmployee || targetEmployee.manager?.toString() !== currentEmployee._id.toString()) {
+                throw new ForbiddenError("You are not authorized to approve this record");
+            }
+        }
+
+        attendance.status = status;
+        attendance.approvedBy = context.user.id;
+        attendance.approvedAt = new Date();
+        await attendance.save();
+
+        return attendance;
+    }
+
+    // Integration with Salary Generation
+    static async getAttendanceForSalaryPeriod(
+        companyId: string,
+        period: string,
+        employeeIds: string[]
+    ): Promise<{ [key: string]: Date[] }> {
+        await dbConnect();
+
+        // Calculate date range for the period (e.g., "2023-10")
+        const [year, month] = period.split("-").map(Number);
+        const startDate = new Date(Date.UTC(year, month - 1, 1));
+        const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+        // Fetch validated attendance records
+        const attendanceRecords = await Attendance.find({
+            company: companyId,
+            timestamp: { $gte: startDate, $lte: endDate },
+            employee: { $in: employeeIds }
+        }).sort({ timestamp: 1 });
+
+        // Group by Employee ID
+        const liveAttendanceMap: { [key: string]: Date[] } = {};
+
+        attendanceRecords.forEach(record => {
+            const empId = record.employee.toString();
+            if (!liveAttendanceMap[empId]) {
+                liveAttendanceMap[empId] = [];
+            }
+            liveAttendanceMap[empId].push(record.timestamp);
+        });
+
+        return liveAttendanceMap;
+    }
+}

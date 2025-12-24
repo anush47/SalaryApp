@@ -36,6 +36,7 @@ import {
   AccountTree,
   EventNote,
   Calculate,
+  FactCheck,
 } from "@mui/icons-material";
 import Link from "next/link";
 import Image from "next/image";
@@ -131,6 +132,11 @@ const CompanySideBar: React.FC<Props> = ({
       key: "purchases",
       icon: <ShoppingBag />,
     },
+    {
+      name: "Attendance",
+      key: "attendance",
+      icon: <FactCheck />,
+    },
   ];
 
   const [breadcrumbs, setBreadcrumbs] = React.useState<React.ReactNode[]>([]);
@@ -185,6 +191,8 @@ const CompanySideBar: React.FC<Props> = ({
               return "Purchases";
             case "documents":
               return "Documents";
+            case "attendance":
+              return "Attendance";
             default:
               return "";
           }

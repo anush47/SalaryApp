@@ -258,6 +258,15 @@ const LeaveRequestsManagement: React.FC<{
       },
     },
     {
+      field: "remarks",
+      headerName: "Remarks / Reason",
+      flex: 1.5,
+      minWidth: 250,
+      valueGetter: (value, row) => {
+        return row.rejectionReason || row.cancelReason || row.remarks || "-";
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       flex: 1,
@@ -281,6 +290,8 @@ const LeaveRequestsManagement: React.FC<{
     setSelectedRequest(request);
     setUpdatedDocuments(request.documents || []);
     setAction(null); // No specific action yet
+    // Populate remarks from the request so the employer sees what they saved
+    setRemarks(request.remarks || "");
     setActionDialogOpen(true);
   };
 
@@ -308,8 +319,8 @@ const LeaveRequestsManagement: React.FC<{
   const [columnVisibilityModel, setColumnVisibilityModel] =
     React.useState<GridColumnVisibilityModel>({
       reason: false,
-      approver: false,
-      employee: mode === "my-requests",
+      approver: mode !== "my-requests",
+      employee: mode !== "my-requests",
     });
 
   if (isLoading) {
@@ -484,10 +495,33 @@ const LeaveRequestsManagement: React.FC<{
                 {selectedRequest.reason && (
                   <Box>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Reason
+                      Reason for Leave
                     </Typography>
-                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, mb: 2 }}>
                       {selectedRequest.reason}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Status Specific Reasons */}
+                {selectedRequest.status === 'rejected' && selectedRequest.rejectionReason && (
+                  <Box>
+                    <Typography variant="subtitle2" color="error.main" gutterBottom>
+                      Rejection Reason
+                    </Typography>
+                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'error.lighter', color: 'error.dark', borderRadius: 1, mb: 2, border: '1px solid', borderColor: 'error.light' }}>
+                      {selectedRequest.rejectionReason}
+                    </Typography>
+                  </Box>
+                )}
+
+                {selectedRequest.status === 'cancelled' && selectedRequest.cancelReason && (
+                  <Box>
+                    <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                      Cancellation Reason
+                    </Typography>
+                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'warning.lighter', color: 'warning.dark', borderRadius: 1, mb: 2, border: '1px solid', borderColor: 'warning.light' }}>
+                      {selectedRequest.cancelReason}
                     </Typography>
                   </Box>
                 )}

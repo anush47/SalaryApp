@@ -37,6 +37,7 @@ import {
   Person,
   AccountTree,
   Calculate,
+  AccessTime,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { Link as LinkM } from "@mui/material";
@@ -93,6 +94,11 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
           name: "Profile",
           key: "profile",
           icon: <Person />,
+        },
+        {
+          name: "Attendance",
+          key: "attendance",
+          icon: <AccessTime />,
         },
         {
           name: "Settings",
@@ -196,6 +202,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               return "Payslips";
             case "profile":
               return "Profile";
+            case "attendance":
+              return "Attendance";
             default:
               return "";
           }

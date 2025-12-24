@@ -70,6 +70,7 @@ import { MenuItem } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import Documents from "../../../../clientComponents/employee/Documents";
 import { LeaveOverrides } from "./LeaveOverrides";
+import { EmployeeAttendanceOverrides } from "./EmployeeAttendanceOverrides";
 import { uploadFile } from "@/app/lib/uploadService";
 
 const EditEmployeeForm: React.FC<{
@@ -1531,6 +1532,36 @@ const EditEmployeeForm: React.FC<{
             </>
           )
         }
+
+        <div className="my-5" />
+
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h5">Attendance Settings</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <EmployeeAttendanceOverrides
+              isEditing={isEditing}
+              attendanceOverrideEnabled={formFields.overrides?.attendance || false}
+              onToggleOverride={(enabled) => {
+                setFormFields((prev) => ({
+                  ...prev,
+                  overrides: {
+                    ...prev.overrides,
+                    attendance: enabled
+                  }
+                }));
+              }}
+              attendanceOverrides={formFields.attendanceOverrides}
+              onUpdateOverrides={(newOverrides) => {
+                setFormFields((prev) => ({
+                  ...prev,
+                  attendanceOverrides: newOverrides,
+                }));
+              }}
+            />
+          </AccordionDetails>
+        </Accordion>
 
         <Grid mt={3} item xs={12}>
           <Link
