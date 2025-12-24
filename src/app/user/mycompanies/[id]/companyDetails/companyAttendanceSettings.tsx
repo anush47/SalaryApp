@@ -14,6 +14,11 @@ import {
 } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 import { Company } from "../../clientComponents/companiesDataGrid";
+import dynamic from 'next/dynamic';
+
+
+
+const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), { ssr: false });
 
 interface CompanyAttendanceSettingsProps {
     isEditing: boolean;
@@ -238,15 +243,38 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
 
                                     {config.geoFencing?.enabled && (
                                         <Grid container spacing={2} sx={{ mt: 1 }}>
+                                            <Grid item xs={12}>
+                                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                                    Select Office Location & Radius
+                                                </Typography>
+                                                <LocationMap
+                                                    lat={config.geoFencing?.latitude || 0}
+                                                    lng={config.geoFencing?.longitude || 0}
+                                                    radius={config.geoFencing?.radiusMeters || 100}
+                                                    interactive={isEditing}
+                                                    onLocationSelect={(lat, lng) => {
+                                                        if (!isEditing) return;
+                                                        setAttendanceConfig({
+                                                            ...config,
+                                                            geoFencing: {
+                                                                ...config.geoFencing,
+                                                                latitude: lat,
+                                                                longitude: lng
+                                                            }
+                                                        });
+                                                    }}
+                                                />
+                                            </Grid>
                                             <Grid item xs={12} sm={4}>
                                                 <TextField
                                                     label="Latitude"
                                                     type="number"
                                                     fullWidth
-                                                    value={config.geoFencing?.latitude}
+                                                    value={config.geoFencing?.latitude || 0}
                                                     onChange={handleGeoChange("latitude")}
                                                     disabled={!isEditing}
                                                     variant="outlined"
+                                                    inputProps={{ step: "0.00001" }}
                                                 />
                                             </Grid>
                                             <Grid item xs={12} sm={4}>
@@ -254,10 +282,11 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                                     label="Longitude"
                                                     type="number"
                                                     fullWidth
-                                                    value={config.geoFencing?.longitude}
+                                                    value={config.geoFencing?.longitude || 0}
                                                     onChange={handleGeoChange("longitude")}
                                                     disabled={!isEditing}
                                                     variant="outlined"
+                                                    inputProps={{ step: "0.00001" }}
                                                 />
                                             </Grid>
                                             <Grid item xs={12} sm={4}>

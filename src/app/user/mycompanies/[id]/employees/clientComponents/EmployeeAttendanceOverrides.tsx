@@ -13,6 +13,11 @@ import {
     Alert,
 } from "@mui/material";
 import { Add, Delete } from "@mui/icons-material";
+import dynamic from 'next/dynamic';
+
+
+
+const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), { ssr: false });
 
 interface AttendanceOverrides {
     enabled: boolean;
@@ -271,18 +276,50 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
                                         />
                                         {config.geoFencing?.enabled && (
                                             <Grid container spacing={2} sx={{ mt: 1 }}>
+                                                <Grid item xs={12}>
+                                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                                        Select Override Location
+                                                    </Typography>
+                                                    <LocationMap
+                                                        lat={config.geoFencing?.latitude || 0}
+                                                        lng={config.geoFencing?.longitude || 0}
+                                                        radius={config.geoFencing?.radiusMeters || 100}
+                                                        interactive={isEditing}
+                                                        onLocationSelect={(lat, lng) => {
+                                                            if (!isEditing) return;
+                                                            onUpdateOverrides({
+                                                                ...config,
+                                                                geoFencing: {
+                                                                    ...(config.geoFencing || {
+                                                                        enabled: false,
+                                                                        latitude: 0,
+                                                                        longitude: 0,
+                                                                        radiusMeters: 100,
+                                                                        enforceValidation: false,
+                                                                    }),
+                                                                    latitude: lat,
+                                                                    longitude: lng
+                                                                }
+                                                            });
+                                                        }}
+                                                    />
+                                                </Grid>
                                                 <Grid item xs={12} sm={4}>
                                                     <TextField
                                                         label="Latitude" type="number" fullWidth
-                                                        value={config.geoFencing?.latitude} onChange={handleGeoChange("latitude")}
+                                                        value={config.geoFencing?.latitude || 0}
+                                                        onChange={handleGeoChange("latitude")}
                                                         disabled={!isEditing} size="small"
+                                                        inputProps={{ step: "0.00001" }}
                                                     />
                                                 </Grid>
                                                 <Grid item xs={12} sm={4}>
                                                     <TextField
                                                         label="Longitude" type="number" fullWidth
-                                                        value={config.geoFencing?.longitude} onChange={handleGeoChange("longitude")}
+                                                        value={config.geoFencing?.longitude || 0}
+                                                        onChange={handleGeoChange("longitude")}
                                                         disabled={!isEditing} size="small"
+                                                        inputProps={{ step: "0.00001" }}
                                                     />
                                                 </Grid>
                                                 <Grid item xs={12} sm={4}>

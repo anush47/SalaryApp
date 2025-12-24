@@ -42,6 +42,12 @@ import {
 } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAttendanceLogs } from "@/app/lib/api/attendanceApi";
+import { fetchCompany } from "@/app/lib/api/companyApi";
+import dynamic from 'next/dynamic';
+
+
+
+const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), { ssr: false });
 import dayjs from "dayjs";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -60,6 +66,20 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [openPresentDialog, setOpenPresentDialog] = useState(false);
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
+
+    // Fetch Company Details for Map Geofence
+    const { data: companyData } = useQuery({
+        queryKey: ["company", companyId],
+        queryFn: () => fetchCompany(companyId),
+        enabled: !!companyId
+    });
+
+    const companyLocation = companyData?.attendanceConfig?.geoFencing?.enabled ? {
+        lat: companyData.attendanceConfig.geoFencing.latitude,
+        lng: companyData.attendanceConfig.geoFencing.longitude,
+        radius: companyData.attendanceConfig.geoFencing.radiusMeters
+    } : null;
+
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
 
@@ -553,6 +573,38 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                             <Chip label="Outside Range / Unverified" color="error" size="small" icon={<Cancel />} />
                                         )}
                                     </Box>
+
+                                    {/* Map View */}
+                                    {(viewLog.location?.lat && viewLog.location?.lng) && (
+                                        <Box mt={2} mb={2}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                                Check-in Location (Marker) vs Company Zone (Circle)
+                                            </Typography>
+                                            <LocationMap
+                                                // Center map on the User's Check-in Location initially
+                                                lat={viewLog.location.lat}
+                                                lng={viewLog.location.lng}
+
+                                                // Map Visuals
+                                                // 1. Circle: Company Allowed Zone (if available)
+                                                circlePosition={companyLocation ? { lat: companyLocation.lat, lng: companyLocation.lng } : undefined}
+                                                radius={companyLocation ? companyLocation.radius : (viewLog.location.accuracy || 20)}
+
+                                                // 2. Marker: User's Actual Check-in Location
+                                                markerPosition={{ lat: viewLog.location.lat, lng: viewLog.location.lng }}
+
+                                                height={250}
+                                                zoom={16}
+                                                interactive={false}
+                                            />
+                                            {companyLocation && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic' }}>
+                                                    * Blue Circle is the allowed office area ({companyLocation.radius}m radius).
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    )}
+
                                     <Stack spacing={1}>
                                         <Box display="flex" justifyContent="space-between">
                                             <Typography variant="caption" color="text.secondary">Latitude:</Typography>

@@ -26,6 +26,11 @@ import { LoadingButton } from "@mui/lab";
 import { Place, AccessTime, History, CheckCircle, Logout, LocationOn } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { markAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
+import dynamic from 'next/dynamic';
+
+
+
+const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), { ssr: false });
 import dayjs from "dayjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -49,7 +54,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         distance: number | null;
         error: string | null;
         fetching: boolean;
-    }>({ isInside: false, distance: null, error: null, fetching: true });
+        coords: { latitude: number; longitude: number } | null;
+    }>({ isInside: false, distance: null, error: null, fetching: true, coords: null });
 
     // Haversine formula to calculate distance in meters
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -142,7 +148,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     useEffect(() => {
         // If verification is not required, reset status and return
         if (!shouldVerifyLocation) {
-            setLocationStatus(prev => ({ ...prev, isInside: true, error: null, fetching: false, distance: null }));
+            setLocationStatus(prev => ({ ...prev, isInside: true, error: null, fetching: false, distance: null, coords: null }));
             return;
         }
 
@@ -150,14 +156,15 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             setLocationStatus(prev => ({
                 ...prev,
                 error: "Location coordinates not configured.",
-                fetching: false
+                fetching: false,
+                coords: null
             }));
             return;
         }
 
 
         if (!navigator.geolocation) {
-            setLocationStatus(prev => ({ ...prev, error: "Geolocation not supported", fetching: false }));
+            setLocationStatus(prev => ({ ...prev, error: "Geolocation not supported", fetching: false, coords: null }));
             return;
         }
 
@@ -171,19 +178,20 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                     isInside,
                     distance,
                     error: null,
-                    fetching: false
+                    fetching: false,
+                    coords: { latitude, longitude }
                 });
             },
             (error) => {
                 let msg = "Unable to retrieve location";
                 if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied";
-                setLocationStatus(prev => ({ ...prev, error: msg, fetching: false }));
+                setLocationStatus(prev => ({ ...prev, error: msg, fetching: false, coords: null }));
             },
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
-    }, [companyLocation]);
+    }, [companyLocation, shouldVerifyLocation]);
 
     const companyId = employee?.company?._id || employee?.company;
     const todayStr = dayjs().format("YYYY-MM-DD");
