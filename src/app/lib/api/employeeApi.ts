@@ -1,6 +1,6 @@
 // Employee API utilities
 
-import { apiFetch } from './commonApi';
+import { apiFetch, apiFetchRaw } from './commonApi';
 import { ApiResponse } from '../apiResponse';
 
 /**
@@ -22,9 +22,17 @@ export async function fetchEmployees(params: {
   if (params.limit) queryParams.append('limit', params.limit.toString());
 
   const url = `/api/employees?${queryParams.toString()}`;
-  const data = await apiFetch(url);
+  const response = await apiFetchRaw(url);
+  const data: any = response;
 
   // Handle response structure: could be { employees: [] } or { data: { employees: [] } }
+  if (data && data.pagination) {
+    return {
+      employees: data.data || data.employees,
+      pagination: data.pagination
+    };
+  }
+
   if (data && Array.isArray(data)) {
     return data;
   }

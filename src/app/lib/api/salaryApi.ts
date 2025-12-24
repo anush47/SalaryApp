@@ -1,4 +1,4 @@
-import { apiFetch } from './commonApi';
+import { apiFetch, apiFetchRaw } from './commonApi';
 import { ApiResponse } from '../apiResponse';
 import { PaginatedResponse } from '../types';
 
@@ -23,7 +23,8 @@ export async function fetchSalaries(params: {
     if (params.employeeId) queryParams.append('employee', params.employeeId);
 
     const url = `/api/salaries?${queryParams.toString()}`;
-    const data = await apiFetch(url);
+    const response = await apiFetchRaw(url);
+    const data: any = response;
 
     // Handle standardized response structure
     if (data && data.data && data.pagination) {

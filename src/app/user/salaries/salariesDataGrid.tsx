@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import { fetchSalaries, updateSalary, deleteSalaries } from "@/app/lib/api";
@@ -98,6 +98,7 @@ const SalariesDataGrid: React.FC<{
   const {
     data: paginatedResponse,
     isLoading,
+    isFetching,
     isError,
     error,
   } = useQuery<PaginatedResponse, Error>({
@@ -105,7 +106,7 @@ const SalariesDataGrid: React.FC<{
     queryFn: () => fetchSalariesData(paginationModel.page + 1, paginationModel.pageSize),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
-    placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData,
   });
 
   const salaries = paginatedResponse?.data || [];
@@ -462,21 +463,6 @@ const SalariesDataGrid: React.FC<{
     setDialogOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          justifyContent: "center",
-          alignItems: "center",
-          display: "flex",
-          minHeight: "200px",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (isError) {
     return (
@@ -525,6 +511,7 @@ const SalariesDataGrid: React.FC<{
           //autoPageSize
           editMode="row"
           rowCount={rowCount}
+          loading={isLoading || isFetching}
           paginationMode="server"
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}

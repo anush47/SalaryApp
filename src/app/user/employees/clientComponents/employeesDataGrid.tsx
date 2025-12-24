@@ -1,5 +1,5 @@
 import React from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   DataGrid,
   GridColDef,
@@ -104,7 +104,18 @@ interface PaginatedResponse {
 
 const fetchEmployees = async (page: number, limit: number): Promise<PaginatedResponse> => {
   try {
-    const employees = await fetchEmployeeList({ companyId: "all", page, limit });
+    const response: any = await fetchEmployeeList({ companyId: "all", page, limit });
+
+    let employees: any[] = [];
+    let total = 0;
+
+    if (response.pagination) {
+      employees = response.employees;
+      total = response.pagination.total;
+    } else if (Array.isArray(response)) {
+      employees = response;
+      total = employees.length;
+    }
 
     return {
       data: employees.map((employee: any) => ({
@@ -114,9 +125,9 @@ const fetchEmployees = async (page: number, limit: number): Promise<PaginatedRes
       pagination: {
         page,
         limit,
-        total: employees.length,
-        totalPages: Math.ceil(employees.length / limit),
-        hasNextPage: page * limit < employees.length,
+        total: total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
         hasPrevPage: page > 1,
       },
     };
@@ -141,11 +152,13 @@ const EmployeesDataGrid: React.FC<{
   const {
     data,
     isLoading,
+    isFetching,
     isError,
     error,
   } = useQuery<PaginatedResponse, Error>({
     queryKey: ["employees", paginationModel.page + 1, paginationModel.pageSize], // Backend uses 1-based indexing
     queryFn: () => fetchEmployees(paginationModel.page + 1, paginationModel.pageSize),
+    placeholderData: keepPreviousData,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
@@ -706,21 +719,6 @@ const EmployeesDataGrid: React.FC<{
       user: false,
     });
 
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          justifyContent: "center",
-          alignItems: "center",
-          display: "flex",
-          minHeight: "200px",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (isError) {
     return (
@@ -753,6 +751,7 @@ const EmployeesDataGrid: React.FC<{
         getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
         editMode="row"
         paginationMode="server"
+        loading={isLoading || isFetching}
         rowCount={rowCount}
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}

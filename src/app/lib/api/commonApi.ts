@@ -6,7 +6,10 @@ import { ApiResponse } from '../apiResponse';
  * Generic API fetch function with consistent error handling
  * This can be used for any API call that follows the standard response format
  */
-export async function apiFetch<T = any>(url: string, options: RequestInit = {}): Promise<T> {
+/**
+ * Generic API fetch function that returns the full response object
+ */
+export async function apiFetchRaw<T = any>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
@@ -22,7 +25,16 @@ export async function apiFetch<T = any>(url: string, options: RequestInit = {}):
     throw new Error(errorMessage);
   }
 
-  return result.data || result as T;
+  return result;
+}
+
+/**
+ * Generic API fetch function with consistent error handling
+ * This can be used for any API call that follows the standard response format
+ */
+export async function apiFetch<T = any>(url: string, options: RequestInit = {}): Promise<T> {
+  const result = await apiFetchRaw<T>(url, options);
+  return result.data || result as unknown as T;
 }
 
 /**
@@ -41,7 +53,7 @@ export async function fetchPaginatedData<T = any>(url: string, page: number = 1,
 }> {
   const fullUrl = `${url}${url.includes('?') ? '&' : '?'}page=${page}&limit=${limit}`;
   const data = await apiFetch(fullUrl);
-  
+
   // Handle different response structures
   if (data && data.data && data.pagination) {
     return {
@@ -49,7 +61,7 @@ export async function fetchPaginatedData<T = any>(url: string, page: number = 1,
       pagination: data.pagination
     };
   }
-  
+
   // Check for other common structures
   if (data && Array.isArray(data)) {
     return {
@@ -64,7 +76,7 @@ export async function fetchPaginatedData<T = any>(url: string, page: number = 1,
       }
     };
   }
-  
+
   // If there's a different structure, return default
   return {
     data: [],
@@ -88,7 +100,7 @@ export async function uploadFile(file: File, url: string, onProgress?: (progress
     formData.append('file', file);
 
     const xhr = new XMLHttpRequest();
-    
+
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
         const progress = Math.round((event.loaded / event.total) * 100);
