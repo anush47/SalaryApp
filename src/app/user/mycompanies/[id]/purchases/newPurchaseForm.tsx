@@ -30,6 +30,7 @@ import {
 } from "@/app/lib/api";
 import { FileUpload } from "@/app/components/FileUpload";
 import { FileViewer } from "@/app/components/FileViewer";
+import { uploadFile } from "@/app/lib/uploadService";
 
 interface ChipData {
   key: number;
@@ -67,8 +68,10 @@ const NewPurchaseForm: React.FC<{
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const [attachmentKey, setAttachmentKey] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [purchasedPeriods, setPurchasedPeriods] = useState<string[]>([]);
+
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [finalTotalPrice, setFinalTotalPrice] = useState<number | null>(null);
   const searchParams = useSearchParams();
@@ -171,15 +174,29 @@ const NewPurchaseForm: React.FC<{
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    const payload = {
-      periods: periods.map((p) => p.label),
-      price: price ?? 0,
-      company: companyId,
-      request: null,
-      attachmentKey: attachmentKey || undefined,
-    };
+
+    let finalAttachmentKey = attachmentKey;
+
     try {
-      if (!attachmentKey && !loading) {
+      if (selectedFile) {
+        const result = await uploadFile({
+          file: selectedFile,
+          folder: 'purchases',
+          entityId: companyId,
+          companyId: companyId
+        });
+        finalAttachmentKey = result.key;
+      }
+
+      const payload = {
+        periods: periods.map((p) => p.label),
+        price: price ?? 0,
+        company: companyId,
+        request: null,
+        attachmentKey: finalAttachmentKey || undefined,
+      };
+
+      if (!finalAttachmentKey && !loading) {
         // Optional validation
       }
 
@@ -497,39 +514,50 @@ const NewPurchaseForm: React.FC<{
                   }}
                 >
                   <Box sx={{ width: '100%' }}>
-                    {!attachmentKey ? (
-                      <FileUpload
-                        label="Upload Payment Slip"
-                        folder="purchases"
-                        entityId={companyId}
-                        companyId={companyId}
-                        maxSizeMB={10}
-                        accept="image/*,application/pdf"
-                        onUploadComplete={(key) => {
-                          setAttachmentKey(key);
-                        }}
-                      />
-                    ) : (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Attached Proof:
-                        </Typography>
-                        <FileViewer fileKey={attachmentKey} filename="Payment Slip" showPreview={true} />
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                          <Typography variant="caption" color="success.main" sx={{ fontWeight: 'bold' }}>
-                            ✓ Uploaded successfully
+                    <Box sx={{ width: '100%' }}>
+                      {(!attachmentKey && !selectedFile) ? (
+                        <FileUpload
+                          label="Upload Payment Slip"
+                          folder="purchases"
+                          entityId={companyId}
+                          companyId={companyId}
+                          maxSizeMB={10}
+                          mode="manual"
+                          accept="image/*,application/pdf"
+                          onFileSelect={(file) => setSelectedFile(file)}
+                        />
+                      ) : (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Attached Proof:
                           </Typography>
-                          <Button
-                            variant="outlined"
-                            color="warning"
-                            size="small"
-                            onClick={() => setAttachmentKey(null)}
-                          >
-                            Replace
-                          </Button>
+                          {selectedFile ? (
+                            <Box>
+                              <Typography variant="body2">{selectedFile.name}</Typography>
+                              <Typography variant="caption" color="text.secondary">Ready to upload</Typography>
+                            </Box>
+                          ) : (
+                            <FileViewer fileKey={attachmentKey || ""} filename="Payment Slip" showPreview={true} />
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                            {attachmentKey && <Typography variant="caption" color="success.main" sx={{ fontWeight: 'bold' }}>
+                              ✓ Uploaded successfully
+                            </Typography>}
+                            <Button
+                              variant="outlined"
+                              color="warning"
+                              size="small"
+                              onClick={() => {
+                                setAttachmentKey(null);
+                                setSelectedFile(null);
+                              }}
+                            >
+                              Replace
+                            </Button>
+                          </Box>
                         </Box>
-                      </Box>
-                    )}
+                      )}
+                    </Box>
                   </Box>
 
                   <Button

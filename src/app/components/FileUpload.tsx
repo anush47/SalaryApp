@@ -20,7 +20,9 @@ interface FileUploadProps {
     folder: string; // 'employees' | 'leaves' | 'purchases'
     entityId: string; // ID of the related entity
     companyId: string;
-    onUploadComplete: (key: string, filename: string) => void;
+    onUploadComplete?: (key: string, filename: string) => void;
+    onFileSelect?: (file: File) => void;
+    mode?: 'immediate' | 'manual';
     label?: string;
     accept?: string;
     maxSizeMB?: number;
@@ -31,12 +33,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     entityId,
     companyId,
     onUploadComplete,
+    onFileSelect,
+    mode = 'immediate',
     label = "Upload File",
     accept = "*/*", // e.g. "image/*,application/pdf"
     maxSizeMB = 10
 }) => {
     const [uploading, setUploading] = useState(false);
     const { showSnackbar } = useSnackbar();
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files || event.target.files.length === 0) return;
@@ -49,6 +54,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             return;
         }
 
+        if (mode === 'manual') {
+            setSelectedFile(file);
+            if (onFileSelect) onFileSelect(file);
+            return;
+        }
+
+        // Immediate Mode
         try {
             setUploading(true);
 
@@ -87,7 +99,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             }
 
             // 3. Complete
-            onUploadComplete(key, file.name);
+            if (onUploadComplete) {
+                onUploadComplete(key, file.name);
+            }
             showSnackbar({ message: "File uploaded successfully!", severity: "success" });
 
         } catch (error: any) {
@@ -101,18 +115,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     };
 
     return (
-        <Button
-            component="label"
-            variant="outlined" // Or contained, per design
-            startIcon={uploading ? <CircularProgress size={20} /> : <CloudUpload />}
-            disabled={uploading}
-        >
-            {label}
-            <VisuallyHiddenInput
-                type="file"
-                onChange={handleFileChange}
-                accept={accept}
-            />
-        </Button>
+        <Box display="flex" alignItems="center" gap={1}>
+            <Button
+                component="label"
+                variant="outlined"
+                startIcon={uploading ? <CircularProgress size={20} /> : <CloudUpload />}
+                disabled={uploading}
+            >
+                {label}
+                <VisuallyHiddenInput
+                    type="file"
+                    onChange={handleFileChange}
+                    accept={accept}
+                />
+            </Button>
+            {mode === 'manual' && selectedFile && (
+                <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedFile.name}
+                </Typography>
+            )}
+        </Box>
     );
 };

@@ -55,6 +55,7 @@ import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
+import { uploadFile } from "@/app/lib/uploadService";
 
 interface UserProps {
   user: {
@@ -379,7 +380,13 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     return isValid;
   };
 
-  const handleApplyLeave = () => {
+  // State for file upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // ... (inside component)
+
+  const handleApplyLeave = async () => {
     setErrors({
       leaveType: "",
       startDate: "",
@@ -405,6 +412,30 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
     if (!isShortLeave && !endDate) return;
 
+    // Handle File Upload
+    let uploadedKey = null;
+    if (selectedFile) {
+      setUploading(true);
+      try {
+        const result = await uploadFile({
+          file: selectedFile,
+          folder: 'leaves',
+          entityId: employee._id || "temp", // Using employee ID as temp placeholder if easier, or just 'temp'
+          companyId: companyId
+        });
+        uploadedKey = result.key;
+      } catch (error: any) {
+        showSnackbar({ message: error.message || "File upload failed", severity: "error" });
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
+    // Use uploaded key if available, otherwise use existing attachments (if any were somehow set differently)
+    // In this flow, we prefer the new upload.
+    const finalAttachments = uploadedKey ? [uploadedKey] : attachments;
+
     // For short leave, start and end dates are the same day mixed with time
     let finalStartDate = startDate;
     let finalEndDate = isShortLeave ? startDate : endDate;
@@ -417,12 +448,12 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     createLeaveMutation.mutate({
       employeeId: employee._id,
       leaveTypeId: selectedLeaveType,
-      startDate: finalStartDate?.format('YYYY-MM-DD HH:mm') || "", // Use helper if needed, but ISO handling in backend should work or custom format
+      startDate: finalStartDate?.format('YYYY-MM-DD HH:mm') || "",
       endDate: finalEndDate?.format('YYYY-MM-DD HH:mm') || "",
       halfDay: isShortLeave ? false : halfDay,
       halfDayPeriod: (halfDay && !isShortLeave) ? halfDayPeriod : undefined,
       reason: reason.trim(),
-      documents: attachments, // Add attachments
+      documents: finalAttachments,
     });
   };
 
@@ -735,10 +766,18 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                       Attachment (Optional)
                     </Typography>
                     <Box display="flex" flexDirection="column" gap={1}>
-                      {attachments.length > 0 ? (
+                      {/* Show 'Remove & Replace' if we have an uploaded attachment (from history) OR a newly selected file */}
+                      {(attachments.length > 0 || selectedFile) ? (
                         <Box display="flex" flexDirection="column" gap={1} alignItems="flex-start">
                           <Box display="flex" alignItems="center" gap={2} sx={{ p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                            <FileViewer fileKey={attachments[0]} filename={getCleanFilename(attachments[0])} showPreview={true} />
+                            {selectedFile ? (
+                              <Box>
+                                <Typography variant="body2">{selectedFile.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">Ready to upload</Typography>
+                              </Box>
+                            ) : (
+                              <FileViewer fileKey={attachments[0]} filename={getCleanFilename(attachments[0])} showPreview={true} />
+                            )}
                           </Box>
                           <Typography variant="caption" color="text.secondary">
                             To change the file, please remove the current one.
@@ -747,23 +786,25 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                             size="small"
                             color="error"
                             variant="outlined"
-                            onClick={() => setAttachments([])}
+                            onClick={() => {
+                              setAttachments([]);
+                              setSelectedFile(null);
+                            }}
                           >
                             Remove & Replace
                           </Button>
                         </Box>
                       ) : (
-                        <Box sx={{ maxWidth: 200 }}>
+                        <Box sx={{ maxWidth: 300 }}>
                           <FileUpload
                             folder="leaves"
                             entityId={employee?._id || "temp"}
                             companyId={companyId}
                             label="Add Attachment"
                             maxSizeMB={10}
+                            mode="manual"
                             accept="image/*,application/pdf"
-                            onUploadComplete={(key) => {
-                              setAttachments([key]);
-                            }}
+                            onFileSelect={(file) => setSelectedFile(file)}
                           />
                         </Box>
                       )}
