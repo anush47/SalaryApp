@@ -39,6 +39,7 @@ The core of the application revolves around a set of interconnected data models:
 *   **LeaveType:** Defines the types of leave available within a company (e.g., Annual, Casual, Medical).
 *   **LeaveRequest:** Tracks leave applications from employees and the approval process.
 *   **TaxConfiguration:** Stores the tax slabs and rules applicable for a given year, enabling dynamic tax calculations.
+*   **Attendance:** Records employee clock-in/out events with location verification, device tracking, and approval status.
 
 ## 3. Key Features
 
@@ -267,6 +268,28 @@ Effective Rate:      4.26%
 *   **Self-Service:** Employees with login access can view their own dashboard, payslips, and leave balances.
 *   **Profile Management:** Employees can view their profile and change their password.
 *   **Leave Application:** The portal provides an interface for employees to apply for leave and track the status of their requests.
+
+### 3.6. Attendance and Geofencing
+
+The application features a robust live attendance system with tiered location verification and employer management capabilities.
+
+#### 3.6.1. Clock-in/out Mechanism
+*   **Multi-Platform**: Support for PWA/Web-based check-in with specialized logic for mobile users.
+*   **Device Identity**: Generates a persistent `deviceId` via `localStorage` and captures `deviceDetails` (UserAgent) for every record to prevent clock-in fraud.
+*   **Verification Modes**:
+    *   **Standard**: Validates user location against the company's geofence (latitude, longitude, and radius).
+    *   **Overrides**: Allows individual employees to have custom allowed locations or be marked as "Remote" (bypassing geofencing while remaining verified).
+    *   **Enforcement**: Configurable setting to block check-ins if the user is outside allowed zones.
+
+#### 3.6.2. Employer Management
+*   **Dashboard**: Real-time view of "Present Now" employees and comprehensive logs with date filtering.
+*   **Data Integrity (Timestamp Restriction)**: Prevents employers from setting an attendance time earlier than the employee's preceding record to maintain logical consistency.
+*   **Manual Control**: Moving away from auto-save to an explicit "Update Record" workflow for status and time corrections.
+*   **Deletion**: Secure record removal with a Material-UI confirmation dialog for critical actions.
+
+#### 3.6.3. Verification UI
+*   **Map Integration**: Uses Leaflet to visually demonstrate the "Check-in Location" (marker) relative to the "Allowed Geofence" (circle) during record review.
+*   **Precision Tracking**: Captures and displays GPS accuracy (± meters) to help employers judge potential verification failures.
 
 ## 4. Service Layer Architecture
 
@@ -554,13 +577,13 @@ To ensure a consistent user experience across the application (Salaries, Payment
     *   For complex DataGrids reusable in different contexts (e.g., "All Requests" vs "My Requests"), use a `mode` prop.
     *   Adapt `columnVisibilityModel` and API query parameters based on the mode.
 
-### 9.3. State Management
+### 9.4. UI/UX Interaction Standards
 
-*   **React Query:** Continue using TanStack Query for all data fetching.
-*   **Query Keys:** Ensure query keys include all dependencies that should trigger a refetch, specifically **pagination state**, **search queries**, and **filters**.
-    ```typescript
-    queryKey: ["resource", companyId, page, limit, search, status]
-    ```
+*   **Manual Update Pattern**: For critical record modifications (e.g., Attendance edits, Salary adjustments), avoid "auto-save on blur". Use local temporary states (`tempStatus`, `tempTimestamp`) and an explicit "Update" button to prevent accidental data corruption and minimize API noise.
+*   **Critical Confirmations**: Never use the native browser `confirm()` for destructive actions like Deletion. Use a themed `MUI Dialog` to provide context (e.g., "Are you sure you want to delete [Name]'s record?") and ensure a premium, integrated experience.
+*   **Actionable Feedbacks**: Always provide context-aware snackbars (e.g., "Record deleted successfully") and maintain button `loading` states during async operations to prevent double-submissions.
+*   **Dependency Order**: In complex React components, ensure data fetching hooks (e.g., `useQuery`) are initialized before selectors or memoized values (`useMemo`) that depend on that data to avoid `ReferenceError`.
+
 
 ## 10. API Development Patterns
 
