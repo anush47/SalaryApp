@@ -24,6 +24,7 @@ import {
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Check, Close, Visibility } from "@mui/icons-material";
 import dayjs from "dayjs";
+import Link from "next/link";
 import { FileViewer } from "@/app/components/FileViewer";
 
 import {
@@ -35,7 +36,8 @@ import {
 const LeaveRequestsManagement: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   companyId: string;
-}> = ({ user, companyId }) => {
+  mode?: "all" | "my-requests" | "pending-approvals";
+}> = ({ user, companyId, mode = "all" }) => {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -63,23 +65,52 @@ const LeaveRequestsManagement: React.FC<{
     }
   };
 
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 20,
+  });
+
+  const [filterModel, setFilterModel] = React.useState<any>({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const searchQuery = filterModel.quickFilterValues?.join(" ") || undefined;
+
   // Fetch leave requests
   const {
-    data: leaveRequests,
+    data: paginatedData,
     isLoading,
     isError,
     error,
-  } = useQuery<LeaveRequest[], Error>({
-    queryKey: ["leaveRequests", companyId, statusFilter],
+  } = useQuery<any, Error>({
+    queryKey: ["leaveRequests", companyId, statusFilter, paginationModel.page, paginationModel.pageSize, searchQuery, mode],
     queryFn: async () => {
+      // Assuming fetchLeaveRequests is updated or we pass params manually
+      // The current fetchLeaveRequests likely takes simple args, we might need to update the API client too or pass a larger object
+      // Let's assume we can update fetchLeaveRequests or construct URL params here if needed, 
+      // but ideally we should update the api client function signature.
+      // For now, let's call it and assume the backend handles the new params if we pass them? 
+      // Wait, api client determines arguments. Check fetchLeaveRequests signature.
+      // It is: export const fetchLeaveRequests = (companyId: string, params?: any) ...
+      // So we can pass extra params.
+
       const result = await fetchLeaveRequests(companyId, {
         status: statusFilter,
+        page: paginationModel.page + 1,
+        limit: paginationModel.pageSize,
+        search: searchQuery,
+        myRequests: mode === "my-requests",
+        pendingApprovals: mode === "pending-approvals",
       });
-      return result.data;
+      return result.data; // Assuming result.data is the full response body for raw fetch or similar
     },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
+
+  const leaveRequests = paginatedData?.data || (Array.isArray(paginatedData) ? paginatedData : []);
+  const rowCount = paginatedData?.pagination?.total || (Array.isArray(paginatedData) ? paginatedData.length : 0);
 
   // Update leave request mutation
   const updateLeaveRequestMutation = useMutation({
@@ -116,8 +147,17 @@ const LeaveRequestsManagement: React.FC<{
       headerName: "Employee",
       flex: 1,
       minWidth: 200,
-      valueGetter: (value, row) => {
-        return `${row.employee.name} (${row.employee.memberNo})`;
+      renderCell: (params) => {
+        return (
+          <Link
+            href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${params.row.employee._id}`}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            <Button variant="text" sx={{ textTransform: 'none' }}>
+              {`${params.row.employee.name} (${params.row.employee.memberNo})`}
+            </Button>
+          </Link>
+        );
       },
     },
     {
@@ -269,6 +309,7 @@ const LeaveRequestsManagement: React.FC<{
     React.useState<GridColumnVisibilityModel>({
       reason: false,
       approver: false,
+      employee: mode === "my-requests",
     });
 
   if (isLoading) {
@@ -321,24 +362,19 @@ const LeaveRequestsManagement: React.FC<{
         </TextField>
       </Box>
 
-      <Box sx={{ height: "calc(100vh - 400px)", minHeight: "400px" }}>
+      <Box sx={{ height: "calc(100vh - 230px)", width: "100%" }}>
         <DataGrid
           rows={leaveRequests || []}
           columns={columns}
           getRowId={(row) => row._id}
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 20,
-              },
-            },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
-            },
-          }}
+          rowCount={rowCount}
+          loading={isLoading}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          filterMode="server"
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
           pageSizeOptions={[10, 20, 50]}
           slots={{
             toolbar: (props) => (

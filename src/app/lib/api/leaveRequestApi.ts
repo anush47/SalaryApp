@@ -50,6 +50,7 @@ export async function fetchLeaveRequests(
         pendingApprovals?: boolean;
         page?: number;
         limit?: number;
+        search?: string;
     } = {}
 ): Promise<{ data: LeaveRequest[]; pagination: any }> {
     const queryParams = new URLSearchParams();
@@ -61,6 +62,7 @@ export async function fetchLeaveRequests(
     if (filters.endDate) queryParams.append("endDate", filters.endDate);
     if (filters.myRequests) queryParams.append("myRequests", "true");
     if (filters.pendingApprovals) queryParams.append("pendingApprovals", "true");
+    if (filters.search) queryParams.append("search", filters.search);
 
     const url = `/api/leave-requests?${queryParams.toString()}`;
     return fetchPaginatedData<LeaveRequest>(url, filters.page || 1, filters.limit || 20);

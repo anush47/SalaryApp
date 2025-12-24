@@ -92,17 +92,90 @@ export class LeaveRequestService {
             query.employee = employeeId;
         }
 
+        const search = searchParams.get("search");
+
         if (status) {
             query.status = status;
         }
 
+        if (search) {
+            const searchRegex = { $regex: search, $options: "i" };
+            const matchingEmployees = await Employee.find({
+                name: searchRegex,
+                company: companyId,
+            }).select("_id");
+
+            const matchingEmployeeIds = matchingEmployees.map(e => e._id);
+
+            query.$or = [
+                { reason: searchRegex },
+                { employee: { $in: matchingEmployeeIds } }
+            ];
+        }
+
         if (startDate || endDate) {
-            query.$or = [];
+            if (!query.$or) query.$or = []; // Initialize if not already present
+            const dateQuery: any = {};
             if (startDate) {
-                query.$or.push({ startDate: { $gte: new Date(startDate) } });
+                dateQuery.startDate = { $gte: new Date(startDate) };
             }
             if (endDate) {
-                query.$or.push({ endDate: { $lte: new Date(endDate) } });
+                dateQuery.endDate = { $lte: new Date(endDate) };
+            }
+            // If both dates are present, combine them, otherwise push individual checks? 
+            // The original logic was doing $or which is weird for date filtering (startDate >= X OR endDate <= Y). 
+            // Usually it's startDate >= X AND endDate <= Y for a range filter. 
+            // BUT, preserving original logic style unless it's clearly wrong for the requirement.
+            // Original: 
+            // if (startDate || endDate) {
+            //     query.$or = [];
+            //     if (startDate) {
+            //         query.$or.push({ startDate: { $gte: new Date(startDate) } });
+            //     }
+            //     if (endDate) {
+            //         query.$or.push({ endDate: { $lte: new Date(endDate) } });
+            //     }
+            // }
+            // If I add search, I override $or. I should be careful.
+
+            if (search) {
+                // If search exists, date filter should probably be ANDed with search results.
+                // But Mongoose query structure with top level $or for search and another $or for dates is tricky.
+                // Better to use $and for distinct conditions.
+
+                // Let's restructure:
+                const searchConditions = [
+                    { reason: searchRegex },
+                    { employee: { $in: matchingEmployeeIds } }
+                ];
+
+                const dateConditions: any[] = [];
+                if (startDate) dateConditions.push({ startDate: { $gte: new Date(startDate) } });
+                if (endDate) dateConditions.push({ endDate: { $lte: new Date(endDate) } });
+
+                if (dateConditions.length > 0) {
+                    // The original logic strictly used $or for dates which implies narrow filtering? No, $or broadens it.
+                    // "Show requests starting after X OR ending before Y".
+                    // If user filters by date range, they usually want "Within this range".
+                    // Let's assume standard AND logic for date range if refined, 
+                    // BUT to be safe and minimally invasive, let's keep it as an independent condition if possible.
+
+                    // However, to combine with search $or, we must use $and at top level if we have multiple $or groups.
+
+                    query.$and = [
+                        { $or: searchConditions },
+                        { $or: dateConditions }
+                    ];
+                    delete query.$or; // Remove top level $or if we used $and
+                } else {
+                    query.$or = searchConditions;
+                }
+            } else {
+                // Original logic for date only
+                query.$or = [];
+                if (startDate) query.$or.push({ startDate: { $gte: new Date(startDate) } });
+                if (endDate) query.$or.push({ endDate: { $lte: new Date(endDate) } });
+                if (query.$or.length === 0) delete query.$or;
             }
         }
 

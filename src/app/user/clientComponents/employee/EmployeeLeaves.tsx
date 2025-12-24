@@ -41,6 +41,7 @@ import {
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { FileUpload } from "@/app/components/FileUpload"; // Imported
 import { FileViewer } from "@/app/components/FileViewer"; // Imported
+import LeaveRequestsManagement from "@/app/user/mycompanies/[id]/leaves/clientComponents/leaveRequestsManagement";
 import { fetchLeaveTypes } from "@/app/lib/api/leaveTypeApi";
 import {
   fetchLeaveRequests,
@@ -200,25 +201,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     return leaveGender === gender;
   });
 
-  const { data: myLeavesData, isLoading: loadingMyLeaves } = useQuery({
-    queryKey: ["myLeaves", companyId, employeeId],
-    queryFn: () =>
-      fetchLeaveRequests(companyId, {
-        myRequests: true,
-      }),
-    enabled: !!companyId && !!employeeId,
-  });
-  const myLeaves = myLeavesData?.data || [];
-
-  const { data: pendingApprovalsData, isLoading: loadingPendingApprovals } = useQuery({
-    queryKey: ["pendingApprovals", companyId],
-    queryFn: () =>
-      fetchLeaveRequests(companyId, {
-        pendingApprovals: true,
-      }),
-    enabled: !!companyId,
-  });
-  const pendingApprovals = pendingApprovalsData?.data || [];
+  /* Removed unused fetching for myLeaves and pendingApprovals as they are now handled by child components */
 
   // Mutations
   const createLeaveMutation = useMutation({
@@ -457,28 +440,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
     });
   };
 
-  const handleLeaveAction = () => {
-    if (!actionDialog.leaveRequest || !actionDialog.action) return;
-
-    updateLeaveMutation.mutate({
-      leaveRequestId: actionDialog.leaveRequest._id,
-      action: actionDialog.action,
-      remarks: remarks.trim(),
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "success";
-      case "rejected":
-        return "error";
-      case "cancelled":
-        return "default";
-      default:
-        return "warning";
-    }
-  };
+  // Action dialog state has been removed as it is handled in LeaveRequestsManagement
 
   if (loadingEmployee) {
     return (
@@ -539,10 +501,8 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
           scrollButtons="auto"
         >
           <Tab label="Apply for Leave" />
-          <Tab label={`My Leaves (${myLeaves.length})`} />
-          {pendingApprovals.length > 0 && (
-            <Tab label={`Pending Approvals (${pendingApprovals.length})`} />
-          )}
+          <Tab label="My Leaves" />
+          <Tab label="Pending Approvals" />
         </Tabs>
 
         {/* Tab 1: Apply for Leave */}
@@ -906,244 +866,14 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
 
         {/* Tab 2: My Leaves */}
         <TabPanel value={tabValue} index={1}>
-          <Typography variant="h6" gutterBottom>
-            My Leave Requests
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          {loadingMyLeaves ? (
-            <Box display="flex" justifyContent="center" p={2}>
-              <CircularProgress size={30} />
-            </Box>
-          ) : myLeaves.length === 0 ? (
-            <Alert severity="info">No leave requests found</Alert>
-          ) : (
-            <List>
-              {myLeaves.map((leave: any) => (
-                <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={3}>
-                      <Chip
-                        label={leave.leaveType.code}
-                        sx={{
-                          backgroundColor: leave.leaveType.color,
-                          color: "white",
-                        }}
-                      />
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        {leave.leaveType.name}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Typography variant="body2" color="text.secondary">
-                        Dates
-                      </Typography>
-                      <Typography variant="body1">
-                        {leave.leaveType.isShortLeave ? (
-                          <>
-                            {new Date(leave.startDate).toLocaleDateString()} <br />
-                            {new Date(leave.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(leave.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </>
-                        ) : (
-                          <>
-                            {new Date(leave.startDate).toLocaleDateString()} -{" "}
-                            {new Date(leave.endDate).toLocaleDateString()}
-                          </>
-                        )}
-                      </Typography>
-                      <Typography variant="caption">
-                        {leave.leaveType.isShortLeave ? (
-                          `${leave.totalMinutes || 0} minutes`
-                        ) : (
-                          <>
-                            {leave.totalDays} day{leave.totalDays !== 1 ? "s" : ""}
-                            {leave.halfDay && ` (Half Day - ${leave.halfDayPeriod})`}
-                          </>
-                        )}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Chip
-                        label={leave.status.toUpperCase()}
-                        color={getStatusColor(leave.status)}
-                        size="small"
-                      />
-                      {leave.status === "approved" ? (
-                        leave.approvedBy ? (
-                          <Typography
-                            variant="caption"
-                            display="block"
-                            sx={{ mt: 1 }}
-                          >
-                            Approved by: {leave.approvedBy.name}
-                          </Typography>
-                        ) : (
-                          <Typography
-                            variant="caption"
-                            display="block"
-                            sx={{ mt: 1 }}
-                          >
-                            Approved by: Employer
-                          </Typography>
-                        )
-                      ) : leave.status === "pending" && leave.approver ? (
-                        <Typography
-                          variant="caption"
-                          display="block"
-                          sx={{ mt: 1 }}
-                        >
-                          Approver: {leave.approver.name}
-                        </Typography>
-                      ) : null}
-                    </Grid>
-                    <Grid item xs={12} sm={2}>
-                      {leave.status === "pending" && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          startIcon={<Cancel />}
-                          onClick={() =>
-                            setActionDialog({
-                              open: true,
-                              leaveRequest: leave,
-                              action: "cancel",
-                            })
-                          }
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </Grid>
-                    {leave.reason && (
-                      <Grid item xs={12}>
-                        <Typography variant="body2" color="text.secondary">
-                          Reason: {leave.reason}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {leave.remarks && (
-                      <Grid item xs={12}>
-                        <Typography variant="body2" color={leave.status === 'rejected' ? "error" : "text.secondary"} sx={{ fontWeight: leave.status === 'rejected' ? 500 : 400 }}>
-                          {leave.status === 'rejected' ? "Rejection Reason: " : "Remarks: "}
-                          {leave.remarks}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {leave.documents && leave.documents.length > 0 && (
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
-                          Attachments:
-                        </Typography>
-                        <Box display="flex" gap={1} flexWrap="wrap" mt={0.5}>
-                          {leave.documents.map((docKey: string, idx: number) => (
-                            <Box key={idx} sx={{ maxWidth: 150 }}>
-                              <FileViewer fileKey={docKey} filename={`Attachment ${idx + 1}`} showPreview={false} />
-                            </Box>
-                          ))}
-                        </Box>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-              ))}
-            </List>
-          )}
+          <LeaveRequestsManagement user={user} companyId={companyId} mode="my-requests" />
         </TabPanel>
 
         {/* Tab 3: Pending Approvals */}
-        {
-          pendingApprovals.length > 0 && (
-            <TabPanel value={tabValue} index={2}>
-              <Typography variant="h6" gutterBottom>
-                Leave Requests Pending Your Approval
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              <List>
-                {pendingApprovals.map((leave: any) => (
-                  <Paper key={leave._id} sx={{ mb: 2, p: 2 }}>
-                    <Grid container spacing={2} alignItems="center">
-                      <Grid item xs={12} sm={3}>
-                        <Typography variant="subtitle1">
-                          {leave.employee.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {leave.employee.designation || "Employee"}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={3}>
-                        <Chip
-                          label={leave.leaveType.code}
-                          sx={{
-                            backgroundColor: leave.leaveType.color,
-                            color: "white",
-                          }}
-                        />
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          {leave.leaveType.name}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={3}>
-                        <Typography variant="body2" color="text.secondary">
-                          Dates
-                        </Typography>
-                        <Typography variant="body1">
-                          {new Date(leave.startDate).toLocaleDateString()} -{" "}
-                          {new Date(leave.endDate).toLocaleDateString()}
-                        </Typography>
-                        <Typography variant="caption">
-                          {leave.totalDays} day{leave.totalDays > 1 ? "s" : ""}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={3}>
-                        <Box display="flex" gap={1}>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="success"
-                            startIcon={<CheckCircle />}
-                            onClick={() =>
-                              setActionDialog({
-                                open: true,
-                                leaveRequest: leave,
-                                action: "approve",
-                              })
-                            }
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            color="error"
-                            startIcon={<Block />}
-                            onClick={() =>
-                              setActionDialog({
-                                open: true,
-                                leaveRequest: leave,
-                                action: "reject",
-                              })
-                            }
-                          >
-                            Reject
-                          </Button>
-                        </Box>
-                      </Grid>
-                      {leave.reason && (
-                        <Grid item xs={12}>
-                          <Typography variant="body2" color="text.secondary">
-                            Reason: {leave.reason}
-                          </Typography>
-                        </Grid>
-                      )}
-                    </Grid>
-                  </Paper>
-                ))}
-              </List>
-            </TabPanel>
-          )
-        }
+        {/* Tab 3: Pending Approvals */}
+        <TabPanel value={tabValue} index={2}>
+          <LeaveRequestsManagement user={user} companyId={companyId} mode="pending-approvals" />
+        </TabPanel>
       </CardContent>
 
       {/* Action Dialog */}
@@ -1209,7 +939,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
           </Button>
         </DialogActions>
       </Dialog >
-    </Card>
+    </Card >
   );
 };
 
