@@ -28,6 +28,7 @@ import {
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import Documents from "./Documents";
 import { updateEmployee } from "@/app/lib/api/employeeApi";
+import { uploadFile } from "@/app/lib/uploadService";
 
 interface UserProps {
   user: {
@@ -90,6 +91,8 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
     },
   });
 
+  const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = event.target;
     // Handle boolean fields that come from checkboxes
@@ -100,8 +103,44 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
     setEmployeeData({ ...employeeData, [name]: finalValue });
   };
 
-  const handleSave = () => {
-    updateProfileMutation.mutate(employeeData);
+  const handleSave = async () => {
+    let currentData = { ...employeeData };
+
+    // Upload pending files
+    if (Object.keys(pendingFiles).length > 0) {
+      try {
+        const uploadedDocs = { ...currentData.documents }; // Start with existing docs
+
+        // Iterate and upload
+        // We can do parallel uploads
+        const uploadPromises = Object.entries(pendingFiles).map(async ([name, file]) => {
+          const result = await uploadFile({
+            file,
+            folder: 'employees',
+            entityId: currentData._id,
+            companyId: currentData.company?._id || currentData.company
+          });
+          return { name, key: result.key };
+        });
+
+        const results = await Promise.all(uploadPromises);
+
+        results.forEach(({ name, key }) => {
+          uploadedDocs[name] = key;
+        });
+
+        currentData.documents = uploadedDocs;
+
+        // Clear pending files after successful upload (or handled by onSuccess)
+        setPendingFiles({});
+
+      } catch (error: any) {
+        showSnackbar({ message: "Failed to upload documents: " + error.message, severity: "error" });
+        return;
+      }
+    }
+
+    updateProfileMutation.mutate(currentData);
   };
 
   if (loadingEmployee) {
@@ -490,6 +529,10 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                         editable={isEditing}
                         companyId={employeeData.company?._id || employeeData.company}
                         employeeId={employeeData._id}
+                        manualUpload={{
+                          pendingFiles: pendingFiles,
+                          setPendingFiles: setPendingFiles
+                        }}
                       />
                     </Grid>
 

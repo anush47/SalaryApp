@@ -70,6 +70,7 @@ import { MenuItem } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import Documents from "../../../../clientComponents/employee/Documents";
 import { LeaveOverrides } from "./LeaveOverrides";
+import { uploadFile } from "@/app/lib/uploadService";
 
 const EditEmployeeForm: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -87,6 +88,7 @@ const EditEmployeeForm: React.FC<{
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leaveOverrideWarningOpen, setLeaveOverrideWarningOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
 
   const fetchEmployeeData = async (): Promise<Employee> => {
     return fetchEmployee(employeeId!);
@@ -392,7 +394,7 @@ const EditEmployeeForm: React.FC<{
     },
   });
 
-  const onSaveClick = () => {
+  const onSaveClick = async () => {
     if (Object.keys(errors).length > 0) {
       showSnackbar({
         message: `Please fix the errors in ${Object.keys(
@@ -402,7 +404,39 @@ const EditEmployeeForm: React.FC<{
       });
       return;
     }
-    updateEmployeeMutation.mutate(formFields);
+
+    let finalData = { ...formFields };
+
+    // Upload pending files
+    if (Object.keys(pendingFiles).length > 0) {
+      setIsLoading(true);
+      try {
+        const uploadedDocs = { ...finalData.documents };
+        const uploadPromises = Object.entries(pendingFiles).map(async ([name, file]) => {
+          const result = await uploadFile({
+            file,
+            folder: 'employees',
+            entityId: employeeId as string,
+            companyId: companyId as string
+          });
+          return { name, key: result.key };
+        });
+
+        const results = await Promise.all(uploadPromises);
+
+        results.forEach(({ name, key }) => {
+          uploadedDocs[name] = key;
+        });
+        finalData.documents = uploadedDocs;
+        setPendingFiles({}); // Clear
+      } catch (error: any) {
+        showSnackbar({ message: "Failed to upload documents: " + error.message, severity: "error" });
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    updateEmployeeMutation.mutate(finalData);
   };
 
   const handleDeleteConfirmation = () => {
@@ -1101,6 +1135,10 @@ const EditEmployeeForm: React.FC<{
               editable={isEditing}
               companyId={companyId!}
               employeeId={employeeId!}
+              manualUpload={{
+                pendingFiles: pendingFiles,
+                setPendingFiles: setPendingFiles
+              }}
             />
           </Grid>
 
