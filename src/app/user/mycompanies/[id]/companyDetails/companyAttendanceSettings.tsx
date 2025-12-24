@@ -141,7 +141,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={config.features?.pwaCheckIn}
+                                                checked={config.features?.pwaCheckIn || false}
                                                 onChange={handleFeatureChange("pwaCheckIn")}
                                                 disabled={!isEditing}
                                             />
@@ -151,7 +151,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={config.features?.liveDashboard}
+                                                checked={config.features?.liveDashboard || false}
                                                 onChange={handleFeatureChange("liveDashboard")}
                                                 disabled={!isEditing}
                                             />
@@ -161,7 +161,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={config.features?.salaryIntegration}
+                                                checked={config.features?.salaryIntegration || false}
                                                 onChange={handleFeatureChange("salaryIntegration")}
                                                 disabled={!isEditing}
                                             />
@@ -171,7 +171,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={config.features?.hardwareIntegration}
+                                                checked={config.features?.hardwareIntegration || false}
                                                 onChange={handleFeatureChange("hardwareIntegration")}
                                                 disabled={!isEditing}
                                             />
@@ -182,7 +182,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                 <FormControlLabel
                                     control={
                                         <Checkbox
-                                            checked={config.allowRemoteCheckIn}
+                                            checked={config.allowRemoteCheckIn || false}
                                             onChange={handleRemoteCheckInChange}
                                             disabled={!isEditing}
                                         />
@@ -193,7 +193,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                 <FormControlLabel
                                     control={
                                         <Checkbox
-                                            checked={config.requireApproval}
+                                            checked={config.requireApproval || false}
                                             onChange={handleRequireApprovalChange}
                                             disabled={!isEditing}
                                         />
@@ -228,7 +228,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={config.geoFencing?.enabled}
+                                                checked={config.geoFencing?.enabled || false}
                                                 onChange={handleGeoChange("enabled")}
                                                 disabled={!isEditing}
                                             />
@@ -275,7 +275,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                                 <FormControlLabel
                                                     control={
                                                         <Checkbox
-                                                            checked={config.geoFencing?.enforceValidation}
+                                                            checked={config.geoFencing?.enforceValidation || false}
                                                             onChange={handleGeoChange("enforceValidation")}
                                                             disabled={!isEditing}
                                                         />

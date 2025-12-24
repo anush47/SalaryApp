@@ -16,7 +16,16 @@ import {
     Avatar,
     IconButton,
     Tooltip,
-    Paper
+    Paper,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemText,
+    ListItemSecondaryAction,
+    Divider
 } from "@mui/material";
 import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import {
@@ -29,6 +38,7 @@ import {
     ThumbUp,
     ThumbDown,
     HourglassEmpty,
+    Visibility
 } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAttendanceLogs } from "@/app/lib/api/attendanceApi";
@@ -47,6 +57,9 @@ interface CompanyAttendanceProps {
 const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }) => {
     const [startDate, setStartDate] = useState(dayjs().subtract(7, 'day'));
     const [endDate, setEndDate] = useState(dayjs());
+    const [openPresentDialog, setOpenPresentDialog] = useState(false);
+    const [viewLog, setViewLog] = useState<any>(null);
+    const [openViewDialog, setOpenViewDialog] = useState(false);
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
 
@@ -187,30 +200,46 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
             sortable: false,
             renderCell: (params) => {
                 const isPending = params.row.status === 'pending';
-                if (!isPending) return null;
                 return (
                     <Box display="flex" alignItems="center" justifyContent="center" height="100%">
                         <Stack direction="row" spacing={1}>
-                            <Tooltip title="Approve">
+                            <Tooltip title="View Details">
                                 <IconButton
                                     size="small"
-                                    color="success"
-                                    onClick={() => handleApproveReject(params.row._id, 'approved')}
-                                    sx={{ border: '1px solid', borderColor: 'success.light' }}
+                                    color="info"
+                                    onClick={() => {
+                                        setViewLog(params.row);
+                                        setOpenViewDialog(true);
+                                    }}
+                                    sx={{ border: '1px solid', borderColor: 'info.light' }}
                                 >
-                                    <ThumbUp sx={{ fontSize: '1rem' }} />
+                                    <Visibility sx={{ fontSize: '1rem' }} />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title="Reject">
-                                <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleApproveReject(params.row._id, 'rejected')}
-                                    sx={{ border: '1px solid', borderColor: 'error.light' }}
-                                >
-                                    <ThumbDown sx={{ fontSize: '1rem' }} />
-                                </IconButton>
-                            </Tooltip>
+                            {isPending && (
+                                <>
+                                    <Tooltip title="Approve">
+                                        <IconButton
+                                            size="small"
+                                            color="success"
+                                            onClick={() => handleApproveReject(params.row._id, 'approved')}
+                                            sx={{ border: '1px solid', borderColor: 'success.light' }}
+                                        >
+                                            <ThumbUp sx={{ fontSize: '1rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Reject">
+                                        <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={() => handleApproveReject(params.row._id, 'rejected')}
+                                            sx={{ border: '1px solid', borderColor: 'error.light' }}
+                                        >
+                                            <ThumbDown sx={{ fontSize: '1rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                </>
+                            )}
                         </Stack>
                     </Box>
                 );
@@ -225,6 +254,22 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
         rejected: logs.filter((l: any) => l.status === 'rejected').length,
     };
 
+    const presentEmployees = React.useMemo(() => {
+        const latestLogs: Record<string, any> = {};
+        logs.forEach((log: any) => {
+            const empId = log.employee?._id || log.employee;
+            if (!empId) return;
+
+            // Find latest log for each employee
+            if (!latestLogs[empId] || new Date(log.timestamp) > new Date(latestLogs[empId].timestamp)) {
+                latestLogs[empId] = log;
+            }
+        });
+
+        // Return list of logs that are currently 'in'
+        return Object.values(latestLogs).filter((log: any) => log.type === 'in');
+    }, [logs]);
+
     return (
         <Box>
             <Card sx={{
@@ -233,24 +278,24 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
             }}>
                 <CardHeader
                     title={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-                            <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
+                            <Box sx={{ mb: { xs: 2, lg: 0 } }}>
                                 <Typography variant="h4" fontWeight="bold">Attendance Dashboard</Typography>
                                 <Typography color="text.secondary" variant="body2">Real-time attendance tracking and approvals</Typography>
                             </Box>
-                            <Stack direction="row" spacing={2} alignItems="center">
+                            <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ width: { xs: '100%', lg: 'auto' } }}>
                                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                                     <MUIDatePicker
                                         label="From"
                                         value={startDate}
                                         onChange={(newValue) => newValue && setStartDate(newValue)}
-                                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
+                                        slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
                                     />
                                     <MUIDatePicker
                                         label="To"
                                         value={endDate}
                                         onChange={(newValue) => newValue && setEndDate(newValue)}
-                                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
+                                        slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
                                     />
                                 </LocalizationProvider>
                                 <Button
@@ -259,10 +304,16 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                     onClick={() => refetch()}
                                     disabled={isLoading}
                                     size="small"
+                                    sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
                                 >
                                     Refresh
                                 </Button>
-                                <Button variant="contained" startIcon={<Download />} size="small">
+                                <Button
+                                    variant="contained"
+                                    startIcon={<Download />}
+                                    size="small"
+                                    sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
+                                >
                                     Export
                                 </Button>
                             </Stack>
@@ -273,22 +324,57 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     {/* Stats Section */}
                     <Grid container spacing={2} mb={4}>
                         {[
+                            {
+                                label: 'Present Now',
+                                value: presentEmployees.length,
+                                color: 'info.main',
+                                onClick: () => setOpenPresentDialog(true),
+                                cursor: 'pointer',
+                                action: 'View List'
+                            },
                             { label: 'Total Records', value: stats.total, color: 'primary.main' },
                             { label: 'Approved', value: stats.approved, color: 'success.main' },
                             { label: 'Pending Approval', value: stats.pending, color: 'warning.main' },
                             { label: 'Rejected', value: stats.rejected, color: 'error.main' }
                         ].map((stat, idx) => (
-                            <Grid item xs={12} sm={6} md={3} key={idx}>
-                                <Paper elevation={0} sx={{
-                                    p: 2,
-                                    bgcolor: stat.color,
-                                    color: 'white',
-                                    borderRadius: 2,
-                                    display: 'flex',
-                                    flexDirection: 'column'
-                                }}>
-                                    <Typography variant="overline" sx={{ opacity: 0.8, lineHeight: 1.2 }}>{stat.label}</Typography>
-                                    <Typography variant="h4" fontWeight="bold">{stat.value}</Typography>
+                            <Grid item xs={12} sm={6} md={2.4} key={idx}>
+                                <Paper
+                                    elevation={0}
+                                    onClick={stat.onClick}
+                                    sx={{
+                                        p: 2,
+                                        bgcolor: stat.color,
+                                        color: 'white',
+                                        borderRadius: 2,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        cursor: stat.cursor || 'default',
+                                        transition: 'all 0.2s',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': stat.cursor ? { transform: 'translateY(-2px)', boxShadow: 3 } : {}
+                                    }}>
+                                    <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                                        <Box>
+                                            <Typography variant="overline" sx={{ opacity: 0.8, lineHeight: 1.2 }}>{stat.label}</Typography>
+                                            <Typography variant="h4" fontWeight="bold">{stat.value}</Typography>
+                                        </Box>
+                                        {(stat as any).action && (
+                                            <Chip
+                                                size="small"
+                                                label={(stat as any).action}
+                                                icon={<Visibility sx={{ fontSize: '1rem !important', color: 'inherit !important' }} />}
+                                                sx={{
+                                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                                    color: 'white',
+                                                    fontWeight: 'bold',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
                                 </Paper>
                             </Grid>
                         ))}
@@ -332,6 +418,161 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     </Box>
                 </CardContent>
             </Card>
+
+            <Dialog
+                open={openPresentDialog}
+                onClose={() => setOpenPresentDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                    Who's Present Now? ({presentEmployees.length})
+                </DialogTitle>
+                <DialogContent sx={{ p: 0 }}>
+                    {presentEmployees.length > 0 ? (
+                        <List>
+                            {presentEmployees.map((log: any) => (
+                                <React.Fragment key={log._id}>
+                                    <ListItem>
+                                        <ListItemAvatar>
+                                            <Avatar sx={{ bgcolor: 'primary.main' }}>
+                                                {log.employee?.name?.charAt(0) || '?'}
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText
+                                            primary={log.employee?.name || 'Unknown Log'}
+                                            secondary={
+                                                <Box component="span" display="flex" flexDirection="column">
+                                                    <Typography variant="body2" component="span" color="text.secondary">
+                                                        Clocked in at {dayjs(log.timestamp).format("hh:mm A")}
+                                                    </Typography>
+                                                    {log.location?.isVerified && (
+                                                        <Box component="span" display="flex" alignItems="center" gap={0.5} mt={0.5}>
+                                                            <CheckCircle color="success" sx={{ fontSize: 14 }} />
+                                                            <Typography variant="caption" color="success.main">Verified Location</Typography>
+                                                        </Box>
+                                                    )}
+                                                </Box>
+                                            }
+                                        />
+                                        <ListItemSecondaryAction>
+                                            <Chip label="ONLINE" color="success" size="small" variant="outlined" />
+                                        </ListItemSecondaryAction>
+                                    </ListItem>
+                                    <Divider variant="inset" component="li" />
+                                </React.Fragment>
+                            ))}
+                        </List>
+                    ) : (
+                        <Box p={4} textAlign="center">
+                            <Typography color="text.secondary">No active employees found currently.</Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* View Record Details Dialog */}
+            <Dialog
+                open={openViewDialog}
+                onClose={() => setOpenViewDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                    Attendance Record Details
+                </DialogTitle>
+                <DialogContent sx={{ pt: 3 }}>
+                    {viewLog && (
+                        <Grid container spacing={2} sx={{ mt: 1 }}>
+                            <Grid item xs={12}>
+                                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                                    <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
+                                        {viewLog.employee?.name?.charAt(0)}
+                                    </Avatar>
+                                    <Box>
+                                        <Typography variant="h6" fontWeight="bold">
+                                            {viewLog.employee?.name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Member No: {viewLog.employee?.memberNo || 'N/A'}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                <Divider sx={{ mb: 2 }} />
+                            </Grid>
+
+                            <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">Type</Typography>
+                                <Box mt={0.5}>
+                                    <Chip
+                                        label={viewLog.type?.toUpperCase()}
+                                        color={viewLog.type === 'in' ? "success" : "warning"}
+                                        size="small"
+                                        variant="filled"
+                                        sx={{ fontWeight: 'bold' }}
+                                    />
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">Status</Typography>
+                                <Box mt={0.5}>
+                                    <Chip
+                                        label={(viewLog.status || 'approved').toUpperCase()}
+                                        color={viewLog.status === 'pending' ? "warning" : viewLog.status === 'rejected' ? "error" : "success"}
+                                        size="small"
+                                        variant="filled"
+                                        sx={{ fontWeight: 'bold' }}
+                                    />
+                                </Box>
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="caption" color="text.secondary">Date</Typography>
+                                <Typography variant="body1" fontWeight="500">
+                                    {dayjs(viewLog.timestamp).format("dddd, MMM D, YYYY")}
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="caption" color="text.secondary">Time</Typography>
+                                <Typography variant="body1" fontWeight="500">
+                                    {dayjs(viewLog.timestamp).format("hh:mm:ss A")}
+                                </Typography>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <Divider sx={{ my: 1 }} />
+                                <Typography variant="subtitle2" gutterBottom sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <LocationOn fontSize="small" color="action" /> Location Details
+                                </Typography>
+                                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover' }}>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                        <Typography variant="body2" color="text.secondary">Verification:</Typography>
+                                        {viewLog.location?.isVerified ? (
+                                            <Chip label="Verified In Range" color="success" size="small" icon={<CheckCircle />} />
+                                        ) : (
+                                            <Chip label="Outside Range / Unverified" color="error" size="small" icon={<Cancel />} />
+                                        )}
+                                    </Box>
+                                    <Stack spacing={1}>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="caption" color="text.secondary">Latitude:</Typography>
+                                            <Typography variant="body2" fontFamily="monospace">{viewLog.location?.lat || 'N/A'}</Typography>
+                                        </Box>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="caption" color="text.secondary">Longitude:</Typography>
+                                            <Typography variant="body2" fontFamily="monospace">{viewLog.location?.lng || 'N/A'}</Typography>
+                                        </Box>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="caption" color="text.secondary">Accuracy:</Typography>
+                                            <Typography variant="body2" fontFamily="monospace">{viewLog.location?.accuracy ? `±${Math.round(viewLog.location.accuracy)}m` : 'N/A'}</Typography>
+                                        </Box>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Box>
     );
 };

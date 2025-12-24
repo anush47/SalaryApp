@@ -44,6 +44,28 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
     const [currentTime, setCurrentTime] = useState(dayjs());
+    const [locationStatus, setLocationStatus] = useState<{
+        isInside: boolean;
+        distance: number | null;
+        error: string | null;
+        fetching: boolean;
+    }>({ isInside: false, distance: null, error: null, fetching: true });
+
+    // Haversine formula to calculate distance in meters
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ1) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; // Distance in meters
+    };
 
     // Update time every second
     useEffect(() => {
@@ -64,6 +86,104 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             return employees[0];
         }
     });
+
+    const effectiveConfig = useMemo(() => {
+        if (!employee) return null;
+
+        const companyConfig = employee.company?.attendanceConfig || {};
+        const employeeOverrides = employee.attendanceOverrides || {};
+        const isOverrideEnabled = employee.attendanceOverrides?.enabled;
+
+        // Base config: Default to company config
+        // Assuming the logic is: If override enabled, use override settings.
+        // If not, use company settings.
+        // However, checks like 'pwaCheckIn' are boolean flags.
+        // Let's deduce the specific Geofencing requirement:
+
+        let geoConfig = companyConfig.geoFencing || {};
+        let allowRemote = companyConfig.allowRemoteCheckIn;
+
+        if (isOverrideEnabled) {
+            // If employee overrides are enabled, check if specific geo-fencing override is populated/enabled
+            // Note: The schema shows `attendanceOverrides.geoFencing` exists.
+            if (employeeOverrides.geoFencing) {
+                geoConfig = employeeOverrides.geoFencing;
+            }
+            if (employeeOverrides.allowRemoteCheckIn !== undefined) {
+                allowRemote = employeeOverrides.allowRemoteCheckIn;
+            }
+        }
+
+        return {
+            geoFencing: geoConfig,
+            allowRemoteCheckIn: allowRemote
+        };
+    }, [employee]);
+
+    const companyLocation = useMemo(() => {
+        if (!effectiveConfig) return null;
+
+        const { geoFencing } = effectiveConfig;
+
+        // Use coordinates from the active configuration (Company or Employee Override)
+        return {
+            lat: geoFencing.latitude,
+            lng: geoFencing.longitude,
+            radius: geoFencing.radiusMeters || 100 // Default 100m radius if not set
+        };
+    }, [effectiveConfig]);
+
+    // 2. Watch User Location
+    // Only verify location if:
+    // 1. Geofencing is ENABLED
+    // 2. Remote Check-In is DISABLED (Remote means work from anywhere, so no geofence)
+    const shouldVerifyLocation = effectiveConfig?.geoFencing?.enabled && !effectiveConfig?.allowRemoteCheckIn;
+
+    useEffect(() => {
+        // If verification is not required, reset status and return
+        if (!shouldVerifyLocation) {
+            setLocationStatus(prev => ({ ...prev, isInside: true, error: null, fetching: false, distance: null }));
+            return;
+        }
+
+        if (!companyLocation?.lat || !companyLocation?.lng) {
+            setLocationStatus(prev => ({
+                ...prev,
+                error: "Location coordinates not configured.",
+                fetching: false
+            }));
+            return;
+        }
+
+
+        if (!navigator.geolocation) {
+            setLocationStatus(prev => ({ ...prev, error: "Geolocation not supported", fetching: false }));
+            return;
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                const distance = calculateDistance(latitude, longitude, companyLocation.lat, companyLocation.lng);
+                const isInside = distance <= companyLocation.radius;
+
+                setLocationStatus({
+                    isInside,
+                    distance,
+                    error: null,
+                    fetching: false
+                });
+            },
+            (error) => {
+                let msg = "Unable to retrieve location";
+                if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied";
+                setLocationStatus(prev => ({ ...prev, error: msg, fetching: false }));
+            },
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+        );
+
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, [companyLocation]);
 
     const companyId = employee?.company?._id || employee?.company;
     const todayStr = dayjs().format("YYYY-MM-DD");
@@ -232,9 +352,44 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                         Check Out
                                     </LoadingButton>
                                 </Stack>
-                                <Alert severity="info" sx={{ borderRadius: 2 }} icon={<LocationOn />}>
-                                    Location verification is active. Ensure GPS is enabled.
-                                </Alert>
+
+                                {/* Location Status Indicator - Only Show if Verification is Required */}
+                                {shouldVerifyLocation && (
+                                    <Box sx={{
+                                        p: 2,
+                                        borderRadius: 2,
+                                        bgcolor: locationStatus.fetching ? 'action.hover' : locationStatus.error ? 'error.lighter' : locationStatus.isInside ? 'success.lighter' : 'error.lighter',
+                                        border: '1px solid',
+                                        borderColor: locationStatus.fetching ? 'divider' : locationStatus.error ? 'error.light' : locationStatus.isInside ? 'success.light' : 'error.light',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 2
+                                    }}>
+                                        {locationStatus.fetching ? (
+                                            <>
+                                                <CircularProgress size={20} />
+                                                <Typography variant="body2">Locating...</Typography>
+                                            </>
+                                        ) : locationStatus.error ? (
+                                            <>
+                                                <LocationOn color="error" />
+                                                <Typography variant="body2" color="error.main" fontWeight="bold">{locationStatus.error}</Typography>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LocationOn color={locationStatus.isInside ? "success" : "error"} />
+                                                <Box>
+                                                    <Typography variant="body2" fontWeight="bold" color={locationStatus.isInside ? "success.main" : "error.main"}>
+                                                        {locationStatus.isInside ? "Inside Office Radius" : "Outside Office Radius"}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Distance: {locationStatus.distance?.toFixed(0)}m {companyLocation?.radius ? `(Allowed: ${companyLocation.radius}m)` : ''}
+                                                    </Typography>
+                                                </Box>
+                                            </>
+                                        )}
+                                    </Box>
+                                )}
                             </Paper>
                         </Stack>
                     </Grid>
@@ -308,8 +463,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                         </Paper>
                     </Grid>
                 </Grid>
-            </CardContent>
-        </Card>
+            </CardContent >
+        </Card >
     );
 };
 
