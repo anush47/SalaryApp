@@ -38,7 +38,8 @@ import {
     ThumbUp,
     ThumbDown,
     HourglassEmpty,
-    Visibility
+    Visibility,
+    PhoneIphone
 } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAttendanceLogs } from "@/app/lib/api/attendanceApi";
@@ -472,6 +473,14 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                                             <Typography variant="caption" color="success.main">Verified Location</Typography>
                                                         </Box>
                                                     )}
+                                                    {log.deviceDetails && (
+                                                        <Box component="span" display="flex" alignItems="center" gap={0.5} mt={0.5}>
+                                                            <PhoneIphone color="action" sx={{ fontSize: 14 }} />
+                                                            <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 200, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {log.deviceDetails}
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
                                                 </Box>
                                             }
                                         />
@@ -621,11 +630,38 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                     </Stack>
                                 </Paper>
                             </Grid>
+
+                            <Grid item xs={12}>
+                                {viewLog.deviceDetails && (
+                                    <>
+                                        <Divider sx={{ my: 1 }} />
+                                        <Typography variant="subtitle2" gutterBottom sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <PhoneIphone fontSize="small" color="action" /> Device Information
+                                        </Typography>
+                                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover' }}>
+                                            <Stack spacing={1}>
+                                                <Box>
+                                                    <Typography variant="caption" color="text.secondary">Device / Browser</Typography>
+                                                    <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                                        {viewLog.deviceDetails}
+                                                    </Typography>
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="caption" color="text.secondary">Device Token</Typography>
+                                                    <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all', fontSize: '0.75rem' }}>
+                                                        {viewLog.deviceId || 'N/A'}
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                        </Paper>
+                                    </>
+                                )}
+                            </Grid>
                         </Grid>
                     )}
                 </DialogContent>
             </Dialog>
-        </Box>
+        </Box >
     );
 };
 

@@ -54,7 +54,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         distance: number | null;
         error: string | null;
         fetching: boolean;
-        coords: { latitude: number; longitude: number } | null;
+        coords: { latitude: number; longitude: number; accuracy: number } | null;
     }>({ isInside: false, distance: null, error: null, fetching: true, coords: null });
 
     // Haversine formula to calculate distance in meters
@@ -238,7 +238,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                     distance: minDistance,
                     error: null,
                     fetching: false,
-                    coords: { latitude, longitude }
+                    coords: { latitude, longitude, accuracy: position.coords.accuracy }
                 });
             },
             (error) => {
@@ -294,36 +294,84 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
 
         setLoading(true);
 
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const { latitude, longitude, accuracy } = position.coords;
+        // Helper to get location with timeout and fallback
+        const getLocation = (): Promise<{ lat: number, lng: number, accuracy: number } | null> => {
+            return new Promise((resolve, reject) => {
+                // Return cached location if available immediately? 
+                // Better to try fresh first, but if it fails, use cached.
 
-                try {
-                    const res = await markAttendance({
-                        type,
-                        location: { lat: latitude, lng: longitude, accuracy }
-                    });
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        });
+                    },
+                    (error) => {
+                        console.warn("Geolocation error:", error);
+                        // If watchPosition has a location, use it as fallback
+                        if (locationStatus.coords) {
+                            console.log("Using cached location from watchPosition");
+                            resolve({
+                                lat: locationStatus.coords.latitude,
+                                lng: locationStatus.coords.longitude,
+                                accuracy: (locationStatus.coords as any).accuracy || 20
+                            });
+                        } else {
+                            if (isVerificationRequired) {
+                                reject(error);
+                            } else {
+                                resolve(null); // Proceed without location if not required
+                            }
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 } // Reduced timeout, allow slightly older cache
+                );
+            });
+        };
 
-                    if (res.success) {
-                        showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
-                        refetchLogs();
-                    } else {
-                        showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
-                    }
-                } catch (error) {
-                    showSnackbar({ message: "An error occurred", severity: "error" });
-                } finally {
-                    setLoading(false);
+        getLocation().then(async (location) => {
+            // Device ID Logic
+            let deviceId = localStorage.getItem("attendance_device_id");
+            if (!deviceId) {
+                deviceId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+                localStorage.setItem("attendance_device_id", deviceId);
+            }
+            const deviceDetails = navigator.userAgent || "Unknown Device";
+
+            try {
+                // Construct payload
+                const payload: any = { type, deviceId, deviceDetails };
+                if (location) {
+                    payload.location = location;
+                } else {
+                    // If no location and verification not required, send dummy/empty location or handle in API?
+                    // The API schema expects location. Let's send 0,0 if allowed, or handle API side?
+                    // Checking API service: createAttendance expects location object.
+                    // We should send 0,0 if not available but authorized.
+                    payload.location = { lat: 0, lng: 0, accuracy: 0 };
                 }
-            },
-            (error) => {
+
+                const res = await markAttendance(payload);
+
+                if (res.success) {
+                    showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
+                    refetchLogs();
+                } else {
+                    showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
+                }
+            } catch (error) {
+                showSnackbar({ message: "An error occurred", severity: "error" });
+            } finally {
                 setLoading(false);
-                let msg = "Unable to retrieve your location";
-                if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied. Please allow location access.";
-                showSnackbar({ message: msg, severity: "error" });
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+            }
+        }).catch((error: GeolocationPositionError) => {
+            setLoading(false);
+            let msg = "Unable to retrieve your location";
+            if (error.code === 1) msg = "Location permission denied. Please allow location access."; // 1 is PERMISSION_DENIED
+            showSnackbar({ message: msg, severity: "error" });
+        });
     };
 
     if (loadingEmployee) {
@@ -377,17 +425,49 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                 background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
                                 color: "white",
                                 textAlign: "center",
-                                py: 6,
+                                py: 4,
                                 borderRadius: 4,
                                 boxShadow: '0 8px 32px rgba(25, 118, 210, 0.2)'
                             }}>
-                                <AccessTime sx={{ fontSize: 80, mb: 1, opacity: 0.9 }} />
-                                <Typography variant="h1" fontWeight="bold" sx={{ letterSpacing: -2 }}>
+                                <AccessTime sx={{ fontSize: 50, mb: 1, opacity: 0.9 }} />
+                                <Typography variant="h2" fontWeight="bold" sx={{ letterSpacing: -2 }}>
                                     {currentTime.format("HH:mm:ss")}
                                 </Typography>
-                                <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                                <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
                                     {currentTime.format("dddd, D MMMM YYYY")}
                                 </Typography>
+
+                                {/* Show Check-in Time if Clocked In */}
+                                {isClockedIn && lastLog && (
+                                    <Box mt={2} bgcolor="rgba(255,255,255,0.15)" borderRadius={2} p={1} mx={4}>
+                                        <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                                            CHECKED IN AT
+                                        </Typography>
+                                        <Typography variant="h6" fontWeight="bold">
+                                            {dayjs(lastLog.timestamp).format("hh:mm A")}
+                                        </Typography>
+
+                                        {/* Duration Timer */}
+                                        <Box mt={1} pt={1} borderTop="1px solid rgba(255,255,255,0.2)">
+                                            <Typography variant="caption" sx={{ opacity: 0.8, display: 'block' }}>
+                                                DURATION
+                                            </Typography>
+                                            <Typography variant="h5" fontFamily="monospace" fontWeight="bold" sx={{ letterSpacing: 1 }}>
+                                                {(() => {
+                                                    const diff = currentTime.diff(dayjs(lastLog.timestamp));
+                                                    // Check for negative duration (if log time is slightly in future due to server skew)
+                                                    if (diff < 0) return "00:00:00";
+
+                                                    const h = Math.floor(diff / 3600000);
+                                                    const m = Math.floor((diff % 3600000) / 60000);
+                                                    const s = Math.floor((diff % 60000) / 1000);
+
+                                                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                                                })()}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                )}
                             </Paper>
 
                             {/* Actions Card */}

@@ -15,6 +15,7 @@ export const attendanceCreateSchema = z.object({
         accuracy: z.number(),
     }),
     deviceId: z.string().optional(),
+    deviceDetails: z.string().optional(),
 });
 
 export const externalAttendanceSchema = z.object({
@@ -54,7 +55,10 @@ export class AttendanceService {
             throw new ForbiddenError("Only employees can check in/out via this API.");
         }
 
-        const { type, location, deviceId } = attendanceCreateSchema.parse(body);
+        const { type, location, deviceId, deviceDetails } = attendanceCreateSchema.parse(body);
+
+        // DEBUG: Temporary verify data receipt
+        // throw new BadRequestError(`DEBUG: ID=${deviceId?.slice(0, 5)} DETAILS=${deviceDetails?.slice(0, 20)}`);
 
         const employee = await Employee.findOne({ user: context.user.id });
         if (!employee) {
@@ -149,7 +153,8 @@ export class AttendanceService {
                 ...location,
                 isVerified
             },
-            deviceId
+            deviceId,
+            deviceDetails
         });
 
         return attendance;

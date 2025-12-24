@@ -3,6 +3,8 @@ import { ApiResponse } from '@/app/lib/apiResponse';
 export const markAttendance = async (data: {
     type: 'in' | 'out';
     location: { lat: number; lng: number; accuracy: number };
+    deviceId?: string;
+    deviceDetails?: string;
 }): Promise<ApiResponse> => {
     const response = await fetch('/api/attendance', {
         method: 'POST',

@@ -1,4 +1,5 @@
 import { Schema, model, models, Document } from "mongoose";
+// Force Recompile
 
 export interface IAttendance extends Document {
     company: Schema.Types.ObjectId;
@@ -15,6 +16,7 @@ export interface IAttendance extends Document {
         isVerified: boolean; // True if within radius
     };
     deviceId?: string;
+    deviceDetails?: string;
 
     // External Machine Data (Optional)
     externalMachineId?: string;
@@ -60,6 +62,9 @@ const attendanceSchema = new Schema<IAttendance>(
             isVerified: Boolean,
         },
         deviceId: {
+            type: String,
+        },
+        deviceDetails: {
             type: String,
         },
         externalMachineId: {
