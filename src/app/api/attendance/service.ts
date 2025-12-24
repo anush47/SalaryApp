@@ -218,7 +218,8 @@ export class AttendanceService {
         return records;
     }
 
-    static async recordApproval(attendanceId: string, status: "approved" | "rejected", context: RequestContext) {
+    static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string) {
+        console.log(`[AttendanceService] recordApproval called for ID: ${attendanceId}, Status: ${status}, Timestamp: ${timestamp}`);
         await dbConnect();
 
         if (!context.user) throw new ForbiddenError("Auth required");
@@ -239,12 +240,52 @@ export class AttendanceService {
             }
         }
 
+        // Logic check: New timestamp cannot be earlier than the previous record of the employee
+        if (timestamp) {
+            const newDate = new Date(timestamp);
+            const prevRecord = await Attendance.findOne({
+                employee: attendance.employee,
+                timestamp: { $lt: attendance.timestamp },
+                _id: { $ne: attendance._id }
+            }).sort({ timestamp: -1 });
+
+            if (prevRecord && newDate < prevRecord.timestamp) {
+                throw new BadRequestError(`Cannot set time earlier than previous record (${prevRecord.timestamp.toLocaleString()})`);
+            }
+            console.log(`[AttendanceService] Updating timestamp to: ${timestamp}`);
+            attendance.timestamp = newDate;
+        }
+
         attendance.status = status;
         attendance.approvedBy = context.user.id;
         attendance.approvedAt = new Date();
         await attendance.save();
+        console.log(`[AttendanceService] Successfully saved attendance record: ${attendanceId}`);
 
         return attendance;
+    }
+
+    static async deleteAttendance(attendanceId: string, context: RequestContext) {
+        await dbConnect();
+
+        if (!context.user) throw new ForbiddenError("Auth required");
+
+        const attendance = await Attendance.findById(attendanceId);
+        if (!attendance) throw new NotFoundError("Attendance record not found");
+
+        // Authorization check: Only employers, admins, or managers can delete
+        const isEmployer = context.user.role === 'employer' || context.user.role === 'admin';
+        if (!isEmployer) {
+            const currentEmployee = await Employee.findOne({ user: context.user.id });
+            const targetEmployee = await Employee.findById(attendance.employee);
+
+            if (!currentEmployee || !targetEmployee || targetEmployee.manager?.toString() !== currentEmployee._id.toString()) {
+                throw new ForbiddenError("You are not authorized to delete this record");
+            }
+        }
+
+        await Attendance.findByIdAndDelete(attendanceId);
+        return { success: true };
     }
 
     // Integration with Salary Generation

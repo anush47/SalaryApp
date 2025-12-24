@@ -25,7 +25,8 @@ import {
     ListItemAvatar,
     ListItemText,
     ListItemSecondaryAction,
-    Divider
+    Divider,
+    DialogActions
 } from "@mui/material";
 import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import {
@@ -42,9 +43,10 @@ import {
     PhoneIphone
 } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAttendanceLogs } from "@/app/lib/api/attendanceApi";
+import { getAttendanceLogs, updateAttendanceStatus, deleteAttendance } from "@/app/lib/api/attendanceApi";
 import { fetchCompany } from "@/app/lib/api/companyApi";
 import dynamic from 'next/dynamic';
+import { Delete } from "@mui/icons-material";
 
 
 
@@ -53,6 +55,7 @@ import dayjs from "dayjs";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker as MUIDatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import Link from "next/link";
 
@@ -67,6 +70,17 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [openPresentDialog, setOpenPresentDialog] = useState(false);
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
+    const [tempStatus, setTempStatus] = useState<string>("");
+    const [tempTimestamp, setTempTimestamp] = useState<dayjs.Dayjs | null>(null);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
+
+    const hasChanged = viewLog && (
+        tempStatus !== (viewLog.status || 'approved') ||
+        !dayjs(tempTimestamp).isSame(dayjs(viewLog.timestamp))
+    );
+
+
 
     // Fetch Company Details for Map Geofence
     const { data: companyData } = useQuery({
@@ -90,6 +104,60 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     });
 
     const logs = logsResponse?.success ? logsResponse.data : [];
+
+    const prevLogForEmployee = React.useMemo(() => {
+        if (!viewLog || !logs) return null;
+        // In logs array (sorted desc), the previous record is the next one in the array with same employee and earlier timestamp
+        return logs.find((log: any) =>
+            log.employee?._id === viewLog.employee?._id &&
+            new Date(log.timestamp) < new Date(viewLog.timestamp)
+        );
+    }, [viewLog, logs]);
+
+    const minDateTime = prevLogForEmployee ? dayjs(prevLogForEmployee.timestamp) : undefined;
+
+    const handleUpdateRecord = async () => {
+        if (!viewLog) return;
+        setIsUpdating(true);
+        try {
+            const res = await updateAttendanceStatus(
+                viewLog._id,
+                tempStatus as any,
+                tempTimestamp?.toISOString()
+            );
+            if (res.success) {
+                showSnackbar({ message: "Record updated successfully", severity: "success" });
+                queryClient.invalidateQueries({ queryKey: ["companyAttendanceLogs"] });
+                setOpenViewDialog(false);
+            } else {
+                showSnackbar({ message: res.error?.message || "Failed to update record", severity: "error" });
+            }
+        } catch (err) {
+            showSnackbar({ message: "An error occurred", severity: "error" });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleDeleteRecord = async () => {
+        if (!viewLog) return;
+
+        setIsUpdating(true);
+        try {
+            const res = await deleteAttendance(viewLog._id);
+            if (res.success) {
+                showSnackbar({ message: "Record deleted successfully", severity: "success" });
+                queryClient.invalidateQueries({ queryKey: ["companyAttendanceLogs"] });
+                setOpenViewDialog(false);
+            } else {
+                showSnackbar({ message: res.error?.message || "Failed to delete record", severity: "error" });
+            }
+        } catch (err) {
+            showSnackbar({ message: "An error occurred", severity: "error" });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const handleApproveReject = async (id: string, status: 'approved' | 'rejected') => {
         try {
@@ -230,6 +298,8 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                     color="info"
                                     onClick={() => {
                                         setViewLog(params.row);
+                                        setTempStatus(params.row.status || 'approved');
+                                        setTempTimestamp(dayjs(params.row.timestamp));
                                         setOpenViewDialog(true);
                                     }}
                                     sx={{ border: '1px solid', borderColor: 'info.light' }}
@@ -545,27 +615,49 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             <Grid item xs={6}>
                                 <Typography variant="caption" color="text.secondary">Status</Typography>
                                 <Box mt={0.5}>
-                                    <Chip
-                                        label={(viewLog.status || 'approved').toUpperCase()}
-                                        color={viewLog.status === 'pending' ? "warning" : viewLog.status === 'rejected' ? "error" : "success"}
+                                    <TextField
+                                        select
                                         size="small"
-                                        variant="filled"
-                                        sx={{ fontWeight: 'bold' }}
-                                    />
+                                        fullWidth
+                                        value={tempStatus}
+                                        onChange={(e) => setTempStatus(e.target.value)}
+                                        variant="outlined"
+                                        SelectProps={{ native: true }}
+                                        sx={{
+                                            '& .MuiSelect-select': {
+                                                py: 0.5,
+                                                fontSize: '0.875rem',
+                                                fontWeight: 'bold',
+                                                color: (tempStatus === 'pending' ? 'warning.main' : tempStatus === 'rejected' ? 'error.main' : 'success.main')
+                                            }
+                                        }}
+                                    >
+                                        <option value="approved">APPROVED</option>
+                                        <option value="pending">PENDING</option>
+                                        <option value="rejected">REJECTED</option>
+                                    </TextField>
                                 </Box>
                             </Grid>
 
-                            <Grid item xs={12} sm={6}>
-                                <Typography variant="caption" color="text.secondary">Date</Typography>
-                                <Typography variant="body1" fontWeight="500">
-                                    {dayjs(viewLog.timestamp).format("dddd, MMM D, YYYY")}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <Typography variant="caption" color="text.secondary">Time</Typography>
-                                <Typography variant="body1" fontWeight="500">
-                                    {dayjs(viewLog.timestamp).format("hh:mm:ss A")}
-                                </Typography>
+                            <Grid item xs={12}>
+                                <Typography variant="caption" color="text.secondary">Attendance Time</Typography>
+                                <Box mt={0.5}>
+                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                        <DateTimePicker
+                                            value={tempTimestamp}
+                                            onChange={(newValue) => setTempTimestamp(newValue)}
+                                            minDateTime={minDateTime}
+                                            slotProps={{
+                                                textField: {
+                                                    size: 'small',
+                                                    fullWidth: true,
+                                                    variant: 'outlined',
+                                                    helperText: minDateTime ? `Cannot be earlier than ${minDateTime.format('MMM DD, hh:mm A')}` : undefined
+                                                }
+                                            }}
+                                        />
+                                    </LocalizationProvider>
+                                </Box>
                             </Grid>
 
                             <Grid item xs={12}>
@@ -660,6 +752,73 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                         </Grid>
                     )}
                 </DialogContent>
+                <Divider />
+                <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+                    <Box>
+                        <Button
+                            onClick={() => setOpenDeleteConfirm(true)}
+                            color="error"
+                            startIcon={<Delete />}
+                            disabled={isUpdating}
+                        >
+                            Delete
+                        </Button>
+                    </Box>
+                    <Stack direction="row" spacing={1}>
+                        <Button
+                            onClick={() => setOpenViewDialog(false)}
+                            color="inherit"
+                            disabled={isUpdating}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleUpdateRecord}
+                            variant="outlined"
+                            color="primary"
+                            disabled={isUpdating || !hasChanged}
+                        >
+                            {isUpdating ? "Updating..." : "Update Record"}
+                        </Button>
+                    </Stack>
+                </DialogActions>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={openDeleteConfirm}
+                onClose={() => setOpenDeleteConfirm(false)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+                    <Delete /> Confirm Deletion
+                </DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete this attendance record for <strong>{viewLog?.employee?.name}</strong>?
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        This action cannot be undone and will permanently remove this record from the system.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setOpenDeleteConfirm(false)} color="inherit" disabled={isUpdating}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={async () => {
+                            await handleDeleteRecord();
+                            setOpenDeleteConfirm(false);
+                        }}
+                        variant="contained"
+                        color="error"
+                        autoFocus
+                        disabled={isUpdating}
+                    >
+                        {isUpdating ? "Deleting..." : "Permanently Delete"}
+                    </Button>
+                </DialogActions>
             </Dialog>
         </Box >
     );
