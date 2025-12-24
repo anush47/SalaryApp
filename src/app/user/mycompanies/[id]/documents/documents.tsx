@@ -57,7 +57,7 @@ const Documents = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [customSalaries, setCustomSalaries] = useState<boolean>(false);
   const [rowSelectionModel, setRowSelectionModel] =
-    React.useState<GridRowSelectionModel>([]);
+    React.useState<GridRowSelectionModel>([] as any);
   const { showSnackbar } = useSnackbar();
 
   const { data: purchased, isLoading: isCheckingPurchase } = useQuery<

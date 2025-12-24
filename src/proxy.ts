@@ -12,7 +12,7 @@ import { getToken } from "next-auth/jwt";
  * - Employee permission check (canLogin must be true)
  * - Automatic redirection for unauthorized access
  */
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   // Get the token (includes user data: id, email, role, isActive, etc.)
   const token = await getToken({
     req,

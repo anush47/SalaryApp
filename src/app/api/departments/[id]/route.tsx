@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { ApiMiddleware } from "@/app/lib/apiMiddleware";
 import { DepartmentService } from "../service";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   // Pass params to the service via context or modify middleware to pass params
   // ApiMiddleware passes 'context' which is RequestContext.
   // I need to make sure 'params' are available.
@@ -11,6 +12,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   return ApiMiddleware.execute(req, async (req, context) => {
     // Inject params into context or pass directly
-    return DepartmentService.getDepartmentById(req, { ...context, params });
+    return DepartmentService.getDepartmentById(req, { ...context, params: { id } });
   }, { requireAuth: true });
 }
