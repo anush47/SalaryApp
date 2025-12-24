@@ -23,7 +23,7 @@
     "@mui/x-date-pickers": "^7.13.0",
     "@tanstack/react-query": "^5.83.0",
     "@vercel/speed-insights": "^1.1.0",
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "dayjs": "^1.11.12",
     "dotenv": "^16.4.5",
     "framer-motion": "^12.15.0",
@@ -42,7 +42,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
     "@types/mongoose": "^5.11.97",
     "@types/node": "^20",
     "@types/react": "^18",

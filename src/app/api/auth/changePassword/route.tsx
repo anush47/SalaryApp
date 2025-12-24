@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/db";
 import User from "@/app/models/User";
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
 import { options } from "@/app/api/auth/[...nextauth]/options";
 import { z } from "zod";

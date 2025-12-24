@@ -255,7 +255,7 @@ export default function HomePageClient() {
           </FadeInUp>
 
           <FadeInUp delay={0.3}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center">
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center" alignItems="center">
               <Link
                 href={
                   session
@@ -264,7 +264,7 @@ export default function HomePageClient() {
                       : "/user?userPageSelect=mycompanies"
                     : "/api/auth/signin"
                 }
-                style={{ width: '100%' }} // Ensure Link takes full width on mobile
+                style={{ width: isSmallScreen ? "100%" : "auto", textDecoration: "none" }}
               >
                 <Button
                   variant="contained"

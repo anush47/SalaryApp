@@ -4,7 +4,7 @@ import { options } from "../../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import Employee from "@/app/models/Employee";
 import User from "@/app/models/User";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 // POST /api/employees/enable-login
 // Creates a User account for an employee to enable login

@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/db";
 import User from "@/app/models/User";
 import Company from "@/app/models/Company";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { isGoogleOAuthUser } from "@/app/lib/authHelpers";
 import {
     getPaginationParams,

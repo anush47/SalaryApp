@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import User from "@/app/models/User";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import dbConnect from "@/app/lib/db";
 import { isBcryptHash, isGoogleOAuthUser, generateSecureRandomPassword } from "@/app/lib/authHelpers";
 
