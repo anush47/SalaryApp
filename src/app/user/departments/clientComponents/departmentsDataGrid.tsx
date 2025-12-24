@@ -106,13 +106,17 @@ const DepartmentsDataGrid: React.FC<{
   });
 
   // Fetch employees for manager dropdown
-  const { data: employees } = useQuery<Employee[], Error>({
+  const { data: employeesResult } = useQuery({
     queryKey: ["employees", selectedCompanyId],
     queryFn: () => fetchEmployees({ companyId: selectedCompanyId! }),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     enabled: !!selectedCompanyId,
   });
+
+  const employees = Array.isArray(employeesResult)
+    ? employeesResult
+    : (employeesResult as any)?.employees || [];
 
   // Form state for new department
   const [newDepartment, setNewDepartment] = useState({

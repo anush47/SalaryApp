@@ -11,7 +11,8 @@ export async function fetchEmployees(params: {
   companyId?: string;
   user?: string;
   page?: number;
-  limit?: number
+  limit?: number;
+  search?: string;
 } = {}) {
   const queryParams = new URLSearchParams();
 
@@ -20,6 +21,7 @@ export async function fetchEmployees(params: {
   if (params.user) queryParams.append('user', params.user);
   if (params.page) queryParams.append('page', params.page.toString());
   if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.search) queryParams.append('search', params.search);
 
   const url = `/api/employees?${queryParams.toString()}`;
   const response = await apiFetchRaw(url);

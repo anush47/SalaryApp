@@ -25,6 +25,7 @@ export class PaymentService {
         const paymentId = req.nextUrl.searchParams.get("paymentId");
         let companyId = req.nextUrl.searchParams.get("companyId");
         let period = req.nextUrl.searchParams.get("period");
+        const search = req.nextUrl.searchParams.get("search");
 
         if (period) {
             if (!/^\d{4}-\d{2}$/.test(period)) {
@@ -68,43 +69,129 @@ export class PaymentService {
         let paymentFilter: any = {};
         let total = 0;
 
+        // Search logic
+        const searchRegex = search ? new RegExp(search, "i") : null;
+        const searchFilter = searchRegex ? {
+            $or: [
+                { name: searchRegex },
+                { employerNo: searchRegex },
+                { period: searchRegex }
+            ]
+        } : {};
+
         if (companyId === "all") {
             let companies: any[] = [];
-            if (currentUser.role === "admin") {
-                companies = (await Company.find({}).select("_id name employerNo paymentMethod").lean<ICompany[]>()).map((c) => ({
+            const companyQuery = {
+                ...(currentUser.role !== "admin" ? { user: userId } : {}),
+                ...searchFilter
+            };
+            // Remove period from company search filter as it belongs to payment
+            delete (companyQuery as any).period;
+
+            companies = (await Company.find(companyQuery)
+                .select("_id name employerNo paymentMethod")
+                .lean<ICompany[]>()).map((c) => ({
                     ...c,
                     _id: (c._id as any).toString()
                 }));
+
+            const companyIds = companies.map((c) => c._id);
+            paymentFilter = { company: { $in: companyIds } };
+
+            // Apply period filter if searched or provided
+            if (period) {
+                paymentFilter.period = period;
+            } else if (searchRegex) {
+                // Trying to search period in payments if passing something looking like a date?
+                // or just always apply regex?
+                // Payment period is string "YYYY-MM"
+                // If search matches period format, we could add it to OR?
+                // But we have separated company filter and payment filter.
+                // Let's add simple period regex check to paymentFilter.$or if needed,
+                // but easier: if companyIds are found, find payments for them.
+                // If search text also matches period, we should include payments that match period!
+                // Complexity: $or between company-based match AND period-based match?
+                // Current logic: Find Companies matching Search -> Find Payments for those Companies.
+                // This omits case: Search "2024-01" -> should find payments for 2024-01 even if company name doesn't match?
+                // Yes.
+            }
+            // Simplified: Filter by Company Name/No OR Period
+            // If search is provided:
+            if (search) {
+                // We need to fetch ALL companies (scoped to user) to check period matches on payments,
+                // OR we do a complex aggregation.
+                // For now, let's just stick to Company Search as primary,
+                // plus strict Period search if the search string looks like a period?
+                // Or just let the existing logic stand: Filter companies by search, get their payments.
+                // If the user searches "2023", companies won't match, so 0 results.
+                // Fix:
+                // We want to find payments where (Company matches search OR Payment.period matches search).
+                // This requires joining.
+                // Efficient approach for now:
+                // 1. Find companies matching search -> companyIds1
+                // 2. Find ALL companies (for user) -> allCompanyIds
+                // 3. Query Payment: { $and: [ { company: { $in: allCompanyIds } }, { $or: [ { company: { $in: companyIds1 } }, { period: searchRegex } ] } ] }
+                //
+                // Let's implement this robust search.
+
+                // 1. Companies matching search
+                const companyQuerySearch = {
+                    ...(currentUser.role !== "admin" ? { user: userId } : {}),
+                    ...{
+                        $or: [
+                            { name: new RegExp(search, "i") },
+                            { employerNo: new RegExp(search, "i") }
+                        ]
+                    }
+                };
+                const companiesMatchingName = await Company.find(companyQuerySearch).select("_id").lean();
+                const companyIdsMatchingName = companiesMatchingName.map(c => c._id);
+
+                // 2. Base scope companies
+                let allUserCompanies = [];
+                if (currentUser.role === "admin") {
+                    // Admin sees all, no need to filter by user
+                    // We can query payments directly with company IDs?
+                    // If admin, we don't strictly need to fetch all companies first if we trust DB refs,
+                    // but we need to verify admin access? Admin has all access.
+                } else {
+                    const BaseCompanyQuery = { user: userId };
+                    allUserCompanies = await Company.find(BaseCompanyQuery).select("_id").lean();
+                }
+                const allUserCompanyIds = allUserCompanies.map(c => c._id);
+
+                // 3. Payment Query
+                paymentFilter = {};
+                if (currentUser.role !== "admin") {
+                    paymentFilter.company = { $in: allUserCompanyIds };
+                }
+
+                const searchRegex = new RegExp(search, "i");
+                paymentFilter.$or = [
+                    { company: { $in: companyIdsMatchingName } },
+                    { period: searchRegex },
+                    { epfChequeNo: searchRegex },
+                    { etfChequeNo: searchRegex }
+                ];
+
+                // If filtering by specific companies via name mismatch, we still need to populate details later.
+                // We need the Full Company Map for population.
+                // Let's fetch all relevant companies for population after paging payments?
+                // Or just fetch companies for the result set.
             } else {
-                companies = (await Company.find({ user: userId })
-                    .select("_id name employerNo paymentMethod")
-                    .lean<ICompany[]>()).map((c) => ({
-                        ...c,
-                        _id: (c._id as any).toString()
-                    }));
+                // No Search - existing logic
+                let companies = [];
+                if (currentUser.role === "admin") {
+                    companies = await Company.find({}).select("_id").lean();
+                } else {
+                    companies = await Company.find({ user: userId }).select("_id").lean();
+                }
                 const companyIds = companies.map((c) => c._id);
                 paymentFilter = { company: { $in: companyIds } };
+                if (period) paymentFilter.period = period;
             }
-
-            payments = await Payment.find(paymentFilter)
-                .skip(skip)
-                .limit(limit)
-                .lean();
-
-            total = await getTotalCount(Payment, paymentFilter);
-
-            payments = payments.map((payment) => {
-                const company = companies.find(
-                    (comp) => String(comp._id) === String(payment.company)
-                );
-                return {
-                    ...payment,
-                    companyName: company?.name,
-                    companyEmployerNo: company?.employerNo,
-                    companyPaymentMethod: company?.paymentMethod,
-                };
-            });
         } else {
+            // Specific company
             const filter: any = { _id: companyId };
             if (currentUser.role !== "admin") {
                 filter.user = userId;
@@ -119,23 +206,43 @@ export class PaymentService {
             if (period) {
                 paymentFilter.period = period;
             }
-
-            payments = await Payment.find(paymentFilter)
-                .skip(skip)
-                .limit(limit)
-                .lean();
-
-            total = await getTotalCount(Payment, paymentFilter);
-
-            payments = payments.map((payment) => {
-                return {
-                    ...payment,
-                    companyName: company.name,
-                    companyEmployerNo: company.employerNo,
-                    companyPaymentMethod: company.paymentMethod,
-                };
-            });
+            if (search) {
+                const searchRegex = new RegExp(search, "i");
+                paymentFilter.$or = [
+                    { period: searchRegex },
+                    { epfChequeNo: searchRegex },
+                    { etfChequeNo: searchRegex }
+                ];
+            }
         }
+
+        payments = await Payment.find(paymentFilter)
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        total = await getTotalCount(Payment, paymentFilter);
+
+        // Populate company details
+        // Fetch unique companies for the result set to populate
+        const resultCompanyIds = payments.map(p => p.company);
+        const uniqueCompanyIds = Array.from(new Set(resultCompanyIds));
+
+        const companiesForPopulate = await Company.find({ _id: { $in: uniqueCompanyIds } })
+            .select("_id name employerNo paymentMethod")
+            .lean<ICompany[]>();
+
+        payments = payments.map((payment) => {
+            const company = companiesForPopulate.find(
+                (comp) => String(comp._id) === String(payment.company)
+            );
+            return {
+                ...payment,
+                companyName: company?.name,
+                companyEmployerNo: company?.employerNo,
+                companyPaymentMethod: company?.paymentMethod,
+            };
+        });
 
         return createPaginatedResponse(payments, page, limit, total);
     }

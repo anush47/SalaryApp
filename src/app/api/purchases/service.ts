@@ -84,6 +84,7 @@ export class PurchaseService {
         const { user } = context;
         const purchaseId = req.nextUrl.searchParams.get("purchaseId");
         const companyId = req.nextUrl.searchParams.get("companyId");
+        const search = req.nextUrl.searchParams.get("search");
 
         if (purchaseId) {
             const purchase = await Purchase.findById(purchaseId);
@@ -111,21 +112,39 @@ export class PurchaseService {
 
             return ApiResponseUtils.sendSuccess({ purchase: enrichedPurchase });
         } else if (companyId) {
-            const companyFilter = { user: user.id, _id: companyId };
-            if (user.role === "admin") {
-                delete (companyFilter as { user?: string }).user;
-            }
-
             const { page, limit, skip } = getPaginationParams(req);
 
+            // Search logic
+            const searchRegex = search ? new RegExp(search, "i") : null;
+            const searchFilter = searchRegex ? {
+                $or: [
+                    { name: searchRegex },
+                    { employerNo: searchRegex }
+                ]
+            } : {};
+
             if (companyId !== "all") {
+                const companyFilter = { user: user.id, _id: companyId };
+                if (user.role === "admin") {
+                    delete (companyFilter as { user?: string }).user;
+                }
+
                 const company = await Company.findOne(companyFilter);
 
                 if (!company) {
                     return ApiResponseUtils.sendNotFound("Company not found");
                 }
 
-                const filter = { company: company._id || "" };
+                const filter: any = { company: company._id || "" };
+
+                // Add search filter for purchases fields (e.g. period, remark, status)
+                if (searchRegex) {
+                    filter.$or = [
+                        { periods: searchRegex }, // Period is array of strings
+                        { remark: searchRegex },
+                        { approvedStatus: searchRegex }
+                    ];
+                }
 
                 const purchases = await Purchase.find(filter)
                     .select("-request")
@@ -153,19 +172,73 @@ export class PurchaseService {
                 });
             } else {
                 // companyId === "all"
-                const purchases = await Purchase.find()
+                // 1. Find companies matching search (if provided)
+                const companyQuery = {
+                    ...(user.role !== "admin" ? { user: user.id } : {}),
+                    ...searchFilter
+                };
+
+                let matchingCompanyIds: any[] = [];
+                if (searchRegex) {
+                    const matchingCompanies = await Company.find(companyQuery).select("_id").lean();
+                    matchingCompanyIds = matchingCompanies.map(c => c._id);
+                }
+
+                // 2. Base Company Scope
+                let baseCompanyQuery = user.role !== "admin" ? { user: user.id } : {};
+
+                // 3. Purchase Query
+                // We want: (Company matches Search OR Purchase fields match Search) AND Company is owned by User (if not admin)
+                // Since we need to join company info later, we can't easily do a single query unless we do aggregation.
+                // Simplified approach: Filter by Company Name first. If matches found, include them. 
+                // Also include purchases where simple fields match, provided they belong to user's companies.
+
+                // Let's get ALL user companies first (needed for scope)
+                let allUserCompanies: any[] = [];
+                if (user.role === "admin") {
+                    // Admin can access all, optimization: don't fetch all if not needed yet
+                    // But we need to map names later.
+                    // Let's fetch companies for the *page* of results later.
+                } else {
+                    allUserCompanies = await Company.find({ user: user.id }).select("_id").lean();
+                }
+
+                const purchaseFilter: any = {};
+
+                if (user.role !== "admin") {
+                    purchaseFilter.company = { $in: allUserCompanies.map(c => c._id) };
+                }
+
+                if (searchRegex) {
+                    purchaseFilter.$or = [
+                        { periods: searchRegex },
+                        { remark: searchRegex },
+                        { approvedStatus: searchRegex }
+                    ];
+
+                    if (matchingCompanyIds.length > 0) {
+                        purchaseFilter.$or.push({ company: { $in: matchingCompanyIds } });
+                    }
+                }
+
+                const purchases = await Purchase.find(purchaseFilter)
                     .skip(skip)
                     .limit(limit)
                     .lean();
 
-                const total = await getTotalCount(Purchase, {});
+                const total = await getTotalCount(Purchase, purchaseFilter);
 
-                const companies = await Company.find()
+                // Populate Company Details
+                // Fetch unique companies for the result page
+                const resultCompanyIds = purchases.map(p => p.company);
+                const uniqueCompanyIds = Array.from(new Set(resultCompanyIds));
+
+                const companiesForPopulate = await Company.find({ _id: { $in: uniqueCompanyIds } })
                     .select("_id name employerNo")
                     .lean();
 
                 const purchasesWithCompanyDetails = purchases.map((purchase) => {
-                    const company = companies.find(
+                    const company = companiesForPopulate.find(
                         (comp) => String(comp._id) === String(purchase.company)
                     );
                     return {

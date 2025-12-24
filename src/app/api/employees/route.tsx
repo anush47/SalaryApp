@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
         return ApiResponseUtils.sendSuccess({ employees: [employee] }, "Employee retrieved successfully");
       } else if (companyId) {
         // Fetch employees from the database
-        const { page, limit, total, employees } = await EmployeeService.getEmployeesByCompany(companyId, req, context);
+        const search = req.nextUrl.searchParams.get("search") || undefined;
+        const { page, limit, total, employees } = await EmployeeService.getEmployeesByCompany(companyId, req, context, search);
         const response = createPaginatedResponse(employees, page, limit, total);
         return NextResponse.json({
           success: true,

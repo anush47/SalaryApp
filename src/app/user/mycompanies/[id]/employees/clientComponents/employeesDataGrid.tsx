@@ -829,57 +829,55 @@ const EmployeesDataGrid: React.FC<{
         alignItems: "center",
       }}
     >
-      <div>
-        <DataGrid
-          rows={employees}
-          rowCount={rowCount}
-          columns={columns}
-          getRowId={(row) => row._id}
-          editMode="row"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          paginationMode="server"
-          loading={isLoading}
-          // initialState={{
-          //   pagination: {
-          //     paginationModel: {
-          //       pageSize: 20,
-          //     },
-          //   },
-          //   filter: {
-          //     filterModel: {
-          //       items: [],
-          //       quickFilterExcludeHiddenColumns: false,
-          //     },
-          //   },
-          // }}
-          pageSizeOptions={[5, 10, 20, 50]}
-          slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
-          }}
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-            },
-          }}
-          //checkboxSelection
-          disableRowSelectionOnClick
-          //disableColumnFilter
-          disableDensitySelector
-          processRowUpdate={handleRowUpdate}
-          onProcessRowUpdateError={handleRowUpdateError}
-          columnVisibilityModel={columnVisibilityModel}
-          onColumnVisibilityModelChange={(newModel) =>
-            setColumnVisibilityModel(newModel)
-          }
-        />
-      </div>
+      <DataGrid
+        rows={employees}
+        rowCount={rowCount}
+        columns={columns}
+        getRowId={(row) => row._id}
+        editMode="row"
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        paginationMode="server"
+        loading={isLoading}
+        // initialState={{
+        //   pagination: {
+        //     paginationModel: {
+        //       pageSize: 20,
+        //     },
+        //   },
+        //   filter: {
+        //     filterModel: {
+        //       items: [],
+        //       quickFilterExcludeHiddenColumns: false,
+        //     },
+        //   },
+        // }}
+        pageSizeOptions={[5, 10, 20, 50]}
+        slots={{
+          toolbar: (props) => (
+            <GridToolbar
+              {...props}
+              csvOptions={{ disableToolbarButton: true }}
+              printOptions={{ disableToolbarButton: true }}
+            />
+          ),
+        }}
+        slotProps={{
+          toolbar: {
+            showQuickFilter: true,
+          },
+        }}
+        //checkboxSelection
+        disableRowSelectionOnClick
+        //disableColumnFilter
+        disableDensitySelector
+        processRowUpdate={handleRowUpdate}
+        onProcessRowUpdateError={handleRowUpdateError}
+        columnVisibilityModel={columnVisibilityModel}
+        onColumnVisibilityModelChange={(newModel) =>
+          setColumnVisibilityModel(newModel)
+        }
+      />
     </Box>
   );
 };

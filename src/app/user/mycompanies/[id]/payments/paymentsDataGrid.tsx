@@ -24,7 +24,8 @@ import "dayjs/locale/en-gb";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Link from "next/link";
 import { LoadingButton } from "@mui/lab";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { PaginatedResponse } from "@/app/lib/types";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
@@ -80,23 +81,72 @@ const PaymentsDataGrid: React.FC<{
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
 
+  // Pagination state
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+
+  // Filter state for server-side search
+  const [filterModel, setFilterModel] = useState<any>({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const searchQuery = filterModel.quickFilterValues?.join(" ") || undefined;
+
   const {
-    data: payments,
+    data: paginatedResponse,
     isLoading,
+    isFetching,
     isError,
     error,
-  } = useQuery<Payment[], Error>({
-    queryKey: ["payments", companyId, period],
+  } = useQuery<PaginatedResponse, Error>({
+    queryKey: ["payments", companyId, period, paginationModel.page, paginationModel.pageSize, searchQuery],
     queryFn: async () => {
-      const data = await fetchPayments({ companyId, period });
-      return data.map((payment: any) => ({
+      const data: any = await fetchPayments({
+        companyId,
+        period,
+        page: paginationModel.page + 1,
+        limit: paginationModel.pageSize,
+        search: searchQuery
+      });
+
+      let payments = [];
+      let total = 0;
+
+      if (data.data && Array.isArray(data.data)) {
+        payments = data.data;
+        total = data.total || 0;
+      } else if (Array.isArray(data)) {
+        payments = data;
+        total = data.length;
+      }
+
+      const formattedPayments = payments.map((payment: any) => ({
         ...payment,
         id: payment._id,
       }));
+
+      return {
+        data: formattedPayments,
+        pagination: {
+          page: data.page || 1,
+          limit: data.limit || paginationModel.pageSize,
+          total: total,
+          totalPages: Math.ceil(total / paginationModel.pageSize),
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      } as PaginatedResponse;
     },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    placeholderData: keepPreviousData,
   });
+
+  const payments = paginatedResponse?.data || [];
+  const rowCount = paginatedResponse?.pagination?.total || 0;
 
   const columns: GridColDef[] = [
     {
@@ -447,52 +497,48 @@ const PaymentsDataGrid: React.FC<{
     <Box
       sx={{
         width: "100%",
-        height: period ? 250 : "calc(100vh - 230px)",
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      <DataGrid
-        rows={payments || []}
-        columns={columns}
-        editMode="row"
-        initialState={{
-          pagination: {
-            paginationModel: {
-              pageSize: 10,
+      <div>
+        <DataGrid
+          rows={payments || []}
+          columns={columns}
+          getRowId={(row) => row._id}
+          editMode="row"
+          sx={{
+            height: period ? 250 : "calc(100vh - 230px)",
+          }}
+          rowCount={rowCount}
+          loading={isLoading || isFetching}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[5, 10, 20]}
+          filterMode="server"
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
+          slots={{
+            toolbar: GridToolbar,
+          }}
+          slotProps={{
+            toolbar: {
+              showQuickFilter: true,
+              csvOptions: { disableToolbarButton: true },
+              printOptions: { disableToolbarButton: true },
             },
-          },
-          filter: {
-            filterModel: {
-              items: [],
-              quickFilterExcludeHiddenColumns: false,
-            },
-          },
-        }}
-        pageSizeOptions={[10, 20, 50]}
-        slots={{
-          toolbar: (props) => (
-            <GridToolbar
-              {...props}
-              csvOptions={{ disableToolbarButton: true }}
-              printOptions={{ disableToolbarButton: true }}
-            />
-          ),
-        }}
-        slotProps={{
-          toolbar: {
-            showQuickFilter: true,
-          },
-        }}
-        disableRowSelectionOnClick
-        disableDensitySelector
-        columnVisibilityModel={columnVisibilityModel}
-        onColumnVisibilityModelChange={(newModel) =>
-          setColumnVisibilityModel(newModel)
-        }
-        processRowUpdate={handleRowUpdate}
-        onProcessRowUpdateError={handleRowUpdateError}
-      />
+          }}
+          disableRowSelectionOnClick
+          disableDensitySelector
+          columnVisibilityModel={columnVisibilityModel}
+          onColumnVisibilityModelChange={(newModel) =>
+            setColumnVisibilityModel(newModel)
+          }
+          processRowUpdate={handleRowUpdate}
+          onProcessRowUpdateError={handleRowUpdateError}
+        />
+      </div>
 
       <ConfirmationDialog
         open={dialogOpen}

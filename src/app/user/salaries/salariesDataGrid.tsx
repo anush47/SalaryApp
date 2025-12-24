@@ -57,9 +57,10 @@ export interface Salary {
 import { PaginatedResponse } from "@/app/lib/types";
 const fetchSalariesData = async (
   page: number,
-  limit: number
+  limit: number,
+  search?: string
 ): Promise<PaginatedResponse> => {
-  const data = await fetchSalaries({ companyId: "all", page, limit });
+  const data = await fetchSalaries({ companyId: "all", page, limit, search });
 
   const responseSalaries = data.salaries || data.data || [];
   const pagination = data.pagination || {
@@ -95,6 +96,14 @@ const SalariesDataGrid: React.FC<{
     pageSize: 20,
   });
 
+  // Filter state for server-side search
+  const [filterModel, setFilterModel] = useState<any>({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const searchQuery = filterModel.quickFilterValues?.join(" ") || undefined;
+
   const {
     data: paginatedResponse,
     isLoading,
@@ -102,8 +111,8 @@ const SalariesDataGrid: React.FC<{
     isError,
     error,
   } = useQuery<PaginatedResponse, Error>({
-    queryKey: ["salaries", paginationModel.page, paginationModel.pageSize],
-    queryFn: () => fetchSalariesData(paginationModel.page + 1, paginationModel.pageSize),
+    queryKey: ["salaries", paginationModel.page, paginationModel.pageSize, searchQuery],
+    queryFn: () => fetchSalariesData(paginationModel.page + 1, paginationModel.pageSize, searchQuery),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     placeholderData: keepPreviousData,
@@ -123,7 +132,7 @@ const SalariesDataGrid: React.FC<{
             href={`/user/mycompanies/${
               //find companyId from salaries
               salaries?.find((salary) => salary.id === params.id)?.companyId
-              }`}
+              }?companyPageSelect=details`}
           >
             <Button variant="text" color="primary" size="small">
               {params.value}
@@ -146,6 +155,17 @@ const SalariesDataGrid: React.FC<{
       field: "name",
       headerName: "Name",
       flex: 1,
+      renderCell: (params) => {
+        return (
+          <Link
+            href={`/user/mycompanies/${params.row.companyId}?companyPageSelect=employees&employeeId=${params.row.employee}`}
+          >
+            <Button variant="text" color="primary" size="small">
+              {params.value}
+            </Button>
+          </Link>
+        );
+      },
     },
     {
       field: "nic",
@@ -516,18 +536,17 @@ const SalariesDataGrid: React.FC<{
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[10, 20, 50, 100]}
+          filterMode="server"
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
           slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
+            toolbar: GridToolbar,
           }}
           slotProps={{
             toolbar: {
               showQuickFilter: true,
+              csvOptions: { disableToolbarButton: true },
+              printOptions: { disableToolbarButton: true },
             },
           }}
           disableRowSelectionOnClick

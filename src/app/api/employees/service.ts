@@ -61,7 +61,7 @@ export class EmployeeService {
     return [employee];
   }
 
-  static async getEmployeesByCompany(companyId: string, req: any, context: RequestContext) {
+  static async getEmployeesByCompany(companyId: string, req: any, context: RequestContext, search?: string) {
     await dbConnect();
 
     let employees = [];
@@ -101,6 +101,26 @@ export class EmployeeService {
           .select("_id name employerNo")
           .lean();
       }
+    }
+
+    // Apply search filter if provided
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      const searchFilter = {
+        $or: [
+          { name: searchRegex },
+          { nic: searchRegex },
+          // Check if search is a number for memberNo
+          ...(depsIsNaN(search) ? [] : [{ memberNo: parseInt(search) }]),
+        ],
+      };
+
+      // Merge with existing filter
+      filter = { ...filter, ...searchFilter };
+    }
+
+    function depsIsNaN(value: string) {
+      return isNaN(Number(value));
     }
 
     // Check if company exists without fetching data

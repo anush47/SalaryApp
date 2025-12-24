@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { PaginatedResponse } from "@/app/lib/types";
 import {
   DataGrid,
   GridColDef,
@@ -80,29 +81,93 @@ const PaymentsDataGrid: React.FC<{
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
+  // Pagination state
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 20,
+  });
+
+  // Filter state for server-side search
+  const [filterModel, setFilterModel] = useState<any>({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const searchQuery = filterModel.quickFilterValues?.join(" ") || undefined;
+
   const {
-    data: payments,
+    data: paginatedResponse,
     isLoading,
+    isFetching,
     isError,
     error,
-  } = useQuery<Payment[], Error>({
-    queryKey: ["payments"],
+  } = useQuery<PaginatedResponse, Error>({
+    queryKey: ["payments", paginationModel.page, paginationModel.pageSize, searchQuery, period],
     queryFn: async () => {
-      const data = await fetchPayments({ period, companyId: 'all' });
-      return data.map((payment: any) => ({
+      const data: any = await fetchPayments({
+        period,
+        companyId: 'all',
+        page: paginationModel.page + 1,
+        limit: paginationModel.pageSize,
+        search: searchQuery
+      });
+      // Handle the API response structure explicitly for this grid
+      let payments = [];
+      let total = 0;
+
+      if (data.data && Array.isArray(data.data)) {
+        payments = data.data;
+        total = data.total || 0;
+      } else if (Array.isArray(data)) { // Fallback for pure array response
+        payments = data;
+        total = data.length;
+      }
+
+      const formattedPayments = payments.map((payment: any) => ({
         ...payment,
         id: payment._id,
       }));
+
+      return {
+        data: formattedPayments,
+        pagination: {
+          page: data.page || 1,
+          limit: data.limit || paginationModel.pageSize,
+          total: total,
+          totalPages: Math.ceil(total / paginationModel.pageSize),
+          hasNextPage: false, // Calculated from total
+          hasPrevPage: false
+        }
+      } as PaginatedResponse;
     },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    placeholderData: keepPreviousData,
   });
+
+  const payments = paginatedResponse?.data || [];
+  const rowCount = paginatedResponse?.pagination?.total || 0;
   const [rowSelectionModel, setRowSelectionModel] =
     React.useState<GridRowSelectionModel>([]);
 
   // ... (columns definition)
   const columns: GridColDef[] = [
-    { field: "companyName", headerName: "Company Name", width: 200 },
+    {
+      field: "companyName",
+      headerName: "Company Name",
+      width: 200,
+      renderCell: (params) => {
+        return (
+          <Link
+            href={`/user/mycompanies/${params.row.company}?companyPageSelect=details`}
+          >
+            <Button variant="text" color="primary" size="small">
+              {params.value}
+            </Button>
+          </Link>
+        );
+      },
+    },
     { field: "companyEmployerNo", headerName: "Employer No", width: 150 },
     { field: "period", headerName: "Period", width: 120 },
     { field: "epfReferenceNo", headerName: "EPF Ref No", width: 150, editable: isEditing },
@@ -285,7 +350,6 @@ const PaymentsDataGrid: React.FC<{
     <Box
       sx={{
         width: "100%",
-        height: period ? 250 : "calc(100vh - 230px)",
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -306,37 +370,28 @@ const PaymentsDataGrid: React.FC<{
         <DataGrid
           rows={payments || []}
           columns={columns}
-          getRowId={(row) => row._id} // Explicitly tell DataGrid to use _id as the row ID
+          getRowId={(row) => row._id}
           editMode="row"
           sx={{
-            height: "calc(100vh - 230px)",
+            height: period ? 250 : "calc(100vh - 230px)",
           }}
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 20,
-              },
-            },
-            filter: {
-              filterModel: {
-                items: [],
-                quickFilterExcludeHiddenColumns: false,
-              },
-            },
-          }}
+          rowCount={rowCount}
+          loading={isLoading || isFetching}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[10, 20, 50]}
+          filterMode="server"
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
           slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
+            toolbar: GridToolbar,
           }}
           slotProps={{
             toolbar: {
               showQuickFilter: true,
+              csvOptions: { disableToolbarButton: true },
+              printOptions: { disableToolbarButton: true },
             },
           }}
           disableRowSelectionOnClick

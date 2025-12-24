@@ -9,6 +9,7 @@ export async function fetchPayments(params: {
     period?: string;
     page?: number;
     limit?: number;
+    search?: string;
 } = {}) {
     const queryParams = new URLSearchParams();
 
@@ -17,6 +18,7 @@ export async function fetchPayments(params: {
     if (params.period) queryParams.append('period', params.period);
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
 
     const url = `/api/payments?${queryParams.toString()}`;
     const data = await apiFetch(url);

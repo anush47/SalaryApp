@@ -74,6 +74,7 @@ export class SalaryService {
         let companyId = req.nextUrl.searchParams.get("companyId");
         let period = req.nextUrl.searchParams.get("period");
         const employeeId = req.nextUrl.searchParams.get("employee");
+        const search = req.nextUrl.searchParams.get("search");
 
         if (period) {
             period = periodSchema.parse(period);
@@ -117,20 +118,35 @@ export class SalaryService {
             divideBy?: number;
         }[] = [];
 
+        // Build search filter
+        const searchFilter = search ? {
+            $or: [
+                { name: new RegExp(search, "i") },
+                { nic: new RegExp(search, "i") },
+                ...(isNaN(Number(search)) ? [] : [{ memberNo: Number(search) }])
+            ]
+        } : {};
+
         if (companyId === "all") {
             let companies = [];
             if (context.user?.role === "admin") {
                 // Fetch all employees for admin
-                employees = (await Employee.find({})
+                companies = (await Company.find({}).select("_id name employerNo").lean()).map(company => ({
+                    ...company,
+                    _id: (company._id as any).toString(),
+                })) as any;
+
+                const employeesQuery = {
+                    ...searchFilter
+                };
+
+                employees = (await Employee.find(employeesQuery)
                     .select("_id name memberNo nic company basic divideBy")
                     .lean()).map(employee => ({
                         ...employee,
                         _id: (employee._id as any).toString(),
                     })) as any;
-                companies = (await Company.find({}).select("_id name employerNo").lean()).map(company => ({
-                    ...company,
-                    _id: (company._id as any).toString(),
-                })) as any;
+
             } else {
                 // Fetch all employees of companies associated with the user
                 companies = (await Company.find({ user: context.user?.id })
@@ -140,7 +156,13 @@ export class SalaryService {
                         _id: (company._id as any).toString(),
                     })) as any;
                 const companyIds = companies.map((company: any) => company._id);
-                employees = (await Employee.find({ company: { $in: companyIds } })
+
+                const employeesQuery = {
+                    company: { $in: companyIds },
+                    ...searchFilter
+                };
+
+                employees = (await Employee.find(employeesQuery)
                     .select("_id name memberNo nic company")
                     .lean()).map(employee => ({
                         ...employee,
@@ -175,7 +197,12 @@ export class SalaryService {
                 throw new ForbiddenError("Access denied.");
             }
 
-            employees = (await Employee.find({ company: companyId })
+            const employeesQuery = {
+                company: companyId,
+                ...searchFilter
+            };
+
+            employees = (await Employee.find(employeesQuery)
                 .select("_id name memberNo nic")
                 .lean()).map(employee => ({
                     ...employee,
@@ -185,6 +212,15 @@ export class SalaryService {
 
         // Extract the list of IDs (just the _id values)
         const employeeIdList = employees.map((emp) => emp._id);
+
+        if (employeeIdList.length === 0) {
+            return {
+                data: [],
+                page: 1,
+                limit: 10,
+                total: 0
+            };
+        }
 
         // Get pagination params
         const { page, limit, skip } = getPaginationParams(req);

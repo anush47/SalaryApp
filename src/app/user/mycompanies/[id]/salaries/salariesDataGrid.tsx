@@ -73,9 +73,10 @@ const fetchSalariesData = async (
   companyId: string,
   page: number,
   limit: number,
-  period?: string
+  period?: string,
+  search?: string
 ): Promise<PaginatedResponse> => {
-  const data = await fetchSalaries({ companyId, page, limit, period });
+  const data = await fetchSalaries({ companyId, page, limit, period, search });
 
   const responseSalaries = data.salaries || data.data || [];
   const pagination = data.pagination || {
@@ -113,6 +114,14 @@ const SalariesDataGrid: React.FC<{
     pageSize: 10,
   });
 
+  // Filter state for server-side search
+  const [filterModel, setFilterModel] = useState<any>({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const searchQuery = filterModel.quickFilterValues?.join(" ") || undefined;
+
   const {
     data: paginatedResponse,
     isLoading,
@@ -120,8 +129,8 @@ const SalariesDataGrid: React.FC<{
     isError,
     error,
   } = useQuery<PaginatedResponse, Error>({
-    queryKey: ["salaries", companyId, period, paginationModel.page, paginationModel.pageSize],
-    queryFn: () => fetchSalariesData(companyId, paginationModel.page + 1, paginationModel.pageSize, period),
+    queryKey: ["salaries", companyId, period, paginationModel.page, paginationModel.pageSize, searchQuery],
+    queryFn: () => fetchSalariesData(companyId, paginationModel.page + 1, paginationModel.pageSize, period, searchQuery),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     placeholderData: keepPreviousData,
@@ -140,6 +149,17 @@ const SalariesDataGrid: React.FC<{
       field: "name",
       headerName: "Name",
       flex: 1,
+      renderCell: (params) => {
+        return (
+          <Link
+            href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${params.row.employee}`}
+          >
+            <Button variant="text" color="primary" size="small">
+              {params.value}
+            </Button>
+          </Link>
+        );
+      },
     },
     {
       field: "nic",
@@ -533,18 +553,17 @@ const SalariesDataGrid: React.FC<{
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[5, 10, 20]}
+          filterMode="server"
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
           slots={{
-            toolbar: (props) => (
-              <GridToolbar
-                {...props}
-                csvOptions={{ disableToolbarButton: true }}
-                printOptions={{ disableToolbarButton: true }}
-              />
-            ),
+            toolbar: GridToolbar,
           }}
           slotProps={{
             toolbar: {
               showQuickFilter: true,
+              csvOptions: { disableToolbarButton: true },
+              printOptions: { disableToolbarButton: true },
             },
           }}
           disableRowSelectionOnClick

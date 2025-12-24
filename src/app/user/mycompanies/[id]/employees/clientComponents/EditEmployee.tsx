@@ -140,13 +140,17 @@ const EditEmployeeForm: React.FC<{
     gcTime: GC_TIME,
   });
 
-  const { data: employees } = useQuery({
+  const { data: employeesResult } = useQuery({
     queryKey: ["employees", companyId],
     queryFn: fetchEmployeesData,
     enabled: !!companyId,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
+
+  const employees = Array.isArray(employeesResult)
+    ? employeesResult
+    : employeesResult?.employees || [];
 
   useEffect(() => {
     if (employeeData) {

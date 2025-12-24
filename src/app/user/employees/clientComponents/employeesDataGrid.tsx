@@ -102,9 +102,9 @@ interface PaginatedResponse {
   };
 }
 
-const fetchEmployees = async (page: number, limit: number): Promise<PaginatedResponse> => {
+const fetchEmployees = async (page: number, limit: number, search?: string): Promise<PaginatedResponse> => {
   try {
-    const response: any = await fetchEmployeeList({ companyId: "all", page, limit });
+    const response: any = await fetchEmployeeList({ companyId: "all", page, limit, search });
 
     let employees: any[] = [];
     let total = 0;
@@ -149,6 +149,14 @@ const EmployeesDataGrid: React.FC<{
     pageSize: 20,
   });
 
+  // Filter state for server-side search
+  const [filterModel, setFilterModel] = React.useState<any>({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const searchQuery = filterModel.quickFilterValues?.join(" ") || undefined;
+
   const {
     data,
     isLoading,
@@ -156,8 +164,8 @@ const EmployeesDataGrid: React.FC<{
     isError,
     error,
   } = useQuery<PaginatedResponse, Error>({
-    queryKey: ["employees", paginationModel.page + 1, paginationModel.pageSize], // Backend uses 1-based indexing
-    queryFn: () => fetchEmployees(paginationModel.page + 1, paginationModel.pageSize),
+    queryKey: ["employees", paginationModel.page + 1, paginationModel.pageSize, searchQuery], // Backend uses 1-based indexing
+    queryFn: () => fetchEmployees(paginationModel.page + 1, paginationModel.pageSize, searchQuery),
     placeholderData: keepPreviousData,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -756,18 +764,17 @@ const EmployeesDataGrid: React.FC<{
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         pageSizeOptions={[10, 20, 50]}
+        filterMode="server"
+        filterModel={filterModel}
+        onFilterModelChange={(newModel) => setFilterModel(newModel)}
         slots={{
-          toolbar: (props) => (
-            <GridToolbar
-              {...props}
-              csvOptions={{ disableToolbarButton: true }}
-              printOptions={{ disableToolbarButton: true }}
-            />
-          ),
+          toolbar: GridToolbar,
         }}
         slotProps={{
           toolbar: {
             showQuickFilter: true,
+            csvOptions: { disableToolbarButton: true },
+            printOptions: { disableToolbarButton: true },
           },
         }}
         //checkboxSelection

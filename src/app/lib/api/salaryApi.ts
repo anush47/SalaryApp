@@ -12,6 +12,7 @@ export async function fetchSalaries(params: {
     period?: string;
     salaryId?: string;
     employeeId?: string;
+    search?: string;
 } = {}): Promise<PaginatedResponse | any> {
     const queryParams = new URLSearchParams();
 
@@ -21,6 +22,7 @@ export async function fetchSalaries(params: {
     if (params.period) queryParams.append('period', params.period);
     if (params.salaryId) queryParams.append('salaryId', params.salaryId);
     if (params.employeeId) queryParams.append('employee', params.employeeId);
+    if (params.search) queryParams.append('search', params.search);
 
     const url = `/api/salaries?${queryParams.toString()}`;
     const response = await apiFetchRaw(url);

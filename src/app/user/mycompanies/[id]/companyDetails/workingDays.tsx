@@ -67,8 +67,8 @@ export const WorkingDays = ({
       currentValue === "full"
         ? "half"
         : currentValue === "half"
-        ? "off"
-        : "full";
+          ? "off"
+          : "full";
     setWorkingDays({ ...workingDays, [day]: nextValue });
   };
 
@@ -100,19 +100,17 @@ export const WorkingDays = ({
             <Grid item xs={12} sm={6} md={4} key={day}>
               <FormControl fullWidth>
                 <Tooltip title={workingDays?.[day] ?? "off"}>
-                  <>
-                    <Button
-                      variant="outlined"
-                      style={{
-                        borderColor: getColor(workingDays?.[day] ?? "off"),
-                        color: getColor(workingDays?.[day] ?? "off"),
-                      }}
-                      onClick={() => handleDayChange(day)}
-                      disabled={!isEditing}
-                    >
-                      {day.toUpperCase()}: {workingDays?.[day] ?? "off"}
-                    </Button>
-                  </>
+                  <Button
+                    variant="outlined"
+                    style={{
+                      borderColor: getColor(workingDays?.[day] ?? "off"),
+                      color: getColor(workingDays?.[day] ?? "off"),
+                    }}
+                    onClick={() => handleDayChange(day)}
+                    disabled={!isEditing}
+                  >
+                    {day.toUpperCase()}: {workingDays?.[day] ?? "off"}
+                  </Button>
                 </Tooltip>
               </FormControl>
             </Grid>

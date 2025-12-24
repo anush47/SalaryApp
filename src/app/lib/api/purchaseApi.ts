@@ -11,12 +11,13 @@ export async function checkPurchased(companyId: string, month: string) {
 /**
  * Fetch purchases with optional filtering
  */
-export async function fetchPurchases(params: { companyId?: string; purchaseId?: string; page?: number; limit?: number }) {
+export async function fetchPurchases(params: { companyId?: string; purchaseId?: string; page?: number; limit?: number; search?: string }) {
     const queryParams = new URLSearchParams();
     if (params.companyId) queryParams.append('companyId', params.companyId);
     if (params.purchaseId) queryParams.append('purchaseId', params.purchaseId);
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
 
     const url = `/api/purchases?${queryParams.toString()}`;
     return apiFetch(url);
