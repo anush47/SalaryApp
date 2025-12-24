@@ -49,7 +49,7 @@ export class EmployeeService {
 
     const employee = await Employee.findOne({ user: userParam })
       .populate('user', '-password')
-      .populate('company', 'name employerNo paymentStructure')
+      .populate('company', 'name employerNo paymentStructure attendanceConfig')
       .populate('department', 'name')
       .populate('manager', 'name memberNo')
       .lean();

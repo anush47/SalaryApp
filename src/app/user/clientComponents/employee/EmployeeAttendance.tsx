@@ -140,22 +140,67 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     }, [effectiveConfig]);
 
     // 2. Watch User Location
-    // Only verify location if:
-    // 1. Geofencing is ENABLED
-    // 2. Remote Check-In is DISABLED (Remote means work from anywhere, so no geofence)
-    const shouldVerifyLocation = effectiveConfig?.geoFencing?.enabled && !effectiveConfig?.allowRemoteCheckIn;
+
+    // Logic Split:
+    // 1. shouldShowMap: If Geofencing is configured (Enabled in settings), we show the map.
+    // 2. isVerificationRequired: If Geofencing is Enabled AND Remote Check-in is Disabled, we ENFORCE it.
+
+    const isGeofencingEnabled = effectiveConfig?.geoFencing?.enabled;
+    const isRemoteAllowed = effectiveConfig?.allowRemoteCheckIn;
+
+    // Determine all allowed zones
+    const allowedLocations = useMemo(() => {
+        if (!effectiveConfig) return [];
+
+        const zones = [];
+        const { geoFencing } = effectiveConfig;
+
+        // Primary Zone (Company or Main Override)
+        if (geoFencing && geoFencing.latitude && geoFencing.longitude) {
+            zones.push({
+                lat: geoFencing.latitude,
+                lng: geoFencing.longitude,
+                radius: geoFencing.radiusMeters || 100, // Default 100m
+                name: "Primary Office"
+            });
+        }
+
+        // Add additional allowed locations from employee profile if any exist
+        // Assuming employee.attendanceOverrides.allowedLocations might exist in future schema or user requested "stufff" implying extras.
+        // For now, based on schema available, we'll stick to the single source derived in effectiveConfig.
+        // IF the user implies "additional allowed locations" lists, we check if they exist in the employee object.
+        const extraLocations = employee?.attendanceOverrides?.allowedLocations || [];
+        if (Array.isArray(extraLocations)) {
+            extraLocations.forEach((loc: any, idx: number) => {
+                if (loc.lat && loc.lng) {
+                    zones.push({
+                        lat: loc.lat,
+                        lng: loc.lng,
+                        radius: loc.radius || 100,
+                        name: loc.name || `Allowed Zone ${idx + 1}`
+                    });
+                }
+            });
+        }
+
+        return zones;
+    }, [effectiveConfig, employee]);
+
+    const shouldShowMap = allowedLocations.length > 0;
+    const isVerificationRequired = isGeofencingEnabled && !isRemoteAllowed;
+
 
     useEffect(() => {
-        // If verification is not required, reset status and return
-        if (!shouldVerifyLocation) {
+        // If map is hidden, we don't need to watch location (unless we want background tracking, but let's save battery)
+        if (!shouldShowMap) {
             setLocationStatus(prev => ({ ...prev, isInside: true, error: null, fetching: false, distance: null, coords: null }));
             return;
         }
 
-        if (!companyLocation?.lat || !companyLocation?.lng) {
+        if (allowedLocations.length === 0) {
             setLocationStatus(prev => ({
                 ...prev,
-                error: "Location coordinates not configured.",
+                error: "No allowed locations configured.",
                 fetching: false,
                 coords: null
             }));
@@ -171,12 +216,26 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         const watchId = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
-                const distance = calculateDistance(latitude, longitude, companyLocation.lat, companyLocation.lng);
-                const isInside = distance <= companyLocation.radius;
+
+                // Check distance to ALL allowed zones
+                let isInsideAny = false;
+                let minDistance = Infinity;
+                let closestZoneRadius = 0;
+
+                allowedLocations.forEach(zone => {
+                    const dist = calculateDistance(latitude, longitude, zone.lat, zone.lng);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestZoneRadius = zone.radius;
+                    }
+                    if (dist <= zone.radius) {
+                        isInsideAny = true;
+                    }
+                });
 
                 setLocationStatus({
-                    isInside,
-                    distance,
+                    isInside: isInsideAny,
+                    distance: minDistance,
                     error: null,
                     fetching: false,
                     coords: { latitude, longitude }
@@ -191,7 +250,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
-    }, [companyLocation, shouldVerifyLocation]);
+    }, [allowedLocations, shouldShowMap]);
 
     const companyId = employee?.company?._id || employee?.company;
     const todayStr = dayjs().format("YYYY-MM-DD");
@@ -224,6 +283,12 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     const handleAttendance = async (type: "in" | "out") => {
         if (!navigator.geolocation) {
             showSnackbar({ message: "Geolocation is not supported by your browser", severity: "error" });
+            return;
+        }
+
+        // If location verification is required, check if user is allowed
+        if (isVerificationRequired && !locationStatus.isInside && locationStatus.coords) {
+            showSnackbar({ message: "You are outside the allowed area. Cannot check in.", severity: "error" });
             return;
         }
 
@@ -361,41 +426,69 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                     </LoadingButton>
                                 </Stack>
 
-                                {/* Location Status Indicator - Only Show if Verification is Required */}
-                                {shouldVerifyLocation && (
-                                    <Box sx={{
+                                {/* Location Status Indicator - Only Show if Verification is Required OR Map is desired */}
+                                {shouldShowMap && (
+                                    <Box mt={2} sx={{
                                         p: 2,
                                         borderRadius: 2,
                                         bgcolor: locationStatus.fetching ? 'action.hover' : locationStatus.error ? 'error.lighter' : locationStatus.isInside ? 'success.lighter' : 'error.lighter',
                                         border: '1px solid',
                                         borderColor: locationStatus.fetching ? 'divider' : locationStatus.error ? 'error.light' : locationStatus.isInside ? 'success.light' : 'error.light',
                                         display: 'flex',
-                                        alignItems: 'center',
+                                        flexDirection: 'column',
                                         gap: 2
                                     }}>
-                                        {locationStatus.fetching ? (
-                                            <>
-                                                <CircularProgress size={20} />
-                                                <Typography variant="body2">Locating...</Typography>
-                                            </>
-                                        ) : locationStatus.error ? (
-                                            <>
-                                                <LocationOn color="error" />
-                                                <Typography variant="body2" color="error.main" fontWeight="bold">{locationStatus.error}</Typography>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <LocationOn color={locationStatus.isInside ? "success" : "error"} />
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight="bold" color={locationStatus.isInside ? "success.main" : "error.main"}>
-                                                        {locationStatus.isInside ? "Inside Office Radius" : "Outside Office Radius"}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Distance: {locationStatus.distance?.toFixed(0)}m {companyLocation?.radius ? `(Allowed: ${companyLocation.radius}m)` : ''}
-                                                    </Typography>
-                                                </Box>
-                                            </>
-                                        )}
+                                        <LocationMap
+                                            // Initial center: User's location OR First Allowed Location
+                                            lat={locationStatus.coords?.latitude || allowedLocations[0]?.lat || 0}
+                                            lng={locationStatus.coords?.longitude || allowedLocations[0]?.lng || 0}
+                                            radius={0} // We use additionalZones for the actual circles
+                                            height={250}
+                                            zoom={15}
+                                            interactive={false}
+
+                                            // User Position
+                                            userLocation={locationStatus.coords ? {
+                                                lat: locationStatus.coords.latitude,
+                                                lng: locationStatus.coords.longitude
+                                            } : undefined}
+
+                                            // All Allowed Zones
+                                            additionalZones={allowedLocations.map(loc => ({
+                                                lat: loc.lat,
+                                                lng: loc.lng,
+                                                radius: loc.radius,
+                                                name: loc.name
+                                            }))}
+
+                                            markerPosition={null}
+                                        />
+
+                                        <Box display="flex" alignItems="center" gap={2}>
+                                            {locationStatus.fetching ? (
+                                                <>
+                                                    <CircularProgress size={20} />
+                                                    <Typography variant="body2">Locating...</Typography>
+                                                </>
+                                            ) : locationStatus.error ? (
+                                                <>
+                                                    <LocationOn color="error" />
+                                                    <Typography variant="body2" color="error.main" fontWeight="bold">{locationStatus.error}</Typography>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <LocationOn color={locationStatus.isInside ? "success" : "error"} />
+                                                    <Box>
+                                                        <Typography variant="body2" fontWeight="bold" color={locationStatus.isInside ? "success.main" : "error.main"}>
+                                                            {locationStatus.isInside ? "Inside Allowed Zone" : "Outside Allowed Zone"}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            Distance: {locationStatus.distance?.toFixed(0)}m
+                                                        </Typography>
+                                                    </Box>
+                                                </>
+                                            )}
+                                        </Box>
                                     </Box>
                                 )}
                             </Paper>

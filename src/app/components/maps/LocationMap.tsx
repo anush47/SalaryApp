@@ -32,6 +32,7 @@ interface LocationMapProps {
     markerPosition?: { lat: number; lng: number } | null; // If null, no marker
     circlePosition?: { lat: number; lng: number }; // Defaults to center
     userLocation?: { lat: number; lng: number }; // Shows a special "You are here" marker if provided
+    additionalZones?: { lat: number; lng: number; radius: number; name?: string }[]; // Extra allowed circles
 }
 
 // Component to handle map clicks for updates
@@ -63,7 +64,8 @@ const LocationMap: React.FC<LocationMapProps> = ({
     zoom = 15,
     markerPosition,
     circlePosition,
-    userLocation
+    userLocation,
+    additionalZones
 }) => {
     // Determine effective positions
     // If markerPosition is undefined, use center (lat,lng). If null, show nothing.
@@ -99,7 +101,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
                     </Marker>
                 )}
 
-                {/* Radius Circle */}
+                {/* Radius Circle (Primary) */}
                 {radius && radius > 0 && (
                     <Circle
                         center={[effectiveCirclePos.lat, effectiveCirclePos.lng]}
@@ -107,6 +109,18 @@ const LocationMap: React.FC<LocationMapProps> = ({
                         radius={radius}
                     />
                 )}
+
+                {/* Additional Zones (Secondary) */}
+                {additionalZones && additionalZones.map((zone, idx) => (
+                    <Circle
+                        key={idx}
+                        center={[zone.lat, zone.lng]}
+                        pathOptions={{ fillColor: 'green', color: 'green', opacity: 0.2, fillOpacity: 0.1 }}
+                        radius={zone.radius}
+                    >
+                        <Popup>Allowed Zone: {zone.name || `Zone ${idx + 1}`}</Popup>
+                    </Circle>
+                ))}
 
                 {/* Interactive Click Handler */}
                 {interactive && onLocationSelect && (
