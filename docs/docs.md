@@ -462,3 +462,52 @@ For each route, update corresponding frontend components to use the new response
 * Add proper error handling from the new response format
 * Update mutation functions to process successful responses
 * Ensure navigation and display logic works with new data structure
+
+## 8. File Upload Strategy
+
+The application uses an "on-submit" file upload strategy to ensure better user experience and data integrity. This prevents "orphaned" files (files uploaded but never attached to a record) and gives users control to remove/replace files before the final submission.
+
+### 8.1. Architecture
+
+1.  **Frontend (Manual Mode):**
+    *   The `FileUpload` component operates in `mode="manual"`.
+    *   It selects the file but **does not** upload it immediately.
+    *   It passes the selected `File` object back to the parent form via `onFileSelect`.
+
+2.  **State Management (Pending Files):**
+    *   Parent components (e.g., `EmployeeProfile`, `EditEmployee`) maintain a `pendingFiles` state (e.g., `Record<string, File>`).
+    *   When a user adds a document, it is stored in this state instead of being uploaded.
+    *   The UI displays these as "Pending Upload".
+
+3.  **Submission Flow (On-Submit):**
+    *   When the user clicks "Save" or "Submit":
+    *   The form handler iterates through `pendingFiles`.
+    *   It calls `uploadService.ts` for each file.
+    *   `uploadService` requests a **Presigned URL** from `/api/storage/upload`.
+    *   The file is uploaded directly to cloud storage (Cloudflare R2) using the presigned URL.
+    *   The resulting `key` (file path) is returned and added to the form data.
+    *   Finally, the form data (with the new file keys) is sent to the backend API.
+
+4.  **Upload Service (`src/app/lib/uploadService.ts`):**
+    *   Centralized utility for handling the upload handshake.
+    *   `uploadFile({ file, folder, entityId, companyId })` -> returns `{ key, filename }`.
+
+### 8.2. Implementation Example
+
+**Form Component:**
+```tsx
+const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
+
+const handleSave = async () => {
+  // 1. Upload Pending Files
+  if (Object.keys(pendingFiles).length > 0) {
+    // ... iterate and call uploadFile()
+    // ... update form data with new keys
+  }
+
+  // 2. Submit Form Data
+  mutation.mutate(formData);
+};
+```
+
+**Note:** This pattern is applied to Employee Profile, Purchase Requests, and Leave Requests.
