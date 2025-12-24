@@ -37,6 +37,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker as MUIDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import Link from "next/link";
 
 interface CompanyAttendanceProps {
     user: any;
@@ -44,13 +45,14 @@ interface CompanyAttendanceProps {
 }
 
 const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }) => {
-    const [selectedDate, setSelectedDate] = useState(dayjs());
+    const [startDate, setStartDate] = useState(dayjs().subtract(7, 'day'));
+    const [endDate, setEndDate] = useState(dayjs());
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
 
     const { data: logsResponse, isLoading, refetch } = useQuery({
-        queryKey: ["companyAttendanceLogs", companyId, selectedDate.format("YYYY-MM-DD")],
-        queryFn: () => getAttendanceLogs(companyId, selectedDate.format("YYYY-MM-DD")),
+        queryKey: ["companyAttendanceLogs", companyId, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")],
+        queryFn: () => getAttendanceLogs(companyId, undefined, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")),
     });
 
     const logs = logsResponse?.success ? logsResponse.data : [];
@@ -76,25 +78,27 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
 
     const columns: GridColDef[] = [
         {
+            field: "memberNo",
+            headerName: "Member No",
+            width: 100,
+            align: 'left',
+            headerAlign: 'left',
+            valueGetter: (value: any, row: any) => row?.employee?.memberNo,
+        },
+        {
             field: "employee",
             headerName: "Employee",
             flex: 1,
             align: 'left',
             headerAlign: 'left',
             renderCell: (params) => (
-                <Box display="flex" alignItems="center" gap={1} height="100%">
-                    <Avatar sx={{ width: 32, height: 32, fontSize: '0.9rem', bgcolor: 'primary.light' }}>
-                        {params.value?.name?.charAt(0)}
-                    </Avatar>
-                    <Box display="flex" flexDirection="column" justifyContent="center">
+                <Link href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${params.value?._id}`} style={{ textDecoration: 'none', color: 'inherit', width: '100%', height: '100%' }}>
+                    <Box display="flex" alignItems="center" height="100%" sx={{ '&:hover': { color: 'primary.main' } }}>
                         <Typography variant="body2" fontWeight="600" sx={{ lineHeight: 1.2 }}>
                             {params.value?.name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            ID: {params.value?.memberNo}
-                        </Typography>
                     </Box>
-                </Box>
+                </Link>
             ),
         },
         {
@@ -237,10 +241,16 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             <Stack direction="row" spacing={2} alignItems="center">
                                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                                     <MUIDatePicker
-                                        label="Select Date"
-                                        value={selectedDate}
-                                        onChange={(newValue) => newValue && setSelectedDate(newValue)}
-                                        slotProps={{ textField: { size: 'small' } }}
+                                        label="From"
+                                        value={startDate}
+                                        onChange={(newValue) => newValue && setStartDate(newValue)}
+                                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
+                                    />
+                                    <MUIDatePicker
+                                        label="To"
+                                        value={endDate}
+                                        onChange={(newValue) => newValue && setEndDate(newValue)}
+                                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
                                     />
                                 </LocalizationProvider>
                                 <Button
@@ -296,6 +306,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                 pagination: { paginationModel: { pageSize: 15 } },
                             }}
                             disableRowSelectionOnClick
+                            disableDensitySelector
                             rowHeight={64}
                             slots={{
                                 toolbar: GridToolbar,
