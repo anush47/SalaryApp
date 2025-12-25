@@ -585,6 +585,13 @@ To ensure a consistent user experience across the application (Salaries, Payment
 *   **Dependency Order**: In complex React components, ensure data fetching hooks (e.g., `useQuery`) are initialized before selectors or memoized values (`useMemo`) that depend on that data to avoid `ReferenceError`.
 
 
+
+### 9.5. Configuration Management Standard
+
+*   **Centralized Configuration Forms**: For complex settings shared between multiple entities (e.g., Company defaults vs. Employee overrides), implementation should use a single, reusable configuration form (e.g., `AttendanceConfigurationForm`). This ensures feature parity, consistent validation logic, and a unified UI across different contexts.
+*   **Feature Flags**: Deprecated feature flags (like `liveDashboard`) should be aggressively cleaned up from both frontend interfaces and backend schemas to prevent technical debt accumulation.
+
+
 ## 10. API Development Patterns
 
 ### 10.1. Search Implementation
@@ -592,7 +599,3 @@ To ensure a consistent user experience across the application (Salaries, Payment
 *   **Relational Search:** For searching populated fields (e.g., Employee Name in Leave Request), pre-fetch matching IDs and use `$in`, or use aggregation pipelines if complex matching is required.
 *   **DTO Pattern:** Accepting a generic `params` object in service methods allows for flexible extension (filtering, searching, sorting) without changing the function signature.
 
-### 9.5. Configuration Management Standard
-
-*   **Centralized Configuration Forms**: For complex settings shared between multiple entities (e.g., Company defaults vs. Employee overrides), implementation should use a single, reusable configuration form (e.g., `AttendanceConfigurationForm`). This ensures feature parity, consistent validation logic, and a unified UI across different contexts.
-*   **Feature Flags**: Deprecated feature flags (like `liveDashboard`) should be aggressively cleaned up from both frontend interfaces and backend schemas to prevent technical debt accumulation.
