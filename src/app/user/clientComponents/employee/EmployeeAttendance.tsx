@@ -265,7 +265,22 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             });
         };
 
-        getLocation().then(async (location) => {
+        let locationPromise: Promise<{ lat: number, lng: number, accuracy: number } | null>;
+
+        // OPTIMIZATION: Use cached location if available and recent
+        if (locationStatus.coords && !locationStatus.error) {
+            console.log("Using cached location for ultra-fast check-in");
+            locationPromise = Promise.resolve({
+                lat: locationStatus.coords.latitude,
+                lng: locationStatus.coords.longitude,
+                accuracy: locationStatus.coords.accuracy
+            });
+        } else {
+            console.log("No cached location, fetching fresh position...");
+            locationPromise = getLocation();
+        }
+
+        locationPromise.then(async (location) => {
             let deviceId = localStorage.getItem("attendance_device_id");
             if (!deviceId) {
                 deviceId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
