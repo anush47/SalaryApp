@@ -191,16 +191,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                         }
                                         label="PWA Check-In"
                                     />
-                                    <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                checked={config.features?.liveDashboard || false}
-                                                onChange={handleFeatureChange("liveDashboard")}
-                                                disabled={!isEditing}
-                                            />
-                                        }
-                                        label="Live Dashboard"
-                                    />
+
                                     <FormControlLabel
                                         control={
                                             <Checkbox

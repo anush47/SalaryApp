@@ -225,10 +225,7 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
                                             control={<Checkbox checked={config.features?.pwaCheckIn} onChange={handleFeatureChange("pwaCheckIn")} disabled={!isEditing} />}
                                             label="PWA Check-In"
                                         />
-                                        <FormControlLabel
-                                            control={<Checkbox checked={config.features?.liveDashboard} onChange={handleFeatureChange("liveDashboard")} disabled={!isEditing} />}
-                                            label="Live Dashboard"
-                                        />
+
                                         <FormControlLabel
                                             control={<Checkbox checked={config.features?.salaryIntegration} onChange={handleFeatureChange("salaryIntegration")} disabled={!isEditing} />}
                                             label="Salary Integration"
