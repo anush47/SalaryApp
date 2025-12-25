@@ -1,4 +1,5 @@
 import dbConnect from "@/app/lib/db";
+import mongoose from "mongoose";
 import Attendance from "@/app/models/Attendance";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
@@ -17,6 +18,7 @@ export const attendanceCreateSchema = z.object({
     }),
     deviceId: z.string().optional(),
     deviceDetails: z.string().optional(),
+    shiftId: z.string().optional(),
 });
 
 export const externalAttendanceSchema = z.object({
@@ -71,50 +73,81 @@ export class AttendanceService {
             throw new NotFoundError("Company record not found.");
         }
 
-        // 2. Feature Toggle Check
+        // 2. feature check...
         if (!company.attendanceConfig?.enabled) {
             throw new ForbiddenError("Attendance system is disabled for this company.");
         }
-        if (!company.attendanceConfig?.features?.pwaCheckIn) {
+        if (!company.attendanceConfig?.pwaCheckIn) {
             throw new ForbiddenError("Mobile check-in is disabled for this company.");
         }
 
-        // 2.5 Shift Validation
+        // 2.5 Shift Validation & Resolution
+        let resolvedShift: any = null;
+        let resolutionMode = "system"; // Default
+
         if (type === 'in') {
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
-            const checkInTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' }); // TODO: Use Company Timezone
+            const checkInTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' });
 
-            // We need to pass the Employee Document and Company Document (casted if needed, or fetched as Lean)
-            // ShiftService expects IEmployee, ICompany. Mongoose docs are fine.
+            // Determine Settings to know Mode
+            const settings = ShiftService.getEffectiveSettings(employee, company);
+            resolutionMode = settings?.mode || "fixed";
 
-            const shiftResult = await ShiftService.resolveActiveShift(employee, company, dateStr, checkInTime);
-
-            if (shiftResult.checkInBlocked) {
-                throw new ForbiddenError(shiftResult.blockReason || "Check-in blocked by shift rules.");
-            }
-
-            if (shiftResult.isOffDay) {
-                throw new ForbiddenError("Today is marked as an Off Day.");
-            }
-
-            if (shiftResult.shift) {
-                const validation = ShiftService.validateCheckIn(shiftResult.shift, checkInTime);
-                if (!validation.valid) {
-                    throw new ForbiddenError(validation.message || "Invalid check-in time for the current shift.");
+            // Manual Mode: Use provided shiftId
+            // Or if user provided a manual override even in other modes (if desired? No, usually restricted. But let's allow explicit override if passed)
+            // Strict: If mode is Manual, WE EXPECT shiftId.
+            if (resolutionMode === 'manual' && body.shiftId) {
+                // Verify provided shiftId exists in pool
+                const shift = settings?.shifts?.find((s: any) => s._id === body.shiftId);
+                if (shift) {
+                    resolvedShift = shift;
+                    resolutionMode = "manual";
+                } else {
+                    throw new BadRequestError("Invalid shift ID provided.");
                 }
-            } else if (shiftResult.source === 'roster') {
-                // Roster mode active but no shift assigned (and not off day? should have been caught)
-                // If resolveActiveShift returns null shift for roster, it means no assignment.
-                // Should we block?
-                // For now, if strict roster enforcement is desired, yes.
-                // throw new ForbiddenError("No shift assigned for today.");
+            } else {
+                // System Resolution
+                const shiftResult = await ShiftService.resolveActiveShift(employee, company, dateStr, checkInTime);
+
+                if (shiftResult.checkInBlocked) {
+                    // Logic: If manual mode was expected but not provided, validation fails? 
+                    // ShiftService returns source='none' for manual if no override.
+                    // If we are here, it means we fallback to system.
+                    throw new ForbiddenError(shiftResult.blockReason || "Check-in blocked by shift rules.");
+                }
+
+                if (shiftResult.isOffDay) {
+                    throw new ForbiddenError("Today is marked as an Off Day.");
+                }
+
+                // Logic: Dynamic Mode
+                // "If dynamic is selected then no need a shift because when checked in starts the shift"
+                // "In dynamic also if smart selection is on then select... "
+                // IMPL: If settings.mode == 'dynamic' AND !settings.autoSelect => resolvedShift = NULL.
+                // ShiftService might return a default shift if configured. We explicitly IGNORE it if autoSelect is OFF.
+                if (resolutionMode === 'dynamic' && !settings?.autoSelect) {
+                    resolvedShift = null;
+                } else {
+                    resolvedShift = shiftResult.shift;
+                }
+
+                // If resolvedShift found, validate time
+                if (resolvedShift) {
+                    const validation = ShiftService.validateCheckIn(resolvedShift, checkInTime);
+                    if (!validation.valid) {
+                        throw new ForbiddenError(validation.message || "Invalid check-in time for the current shift.");
+                    }
+                }
+
+                // Roster/Fixed logic is handled by resolveActiveShift returning the shift (or default).
+                // "Fixed then record what ever shift automatically" -> Done.
             }
         }
 
         // 3. Geolocation Validation
         let isVerified = false;
-        let allowedRadius = company.attendanceConfig.geoFencing?.radiusMeters || 100;
+        let allowedRadius = company.geoFencing?.radiusMeters || 100;
 
         // Check Overrides
         const overrides = employee.attendanceOverrides;
@@ -125,27 +158,44 @@ export class AttendanceService {
             // Standard Validation
             let validLocations = [];
 
-            // Add Company Default Location
-            if (company.attendanceConfig.geoFencing?.enabled &&
-                company.attendanceConfig.geoFencing.latitude &&
-                company.attendanceConfig.geoFencing.longitude) {
+            // STRICT OVERRIDE LOGIC: If overrides are enabled and geoFencing is set, use ONLY overrides.
+            if (overrides?.enabled && overrides.geoFencing?.enabled) {
+                const geo = overrides.geoFencing;
+                // Primary Override Zone
+                if (geo.latitude && geo.longitude) {
+                    validLocations.push({
+                        lat: geo.latitude,
+                        lng: geo.longitude,
+                        radius: geo.radiusMeters || 100,
+                        name: "Primary Override"
+                    });
+                }
+                // Multiple Override Zones
+                if (geo.allowedLocations && geo.allowedLocations.length > 0) {
+                    validLocations.push(...geo.allowedLocations);
+                }
+            } else {
+                // FALLBACK TO COMPANY SETTINGS
 
-                validLocations.push({
-                    lat: company.attendanceConfig.geoFencing.latitude,
-                    lng: company.attendanceConfig.geoFencing.longitude,
-                    radius: allowedRadius
-                });
-            }
+                // Add Company Default Location
+                if (company.geoFencing?.enabled &&
+                    company.geoFencing.latitude &&
+                    company.geoFencing.longitude) {
 
-            // Add Company Multiple Locations
-            if (company.attendanceConfig.geoFencing?.allowedLocations?.length > 0) {
-                validLocations.push(...company.attendanceConfig.geoFencing.allowedLocations);
-            }
+                    validLocations.push({
+                        lat: company.geoFencing.latitude,
+                        lng: company.geoFencing.longitude,
+                        radius: allowedRadius,
+                        name: "Company Primary"
+                    });
+                }
 
-            // Add Employee Specific Allowed Locations
-            if (overrides?.enabled && overrides.allowedLocations?.length > 0) {
-                validLocations.push(...overrides.allowedLocations);
+                // Add Company Multiple Locations
+                if (company.geoFencing?.allowedLocations && company.geoFencing.allowedLocations.length > 0) {
+                    validLocations.push(...company.geoFencing.allowedLocations);
+                }
             }
+            // Note: Previously, logic was mixing them (Additive). Now it is Exclusive based on user request "if overriden then them or else company ones".
 
             // Check if user is within ANY valid location
             if (validLocations.length === 0) {
@@ -165,7 +215,7 @@ export class AttendanceService {
             }
 
             // Enforcement
-            if (!isVerified && company.attendanceConfig.geoFencing?.enforceValidation) {
+            if (!isVerified && company.geoFencing?.enforceValidation) {
                 throw new ForbiddenError("You are not within the allowed clock-in range.");
             }
         }
@@ -193,7 +243,15 @@ export class AttendanceService {
                 isVerified
             },
             deviceId,
-            deviceDetails
+            deviceDetails,
+            shift: resolvedShift ? {
+                shiftId: resolvedShift._id,
+                name: resolvedShift.name,
+                startTime: resolvedShift.startTime,
+                endTime: resolvedShift.endTime,
+                type: resolvedShift.type
+            } : undefined,
+            resolutionMode
         });
 
         return attendance;
@@ -250,7 +308,7 @@ export class AttendanceService {
 
         // Fetch
         const records = await Attendance.find(filter)
-            .populate("employee", "name memberNo nic designation")
+            .populate("employee", "name memberNo nic designation attendanceOverrides")
             .sort({ timestamp: -1 })
             .lean();
 
@@ -274,7 +332,7 @@ export class AttendanceService {
             const currentEmployee = await Employee.findOne({ user: context.user.id });
             const targetEmployee = await Employee.findById(attendance.employee);
 
-            if (!currentEmployee || !targetEmployee || targetEmployee.manager?.toString() !== currentEmployee._id.toString()) {
+            if (!currentEmployee || !targetEmployee || targetEmployee.manager?.toString() !== (currentEmployee as any)._id.toString()) {
                 throw new ForbiddenError("You are not authorized to approve this record");
             }
         }
@@ -296,7 +354,7 @@ export class AttendanceService {
         }
 
         attendance.status = status;
-        attendance.approvedBy = context.user.id;
+        attendance.approvedBy = new mongoose.Types.ObjectId(context.user.id);
         attendance.approvedAt = new Date();
         await attendance.save();
         console.log(`[AttendanceService] Successfully saved attendance record: ${attendanceId}`);
@@ -318,7 +376,7 @@ export class AttendanceService {
             const currentEmployee = await Employee.findOne({ user: context.user.id });
             const targetEmployee = await Employee.findById(attendance.employee);
 
-            if (!currentEmployee || !targetEmployee || targetEmployee.manager?.toString() !== currentEmployee._id.toString()) {
+            if (!currentEmployee || !targetEmployee || targetEmployee.manager?.toString() !== (currentEmployee as any)._id.toString()) {
                 throw new ForbiddenError("You are not authorized to delete this record");
             }
         }

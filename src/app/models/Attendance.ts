@@ -1,9 +1,9 @@
-import { Schema, model, models, Document } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 // Force Recompile
 
 export interface IAttendance extends Document {
-    company: Schema.Types.ObjectId;
-    employee: Schema.Types.ObjectId;
+    company: string | Types.ObjectId;
+    employee: string | Types.ObjectId;
     timestamp: Date;
     type: "in" | "out";
     method: "web" | "kiosk" | "external_api" | "manual";
@@ -24,9 +24,27 @@ export interface IAttendance extends Document {
 
     // Approval Flow
     status: "pending" | "approved" | "rejected";
-    approvedBy?: Schema.Types.ObjectId;
+    approvedBy?: string | Types.ObjectId | null;
     approvedAt?: Date;
+
+    // Shift Data
+    shift?: {
+        shiftId: string;
+        name: string;
+        startTime: string;
+        endTime: string;
+        type: string;
+    };
+    resolutionMode?: string; // "fixed", "roster", "dynamic", "manual", "auto_select"
 }
+
+const resolvedShiftSchema = new Schema({
+    shiftId: String,
+    name: String,
+    startTime: String,
+    endTime: String,
+    type: String
+}, { _id: false });
 
 const attendanceSchema = new Schema<IAttendance>(
     {
@@ -86,6 +104,12 @@ const attendanceSchema = new Schema<IAttendance>(
         approvedAt: {
             type: Date,
         },
+        shift: {
+            type: resolvedShiftSchema,
+        },
+        resolutionMode: {
+            type: String,
+        },
     },
     {
         timestamps: true,
@@ -97,6 +121,7 @@ attendanceSchema.index({ company: 1, timestamp: -1 });
 attendanceSchema.index({ employee: 1, timestamp: -1 });
 attendanceSchema.index({ company: 1, employee: 1, timestamp: -1 });
 
-const Attendance = models.Attendance || model<IAttendance>("Attendance", attendanceSchema);
+if (models.Attendance) delete models.Attendance;
+const Attendance = model<IAttendance>("Attendance", attendanceSchema);
 
 export default Attendance;

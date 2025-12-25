@@ -1576,15 +1576,27 @@ const EditEmployeeForm: React.FC<{
               }}
               attendanceOverrides={{
                 ...formFields.attendanceOverrides,
-                geoFencing: formFields.geoFencing,
+                geoFencing: {
+                  ...formFields.geoFencing,
+                  enabled: formFields.geoFencing?.enabled || false,
+                  latitude: formFields.geoFencing?.latitude || 0,
+                  longitude: formFields.geoFencing?.longitude || 0,
+                  radiusMeters: formFields.geoFencing?.radiusMeters || 100,
+                  enforceValidation: formFields.geoFencing?.enforceValidation || false,
+                },
                 allowRemoteCheckIn: formFields.allowRemoteCheckIn,
                 requireApproval: formFields.requireApproval,
                 isRemote: formFields.isRemote,
-                allowedLocations: formFields.allowedLocations,
+                allowedLocations: formFields.allowedLocations || [],
+                pwaCheckIn: (formFields.attendanceOverrides as any)?.features?.pwaCheckIn || false,
+                hardwareIntegration: (formFields.attendanceOverrides as any)?.features?.hardwareIntegration || false,
+                salaryIntegration: (formFields.attendanceOverrides as any)?.features?.salaryIntegration || false,
               }}
               onUpdateOverrides={(newOverrides) => {
                 const {
-                  features,
+                  pwaCheckIn,
+                  hardwareIntegration,
+                  salaryIntegration,
                   enabled,
                   geoFencing,
                   allowRemoteCheckIn,
@@ -1597,7 +1609,11 @@ const EditEmployeeForm: React.FC<{
                   ...prev,
                   attendanceOverrides: {
                     enabled,
-                    features,
+                    features: {
+                      pwaCheckIn,
+                      hardwareIntegration,
+                      salaryIntegration,
+                    },
                   },
                   geoFencing,
                   allowRemoteCheckIn,

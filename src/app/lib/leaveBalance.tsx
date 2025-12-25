@@ -44,7 +44,7 @@ export async function getLeaveBalanceSummary(employeeId: string) {
       // Map to employee leave balance format
       leaveTypes = companyLeaveTypes.map((lt: any) => ({
         leaveType: lt._id,
-        maxDaysPerYear: lt.maxDaysPerPeriod || lt.maxDaysPerYear,
+        maxDaysPerPeriod: lt.maxDaysPerPeriod || lt.maxDaysPerYear,
         balance: lt.maxDaysPerPeriod || lt.maxDaysPerYear,
         carryForward: lt.carryForward,
         currentPeriodStart: null,
@@ -110,7 +110,7 @@ export async function getLeaveBalanceSummary(employeeId: string) {
       const pendingUsed = usageStats.find(s => s._id === "pending")?.total || 0;
 
       // Calculate effective balance robustly
-      const maxDays = lt.maxDaysPerYear || 0;
+      const maxDays = lt.maxDaysPerPeriod || 0;
       let effectiveBalance = lt.balance;
 
       // Safety cap: Remaining cannot exceed (Max - Approved Usage)
@@ -130,7 +130,7 @@ export async function getLeaveBalanceSummary(employeeId: string) {
           accrualPeriod: leaveType.accrualPeriod,
           accrualMethod: leaveType.accrualMethod,
         },
-        maxDaysPerPeriod: lt.maxDaysPerYear,
+        maxDaysPerPeriod: lt.maxDaysPerPeriod,
         availableLeaves,
         used: approvedUsed,
         pending: pendingUsed,
@@ -184,7 +184,7 @@ async function resetPeriodBalance(
       employee.leaveTypes[leaveTypeIndex].currentPeriodStart = newPeriod.periodStart;
       employee.leaveTypes[leaveTypeIndex].lastAccrualDate = new Date();
       employee.leaveTypes[leaveTypeIndex].carriedForwardBalance = carriedForward;
-      employee.leaveTypes[leaveTypeIndex].maxDaysPerYear = maxForPeriod;
+      employee.leaveTypes[leaveTypeIndex].maxDaysPerPeriod = maxForPeriod;
 
       // Repair legacy data before saving
       await EmployeeService.ensureValidLeaveTypes(employee);
@@ -243,7 +243,7 @@ export async function validateLeaveApplication(
     }
 
     // Check gender restrictions
-    if (leaveType.gender !== "all" && employee.gender && leaveType.gender !== employee.gender) {
+    if (leaveType.gender !== "all" && (employee as any).gender && leaveType.gender !== (employee as any).gender) {
       return {
         valid: false,
         error: `This leave type is only applicable for ${leaveType.gender} employees`,
@@ -422,8 +422,8 @@ export async function restoreLeaveBalance(
     leaveBalance.balance += days;
 
     // Don't exceed max days per year
-    if (leaveBalance.balance > leaveBalance.maxDaysPerYear) {
-      leaveBalance.balance = leaveBalance.maxDaysPerYear;
+    if (leaveBalance.balance > leaveBalance.maxDaysPerPeriod) {
+      leaveBalance.balance = leaveBalance.maxDaysPerPeriod;
     }
 
     await EmployeeService.ensureValidLeaveTypes(employee);
@@ -520,7 +520,7 @@ export async function carryForwardLeaves(
       // Only carry forward if enabled for this leave type
       if (!leaveBalance.carryForward || !leaveType.carryForward) {
         // Reset balance to max days for new year
-        leaveBalance.balance = leaveBalance.maxDaysPerYear;
+        leaveBalance.balance = (leaveBalance as any).maxDaysPerPeriod;
         results.push({
           leaveType: leaveType.name,
           carriedForward: 0,
@@ -536,7 +536,7 @@ export async function carryForwardLeaves(
       const carryForwardAmount = Math.min(currentBalance, maxCarryForward);
 
       // New balance = max days for new year + carried forward amount
-      leaveBalance.balance = leaveBalance.maxDaysPerYear + carryForwardAmount;
+      leaveBalance.balance = (leaveBalance as any).maxDaysPerPeriod + carryForwardAmount;
 
       results.push({
         leaveType: leaveType.name,
@@ -595,7 +595,7 @@ export async function initializeLeaveBalances(employeeId: string) {
 
       employee.leaveTypes.push({
         leaveType: leaveType._id,
-        maxDaysPerYear: maxDays,
+        maxDaysPerPeriod: maxDays,
         balance: availableBalance,
         carryForward: leaveType.carryForward,
         currentPeriodStart: currentPeriod.periodStart,

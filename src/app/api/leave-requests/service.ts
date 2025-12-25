@@ -225,11 +225,14 @@ export class LeaveRequestService {
                 user: session.user.id,
                 company: employee.company,
             });
-            if (!employeeUser || employeeUser._id.toString() !== data.employeeId) {
+            if (!employeeUser || (employeeUser._id as any).toString() !== data.employeeId) {
                 return ApiResponseUtils.sendForbidden("Forbidden");
             }
         } else if (session.user.role === "employer") {
             const company = await Company.findById(employee.company);
+            if (!company) {
+                return ApiResponseUtils.sendNotFound("Company not found");
+            }
             if (company.user.toString() !== session.user.id) {
                 return ApiResponseUtils.sendForbidden("Forbidden");
             }
@@ -348,7 +351,7 @@ export class LeaveRequestService {
             // If not found, try to initialize balances (in case they are missing for this employee)
             if (!employeeLeaveBalance) {
                 const { initializeLeaveBalances } = await import("@/app/lib/leaveBalance");
-                await initializeLeaveBalances(employee._id);
+                await initializeLeaveBalances(employee._id as any);
 
                 // Re-fetch employee to get updated leave types
                 const updatedEmployee = await Employee.findById(data.employeeId);
@@ -510,6 +513,9 @@ export class LeaveRequestService {
         }
 
         const employee = await Employee.findById(leaveRequest.employee._id);
+        if (!employee) {
+            return ApiResponseUtils.sendNotFound("Employee not found");
+        }
         const leaveType = await LeaveType.findById(leaveRequest.leaveType._id);
 
         // Verify access based on action
@@ -526,10 +532,10 @@ export class LeaveRequestService {
                 // Check if this employee is the assigned approver or in management chain
                 const isApprover =
                     leaveRequest.approver &&
-                    leaveRequest.approver.toString() === approverEmployee._id.toString();
+                    leaveRequest.approver.toString() === (approverEmployee._id as any).toString();
                 const inChain = await isInManagementChain(
-                    approverEmployee._id.toString(),
-                    leaveRequest.employee._id.toString()
+                    (approverEmployee._id as any).toString(),
+                    (leaveRequest.employee._id as any).toString()
                 );
 
                 if (!isApprover && !inChain) {
@@ -539,6 +545,9 @@ export class LeaveRequestService {
                 }
             } else if (session.user.role === "employer") {
                 const company = await Company.findById(employee.company);
+                if (!company) {
+                    return ApiResponseUtils.sendNotFound("Company not found");
+                }
                 if (company.user.toString() !== session.user.id) {
                     return ApiResponseUtils.sendForbidden("Forbidden");
                 }
@@ -551,13 +560,16 @@ export class LeaveRequestService {
                 });
                 if (
                     !requestingEmployee ||
-                    requestingEmployee._id.toString() !==
-                    leaveRequest.employee._id.toString()
+                    (requestingEmployee._id as any).toString() !==
+                    (leaveRequest.employee._id as any).toString()
                 ) {
                     return ApiResponseUtils.sendForbidden("Forbidden");
                 }
             } else if (session.user.role === "employer") {
                 const company = await Company.findById(employee.company);
+                if (!company) {
+                    return ApiResponseUtils.sendNotFound("Company not found");
+                }
                 if (company.user.toString() !== session.user.id) {
                     return ApiResponseUtils.sendForbidden("Forbidden");
                 }

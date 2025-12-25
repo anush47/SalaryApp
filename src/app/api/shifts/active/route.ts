@@ -37,7 +37,16 @@ export async function GET(req: NextRequest) {
             checkInTime || undefined
         );
 
-        return NextResponse.json({ success: true, data: resolved });
+        const settings = ShiftService.getEffectiveSettings(employee, company);
+
+        return NextResponse.json({
+            success: true,
+            data: {
+                ...resolved,
+                mode: settings?.mode,
+                availableShifts: settings?.shifts || []
+            }
+        });
     } catch (error: any) {
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }

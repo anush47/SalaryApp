@@ -219,7 +219,16 @@ const CompanyDetails = ({
     if (!isValid) {
       return;
     }
-    await updateCompanyMutation.mutateAsync(formFields);
+
+    // Unzip geoFencing from attendanceConfig if it exists there (Frontend structure vs Backend structure)
+    const payload = { ...formFields };
+    if (payload.attendanceConfig && (payload.attendanceConfig as any).geoFencing) {
+      payload.geoFencing = (payload.attendanceConfig as any).geoFencing;
+      const { geoFencing, ...restConfig } = payload.attendanceConfig as any;
+      payload.attendanceConfig = restConfig;
+    }
+
+    await updateCompanyMutation.mutateAsync(payload);
   };
 
   const handleDeleteConfirmation = async () => {
@@ -635,12 +644,13 @@ const CompanyDetails = ({
               <CompanyAttendanceSettings
                 isEditing={isEditing}
                 attendanceConfig={formFields.attendanceConfig}
-                setAttendanceConfig={(attendanceConfig) => {
+                geoFencing={formFields.geoFencing}
+                onUpdate={(updatedFields) => {
                   setFormFields(
                     (prev) =>
                     ({
                       ...prev,
-                      attendanceConfig,
+                      ...updatedFields,
                     } as Company)
                   );
                 }}
@@ -991,6 +1001,9 @@ const CompanyDetails = ({
                   </Typography>
                 </Grid>
               )}
+
+
+
               <Grid item xs={12}>
                 <Button
                   variant="outlined"

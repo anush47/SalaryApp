@@ -1,11 +1,11 @@
-import { Schema, model, models, Document } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 
 // Define an interface for the Company document
 export interface ICompany extends Document {
   name: string;
   employerNo: string;
   address: string;
-  user: Schema.Types.ObjectId;
+  user: string | Types.ObjectId;
   startedAt: String;
   endedAt: String;
   paymentMethod: String;
@@ -80,6 +80,8 @@ export interface ICompany extends Document {
     pwaCheckIn: boolean;
     hardwareIntegration: boolean;
     salaryIntegration: boolean;
+    allowRemoteCheckIn: boolean;
+    requireApproval: boolean;
   };
   geoFencing: {
     enabled: boolean;
@@ -94,8 +96,6 @@ export interface ICompany extends Document {
       name: string;
     }[];
   };
-  allowRemoteCheckIn: boolean;
-  requireApproval: boolean;
   apiKey?: string;
 }
 
@@ -346,42 +346,30 @@ const companySchema = new Schema<ICompany>(
       default: "default",
     },
     attendanceConfig: {
-      enabled: {
-        type: Boolean,
-        default: false,
-      },
-      features: {
-        pwaCheckIn: { type: Boolean, default: false },
-        hardwareIntegration: { type: Boolean, default: false },
-        salaryIntegration: { type: Boolean, default: false },
-      },
-      geoFencing: {
-        enabled: { type: Boolean, default: false },
-        latitude: Number,
-        longitude: Number,
-        radiusMeters: { type: Number, default: 100 },
-        enforceValidation: { type: Boolean, default: false },
-        allowedLocations: [
-          {
-            lat: Number,
-            lng: Number,
-            radius: Number,
-            name: String,
-          },
-        ],
-      },
-      allowRemoteCheckIn: {
-        type: Boolean,
-        default: false,
-      },
-      requireApproval: {
-        type: Boolean,
-        default: false,
-      },
-      apiKey: {
-        type: String, // For hardware integration
-      }
+      enabled: { type: Boolean, default: false },
+      pwaCheckIn: { type: Boolean, default: false },
+      hardwareIntegration: { type: Boolean, default: false },
+      salaryIntegration: { type: Boolean, default: false },
+      allowRemoteCheckIn: { type: Boolean, default: false },
+      requireApproval: { type: Boolean, default: false },
     },
+    geoFencing: {
+      enabled: { type: Boolean, default: false },
+      latitude: Number,
+      longitude: Number,
+      radiusMeters: { type: Number, default: 100 },
+      enforceValidation: { type: Boolean, default: false },
+      allowedLocations: [
+        {
+          _id: false,
+          lat: Number,
+          lng: Number,
+          radius: Number,
+          name: String,
+        },
+      ],
+    },
+    apiKey: { type: String },
   },
   {
     timestamps: true, // Optionally add timestamps for createdAt and updatedAt

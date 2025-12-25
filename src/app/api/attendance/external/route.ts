@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Feature Check
-        if (!company.attendanceConfig?.enabled || !company.attendanceConfig?.features?.hardwareIntegration) {
+        if (!company.attendanceConfig?.enabled || !company.attendanceConfig?.hardwareIntegration) {
             return ApiResponseUtils.sendForbidden("Hardware integration is disabled for this company");
         }
 

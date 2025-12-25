@@ -33,6 +33,7 @@ interface LocationMapProps {
     circlePosition?: { lat: number; lng: number }; // Defaults to center
     userLocation?: { lat: number; lng: number }; // Shows a special "You are here" marker if provided
     additionalZones?: { lat: number; lng: number; radius: number; name?: string }[]; // Extra allowed circles
+    fitBounds?: boolean; // Whether to auto-fit bounds to include all markers/circles
 }
 
 // Component to handle map clicks for updates
@@ -49,8 +50,50 @@ const MapEvents = ({ onSelect }: { onSelect: (lat: number, lng: number) => void 
 const RecenterMap = ({ lat, lng, zoom }: { lat: number; lng: number, zoom: number }) => {
     const map = useMap();
     useEffect(() => {
+        // Only flyTo if not fitting bounds
         map.setView([lat, lng], zoom);
     }, [lat, lng, zoom, map]);
+    return null;
+};
+
+// Component to fit bounds
+const FitMapBounds = ({ markers, circles }: { markers: { lat: number, lng: number }[], circles: { lat: number, lng: number, radius: number }[] }) => {
+    const map = useMap();
+    const hasFitted = React.useRef(false);
+    const prevCirclesRef = React.useRef<string>("");
+
+    useEffect(() => {
+        if (markers.length === 0 && circles.length === 0) return;
+
+        // Create a signature for circles to detect zone changes
+        const circlesSignature = JSON.stringify(circles.map(c => ({ lat: c.lat, lng: c.lng, r: c.radius })));
+        const circlesChanged = prevCirclesRef.current !== circlesSignature;
+
+        if (circlesChanged) {
+            hasFitted.current = false;
+            prevCirclesRef.current = circlesSignature;
+        }
+
+        if (!hasFitted.current) {
+            const bounds = L.latLngBounds([]);
+
+            markers.forEach(m => bounds.extend([m.lat, m.lng]));
+            circles.forEach(c => {
+                bounds.extend([c.lat, c.lng]);
+                // Extend slightly more for radius roughly
+                const rLat = c.radius / 111320; // rough deg
+                bounds.extend([c.lat + rLat, c.lng]);
+                bounds.extend([c.lat - rLat, c.lng]);
+                bounds.extend([c.lat, c.lng + rLat]);
+                bounds.extend([c.lat, c.lng - rLat]);
+            });
+
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+                hasFitted.current = true;
+            }
+        }
+    }, [markers, circles, map]);
     return null;
 };
 
@@ -65,7 +108,8 @@ const LocationMap: React.FC<LocationMapProps> = ({
     markerPosition,
     circlePosition,
     userLocation,
-    additionalZones
+    additionalZones,
+    fitBounds = false
 }) => {
     // Determine effective positions
     // If markerPosition is undefined, use center (lat,lng). If null, show nothing.
@@ -105,7 +149,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
                 {radius && radius > 0 && (
                     <Circle
                         center={[effectiveCirclePos.lat, effectiveCirclePos.lng]}
-                        pathOptions={{ fillColor: 'blue', color: 'blue', opacity: 0.2, fillOpacity: 0.1 }}
+                        pathOptions={{ fillColor: 'blue', color: 'blue', opacity: 0.6, weight: 2, fillOpacity: 0.3 }}
                         radius={radius}
                     />
                 )}
@@ -115,7 +159,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
                     <Circle
                         key={idx}
                         center={[zone.lat, zone.lng]}
-                        pathOptions={{ fillColor: 'green', color: 'green', opacity: 0.2, fillOpacity: 0.1 }}
+                        pathOptions={{ fillColor: 'green', color: 'green', opacity: 0.6, weight: 2, fillOpacity: 0.3 }}
                         radius={zone.radius}
                     >
                         <Popup>Allowed Zone: {zone.name || `Zone ${idx + 1}`}</Popup>
@@ -127,8 +171,21 @@ const LocationMap: React.FC<LocationMapProps> = ({
                     <MapEvents onSelect={onLocationSelect} />
                 )}
 
-                {/* Auto Recenter */}
-                <RecenterMap lat={lat} lng={lng} zoom={zoom} />
+                {/* Auto Recenter or Fit Bounds */}
+                {fitBounds ? (
+                    <FitMapBounds
+                        markers={[
+                            ...(effectiveMarkerPos && (!markerPosition || markerPosition !== null) ? [effectiveMarkerPos] : []),
+                            ...(userLocation ? [userLocation] : [])
+                        ]}
+                        circles={[
+                            ...(radius && radius > 0 ? [{ lat: effectiveCirclePos.lat, lng: effectiveCirclePos.lng, radius }] : []),
+                            ...(additionalZones || [])
+                        ]}
+                    />
+                ) : (
+                    <RecenterMap lat={lat} lng={lng} zoom={zoom} />
+                )}
             </MapContainer>
 
             {interactive && (

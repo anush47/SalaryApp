@@ -292,6 +292,34 @@ export const employeeUpdateSchema = z.object({
 
 export const employeeIdSchema = z.string().min(1, "Employee ID is required");
 
+// Common Geofencing Schema
+const geoFencingSchema = z.object({
+  enabled: z.boolean(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  radiusMeters: z.number().optional(),
+  enforceValidation: z.boolean().optional(),
+  allowedLocations: z
+    .array(
+      z.object({
+        lat: z.number(),
+        lng: z.number(),
+        radius: z.number(),
+        name: z.string(),
+      })
+    )
+    .optional(),
+});
+
+const attendanceConfigSchema = z.object({
+  enabled: z.boolean(),
+  pwaCheckIn: z.boolean().optional(),
+  hardwareIntegration: z.boolean().optional(),
+  salaryIntegration: z.boolean().optional(),
+  allowRemoteCheckIn: z.boolean().optional(),
+  requireApproval: z.boolean().optional(),
+});
+
 // Company-related schemas
 export const companyCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -327,6 +355,8 @@ export const companyCreateSchema = z.object({
     end: z.string().optional(),
     allDay: z.boolean().optional(),
   }),
+  attendanceConfig: attendanceConfigSchema.optional(),
+  geoFencing: geoFencingSchema.optional(),
 });
 
 export const companyUpdateSchema = z.object({
@@ -387,6 +417,11 @@ export const companyUpdateSchema = z.object({
       allDay: z.boolean().optional(),
     })
     .optional(),
+  attendanceConfig: attendanceConfigSchema.optional(),
+  geoFencing: geoFencingSchema.optional(),
+  requireApproval: z.boolean().optional(),
+  allowRemoteCheckIn: z.boolean().optional(),
+  apiKey: z.string().optional(),
 });
 
 export const companyIdSchema = z.string().min(1, "Company ID is required");

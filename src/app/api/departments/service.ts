@@ -201,6 +201,9 @@ export class DepartmentService {
 
             // Verify access
             const company = await Company.findById(department.company);
+            if (!company) {
+                return ApiResponseUtils.sendNotFound("Company not found");
+            }
             if (user.role !== "admin" && company.user.toString() !== user.id) {
                 return ApiResponseUtils.sendForbidden();
             }
@@ -314,6 +317,9 @@ export class DepartmentService {
 
             // Verify access
             const company = await Company.findById(department.company);
+            if (!company) {
+                return ApiResponseUtils.sendNotFound("Company not found");
+            }
             if (user.role !== "admin" && company.user.toString() !== user.id) {
                 return ApiResponseUtils.sendForbidden();
             }
@@ -504,6 +510,9 @@ export class DepartmentService {
 
             // Verify access
             const company = await Company.findById(department.company);
+            if (!company) {
+                return ApiResponseUtils.sendNotFound("Company not found");
+            }
             if (
                 user.role !== "admin" &&
                 user.role !== "employee" &&

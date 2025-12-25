@@ -64,19 +64,14 @@ export class ShiftService {
             if (shift) return { shift, source: "roster" };
         }
 
-        // 2. Determine Configuration Source (Employee Override vs Company)
-        const settings =
-            employee.overrides?.shifts && employee.shiftSettings?.mode
-                ? employee.shiftSettings
-                : company.shiftSettings;
+        // 2. Determine Configuration Source
+        const settings = this.getEffectiveSettings(employee, company);
 
         if (!settings) return { shift: null, source: "none" };
 
         // 3. Handle Modes
         if (settings.mode === "fixed") {
             // Return the default shift or the first one
-            // If we have multiple fixed shifts, we might need time-based logic or day-of-week logic (not implemented yet)
-            // For now, return the first one or default
             const shift = settings.shifts.find(s => s._id === settings.defaultShiftId) || settings.shifts[0];
             return { shift: shift || null, source: "fixed_schedule" };
         }
@@ -89,19 +84,29 @@ export class ShiftService {
                 if (bestMatch) return { shift: bestMatch, source: "auto_select" };
             }
             // Fallback to default
-            const shift = settings.shifts.find(s => s._id === settings.defaultShiftId) || settings.shifts[0];
+            const shift = settings.shifts.find(s => s._id === settings.defaultShiftId); // Removed default first one fallback for dynamic to respect strict auto-select/default
             return { shift: shift || null, source: "default" };
         }
 
         if (settings.mode === "roster") {
             // If meant to be roster but no assignment found, return null or default fallback?
-            // Maybe default fallback if configured
             const shift = settings.shifts.find(s => s._id === settings.defaultShiftId);
             return { shift: shift || null, source: "default" };
         }
 
+        if (settings.mode === "manual") {
+            // Manual mode implies we wait for user, but we return null shift here so frontend knows.
+            return { shift: null, source: "manual_override" };
+        }
+
 
         return { shift: null, source: "none" };
+    }
+
+    static getEffectiveSettings(employee: IEmployee, company: ICompany) {
+        return employee.overrides?.shifts && employee.shiftSettings?.mode
+            ? employee.shiftSettings
+            : company.shiftSettings;
     }
 
     static findShiftById(shiftId: string, company: ICompany, employee: IEmployee): Shift | undefined {

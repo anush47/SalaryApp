@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
 
     // Verify access to company
     const company = await Company.findById(employee.company);
+    if (!company) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    }
     if (
       session.user.role !== "admin" &&
       company.user.toString() !== session.user.id

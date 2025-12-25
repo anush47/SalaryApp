@@ -49,7 +49,7 @@ export class EmployeeService {
 
     const employee = await Employee.findOne({ user: userParam })
       .populate('user', '-password')
-      .populate('company', 'name employerNo paymentStructure attendanceConfig')
+      .populate('company', 'name employerNo paymentStructure attendanceConfig geoFencing')
       .populate('department', 'name')
       .populate('manager', 'name memberNo')
       .lean();
@@ -135,7 +135,7 @@ export class EmployeeService {
     // Find employees based on the filter with pagination and populate all necessary fields
     const employeesWithPopulatedData = await Employee.find(filter)
       .populate('user', '-password')
-      .populate('company', 'name employerNo')
+      .populate('company', 'name employerNo geoFencing')
       .populate('department', 'name')
       .populate('manager', 'name memberNo')
       .skip(skip)
@@ -158,9 +158,11 @@ export class EmployeeService {
       employee.company = companyId;
 
       // Add company name and employer number fields for display
-      if (populatedCompany && typeof populatedCompany === 'object') {
-        employee.companyName = populatedCompany.name;
-        employee.companyEmployerNo = populatedCompany.employerNo;
+      if (populatedCompany && typeof populatedCompany === 'object' && '_id' in populatedCompany) {
+        const comp = populatedCompany as any;
+        const emp = employee as any;
+        emp.companyName = comp.name;
+        emp.companyEmployerNo = comp.employerNo;
       }
 
       return employee;

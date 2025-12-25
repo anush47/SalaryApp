@@ -50,7 +50,7 @@ import { Delete } from "@mui/icons-material";
 
 
 
-const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), { ssr: false });
+import { AttendanceZonesMap } from "@/app/components/attendance/AttendanceZonesMap";
 import dayjs from "dayjs";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -218,6 +218,24 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                         variant="outlined"
                         sx={{ fontWeight: 'bold', width: 60 }}
                     />
+                </Box>
+            ),
+        },
+        {
+            field: "shift",
+            headerName: "Shift",
+            width: 150,
+            sortable: false,
+            renderCell: (params) => (
+                <Box display="flex" flexDirection="column" justifyContent="center" height="100%">
+                    <Typography variant="body2" fontWeight="500">
+                        {params.value?.name || '-'}
+                    </Typography>
+                    {params.value?.startTime && (
+                        <Typography variant="caption" color="text.secondary">
+                            {params.value.startTime} - {params.value.endTime}
+                        </Typography>
+                    )}
                 </Box>
             ),
         },
@@ -613,6 +631,19 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                 </Box>
                             </Grid>
                             <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">Shift</Typography>
+                                <Box mt={0.5}>
+                                    <Typography variant="body2" fontWeight="bold">
+                                        {viewLog.shift?.name || 'No Shift'}
+                                    </Typography>
+                                    {viewLog.shift?.startTime && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            {viewLog.shift.startTime} - {viewLog.shift.endTime}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
                                 <Typography variant="caption" color="text.secondary">Status</Typography>
                                 <Box mt={0.5}>
                                     <TextField
@@ -681,28 +712,14 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                                                 Check-in Location (Marker) vs Company Zone (Circle)
                                             </Typography>
-                                            <LocationMap
-                                                // Center map on the User's Check-in Location initially
-                                                lat={viewLog.location.lat}
-                                                lng={viewLog.location.lng}
-
-                                                // Map Visuals
-                                                // 1. Circle: Company Allowed Zone (if available)
-                                                circlePosition={companyLocation ? { lat: companyLocation.lat, lng: companyLocation.lng } : undefined}
-                                                radius={companyLocation ? companyLocation.radius : (viewLog.location.accuracy || 20)}
-
-                                                // 2. Marker: User's Actual Check-in Location
-                                                markerPosition={{ lat: viewLog.location.lat, lng: viewLog.location.lng }}
-
+                                            <AttendanceZonesMap
+                                                companyConfig={companyData}
+                                                employeeOverrides={viewLog.employee?.attendanceOverrides}
+                                                markerLocation={{ lat: viewLog.location.lat, lng: viewLog.location.lng }}
                                                 height={250}
-                                                zoom={16}
-                                                interactive={false}
+                                                interactive={true}
+                                                fitBounds={true}
                                             />
-                                            {companyLocation && (
-                                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic' }}>
-                                                    * Blue Circle is the allowed office area ({companyLocation.radius}m radius).
-                                                </Typography>
-                                            )}
                                         </Box>
                                     )}
 

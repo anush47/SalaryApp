@@ -5,6 +5,7 @@ export const markAttendance = async (data: {
     location: { lat: number; lng: number; accuracy: number };
     deviceId?: string;
     deviceDetails?: string;
+    shiftId?: string;
 }): Promise<ApiResponse> => {
     const response = await fetch('/api/attendance', {
         method: 'POST',

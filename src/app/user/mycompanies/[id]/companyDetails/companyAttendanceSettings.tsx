@@ -25,25 +25,25 @@ const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), {
 
 interface CompanyAttendanceSettingsProps {
     isEditing: boolean;
-    attendanceConfig: Company["attendanceConfig"];
-    setAttendanceConfig: (config: Company["attendanceConfig"]) => void;
+    attendanceConfig: Company["attendanceConfig"] | undefined;
+    geoFencing: Company["geoFencing"] | undefined;
+    onUpdate: (fields: Partial<Company>) => void;
 }
 
 export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps> = ({
     isEditing,
     attendanceConfig,
-    setAttendanceConfig,
+    geoFencing,
+    onUpdate,
 }) => {
 
 
     // Ensure we have default values if undefined
     const defaultConfig: AttendanceConfigData = {
         enabled: false,
-        features: {
-            pwaCheckIn: false,
-            hardwareIntegration: false,
-            salaryIntegration: false,
-        },
+        pwaCheckIn: false,
+        hardwareIntegration: false,
+        salaryIntegration: false,
         geoFencing: {
             enabled: false,
             latitude: 0,
@@ -56,11 +56,29 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
         requireApproval: false,
     };
 
-    // Cast attendanceConfig to AttendanceConfigData to satisfy TS
-    const config: AttendanceConfigData = (attendanceConfig as unknown as AttendanceConfigData) || defaultConfig;
+    // Combine props into single config object for the form
+    const config: AttendanceConfigData = {
+        ...defaultConfig,
+        ...(attendanceConfig as any), // Spread attendance flags
+        geoFencing: geoFencing || defaultConfig.geoFencing, // Override geoFencing
+    };
+
+    const handleConfigChange = (newConfig: AttendanceConfigData) => {
+        // Split back into separate updates
+        // 1. GeoFencing
+        const newGeoFencing = newConfig.geoFencing;
+
+        // 2. Attendance Config (extract flags)
+        const { geoFencing: _, ...newAttendanceConfig } = newConfig;
+
+        onUpdate({
+            attendanceConfig: newAttendanceConfig as any,
+            geoFencing: newGeoFencing
+        });
+    };
 
     const handleToggleEnable = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setAttendanceConfig({
+        handleConfigChange({
             ...config,
             enabled: e.target.checked,
         });
@@ -104,7 +122,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                         <Grid item xs={12}>
                             <AttendanceConfigurationForm
                                 config={config}
-                                onChange={(newConfig) => setAttendanceConfig(newConfig as any)}
+                                onChange={handleConfigChange}
                                 isEditing={isEditing}
                                 type="company"
                             />

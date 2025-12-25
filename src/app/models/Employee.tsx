@@ -1,4 +1,4 @@
-import { Schema, model, models, Document } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 
 // Define an interface for the Employee document
 export interface IEmployee extends Document {
@@ -8,7 +8,7 @@ export interface IEmployee extends Document {
   nic: string;
   basic: number;
   totalSalary: string;
-  company: Schema.Types.ObjectId;
+  company: string | Types.ObjectId;
   designation: string;
   startedAt: string;
   resignedAt: string;
@@ -20,9 +20,9 @@ export interface IEmployee extends Document {
   active: boolean;
   otMethod: "random" | "noOt" | "calc";
   // New fields for hierarchy and access
-  user: Schema.Types.ObjectId;
-  department: Schema.Types.ObjectId;
-  manager: Schema.Types.ObjectId;
+  user?: string | Types.ObjectId | null;
+  department?: string | Types.ObjectId | null;
+  manager?: string | Types.ObjectId | null;
   employeeType: "permanent" | "contract" | "intern" | "temporary";
   canLogin: boolean;
   taxType?: "company" | "individual";
@@ -38,27 +38,25 @@ export interface IEmployee extends Document {
   };
   attendanceOverrides: {
     enabled: boolean;
-    features?: {
-      pwaCheckIn: boolean;
-      hardwareIntegration: boolean;
-      salaryIntegration: boolean;
-    };
+    pwaCheckIn: boolean;
+    hardwareIntegration: boolean;
+    salaryIntegration: boolean;
     geoFencing?: {
       enabled: boolean;
       latitude: number;
       longitude: number;
       radiusMeters: number;
       enforceValidation: boolean;
+      allowedLocations: {
+        lat: number;
+        lng: number;
+        radius: number;
+        name: string;
+      }[];
     };
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
-    isRemote: boolean; // Keeping for backward compat or alias to allowRemoteCheckIn
-    allowedLocations: {
-      lat: number;
-      lng: number;
-      radius: number;
-      name: string;
-    }[];
+    isRemote: boolean;
   };
   leaveTypes: {
     leaveType: Schema.Types.ObjectId;
@@ -244,29 +242,28 @@ const employeeSchema = new Schema<IEmployee>(
 
     attendanceOverrides: {
       enabled: { type: Boolean, default: false },
-      features: {
-        pwaCheckIn: { type: Boolean, default: false },
-        hardwareIntegration: { type: Boolean, default: false },
-        salaryIntegration: { type: Boolean, default: false },
-      },
+      pwaCheckIn: { type: Boolean, default: false },
+      hardwareIntegration: { type: Boolean, default: false },
+      salaryIntegration: { type: Boolean, default: false },
       geoFencing: {
         enabled: { type: Boolean, default: false },
         latitude: { type: Number, default: 0 },
         longitude: { type: Number, default: 0 },
         radiusMeters: { type: Number, default: 100 },
         enforceValidation: { type: Boolean, default: false },
+        allowedLocations: [
+          {
+            _id: false,
+            lat: Number,
+            lng: Number,
+            radius: Number,
+            name: String,
+          },
+        ],
       },
       allowRemoteCheckIn: { type: Boolean, default: false },
       requireApproval: { type: Boolean, default: false },
       isRemote: { type: Boolean, default: false },
-      allowedLocations: [
-        {
-          lat: Number,
-          lng: Number,
-          radius: Number,
-          name: String,
-        },
-      ],
     },
     leaveTypes: [
       {

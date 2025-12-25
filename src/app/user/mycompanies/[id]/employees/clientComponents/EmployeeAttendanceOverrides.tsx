@@ -17,11 +17,9 @@ import { AttendanceConfigurationForm, AttendanceConfigData } from "@/app/compone
 
 interface AttendanceOverrides {
     enabled: boolean;
-    features: {
-        pwaCheckIn: boolean;
-        hardwareIntegration: boolean;
-        salaryIntegration: boolean;
-    };
+    pwaCheckIn: boolean;
+    hardwareIntegration: boolean;
+    salaryIntegration: boolean;
     geoFencing?: {
         enabled: boolean;
         latitude: number;
@@ -60,12 +58,9 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
     // Safe defaults
     const config = attendanceOverrides || {
         enabled: false,
-        features: {
-            pwaCheckIn: false,
-            hardwareIntegration: false,
-
-            salaryIntegration: false,
-        },
+        pwaCheckIn: false,
+        hardwareIntegration: false,
+        salaryIntegration: false,
         geoFencing: {
             enabled: false,
             latitude: 0,
@@ -74,6 +69,7 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
             enforceValidation: false,
         },
         allowRemoteCheckIn: false,
+        requireApproval: false,
         isRemote: false,
         allowedLocations: [],
     };
@@ -141,12 +137,9 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
                                 <AttendanceConfigurationForm
                                     config={{
                                         ...config,
-                                        // Ensure generic types match
-                                        features: {
-                                            pwaCheckIn: config.features?.pwaCheckIn || false,
-                                            hardwareIntegration: config.features?.hardwareIntegration || false,
-                                            salaryIntegration: config.features?.salaryIntegration || false,
-                                        },
+                                        pwaCheckIn: config.pwaCheckIn || false,
+                                        hardwareIntegration: config.hardwareIntegration || false,
+                                        salaryIntegration: config.salaryIntegration || false,
                                         // Map root allowedLocations to geoFencing for the component
                                         geoFencing: {
                                             enabled: config.geoFencing?.enabled || false,
@@ -159,16 +152,9 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
                                         isRemote: config.isRemote || false
                                     }}
                                     onChange={(newConfig) => {
-                                        // Map back to Employee Overrides structure
-                                        // allowedLocations moves back to root
-                                        const { geoFencing, ...rest } = newConfig;
-                                        const { allowedLocations, ...geoRest } = geoFencing;
-
                                         onUpdateOverrides({
-                                            ...config, // Keep original references if needed, but overwrite with new
-                                            ...rest,
-                                            geoFencing: geoRest,
-                                            allowedLocations: allowedLocations || []
+                                            ...config,
+                                            ...newConfig
                                         });
                                     }}
                                     isEditing={isEditing}

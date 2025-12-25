@@ -179,6 +179,9 @@ export class LeaveTypeService {
 
         // Verify access
         const company = await Company.findById(leaveType.company);
+        if (!company) {
+            return ApiResponseUtils.sendNotFound("Company not found");
+        }
         if (
             session.user.role !== "admin" &&
             company.user.toString() !== session.user.id
@@ -226,6 +229,9 @@ export class LeaveTypeService {
 
         // Verify access
         const company = await Company.findById(leaveType.company);
+        if (!company) {
+            return ApiResponseUtils.sendNotFound("Company not found");
+        }
         if (
             session.user.role !== "admin" &&
             company.user.toString() !== session.user.id

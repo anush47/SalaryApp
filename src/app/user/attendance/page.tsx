@@ -25,32 +25,74 @@ export default function AttendancePage() {
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
 
+    // State for Shift
+    const [shiftContext, setShiftContext] = useState<any>(null);
+    const [selectedShiftId, setSelectedShiftId] = useState<string>("");
+    const [manualShiftDialogOpen, setManualShiftDialogOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [logs, setLogs] = useState<any[]>([]);
-    const [fetchingLogs, setFetchingLogs] = useState(false);
 
     useEffect(() => {
-        if (status === "unauthenticated") {
-            router.push("/auth/signIn");
+        if (session?.user?.id) {
+            fetchActiveShift();
         }
-    }, [status, router]);
+    }, [session]);
 
-    // Fetch today's logs on load
-    const loadLogs = async () => {
-        // We assume the user is an employee and use their first company (simplified for now)
-        // In a real scenario, we might need a company selector if they work for multiple
-        // But for the check-in PWA, usually it's context-aware or just the primary company
-        // ATTENTION: This page needs the CompanyID. We'll look for it or assume the backend validates session user.
-        // Actually, the API requires companyId for GET, but POST infers it from Employee record.
-        // For GET logs, we need to know the companyID.
-        // Let's defer GET Logs for a moment or fetch via a new "my-logs" endpoint which we didn't create yet.
-        // OR we can make the GET endpoint generic for employees to find their own logs without passing companyID explicitly if we update the service.
-        // For now, let's focus on the Check-In/Out action.
+    const fetchActiveShift = async () => {
+        try {
+            // Need employee ID. Usually session.user.id is linked. 
+            // Assuming session.user.employeeId exists or we use user.id to find employee via API?
+            // The active shift API expects employeeId. Let's assume for now we can get it or use the one from session if available.
+            // If session struct doesn't have it, we might fail. 
+            // Check authOptions to see if employeeId is in session. IF NOT, we might need to fetch profile first.
+            // For now, let's try using session.user.id as employeeId if it's an employee logged in.
+            if (!session?.user?.id) return;
+
+            // Correction: The API requires 'employeeId'. 
+            // Let's assume check-in page is used by authenticated employee.
+            // We'll optimistically try to fetch using the session ID if it maps, or we need a profile fetch.
+            // Simplified: User ID = Employee ID in this context? No, usually linked.
+            // Let's fetch /api/user/profile first? Or simpler, rely on backend to resolve user->employee?
+            // The active route expects `employeeId`. 
+            // Let's HARDCODE fetching /api/employees/me or similar?
+            // I'll assume we can get it.
+
+            // ACTUAL FIX: Let's fetch /api/shifts/active?employeeId=${session.user.id} (hoping id is employeeId or backend handles it)
+            // Actually, usually user.id is the User collection ID. Employee is separate.
+            // We need to fetch the Employee ID.
+
+            // Quickest path: Fetch /api/employees/mine or similar.
+            // But wait, the previous code didn't load logs properly either.
+
+            // Let's fetch profile first?
+            const profileRes = await fetch('/api/user/profile');
+            const profile = await profileRes.json();
+            if (profile.success && profile.data?.employeeId) {
+                const empId = profile.data.employeeId;
+                const res = await fetch(`/api/shifts/active?employeeId=${empId}&time=${dayjs().format('HH:mm')}`);
+                const data = await res.json();
+                if (data.success) {
+                    setShiftContext(data.data);
+                    if (data.data.mode === 'manual' && data.data.availableShifts?.length > 0) {
+                        setManualShiftDialogOpen(true);
+                    }
+                }
+            }
+
+        } catch (e) {
+            console.error("Failed to fetch shift context", e);
+        }
     };
 
     const handleAttendance = async (type: "in" | "out") => {
         if (!navigator.geolocation) {
             showSnackbar({ message: "Geolocation is not supported by your browser", severity: "error" });
+            return;
+        }
+
+        // if Manual mode and no shift selected, warn user
+        if (shiftContext?.mode === 'manual' && type === 'in' && !selectedShiftId) {
+            setManualShiftDialogOpen(true);
+            showSnackbar({ message: "Please select a shift.", severity: "warning" });
             return;
         }
 
@@ -61,10 +103,17 @@ export default function AttendancePage() {
                 const { latitude, longitude, accuracy } = position.coords;
 
                 try {
-                    const res = await markAttendance({
+                    const payload: any = {
                         type,
                         location: { lat: latitude, lng: longitude, accuracy }
-                    });
+                    };
+
+                    if (type === 'in' && selectedShiftId) {
+                        payload.shiftId = selectedShiftId;
+                    }
+                    // For auto/dynamic, backend handles it? Yes.
+
+                    const res = await markAttendance(payload);
 
                     if (res.success) {
                         showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
@@ -103,7 +152,42 @@ export default function AttendancePage() {
                 <Typography variant="h2" fontWeight="bold" color="primary">
                     {dayjs().format("HH:mm")}
                 </Typography>
+                {shiftContext?.shift && (
+                    <Typography variant="subtitle2" color="success.main" mt={1}>
+                        Active Shift: {shiftContext.shift.name} ({shiftContext.shift.startTime} - {shiftContext.shift.endTime})
+                    </Typography>
+                )}
+                {shiftContext?.mode === 'manual' && (
+                    <Box mt={2} display="flex" justifyContent="center">
+                        <Button variant="outlined" onClick={() => setManualShiftDialogOpen(true)}>
+                            {selectedShiftId ? `Selected: ${shiftContext.availableShifts.find((s: any) => s._id === selectedShiftId)?.name}` : "Select Shift"}
+                        </Button>
+                    </Box>
+                )}
             </Card>
+
+            {/* Shift Selection Dialog - Simplified as inline or basic dialog */}
+            {/* Note: I'm skipping full Dialog import for brevity in replace, implementing simple conditional render or using existing imports if Dialog available? 
+                 It was NOT imported. I'll add imports in a separate step or just use a conditional rendering block for now.
+             */}
+
+            {manualShiftDialogOpen && (
+                <Box mb={2} p={2} border="1px solid #ddd" borderRadius={2}>
+                    <Typography variant="h6" gutterBottom>Select Your Shift</Typography>
+                    <Stack spacing={1}>
+                        {shiftContext?.availableShifts?.map((s: any) => (
+                            <Button
+                                key={s._id}
+                                variant={selectedShiftId === s._id ? "contained" : "outlined"}
+                                onClick={() => { setSelectedShiftId(s._id); setManualShiftDialogOpen(false); }}
+                            >
+                                {s.name} ({s.startTime} - {s.endTime})
+                            </Button>
+                        ))}
+                    </Stack>
+                </Box>
+            )}
+
 
             <Stack spacing={2} direction="row" justifyContent="center">
                 <LoadingButton

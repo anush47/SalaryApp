@@ -22,13 +22,16 @@ const LocationMap = dynamic(() => import('@/app/components/maps/LocationMap'), {
 export interface AttendanceConfigData {
     // Common
     enabled: boolean;
-    features: {
+    pwaCheckIn: boolean;
+    hardwareIntegration: boolean;
+    salaryIntegration: boolean;
+    allowRemoteCheckIn: boolean;
+    requireApproval: boolean;
+    features?: {
         pwaCheckIn: boolean;
         hardwareIntegration: boolean;
         salaryIntegration: boolean;
     };
-    allowRemoteCheckIn: boolean;
-    requireApproval: boolean;
 
     // Geofencing
     geoFencing: {
@@ -68,18 +71,26 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
     const [mapMode, setMapMode] = useState<'view' | 'edit_primary' | 'add_new' | number>('view');
     const [newLocationName, setNewLocationName] = useState("");
     const [tempCoords, setTempCoords] = useState<{ lat: number; lng: number } | null>(null);
+    const [currentBrowserLocation, setCurrentBrowserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+    // Fetch current location on mount
+    React.useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setCurrentBrowserLocation({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.warn("Could not retrieve current location for map centering", error);
+                }
+            );
+        }
+    }, []);
 
     // -- Handlers --
-
-    const handleFeatureChange = (feature: keyof typeof config.features) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange({
-            ...config,
-            features: {
-                ...config.features,
-                [feature]: e.target.checked
-            }
-        });
-    };
 
     const handlePolicyChange = (field: keyof AttendanceConfigData, value: any) => {
         onChange({
@@ -204,49 +215,60 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
 
         const extra = config.geoFencing.allowedLocations || [];
 
+        // Fallback to browser location if primary is 0,0
+        const defaultCenterLat = currentBrowserLocation?.lat || 0;
+        const defaultCenterLng = currentBrowserLocation?.lng || 0;
+
         // View Mode: Show All
         if (mapMode === 'view') {
-            // Center? Maybe primary or first extra or 0,0
-            const centerLat = primary.lat || (extra.length > 0 ? extra[0].lat : 0);
-            const centerLng = primary.lng || (extra.length > 0 ? extra[0].lng : 0);
+            // Center? Maybe primary or first extra or current location
+            const hasPrimary = primary.lat !== 0 || primary.lng !== 0;
+            const hasExtra = extra.length > 0;
+
+            const centerLat = hasPrimary ? primary.lat : (hasExtra ? extra[0].lat : defaultCenterLat);
+            const centerLng = hasPrimary ? primary.lng : (hasExtra ? extra[0].lng : defaultCenterLng);
 
             return {
                 lat: centerLat,
                 lng: centerLng,
                 radius: 0, // Don't show generic radius circle
-                zoom: 13,
+                zoom: (hasPrimary || hasExtra) ? 13 : 15, // Zoom closer if relying on browser location
                 additionalZones: [
-                    ...(primary.lat ? [primary] : []),
+                    ...(hasPrimary ? [primary] : []),
                     ...extra.map(l => ({ lat: l.lat, lng: l.lng, radius: l.radius, name: l.name }))
                 ],
-                markerPosition: null
+                markerPosition: null,
+                userLocation: currentBrowserLocation || undefined
             };
         }
 
         // Edit Primary
         if (mapMode === 'edit_primary') {
+            const hasPrimary = primary.lat !== 0 || primary.lng !== 0;
             return {
-                lat: primary.lat,
-                lng: primary.lng,
+                lat: hasPrimary ? primary.lat : defaultCenterLat,
+                lng: hasPrimary ? primary.lng : defaultCenterLng,
                 radius: primary.radius,
                 zoom: 16,
-                markerPosition: { lat: primary.lat, lng: primary.lng },
-                additionalZones: []
+                markerPosition: hasPrimary ? { lat: primary.lat, lng: primary.lng } : null,
+                additionalZones: [],
+                userLocation: currentBrowserLocation || undefined
             };
         }
 
         // Add New
         if (mapMode === 'add_new') {
             // Default to primary location or 0,0 if not set
-            const startLat = tempCoords?.lat || primary.lat || 0;
-            const startLng = tempCoords?.lng || primary.lng || 0;
+            const startLat = tempCoords?.lat || primary.lat || defaultCenterLat;
+            const startLng = tempCoords?.lng || primary.lng || defaultCenterLng;
             return {
                 lat: startLat,
                 lng: startLng,
                 radius: 100, // Temp radius
                 zoom: 15,
                 markerPosition: tempCoords ? { lat: tempCoords.lat, lng: tempCoords.lng } : null,
-                additionalZones: []
+                additionalZones: [],
+                userLocation: currentBrowserLocation || undefined
             };
         }
 
@@ -259,11 +281,12 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
                 radius: loc.radius,
                 zoom: 16,
                 markerPosition: { lat: loc.lat, lng: loc.lng },
-                additionalZones: []
+                additionalZones: [],
+                userLocation: currentBrowserLocation || undefined
             };
         }
 
-        return { lat: 0, lng: 0 };
+        return { lat: defaultCenterLat, lng: defaultCenterLng };
     };
 
     const mapProps = getMapProps();
@@ -277,22 +300,22 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
                     <Typography variant="h6" gutterBottom>Feature Configuration</Typography>
                     <Box display="flex" gap={2} flexWrap="wrap">
                         <FormControlLabel
-                            control={<Checkbox checked={config.features?.pwaCheckIn || false} onChange={handleFeatureChange("pwaCheckIn")} disabled={!isEditing} />}
+                            control={<Checkbox checked={config.pwaCheckIn || false} onChange={(e) => handlePolicyChange("pwaCheckIn", e.target.checked)} disabled={!isEditing} />}
                             label="PWA Check-In"
                         />
                         <FormControlLabel
-                            control={<Checkbox checked={config.features?.salaryIntegration || false} onChange={handleFeatureChange("salaryIntegration")} disabled={!isEditing} />}
+                            control={<Checkbox checked={config.salaryIntegration || false} onChange={(e) => handlePolicyChange("salaryIntegration", e.target.checked)} disabled={!isEditing} />}
                             label="Salary Integration"
                         />
                         <FormControlLabel
-                            control={<Checkbox checked={config.features?.hardwareIntegration || false} onChange={handleFeatureChange("hardwareIntegration")} disabled={!isEditing} />}
+                            control={<Checkbox checked={config.hardwareIntegration || false} onChange={(e) => handlePolicyChange("hardwareIntegration", e.target.checked)} disabled={!isEditing} />}
                             label="Hardware Integration"
                         />
                     </Box>
                 </Grid>
 
                 {/* API Key (Company Only) */}
-                {type === 'company' && config.features?.hardwareIntegration && (
+                {type === 'company' && config.hardwareIntegration && (
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth label="API Key (Hardware)"

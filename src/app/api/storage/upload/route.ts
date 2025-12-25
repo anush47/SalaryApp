@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
                 }
 
                 // If uploading to 'employees' folder (profile docs), entityId MUST match their own employeeId
-                if (folder === 'employees' && entityId !== employeeRecord._id.toString()) {
+                if (folder === 'employees' && entityId !== (employeeRecord._id as any).toString()) {
                     return ApiResponseUtils.sendForbidden("You can only upload documents to your own profile.");
                 }
             } else if (user.role !== 'admin') {

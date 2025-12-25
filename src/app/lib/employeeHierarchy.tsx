@@ -31,7 +31,7 @@ export async function getEntireTeam(managerId: string): Promise<any[]> {
     // Recursively get subordinates of subordinates
     const allSubordinates = await Promise.all(
       directReports.map(async (employee) => {
-        const subTeam = await getEntireTeam(employee._id.toString());
+        const subTeam = await getEntireTeam((employee._id as any).toString());
         return [employee, ...subTeam];
       })
     );
@@ -59,7 +59,7 @@ export async function getManagerChain(employeeId: string): Promise<any[]> {
 
     const managerChain = [employee.manager];
     const upperManagers = await getManagerChain(
-      employee.manager._id.toString()
+      (employee.manager as any)._id.toString()
     );
 
     return [...managerChain, ...upperManagers];
@@ -80,7 +80,7 @@ export async function isInManagementChain(
   try {
     const managerChain = await getManagerChain(employeeId);
     return managerChain.some(
-      (manager) => manager._id.toString() === managerId
+      (manager) => (manager as any)._id.toString() === managerId
     );
   } catch (error) {
     console.error("Error checking management chain:", error);
@@ -105,7 +105,7 @@ export async function validateManagerAssignment(
     // (would create circular reference)
     const subordinates = await getEntireTeam(employeeId);
     const isSubordinate = subordinates.some(
-      (sub) => sub._id.toString() === newManagerId
+      (sub) => (sub._id as any).toString() === newManagerId
     );
 
     if (isSubordinate) {

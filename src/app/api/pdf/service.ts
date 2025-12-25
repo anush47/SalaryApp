@@ -99,7 +99,7 @@ export class PdfService {
             data,
             payment,
             pdfType,
-            employees
+            employees as any
         );
 
         if (!pdfOutput) {

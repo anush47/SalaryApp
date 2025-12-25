@@ -106,10 +106,14 @@ export const getData = async (
     "name employerNo address requiredDocs"
   );
 
+  if (!company) {
+    throw new Error("Company not found");
+  }
+
   const needInOut =
     pdfType === "attendance" ||
-    (pdfType === "all" && company.requiredDocs.attendance) ||
-    (pdfType === "print" && company.requiredDocs.attendance);
+    (pdfType === "all" && (company as any).requiredDocs.attendance) ||
+    (pdfType === "print" && (company as any).requiredDocs.attendance);
 
   // Fetch employees of the company
   const employees = await Employee.find({ company: companyId }).select(

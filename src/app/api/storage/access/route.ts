@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
                 // CASE A: Own Documents (Profile, Contracts, Leaves)
                 // Path: companies/{cid}/employees/{myEmployeeId}/... OR companies/{cid}/leaves/{myEmployeeId}/...
-                if ((folder === 'employees' || folder === 'leaves') && entityId === currentEmployee._id.toString()) {
+                if ((folder === 'employees' || folder === 'leaves') && entityId === (currentEmployee._id as any).toString()) {
                     const downloadUrl = await StorageService.getPresignedDownloadUrl(key);
                     return ApiResponseUtils.sendSuccess({ downloadUrl });
                 }
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
                         }
 
                         // If I am the owner of the leave request -> ALLOW
-                        if (leaveReq.employee.toString() === currentEmployee._id.toString()) {
+                        if (leaveReq.employee.toString() === (currentEmployee._id as any).toString()) {
                             const downloadUrl = await StorageService.getPresignedDownloadUrl(key);
                             return ApiResponseUtils.sendSuccess({ downloadUrl });
                         }
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
                         const requester = await Employee.findById(leaveReq.employee);
 
                         // If requester has a manager, and that manager is ME
-                        if (requester && requester.manager && requester.manager.toString() === currentEmployee._id.toString()) {
+                        if (requester && requester.manager && requester.manager.toString() === (currentEmployee._id as any).toString()) {
                             const downloadUrl = await StorageService.getPresignedDownloadUrl(key);
                             return ApiResponseUtils.sendSuccess({ downloadUrl });
                         }

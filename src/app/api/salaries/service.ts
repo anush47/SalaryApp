@@ -42,7 +42,7 @@ export class SalaryService {
 
         const filter: {
             user?: string;
-            _id: string;
+            _id: string | any;
         } = {
             user: context.user?.id,
             _id: companyId as string,
@@ -185,7 +185,7 @@ export class SalaryService {
             });
         } else {
             // Fetch employees of the specified company
-            const filter: { user?: string; _id: string } = {
+            const filter: { user?: string; _id: string | any } = {
                 user: context.user?.id,
                 _id: companyId as string,
             };
@@ -312,7 +312,7 @@ export class SalaryService {
             }
 
             // Check for company access and purchased status
-            const filter: { user?: string; _id: string } = {
+            const filter: { user?: string; _id: string | any } = {
                 user: context.user?.id,
                 _id: employee.company,
             };
@@ -331,7 +331,7 @@ export class SalaryService {
                 )
             ) {
                 const purchasedStatus = await PurchaseService.checkPurchased(
-                    employee.company,
+                    employee.company.toString(),
                     parsedSalary.period
                 );
                 if (purchasedStatus !== "approved") {
@@ -422,10 +422,13 @@ export class SalaryService {
         const employee = await Employee.findById(parsedBody.employee).select(
             "company"
         );
+        if (!employee) {
+            throw new NotFoundError("Employee not found");
+        }
 
-        let filter: { user?: string; _id: string } = {
+        let filter: { user?: string; _id: string | any } = {
             user: context.user?.id,
-            _id: employee.company,
+            _id: employee.company.toString(),
         };
 
         if (context.user?.role === "admin") {
@@ -505,7 +508,7 @@ export class SalaryService {
                 if (companyCache.has(companyId)) {
                     return companyCache.get(companyId);
                 }
-                const filter: { user?: string; _id: string } = {
+                const filter: { user?: string; _id: string | any } = {
                     user: context.user?.id,
                     _id: companyId,
                 };
@@ -575,7 +578,7 @@ export class SalaryService {
             delete filter.user;
         }
 
-        const company = await Company.findOne(filter);
+        const company = (await Company.findOne(filter)) as any;
 
         if (!company) {
             throw new NotFoundError("Company not found");
@@ -597,13 +600,13 @@ export class SalaryService {
         let employees;
         if (!employeeIds) {
             employees = await Employee.find({
-                company: companyId,
+                company: companyId.toString(),
                 active: true,
             });
         } else {
             employees = await Employee.find({
                 _id: { $in: employeeIds },
-                company: companyId,
+                company: companyId.toString(),
             });
         }
 
@@ -616,15 +619,15 @@ export class SalaryService {
 
         // Inside generateSalaries method, before initialInOutProcess call:
 
-        let inOutInitial = initialInOutProcess(inOut, employees);
+        let inOutInitial = initialInOutProcess(inOut, employees as any);
 
         // --- Live Attendance Integration ---
         if (parsedBody.useLiveAttendance) {
             // Fetch validated attendance records using Service Layer
             const liveAttendanceMap = await AttendanceService.getAttendanceForSalaryPeriod(
-                companyId,
+                companyId.toString(),
                 period,
-                employees.map(e => e._id)
+                employees.map(e => (e._id as any).toString())
             );
 
             // Merge with existing inOutInitial
@@ -667,7 +670,7 @@ export class SalaryService {
         for (const employee of employees) {
             const employeeInOut = update
                 ? (inOutInitial as ProcessedInOut)
-                : (inOutInitial as { [employeeId: string]: RawInOut })[employee._id];
+                : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
 
             if (employee.otMethod === "calc" && !employeeInOut) {
                 throw new BadRequestError(`InOut required for calculated OT: ${employee.name}`);
@@ -724,7 +727,7 @@ export class SalaryService {
 
                 const employeeInOut = update
                     ? (inOutInitial as ProcessedInOut)
-                    : (inOutInitial as { [employeeId: string]: RawInOut })[employee._id];
+                    : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
 
                 if (!update) {
                     const generatedSalary = await generateSalaryForOneEmployee(
