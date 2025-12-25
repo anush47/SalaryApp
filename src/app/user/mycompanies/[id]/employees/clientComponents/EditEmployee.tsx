@@ -1552,11 +1552,36 @@ const EditEmployeeForm: React.FC<{
                   }
                 }));
               }}
-              attendanceOverrides={formFields.attendanceOverrides}
+              attendanceOverrides={{
+                ...formFields.attendanceOverrides,
+                geoFencing: formFields.geoFencing,
+                allowRemoteCheckIn: formFields.allowRemoteCheckIn,
+                requireApproval: formFields.requireApproval,
+                isRemote: formFields.isRemote,
+                allowedLocations: formFields.allowedLocations,
+              }}
               onUpdateOverrides={(newOverrides) => {
+                const {
+                  features,
+                  enabled,
+                  geoFencing,
+                  allowRemoteCheckIn,
+                  requireApproval,
+                  isRemote,
+                  allowedLocations,
+                } = newOverrides;
+
                 setFormFields((prev) => ({
                   ...prev,
-                  attendanceOverrides: newOverrides,
+                  attendanceOverrides: {
+                    enabled,
+                    features,
+                  },
+                  geoFencing,
+                  allowRemoteCheckIn,
+                  requireApproval,
+                  isRemote,
+                  allowedLocations,
                 }));
               }}
             />

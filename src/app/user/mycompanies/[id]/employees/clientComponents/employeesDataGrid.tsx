@@ -158,31 +158,31 @@ export interface Employee {
   }[];
   attendanceOverrides: {
     enabled: boolean;
-    features?: {
+    features: {
       pwaCheckIn: boolean;
       hardwareIntegration: boolean;
-      liveDashboard: boolean;
       salaryIntegration: boolean;
     };
-    geoFencing?: {
-      enabled: boolean;
-      latitude: number;
-      longitude: number;
-      radiusMeters: number;
-      enforceValidation: boolean;
-    };
-    allowRemoteCheckIn: boolean;
-    requireApproval: boolean;
-    isRemote: boolean;
-    allowedLocations: {
-      lat: number;
-      lng: number;
-      radius: number;
-      name: string;
-      _id?: string;
-    }[];
   };
-}
+  geoFencing?: {
+    enabled: boolean;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+    enforceValidation: boolean;
+  };
+  allowRemoteCheckIn: boolean;
+  requireApproval: boolean;
+  isRemote: boolean;
+  allowedLocations: {
+    lat: number;
+    lng: number;
+    radius: number;
+    name: string;
+    _id?: string;
+  }[];
+};
+
 
 // Default values for Employee
 export const defaultEmployee: Employee = {
@@ -224,21 +224,20 @@ export const defaultEmployee: Employee = {
     features: {
       pwaCheckIn: false,
       hardwareIntegration: false,
-      liveDashboard: false,
       salaryIntegration: false,
     },
-    geoFencing: {
-      enabled: false,
-      latitude: 0,
-      longitude: 0,
-      radiusMeters: 100,
-      enforceValidation: false,
-    },
-    allowRemoteCheckIn: false,
-    requireApproval: false,
-    isRemote: false,
-    allowedLocations: [],
   },
+  geoFencing: {
+    enabled: false,
+    latitude: 0,
+    longitude: 0,
+    radiusMeters: 100,
+    enforceValidation: false,
+  },
+  allowRemoteCheckIn: false,
+  requireApproval: false,
+  isRemote: false,
+  allowedLocations: [],
   leaveTypes: [],
   shifts: [{ start: "08:00", end: "17:00", break: 1 }],
   probabilities: {

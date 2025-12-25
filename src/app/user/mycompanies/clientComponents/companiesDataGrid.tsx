@@ -82,26 +82,25 @@ export interface Company {
     features: {
       pwaCheckIn: boolean;
       hardwareIntegration: boolean;
-      liveDashboard: boolean;
       salaryIntegration: boolean;
     };
-    geoFencing: {
-      enabled: boolean;
-      latitude: number;
-      longitude: number;
-      radiusMeters: number;
-      enforceValidation: boolean;
-      allowedLocations?: {
-        lat: number;
-        lng: number;
-        radius: number;
-        name: string;
-      }[];
-    };
-    allowRemoteCheckIn: boolean;
-    requireApproval: boolean;
-    apiKey?: string;
   };
+  geoFencing: {
+    enabled: boolean;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+    enforceValidation: boolean;
+    allowedLocations?: {
+      lat: number;
+      lng: number;
+      radius: number;
+      name: string;
+    }[];
+  };
+  allowRemoteCheckIn: boolean;
+  requireApproval: boolean;
+  apiKey?: string;
 }
 
 interface PaginatedResponse {

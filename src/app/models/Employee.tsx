@@ -41,7 +41,6 @@ interface IEmployee extends Document {
     features?: {
       pwaCheckIn: boolean;
       hardwareIntegration: boolean;
-      liveDashboard: boolean;
       salaryIntegration: boolean;
     };
     geoFencing?: {
@@ -218,7 +217,6 @@ const employeeSchema = new Schema<IEmployee>(
       features: {
         pwaCheckIn: { type: Boolean, default: false },
         hardwareIntegration: { type: Boolean, default: false },
-        liveDashboard: { type: Boolean, default: false },
         salaryIntegration: { type: Boolean, default: false },
       },
       geoFencing: {

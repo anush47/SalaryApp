@@ -63,29 +63,26 @@ export interface ICompany extends Document {
   calendar: "default" | "other";
   attendanceConfig: {
     enabled: boolean;
-    features: {
-      pwaCheckIn: boolean;
-      hardwareIntegration: boolean;
-      liveDashboard: boolean;
-      salaryIntegration: boolean;
-    };
-    geoFencing: {
-      enabled: boolean;
-      latitude: number;
-      longitude: number;
-      radiusMeters: number;
-      enforceValidation: boolean;
-      allowedLocations?: {
-        lat: number;
-        lng: number;
-        radius: number;
-        name: string;
-      }[];
-    };
-    allowRemoteCheckIn: boolean;
-    requireApproval: boolean;
-    apiKey?: string;
+    pwaCheckIn: boolean;
+    hardwareIntegration: boolean;
+    salaryIntegration: boolean;
   };
+  geoFencing: {
+    enabled: boolean;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+    enforceValidation: boolean;
+    allowedLocations?: {
+      lat: number;
+      lng: number;
+      radius: number;
+      name: string;
+    }[];
+  };
+  allowRemoteCheckIn: boolean;
+  requireApproval: boolean;
+  apiKey?: string;
 }
 
 // Define the schema for the Company model
@@ -332,7 +329,6 @@ const companySchema = new Schema<ICompany>(
       features: {
         pwaCheckIn: { type: Boolean, default: false },
         hardwareIntegration: { type: Boolean, default: false },
-        liveDashboard: { type: Boolean, default: false },
         salaryIntegration: { type: Boolean, default: false },
       },
       geoFencing: {
