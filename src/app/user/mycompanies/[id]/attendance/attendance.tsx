@@ -66,7 +66,7 @@ interface CompanyAttendanceProps {
 
 const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }) => {
     const [startDate, setStartDate] = useState(dayjs().subtract(7, 'day'));
-    const [endDate, setEndDate] = useState(dayjs());
+    const [endDate, setEndDate] = useState(dayjs().add(1, 'day'));
     const [openPresentDialog, setOpenPresentDialog] = useState(false);
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
