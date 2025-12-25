@@ -95,8 +95,6 @@ export class AttendanceService {
             resolutionMode = settings?.mode || "fixed";
 
             // Manual Mode: Use provided shiftId
-            // Or if user provided a manual override even in other modes (if desired? No, usually restricted. But let's allow explicit override if passed)
-            // Strict: If mode is Manual, WE EXPECT shiftId.
             if (resolutionMode === 'manual' && body.shiftId) {
                 // Verify provided shiftId exists in pool
                 const shift = settings?.shifts?.find((s: any) => s._id === body.shiftId);
@@ -111,9 +109,6 @@ export class AttendanceService {
                 const shiftResult = await ShiftService.resolveActiveShift(employee, company, dateStr, checkInTime);
 
                 if (shiftResult.checkInBlocked) {
-                    // Logic: If manual mode was expected but not provided, validation fails? 
-                    // ShiftService returns source='none' for manual if no override.
-                    // If we are here, it means we fallback to system.
                     throw new ForbiddenError(shiftResult.blockReason || "Check-in blocked by shift rules.");
                 }
 
@@ -121,27 +116,35 @@ export class AttendanceService {
                     throw new ForbiddenError("Today is marked as an Off Day.");
                 }
 
-                // Logic: Dynamic Mode
-                // "If dynamic is selected then no need a shift because when checked in starts the shift"
-                // "In dynamic also if smart selection is on then select... "
-                // IMPL: If settings.mode == 'dynamic' AND !settings.autoSelect => resolvedShift = NULL.
-                // ShiftService might return a default shift if configured. We explicitly IGNORE it if autoSelect is OFF.
                 if (resolutionMode === 'dynamic' && !settings?.autoSelect) {
                     resolvedShift = null;
                 } else {
                     resolvedShift = shiftResult.shift;
                 }
 
-                // If resolvedShift found, validate time
                 if (resolvedShift) {
                     const validation = ShiftService.validateCheckIn(resolvedShift, checkInTime);
                     if (!validation.valid) {
                         throw new ForbiddenError(validation.message || "Invalid check-in time for the current shift.");
                     }
                 }
+            }
+        } else {
+            // Check-out: Inherit shift from most recent check-in
+            const lastIn = await Attendance.findOne({
+                employee: employee._id,
+                type: 'in'
+            }).sort({ timestamp: -1 });
 
-                // Roster/Fixed logic is handled by resolveActiveShift returning the shift (or default).
-                // "Fixed then record what ever shift automatically" -> Done.
+            if (lastIn && lastIn.shift) {
+                resolvedShift = {
+                    _id: lastIn.shift.shiftId,
+                    name: lastIn.shift.name,
+                    startTime: lastIn.shift.startTime,
+                    endTime: lastIn.shift.endTime,
+                    type: lastIn.shift.type
+                };
+                resolutionMode = lastIn.resolutionMode || "system";
             }
         }
 
@@ -215,7 +218,11 @@ export class AttendanceService {
             }
 
             // Enforcement
-            if (!isVerified && company.geoFencing?.enforceValidation) {
+            const effectiveEnforce = (overrides?.enabled && overrides.geoFencing?.enabled)
+                ? overrides.geoFencing.enforceValidation
+                : company.geoFencing?.enforceValidation;
+
+            if (!isVerified && effectiveEnforce) {
                 throw new ForbiddenError("You are not within the allowed clock-in range.");
             }
         }
@@ -244,6 +251,7 @@ export class AttendanceService {
             },
             deviceId,
             deviceDetails,
+            remarks: body.remarks,
             shift: resolvedShift ? {
                 shiftId: resolvedShift._id,
                 name: resolvedShift.name,
@@ -315,7 +323,7 @@ export class AttendanceService {
         return records;
     }
 
-    static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string) {
+    static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string, shiftId?: string, remarks?: string) {
         console.log(`[AttendanceService] recordApproval called for ID: ${attendanceId}, Status: ${status}, Timestamp: ${timestamp}`);
         await dbConnect();
 
@@ -353,9 +361,31 @@ export class AttendanceService {
             attendance.timestamp = newDate;
         }
 
+        // Manual Shift Override
+        if (shiftId) {
+            const company = await Company.findById(attendance.company);
+            if (company && company.shiftSettings?.shifts) {
+                const newShift = company.shiftSettings.shifts.find((s: any) => s._id === shiftId);
+                if (newShift) {
+                    attendance.shift = {
+                        shiftId: (newShift._id as string) || "",
+                        name: newShift.name || "",
+                        startTime: newShift.startTime || "",
+                        endTime: newShift.endTime || "",
+                        type: newShift.type || ""
+                    };
+                    attendance.resolutionMode = "manual_override";
+                    console.log(`[AttendanceService] Shift manually overridden to: ${newShift.name}`);
+                }
+            }
+        }
+
         attendance.status = status;
         attendance.approvedBy = new mongoose.Types.ObjectId(context.user.id);
         attendance.approvedAt = new Date();
+        if (remarks !== undefined) {
+            attendance.remarks = remarks;
+        }
         await attendance.save();
         console.log(`[AttendanceService] Successfully saved attendance record: ${attendanceId}`);
 

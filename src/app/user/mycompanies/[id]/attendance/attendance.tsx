@@ -72,12 +72,16 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [openViewDialog, setOpenViewDialog] = useState(false);
     const [tempStatus, setTempStatus] = useState<string>("");
     const [tempTimestamp, setTempTimestamp] = useState<dayjs.Dayjs | null>(null);
+    const [tempShiftId, setTempShiftId] = useState<string>("");
+    const [tempRemarks, setTempRemarks] = useState<string>("");
     const [isUpdating, setIsUpdating] = useState(false);
     const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
 
     const hasChanged = viewLog && (
         tempStatus !== (viewLog.status || 'approved') ||
-        !dayjs(tempTimestamp).isSame(dayjs(viewLog.timestamp))
+        !dayjs(tempTimestamp).isSame(dayjs(viewLog.timestamp)) ||
+        tempShiftId !== (viewLog.shift?.shiftId || "") ||
+        tempRemarks !== (viewLog.remarks || "")
     );
 
 
@@ -88,6 +92,8 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
         queryFn: () => fetchCompany(companyId),
         enabled: !!companyId
     });
+
+    const shifts = companyData?.shiftSettings?.shifts || [];
 
     const companyLocation = companyData?.attendanceConfig?.geoFencing?.enabled ? {
         lat: companyData.attendanceConfig.geoFencing.latitude,
@@ -123,7 +129,9 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
             const res = await updateAttendanceStatus(
                 viewLog._id,
                 tempStatus as any,
-                tempTimestamp?.toISOString()
+                tempTimestamp?.toISOString(),
+                tempShiftId,
+                tempRemarks
             );
             if (res.success) {
                 showSnackbar({ message: "Record updated successfully", severity: "success" });
@@ -318,6 +326,8 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                         setViewLog(params.row);
                                         setTempStatus(params.row.status || 'approved');
                                         setTempTimestamp(dayjs(params.row.timestamp));
+                                        setTempShiftId(params.row.shift?.shiftId || "");
+                                        setTempRemarks(params.row.remarks || "");
                                         setOpenViewDialog(true);
                                     }}
                                     sx={{ border: '1px solid', borderColor: 'info.light' }}
@@ -633,14 +643,27 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             <Grid item xs={6}>
                                 <Typography variant="caption" color="text.secondary">Shift</Typography>
                                 <Box mt={0.5}>
-                                    <Typography variant="body2" fontWeight="bold">
-                                        {viewLog.shift?.name || 'No Shift'}
-                                    </Typography>
-                                    {viewLog.shift?.startTime && (
-                                        <Typography variant="caption" color="text.secondary">
-                                            {viewLog.shift.startTime} - {viewLog.shift.endTime}
-                                        </Typography>
-                                    )}
+                                    <TextField
+                                        select
+                                        size="small"
+                                        fullWidth
+                                        value={tempShiftId}
+                                        onChange={(e) => setTempShiftId(e.target.value)}
+                                        variant="outlined"
+                                        SelectProps={{ native: true }}
+                                        sx={{
+                                            '& .MuiSelect-select': {
+                                                py: 0.5,
+                                                fontSize: '0.875rem',
+                                                fontWeight: 'bold',
+                                            }
+                                        }}
+                                    >
+                                        <option value="">No Shift</option>
+                                        {shifts.map((s: any) => (
+                                            <option key={s._id} value={s._id}>{s.name} ({s.startTime}-{s.endTime})</option>
+                                        ))}
+                                    </TextField>
                                 </Box>
                             </Grid>
                             <Grid item xs={6}>
@@ -688,6 +711,27 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                             }}
                                         />
                                     </LocalizationProvider>
+                                </Box>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <Typography variant="caption" color="text.secondary">Remarks</Typography>
+                                <Box mt={0.5}>
+                                    <TextField
+                                        fullWidth
+                                        multiline
+                                        rows={2}
+                                        size="small"
+                                        value={tempRemarks}
+                                        onChange={(e) => setTempRemarks(e.target.value)}
+                                        placeholder="Add any notes here..."
+                                        variant="outlined"
+                                        sx={{
+                                            '& .MuiInputBase-root': {
+                                                fontSize: '0.875rem',
+                                            }
+                                        }}
+                                    />
                                 </Box>
                             </Grid>
 

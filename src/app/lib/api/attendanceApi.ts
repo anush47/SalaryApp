@@ -6,6 +6,7 @@ export const markAttendance = async (data: {
     deviceId?: string;
     deviceDetails?: string;
     shiftId?: string;
+    remarks?: string;
 }): Promise<ApiResponse> => {
     const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -25,11 +26,11 @@ export const getAttendanceLogs = async (companyId: string, date?: string, startD
     return response.json();
 };
 
-export const updateAttendanceStatus = async (id: string, status: 'approved' | 'rejected' | 'pending', timestamp?: string): Promise<ApiResponse> => {
+export const updateAttendanceStatus = async (id: string, status: 'approved' | 'rejected' | 'pending', timestamp?: string, shiftId?: string, remarks?: string): Promise<ApiResponse> => {
     const response = await fetch('/api/attendance', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, timestamp }),
+        body: JSON.stringify({ id, status, timestamp, shiftId, remarks }),
     });
     return response.json();
 };

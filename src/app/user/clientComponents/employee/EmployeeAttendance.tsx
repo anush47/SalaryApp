@@ -20,10 +20,12 @@ import {
     TableCell,
     TableContainer,
     TableHead,
-    TableRow
+    TableRow,
+    TextField,
+    Tooltip
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
-import { Place, AccessTime, History, CheckCircle, Logout, LocationOn } from "@mui/icons-material";
+import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { markAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import { getActiveShift } from "@/app/lib/api/shiftsApi";
@@ -46,6 +48,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
+    const [remarks, setRemarks] = useState("");
     const [currentTime, setCurrentTime] = useState(dayjs());
     const [locationStatus, setLocationStatus] = useState<{
         isInside: boolean;
@@ -76,13 +79,14 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     });
 
     // 2. Compute Effective Zones using Shared Logic
-    const { zones, isGeofencingEnabled, isRemoteAllowed } = useMemo(() => {
+    const zonesData = useMemo(() => {
         if (!employee) return { zones: [], isGeofencingEnabled: false, isRemoteAllowed: false };
 
         const companyConfig = employee.company?.attendanceConfig || {};
         const employeeOverrides = employee.attendanceOverrides;
 
         const effectiveData = getEffectiveAllowedZones(employee.company, employeeOverrides);
+        const { zones, isGeofencingEnabled, enforceValidation } = effectiveData;
 
         // Check for remote check-in flag
         const isRemoteAllowed = employeeOverrides?.enabled && employeeOverrides.isRemote;
@@ -92,15 +96,18 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             employee.company?.allowRemoteCheckIn;
 
         return {
-            zones: effectiveData.zones,
-            isGeofencingEnabled: effectiveData.isGeofencingEnabled,
+            zones,
+            isGeofencingEnabled,
+            enforceValidation,
             isRemoteAllowed: !!allowRemote
         };
     }, [employee]);
 
 
     const shouldShowMap = true; // User requested to show map in all cases
-    const isVerificationRequired = isGeofencingEnabled && !isRemoteAllowed;
+    // Actually, we should use the resolved enforceValidation from the memo
+    const { zones: effectiveZones, isGeofencingEnabled: geoEnabled, enforceValidation: strictEnforce, isRemoteAllowed: remoteOk } = zonesData;
+    const isStrictGeofencing = geoEnabled && !remoteOk && strictEnforce;
 
 
     useEffect(() => {
@@ -114,41 +121,71 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             return;
         }
 
-        const watchId = navigator.geolocation.watchPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
+        // Check for secure context (HTTPS)
+        if (typeof window !== 'undefined' && !window.isSecureContext) {
+            setLocationStatus(prev => ({ ...prev, error: "Insecure Context: Geolocation requires HTTPS to function on most devices.", fetching: false, coords: null }));
+            return;
+        }
 
-                let isInsideAny = false;
-                let minDistance = Infinity;
+        let watchId: number;
 
-                if (zones.length > 0) {
-                    zones.forEach(zone => {
-                        const dist = calculateDistance(latitude, longitude, zone.lat, zone.lng);
-                        if (dist < minDistance) minDistance = dist;
-                        if (dist <= zone.radius) isInsideAny = true;
+        const startWatching = (highAccuracy: boolean) => {
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+
+                    let isInsideAny = false;
+                    let minDistance = Infinity;
+
+                    if (effectiveZones.length > 0) {
+                        effectiveZones.forEach(zone => {
+                            const dist = calculateDistance(latitude, longitude, zone.lat, zone.lng);
+                            if (dist < minDistance) minDistance = dist;
+                            if (dist <= zone.radius) isInsideAny = true;
+                        });
+                    } else {
+                        isInsideAny = !geoEnabled;
+                    }
+
+                    setLocationStatus({
+                        isInside: isInsideAny,
+                        distance: minDistance === Infinity ? 0 : minDistance,
+                        error: null,
+                        fetching: false,
+                        coords: { latitude, longitude, accuracy: position.coords.accuracy }
                     });
-                } else {
-                    isInsideAny = !isGeofencingEnabled;
-                }
+                },
+                (error) => {
+                    console.warn(`Geolocation watch error (highAccuracy=${highAccuracy}):`, error);
 
-                setLocationStatus({
-                    isInside: isInsideAny,
-                    distance: minDistance === Infinity ? 0 : minDistance,
-                    error: null,
-                    fetching: false,
-                    coords: { latitude, longitude, accuracy: position.coords.accuracy }
-                });
-            },
-            (error) => {
-                let msg = "Unable to retrieve location";
-                if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied";
-                setLocationStatus(prev => ({ ...prev, error: msg, fetching: false, coords: null }));
-            },
-            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-        );
+                    // Fallback to standard accuracy if High Accuracy fails/times out
+                    if (highAccuracy && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)) {
+                        navigator.geolocation.clearWatch(watchId);
+                        startWatching(false);
+                        return;
+                    }
 
-        return () => navigator.geolocation.clearWatch(watchId);
-    }, [zones, shouldShowMap, isGeofencingEnabled]);
+                    let msg = "Unable to retrieve location";
+                    if (error.code === error.PERMISSION_DENIED) {
+                        msg = "Location permission denied. Please enable location access in your browser settings.";
+                    } else if (error.code === error.TIMEOUT) {
+                        msg = "Location detection timed out. Try moving to an area with better GPS/Network signal.";
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        msg = "Location information is unavailable. Ensure GPS is enabled on your device.";
+                    }
+
+                    setLocationStatus(prev => ({ ...prev, error: msg, fetching: false, coords: null }));
+                },
+                { enableHighAccuracy: highAccuracy, maximumAge: 10000, timeout: highAccuracy ? 15000 : 30000 }
+            );
+        };
+
+        startWatching(true);
+
+        return () => {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+        };
+    }, [zonesData, shouldShowMap]);
 
 
     // 2. Fetch Recent Logs
@@ -187,13 +224,13 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             showSnackbar({ message: "Geolocation is not supported by your browser", severity: "error" });
             return;
         }
-        if (isVerificationRequired && !locationStatus.isInside && locationStatus.coords) {
+        if (isStrictGeofencing && !locationStatus.isInside && locationStatus.coords) {
             showSnackbar({ message: "You are outside the allowed area. Cannot check in.", severity: "error" });
             return;
         }
         setLoading(true);
 
-        const getLocation = (): Promise<{ lat: number, lng: number, accuracy: number } | null> => {
+        const getLocation = (highAccuracy: boolean = true): Promise<{ lat: number, lng: number, accuracy: number } | null> => {
             return new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -204,7 +241,14 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                         });
                     },
                     (error) => {
-                        console.warn("Geolocation error:", error);
+                        console.warn(`Geolocation error (highAccuracy=${highAccuracy}):`, error);
+
+                        // Fallback to standard accuracy if High Accuracy fails or times out
+                        if (highAccuracy && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)) {
+                            resolve(getLocation(false));
+                            return;
+                        }
+
                         if (locationStatus.coords) {
                             resolve({
                                 lat: locationStatus.coords.latitude,
@@ -212,11 +256,11 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                 accuracy: (locationStatus.coords as any).accuracy || 20
                             });
                         } else {
-                            if (isVerificationRequired) reject(error);
+                            if (isStrictGeofencing) reject(error);
                             else resolve(null);
                         }
                     },
-                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+                    { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 15000 : 30000, maximumAge: 10000 }
                 );
             });
         };
@@ -229,7 +273,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             }
             const deviceDetails = navigator.userAgent || "Unknown Device";
             try {
-                const payload: any = { type, deviceId, deviceDetails };
+                const payload: any = { type, deviceId, deviceDetails, remarks };
                 if (location) {
                     payload.location = location;
                 } else {
@@ -238,6 +282,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 const res = await markAttendance(payload);
                 if (res.success) {
                     showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
+                    setRemarks(""); // Reset remarks after success
                     refetchLogs();
                 } else {
                     showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
@@ -388,14 +433,27 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                     </LoadingButton>
                                 </Stack>
 
+                                <TextField
+                                    label="Remarks (Optional)"
+                                    variant="outlined"
+                                    fullWidth
+                                    size="small"
+                                    value={remarks}
+                                    onChange={(e) => setRemarks(e.target.value)}
+                                    placeholder="e.g. Traffic delay, Personal work"
+                                    sx={{ mb: 2 }}
+                                    multiline
+                                    rows={2}
+                                />
+
                                 {/* Geolocaton Status Alert */}
                                 <Paper elevation={0} sx={{
                                     p: 2,
                                     mb: 2,
                                     borderRadius: 2,
-                                    bgcolor: locationStatus.fetching ? 'info.50' : locationStatus.error ? 'error.50' : locationStatus.isInside ? 'success.50' : 'warning.50',
+                                    bgcolor: locationStatus.fetching ? 'info.50' : locationStatus.error ? 'error.50' : locationStatus.isInside ? 'success.50' : (strictEnforce ? 'error.50' : 'warning.50'),
                                     border: '1px solid',
-                                    borderColor: locationStatus.fetching ? 'info.main' : locationStatus.error ? 'error.main' : locationStatus.isInside ? 'success.main' : 'warning.main',
+                                    borderColor: locationStatus.fetching ? 'info.main' : locationStatus.error ? 'error.main' : locationStatus.isInside ? 'success.main' : (strictEnforce ? 'error.main' : 'warning.main'),
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 2
@@ -405,13 +463,13 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                     ) : locationStatus.error ? (
                                         <LocationOn color="error" fontSize="large" />
                                     ) : (
-                                        <LocationOn color={locationStatus.isInside ? "success" : "warning"} fontSize="large" />
+                                        <LocationOn color={locationStatus.isInside ? "success" : (strictEnforce ? "error" : "warning")} fontSize="large" />
                                     )}
                                     <Box>
                                         <Typography variant="subtitle1" fontWeight="bold" color="text.primary">
                                             {locationStatus.fetching ? "Detecting Location..." :
                                                 locationStatus.error ? "Location Error" :
-                                                    locationStatus.isInside ? "You are in an Allowed Zone" : "You are OUTSIDE Allowed Zone"}
+                                                    locationStatus.isInside ? "You are in an Allowed Zone" : (strictEnforce ? "OUTSIDE Allowed Zone (Check-in Blocked)" : "OUTSIDE Allowed Zone (Check-in Permitted)")}
                                         </Typography>
                                         {!locationStatus.fetching && !locationStatus.error && (
                                             <Typography variant="body2" color="text.secondary">
@@ -427,7 +485,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                             </Typography>
                                         )}
                                         {/* Warning if no zones */}
-                                        {isGeofencingEnabled && zones.length === 0 && (
+                                        {geoEnabled && effectiveZones.length === 0 && (
                                             <Typography variant="body2" color="error" fontWeight="bold">
                                                 ⚠️ No Allowed Zones Configured! Contact Administrator.
                                             </Typography>
@@ -474,9 +532,9 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                         <TableRow>
                                             <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Type</TableCell>
                                             <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Shift</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Time</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Date</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Verification</TableCell>
+                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Date & Time</TableCell>
+                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper', width: 80, textAlign: 'center' }}>Verification</TableCell>
+                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Remarks</TableCell>
                                             <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Status</TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -508,15 +566,29 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                             </Typography>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell>{dayjs(log.timestamp).format("hh:mm:ss A")}</TableCell>
-                                                    <TableCell sx={{ color: 'text.secondary' }}>{dayjs(log.timestamp).format("MMM D, YYYY")}</TableCell>
                                                     <TableCell>
-                                                        <Chip
-                                                            label={log.location?.isVerified ? "Verified" : "Unverified"}
-                                                            size="small"
-                                                            color={log.location?.isVerified ? "success" : "error"}
-                                                            variant="outlined"
-                                                        />
+                                                        <Typography variant="body2" fontWeight="500">
+                                                            {dayjs(log.timestamp).format("MMM D, YYYY")}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {dayjs(log.timestamp).format("hh:mm:ss A")}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        {log.location?.isVerified ? (
+                                                            <Tooltip title="Verified Location">
+                                                                <CheckCircle color="success" />
+                                                            </Tooltip>
+                                                        ) : (
+                                                            <Tooltip title="Unverified Location">
+                                                                <Cancel color="error" />
+                                                            </Tooltip>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell sx={{ maxWidth: 200 }}>
+                                                        <Typography variant="body2" noWrap title={log.remarks}>
+                                                            {log.remarks || '-'}
+                                                        </Typography>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Chip

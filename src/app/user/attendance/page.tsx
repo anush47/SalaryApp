@@ -98,43 +98,67 @@ export default function AttendancePage() {
 
         setLoading(true);
 
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const { latitude, longitude, accuracy } = position.coords;
+        // Check for secure context (HTTPS)
+        if (typeof window !== 'undefined' && !window.isSecureContext) {
+            showSnackbar({ message: "Insecure Context: Geolocation requires HTTPS to function on most devices.", severity: "error" });
+            return;
+        }
 
-                try {
-                    const payload: any = {
-                        type,
-                        location: { lat: latitude, lng: longitude, accuracy }
-                    };
+        setLoading(true);
 
-                    if (type === 'in' && selectedShiftId) {
-                        payload.shiftId = selectedShiftId;
+        const getLocation = (highAccuracy: boolean) => {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude, accuracy } = position.coords;
+
+                    try {
+                        const payload: any = {
+                            type,
+                            location: { lat: latitude, lng: longitude, accuracy }
+                        };
+
+                        if (type === 'in' && selectedShiftId) {
+                            payload.shiftId = selectedShiftId;
+                        }
+
+                        const res = await markAttendance(payload);
+
+                        if (res.success) {
+                            showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
+                        } else {
+                            showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
+                        }
+                    } catch (error) {
+                        showSnackbar({ message: "An error occurred", severity: "error" });
+                    } finally {
+                        setLoading(false);
                     }
-                    // For auto/dynamic, backend handles it? Yes.
+                },
+                (error) => {
+                    console.warn(`Geolocation error (highAccuracy=${highAccuracy}):`, error);
 
-                    const res = await markAttendance(payload);
-
-                    if (res.success) {
-                        showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
-                        // Refresh logs
-                    } else {
-                        showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
+                    // Fallback to standard accuracy if High Accuracy fails or times out
+                    if (highAccuracy && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)) {
+                        getLocation(false);
+                        return;
                     }
-                } catch (error) {
-                    showSnackbar({ message: "An error occurred", severity: "error" });
-                } finally {
+
                     setLoading(false);
-                }
-            },
-            (error) => {
-                setLoading(false);
-                let msg = "Unable to retrieve your location";
-                if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied. Please allow location access.";
-                showSnackbar({ message: msg, severity: "error" });
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+                    let msg = "Unable to retrieve your location";
+                    if (error.code === error.PERMISSION_DENIED) {
+                        msg = "Location permission denied. Please allow location access in your browser settings.";
+                    } else if (error.code === error.TIMEOUT) {
+                        msg = "Location detection timed out. Please try again in an area with better signal.";
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        msg = "Location information is unavailable. Ensure GPS is enabled on your device.";
+                    }
+                    showSnackbar({ message: msg, severity: "error" });
+                },
+                { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 15000 : 30000, maximumAge: 0 }
+            );
+        };
+
+        getLocation(true);
     };
 
     if (status === "loading") return <CircularProgress />;

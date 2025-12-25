@@ -75,6 +75,11 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
 
     // Fetch current location on mount
     React.useEffect(() => {
+        if (typeof window !== 'undefined' && !window.isSecureContext) {
+            console.warn("Geolocation requires HTTPS to function on most devices.");
+            return;
+        }
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {

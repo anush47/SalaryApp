@@ -36,6 +36,7 @@ export interface IAttendance extends Document {
         type: string;
     };
     resolutionMode?: string; // "fixed", "roster", "dynamic", "manual", "auto_select"
+    remarks?: string;
 }
 
 const resolvedShiftSchema = new Schema({
@@ -108,6 +109,9 @@ const attendanceSchema = new Schema<IAttendance>(
             type: resolvedShiftSchema,
         },
         resolutionMode: {
+            type: String,
+        },
+        remarks: {
             type: String,
         },
     },

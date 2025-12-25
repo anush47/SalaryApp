@@ -6,6 +6,7 @@ export interface GeoConfig {
     latitude: number;
     longitude: number;
     radiusMeters: number;
+    enforceValidation?: boolean;
     allowedLocations?: {
         lat?: number;
         lng?: number;
@@ -51,6 +52,7 @@ export const getEffectiveAllowedZones = (
 ): {
     zones: Zone[];
     isGeofencingEnabled: boolean;
+    enforceValidation: boolean;
     primaryZone: Zone | null;
 } => {
     // Resolve Company-level GeoConfig (check root and attendanceConfig)
@@ -62,7 +64,7 @@ export const getEffectiveAllowedZones = (
     // 1. Check if Override is enabled and set to Remote
     if (employeeOverrides?.enabled && employeeOverrides.isRemote) {
         // Remote workers skip geofencing entirely
-        return { zones: [], isGeofencingEnabled: false, primaryZone: null };
+        return { zones: [], isGeofencingEnabled: false, enforceValidation: false, primaryZone: null };
     }
 
     // 2. Resolve GeoConfig (Backend logic: Fallback to company if override geofencing is disabled)
@@ -76,7 +78,7 @@ export const getEffectiveAllowedZones = (
     }
 
     if (!geoConfig) {
-        return { zones: [], isGeofencingEnabled: false, primaryZone: null };
+        return { zones: [], isGeofencingEnabled: false, enforceValidation: false, primaryZone: null };
     }
 
     const zones: Zone[] = [];
@@ -115,6 +117,7 @@ export const getEffectiveAllowedZones = (
     return {
         zones,
         isGeofencingEnabled: geoConfig.enabled,
+        enforceValidation: !!geoConfig.enforceValidation,
         primaryZone
     };
 };
