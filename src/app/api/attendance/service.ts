@@ -5,6 +5,7 @@ import Employee from "@/app/models/Employee";
 import { BadRequestError, ForbiddenError, NotFoundError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import { z } from "zod";
+import { ShiftService } from "@/app/lib/services/shiftService";
 
 // Schemas
 export const attendanceCreateSchema = z.object({
@@ -76,6 +77,39 @@ export class AttendanceService {
         }
         if (!company.attendanceConfig?.features?.pwaCheckIn) {
             throw new ForbiddenError("Mobile check-in is disabled for this company.");
+        }
+
+        // 2.5 Shift Validation
+        if (type === 'in') {
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const checkInTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' }); // TODO: Use Company Timezone
+
+            // We need to pass the Employee Document and Company Document (casted if needed, or fetched as Lean)
+            // ShiftService expects IEmployee, ICompany. Mongoose docs are fine.
+
+            const shiftResult = await ShiftService.resolveActiveShift(employee, company, dateStr, checkInTime);
+
+            if (shiftResult.checkInBlocked) {
+                throw new ForbiddenError(shiftResult.blockReason || "Check-in blocked by shift rules.");
+            }
+
+            if (shiftResult.isOffDay) {
+                throw new ForbiddenError("Today is marked as an Off Day.");
+            }
+
+            if (shiftResult.shift) {
+                const validation = ShiftService.validateCheckIn(shiftResult.shift, checkInTime);
+                if (!validation.valid) {
+                    throw new ForbiddenError(validation.message || "Invalid check-in time for the current shift.");
+                }
+            } else if (shiftResult.source === 'roster') {
+                // Roster mode active but no shift assigned (and not off day? should have been caught)
+                // If resolveActiveShift returns null shift for roster, it means no assignment.
+                // Should we block?
+                // For now, if strict roster enforcement is desired, yes.
+                // throw new ForbiddenError("No shift assigned for today.");
+            }
         }
 
         // 3. Geolocation Validation

@@ -62,8 +62,10 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import { categories, otMethods } from "./AddEmployee";
-import { Shifts } from "../../companyDetails/shifts";
+
 import { WorkingDays } from "../../companyDetails/workingDays";
+import { RosterManager } from "@/app/components/shifts/RosterManager";
+import { ShiftConfigurationForm, ShiftSettingsData } from "@/app/components/shifts/ShiftConfigurationForm";
 import Link from "next/link";
 import { Company } from "../../../clientComponents/companiesDataGrid";
 import { MenuItem } from "@mui/material";
@@ -178,9 +180,9 @@ const EditEmployeeForm: React.FC<{
       ) {
         if (companyData) {
           const companyDefaults = companyData;
-          employee.shifts = overrides.shifts
-            ? employee.shifts
-            : companyDefaults.shifts;
+          employee.shiftSettings = overrides.shifts
+            ? employee.shiftSettings
+            : (companyDefaults.shiftSettings as any);
           employee.workingDays = overrides.workingDays
             ? employee.workingDays
             : companyDefaults.workingDays;
@@ -1349,16 +1351,12 @@ const EditEmployeeForm: React.FC<{
           <>
             <div className="my-5" />
             <Grid item xs={12}>
-              <Shifts
+              <ShiftConfigurationForm
                 isEditing={isEditing}
-                handleChange={handleChange}
-                shifts={formFields.shifts}
-                setShifts={(shifts) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    shifts,
-                  }));
-                }}
+                settings={formFields.shiftSettings || { mode: 'fixed', shifts: [], autoSelect: false }}
+                onChange={(newSettings) =>
+                  setFormFields(prev => ({ ...prev, shiftSettings: newSettings } as Employee))
+                }
               />
             </Grid>
           </>
@@ -1382,6 +1380,7 @@ const EditEmployeeForm: React.FC<{
             </Grid>
           </>
         )}
+
 
         {formFields.overrides?.calendar && (
           <>
@@ -1408,6 +1407,29 @@ const EditEmployeeForm: React.FC<{
                     </Select>
                   </FormControl>
                 </Grid>
+              </AccordionDetails>
+            </Accordion>
+          </>
+        )}
+
+        {/* Roster Manager Section */}
+        {companyData && (
+          <>
+            <div className="my-5" />
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h5">Shift Roster</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <RosterManager
+                  employeeId={employeeId!}
+                  shifts={
+                    (formFields.overrides?.shifts && formFields.shiftSettings?.shifts?.length > 0)
+                      ? formFields.shiftSettings.shifts
+                      : (companyData.shiftSettings?.shifts || [])
+                  }
+                  readOnly={!isEditing}
+                />
               </AccordionDetails>
             </Accordion>
           </>

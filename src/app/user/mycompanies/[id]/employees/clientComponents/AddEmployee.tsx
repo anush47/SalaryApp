@@ -52,7 +52,7 @@ import {
   validateAmountNumberString,
 } from "../../companyDetails/paymentStructure";
 import { Company } from "../../../clientComponents/companiesDataGrid";
-import { Shifts } from "../../companyDetails/shifts";
+import { ShiftConfigurationForm, ShiftSettingsData } from "@/app/components/shifts/ShiftConfigurationForm";
 import { WorkingDays } from "../../companyDetails/workingDays";
 
 const AddEmployeeForm: React.FC<{
@@ -124,8 +124,8 @@ const AddEmployeeForm: React.FC<{
         company: companyData._id,
         otMethod: user.role === "admin" ? "random" : "noOt",
         shifts:
-          companyData.shifts && companyData.shifts.length > 0
-            ? companyData.shifts
+          companyData.shiftSettings?.shifts && companyData.shiftSettings.shifts.length > 0
+            ? companyData.shiftSettings.shifts
             : [{ start: "08:00", end: "17:00", break: 1 }],
         workingDays: companyData.workingDays
           ? companyData.workingDays
@@ -852,16 +852,12 @@ const AddEmployeeForm: React.FC<{
           <>
             <div className="my-5" />
             <Grid item xs={12}>
-              <Shifts
+              <ShiftConfigurationForm
                 isEditing={true}
-                handleChange={handleChange}
-                shifts={formFields.shifts}
-                setShifts={(shifts) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    shifts,
-                  }));
-                }}
+                settings={formFields.shiftSettings || { mode: 'fixed', shifts: [], autoSelect: false }}
+                onChange={(newSettings) =>
+                  setFormFields(prev => ({ ...prev, shiftSettings: newSettings } as Employee))
+                }
               />
             </Grid>
           </>

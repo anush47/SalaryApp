@@ -84,7 +84,11 @@ const AddCompanyForm: React.FC<{
       late: 2,
       ot: 75,
     },
-    shifts: [],
+    shiftSettings: {
+      mode: 'fixed',
+      shifts: [],
+      autoSelect: false
+    },
     calendar: "default",
     attendanceConfig: {
       enabled: false,

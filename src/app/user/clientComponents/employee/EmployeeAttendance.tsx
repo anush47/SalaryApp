@@ -26,6 +26,7 @@ import { LoadingButton } from "@mui/lab";
 import { Place, AccessTime, History, CheckCircle, Logout, LocationOn } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { markAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
+import { getActiveShift } from "@/app/lib/api/shiftsApi";
 import dynamic from 'next/dynamic';
 
 
@@ -279,6 +280,29 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         enabled: !!companyId
     });
 
+    const { data: activeShiftData } = useQuery({
+        queryKey: ["activeShift", employee?._id, todayStr],
+        queryFn: () => getActiveShift(employee._id, todayStr, currentTime.format("HH:mm")), // Refetch if time changes drastically? Maybe not every sec. currentTime update triggers re-render but not re-fetch unless key changes.
+        // But currentTime changes every second. Don't use it in queryFn unless key includes it or we debounce.
+        // Actually, auto-select based on time. If I pass time, it might change the selected shift.
+        // But queryKey needs to include it to refetch.
+        // Let's NOT pass time for now to keep it stable, or pass it but use a debounced/rounded time (e.g. every minute).
+        // Or just pass empty time and let server rely on defaults/closest static check?
+        // But `resolveActiveShift` uses checkInTime for `autoSelect`.
+        // Let's pass `currentTime.format("HH:mm")` but throttle?
+        // useQuery defaults: active for components.
+        // If I put `currentTime` in dependency array (implicit via closure), it runs every render? No, only if `queryKey` changes.
+        // I won't put time in queryKey. I'll pass it, but it might be stale.
+        // Actually, just pass formatted time, and include it in queryKey rounded to 15 mins?
+        // For simplicity: fetch once on load/date change.
+        // Most shifts don't change by minute.
+        // So I will NOT pass time in queryFn for auto-select display, or I accept it might be static.
+        enabled: !!employee?._id
+    });
+
+    // Helper to display
+    const activeShift = activeShiftData?.success ? activeShiftData.data : null;
+
     const logs = useMemo(() => {
         if (!logsResponse?.success) return [];
         // Filter logs to only show THIS employee's logs (since the API returns company-wide logs for given date)
@@ -450,6 +474,17 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                 <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
                                     {currentTime.format("dddd, D MMMM YYYY")}
                                 </Typography>
+
+                                {activeShift && (
+                                    <Box mt={2} bgcolor="rgba(255,255,255,0.15)" borderRadius={2} p={1} mx={4}>
+                                        <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                                            ACTIVE SHIFT
+                                        </Typography>
+                                        <Typography variant="h6" fontWeight="bold">
+                                            {activeShift.shift ? `${activeShift.shift.name} (${activeShift.shift.startTime} - ${activeShift.shift.endTime})` : (activeShift.isOffDay ? "Off Day" : "No Shift Assigned")}
+                                        </Typography>
+                                    </Box>
+                                )}
 
                                 {/* Show Check-in Time if Clocked In */}
                                 {isClockedIn && lastLog && (

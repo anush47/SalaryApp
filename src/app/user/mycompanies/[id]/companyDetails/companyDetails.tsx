@@ -46,7 +46,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { ddmmyyyy_to_mmddyyyy } from "../employees/clientComponents/employeesDataGrid";
 import dayjs from "dayjs";
-import { Shifts } from "./shifts";
+import { ShiftConfigurationForm, ShiftSettingsData } from "@/app/components/shifts/ShiftConfigurationForm";
 import { WorkingDays } from "./workingDays";
 import { CompanyAttendanceSettings } from "./companyAttendanceSettings";
 import { LoadingButton } from "@mui/lab";
@@ -622,19 +622,12 @@ const CompanyDetails = ({
             <div className="my-5" />
 
             <Grid item xs={12}>
-              <Shifts
+              <ShiftConfigurationForm
                 isEditing={isEditing}
-                handleChange={handleChange}
-                shifts={formFields.shifts}
-                setShifts={(shifts: any) => {
-                  setFormFields(
-                    (prev) =>
-                    ({
-                      ...prev,
-                      shifts,
-                    } as Company)
-                  );
-                }}
+                settings={formFields.shiftSettings || { mode: 'fixed', shifts: [], autoSelect: false }}
+                onChange={(newSettings) =>
+                  setFormFields(prev => ({ ...prev, shiftSettings: newSettings } as Company))
+                }
               />
             </Grid>
 
@@ -984,7 +977,7 @@ const CompanyDetails = ({
                   <div className="my-5" />
                 </Grid>
               ) : (
-                <>
+                <Grid item xs={12}>
                   <Typography>
                     Mode:{" "}
                     {company &&
@@ -996,42 +989,42 @@ const CompanyDetails = ({
                       ? company?.monthlyPrice.toLocaleString()
                       : "N/A"}
                   </Typography>
-                </>
+                </Grid>
               )}
-            </Grid>
-            <Grid item xs={12}>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<Delete />}
-                onClick={onDeleteClick}
-                disabled={!isEditing || isCompanyLoading}
-              >
-                Delete Company
-              </Button>
-              <Dialog
-                open={deleteDialogOpen}
-                keepMounted
-                onClose={handleDeleteCancelation}
-                aria-describedby="alert-dialog-slide-description"
-              >
-                <DialogTitle>{"Delete Employee?"}</DialogTitle>
-                <DialogContent>
-                  <DialogContentText id="alert-dialog-slide-description">
-                    Are you sure you want to delete this company
-                  </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                  <Button onClick={handleDeleteCancelation}>Cancel</Button>
-                  <Button
-                    onClick={handleDeleteConfirmation}
-                    color="error"
-                    endIcon={<Delete />}
-                  >
-                    Delete
-                  </Button>
-                </DialogActions>
-              </Dialog>
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Delete />}
+                  onClick={onDeleteClick}
+                  disabled={!isEditing || isCompanyLoading}
+                >
+                  Delete Company
+                </Button>
+                <Dialog
+                  open={deleteDialogOpen}
+                  keepMounted
+                  onClose={handleDeleteCancelation}
+                  aria-describedby="alert-dialog-slide-description"
+                >
+                  <DialogTitle>{"Delete Employee?"}</DialogTitle>
+                  <DialogContent>
+                    <DialogContentText id="alert-dialog-slide-description">
+                      Are you sure you want to delete this company
+                    </DialogContentText>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={handleDeleteCancelation}>Cancel</Button>
+                    <Button
+                      onClick={handleDeleteConfirmation}
+                      color="error"
+                      endIcon={<Delete />}
+                    >
+                      Delete
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+              </Grid>
             </Grid>
           </Grid>
         )}

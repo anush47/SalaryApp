@@ -1,7 +1,7 @@
 import { Schema, model, models, Document } from "mongoose";
 
 // Define an interface for the Employee document
-interface IEmployee extends Document {
+export interface IEmployee extends Document {
   memberNo: number;
   name: string;
   fullName: string;
@@ -80,11 +80,25 @@ interface IEmployee extends Document {
     sun: "full" | "half" | "off";
     isDynamicHolidays: boolean;
   };
-  shifts: {
-    start: string;
-    end: string;
-    break: number;
-  }[];
+  shiftSettings: {
+    mode: "fixed" | "dynamic" | "roster" | "manual";
+    shifts: {
+      _id?: string;
+      name: string;
+      type: "fixed" | "dynamic";
+      startTime?: string;
+      endTime?: string;
+      duration?: number;
+      breakDuration: number;
+      minStartTime?: string;
+      maxStartTime?: string;
+      minEndTime?: string;
+      maxEndTime?: string;
+      maxDuration?: number;
+    }[];
+    defaultShiftId?: string;
+    autoSelect: boolean;
+  };
   probabilities: {
     workOnOff: number;
     workOnHoliday: number;
@@ -113,6 +127,22 @@ interface IEmployee extends Document {
   emergencyContact: string;
   editable: boolean;
 }
+
+// Define Shift Schema separately to handle String _id
+const shiftSchema = new Schema({
+  _id: { type: String, required: true },
+  name: { type: String, required: true },
+  type: { type: String, enum: ["fixed", "dynamic"], required: true },
+  startTime: String,
+  endTime: String,
+  duration: Number,
+  breakDuration: { type: Number, default: 0 },
+  minStartTime: String,
+  maxStartTime: String,
+  minEndTime: String,
+  maxEndTime: String,
+  maxDuration: Number,
+});
 
 // Define the schema for the Employee model
 const employeeSchema = new Schema<IEmployee>(
@@ -278,23 +308,18 @@ const employeeSchema = new Schema<IEmployee>(
       enum: ["default", "other"],
       default: "default",
     },
-    shifts: {
-      type: [
-        {
-          start: {
-            type: String,
-            required: true,
-          },
-          end: {
-            type: String,
-            required: true,
-          },
-          break: {
-            type: Number,
-            required: true,
-          },
-        },
-      ],
+    shiftSettings: {
+      mode: {
+        type: String,
+        enum: ["fixed", "dynamic", "roster", "manual"],
+        default: "fixed",
+      },
+      shifts: {
+        type: [shiftSchema],
+        default: [],
+      },
+      defaultShiftId: String,
+      autoSelect: { type: Boolean, default: false },
     },
     startedAt: {
       type: String,
@@ -478,7 +503,8 @@ employeeSchema.index({ company: 1, canLogin: 1 });
 employeeSchema.index({ company: 1, active: 1 });
 
 // Check if the model already exists
-const Employee =
-  models.Employee || model<IEmployee>("Employee", employeeSchema);
+// Check if the model already exists
+if (models.Employee) delete models.Employee;
+const Employee = model<IEmployee>("Employee", employeeSchema);
 
 export default Employee;

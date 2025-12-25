@@ -102,11 +102,25 @@ export interface Employee {
     leaveTypes: boolean;
     attendance: boolean;
   };
-  shifts: {
-    start: string;
-    end: string;
-    break: number;
-  }[];
+  shiftSettings: {
+    mode: "fixed" | "dynamic" | "roster" | "manual";
+    shifts: {
+      _id?: string;
+      name: string;
+      type: "fixed" | "dynamic";
+      startTime?: string;
+      endTime?: string;
+      duration?: number;
+      breakDuration: number;
+      minStartTime?: string;
+      maxStartTime?: string;
+      minEndTime?: string;
+      maxEndTime?: string;
+      maxDuration?: number;
+    }[];
+    defaultShiftId?: string;
+    autoSelect: boolean;
+  };
   probabilities: {
     workOnOff: number;
     workOnHoliday: number;
@@ -239,7 +253,11 @@ export const defaultEmployee: Employee = {
   isRemote: false,
   allowedLocations: [],
   leaveTypes: [],
-  shifts: [{ start: "08:00", end: "17:00", break: 1 }],
+  shiftSettings: {
+    mode: "fixed",
+    shifts: [],
+    autoSelect: false,
+  },
   probabilities: {
     workOnOff: 1,
     workOnHoliday: 1,
@@ -434,13 +452,11 @@ const EmployeesDataGrid: React.FC<{
       headerName: "Shifts",
       flex: 1,
       renderCell: (params) => {
-        const value = params.value;
-        if (Array.isArray(value)) {
-          return value
-            .map((shift) => `${shift.start} - ${shift.end}`)
-            .join(", ");
+        const value = params.row.shiftSettings;
+        if (value && value.shifts) {
+          return value.shifts.map((s: any) => s.name).join(", ");
         }
-        return value;
+        return "-";
       },
     },
     {

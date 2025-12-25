@@ -26,11 +26,25 @@ export interface ICompany extends Document {
     paySlip: boolean;
   };
   mode: "self" | "visit" | "aided";
-  shifts: {
-    start: string;
-    end: string;
-    break: number;
-  }[];
+  shiftSettings: {
+    mode: "fixed" | "dynamic" | "roster" | "manual";
+    shifts: {
+      _id?: string;
+      name: string;
+      type: "fixed" | "dynamic";
+      startTime?: string;
+      endTime?: string;
+      duration?: number;
+      breakDuration: number;
+      minStartTime?: string;
+      maxStartTime?: string;
+      minEndTime?: string;
+      maxEndTime?: string;
+      maxDuration?: number;
+    }[];
+    defaultShiftId?: string;
+    autoSelect: boolean;
+  };
   workingDays: {
     mon: "full" | "half" | "off";
     tue: "full" | "half" | "off";
@@ -84,6 +98,22 @@ export interface ICompany extends Document {
   requireApproval: boolean;
   apiKey?: string;
 }
+
+// Define Shift Schema separately to handle String _id
+const shiftSchema = new Schema({
+  _id: { type: String, required: true },
+  name: { type: String, required: true },
+  type: { type: String, enum: ["fixed", "dynamic"], required: true },
+  startTime: String,
+  endTime: String,
+  duration: Number,
+  breakDuration: { type: Number, default: 0 },
+  minStartTime: String,
+  maxStartTime: String,
+  minEndTime: String,
+  maxEndTime: String,
+  maxDuration: Number,
+});
 
 // Define the schema for the Company model
 const companySchema = new Schema<ICompany>(
@@ -184,24 +214,18 @@ const companySchema = new Schema<ICompany>(
       default: "self",
       enum: ["self", "visit", "aided"],
     },
-    shifts: {
-      type: [
-        {
-          start: {
-            type: String,
-            required: true,
-          },
-          end: {
-            type: String,
-            required: true,
-          },
-          break: {
-            type: Number,
-          },
-        },
-      ],
-      required: true,
-      default: [{ start: "08:00", end: "17:00", break: 1 }],
+    shiftSettings: {
+      mode: {
+        type: String,
+        enum: ["fixed", "dynamic", "roster", "manual"],
+        default: "fixed",
+      },
+      shifts: {
+        type: [shiftSchema],
+        default: [],
+      },
+      defaultShiftId: String,
+      autoSelect: { type: Boolean, default: false },
     },
     paymentStructure: {
       additions: {
@@ -365,6 +389,8 @@ const companySchema = new Schema<ICompany>(
 );
 
 // Check if the model already exists
-const Company = models.Company || model<ICompany>("Company", companySchema);
+// Check if the model already exists and delete it to prevent caching issues with schema changes
+if (models.Company) delete models.Company;
+const Company = model<ICompany>("Company", companySchema);
 
 export default Company;

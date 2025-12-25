@@ -18,7 +18,25 @@ import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackb
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
 export interface Company {
-  shifts: any;
+  shiftSettings: {
+    mode: "fixed" | "dynamic" | "roster" | "manual";
+    shifts: {
+      _id?: string;
+      name: string;
+      type: "fixed" | "dynamic";
+      startTime?: string;
+      endTime?: string;
+      duration?: number;
+      breakDuration: number;
+      minStartTime?: string;
+      maxStartTime?: string;
+      minEndTime?: string;
+      maxEndTime?: string;
+      maxDuration?: number;
+    }[];
+    defaultShiftId?: string;
+    autoSelect: boolean;
+  };
   id: string;
   _id: string;
   name: string;
