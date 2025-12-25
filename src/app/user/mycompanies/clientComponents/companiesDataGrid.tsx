@@ -91,6 +91,12 @@ export interface Company {
       longitude: number;
       radiusMeters: number;
       enforceValidation: boolean;
+      allowedLocations?: {
+        lat: number;
+        lng: number;
+        radius: number;
+        name: string;
+      }[];
     };
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;

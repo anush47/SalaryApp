@@ -103,6 +103,11 @@ export class AttendanceService {
                 });
             }
 
+            // Add Company Multiple Locations
+            if (company.attendanceConfig.geoFencing?.allowedLocations?.length > 0) {
+                validLocations.push(...company.attendanceConfig.geoFencing.allowedLocations);
+            }
+
             // Add Employee Specific Allowed Locations
             if (overrides?.enabled && overrides.allowedLocations?.length > 0) {
                 validLocations.push(...overrides.allowedLocations);

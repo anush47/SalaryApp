@@ -165,6 +165,20 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             });
         }
 
+        // Add Company Multiple Locations
+        if (geoFencing?.allowedLocations?.length > 0) {
+            geoFencing.allowedLocations.forEach((loc: any, idx: number) => {
+                if (loc.lat && loc.lng) {
+                    zones.push({
+                        lat: loc.lat,
+                        lng: loc.lng,
+                        radius: loc.radius || 100,
+                        name: loc.name || `Allowed Zone ${idx + 2}`
+                    });
+                }
+            });
+        }
+
         // Add additional allowed locations from employee profile if any exist
         // Assuming employee.attendanceOverrides.allowedLocations might exist in future schema or user requested "stufff" implying extras.
         // For now, based on schema available, we'll stick to the single source derived in effectiveConfig.

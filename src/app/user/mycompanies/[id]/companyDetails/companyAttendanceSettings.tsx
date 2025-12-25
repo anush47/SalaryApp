@@ -11,10 +11,12 @@ import {
     Accordion,
     AccordionSummary,
     AccordionDetails,
+    Button,
 } from "@mui/material";
-import { ExpandMore } from "@mui/icons-material";
+import { ExpandMore, Add, Delete } from "@mui/icons-material";
 import { Company } from "../../clientComponents/companiesDataGrid";
 import dynamic from 'next/dynamic';
+import { useState } from "react";
 
 
 
@@ -31,6 +33,9 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
     attendanceConfig,
     setAttendanceConfig,
 }) => {
+    // Local state for adding a new location
+    const [newLocationName, setNewLocationName] = useState("");
+
     // Ensure we have default values if undefined
     const config = attendanceConfig || {
         enabled: false,
@@ -46,6 +51,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
             longitude: 0,
             radiusMeters: 100,
             enforceValidation: false,
+            allowedLocations: [],
         },
         allowRemoteCheckIn: false,
         requireApproval: false,
@@ -84,6 +90,38 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                 ...config.geoFencing,
                 [field]: value,
             },
+        });
+    };
+
+    const handleAddLocation = () => {
+        if (!config.geoFencing.latitude || !config.geoFencing.longitude) return;
+
+        const newLocation = {
+            lat: config.geoFencing.latitude,
+            lng: config.geoFencing.longitude,
+            radius: config.geoFencing.radiusMeters || 100,
+            name: newLocationName || `Location ${config.geoFencing.allowedLocations?.length ? config.geoFencing.allowedLocations.length + 1 : 1}`
+        };
+
+        setAttendanceConfig({
+            ...config,
+            geoFencing: {
+                ...config.geoFencing,
+                allowedLocations: [...(config.geoFencing.allowedLocations || []), newLocation]
+            }
+        });
+        setNewLocationName("");
+    };
+
+    const handleRemoveLocation = (index: number) => {
+        const updatedLocations = [...(config.geoFencing.allowedLocations || [])];
+        updatedLocations.splice(index, 1);
+        setAttendanceConfig({
+            ...config,
+            geoFencing: {
+                ...config.geoFencing,
+                allowedLocations: updatedLocations
+            }
         });
     };
 
@@ -317,6 +355,66 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
                                 </Grid>
                             )}
                         </>
+                    )}
+                    {/* Additional Allowed Locations */}
+                    {config.geoFencing?.enabled && (
+                        <Grid item xs={12} sx={{ mt: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                                Additional Allowed Locations via Multilocation
+                            </Typography>
+
+                            {/* Location List */}
+                            {config.geoFencing.allowedLocations?.map((loc, index) => (
+                                <Card key={index} variant="outlined" sx={{ p: 2, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Box>
+                                        <Typography variant="subtitle2" fontWeight="bold">
+                                            {loc.name}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)} • {loc.radius}m
+                                        </Typography>
+                                    </Box>
+                                    <Button
+                                        color="error"
+                                        size="small"
+                                        onClick={() => handleRemoveLocation(index)}
+                                        disabled={!isEditing}
+                                    >
+                                        <Delete fontSize="small" />
+                                    </Button>
+                                </Card>
+                            ))}
+
+                            {/* Add New Layout */}
+                            <Box sx={{ mt: 2, p: 2, border: '1px dashed grey', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" gutterBottom>
+                                    Add Current Map Selection as New Location
+                                </Typography>
+                                <Grid container spacing={1} alignItems="center">
+                                    <Grid item xs={12} sm={8}>
+                                        <TextField
+                                            label="Location Name (Optional)"
+                                            size="small"
+                                            fullWidth
+                                            value={newLocationName}
+                                            onChange={(e) => setNewLocationName(e.target.value)}
+                                            disabled={!isEditing}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={4}>
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<Add />}
+                                            onClick={handleAddLocation}
+                                            disabled={!isEditing}
+                                            fullWidth
+                                        >
+                                            Add
+                                        </Button>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+                        </Grid>
                     )}
                 </Grid>
             </AccordionDetails>
