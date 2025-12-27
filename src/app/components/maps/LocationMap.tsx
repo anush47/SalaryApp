@@ -130,8 +130,11 @@ const LocationMap: React.FC<LocationMapProps> = ({
                 />
 
                 {/* Main Marker (Target or Selected) */}
-                {effectiveMarkerPos && (
-                    <Marker position={[effectiveMarkerPos.lat, effectiveMarkerPos.lng]}>
+                {effectiveMarkerPos && typeof effectiveMarkerPos.lat === 'number' && typeof effectiveMarkerPos.lng === 'number' && (
+                    <Marker
+                        key={`marker-${effectiveMarkerPos.lat}-${effectiveMarkerPos.lng}`}
+                        position={[effectiveMarkerPos.lat, effectiveMarkerPos.lng]}
+                    >
                         <Popup>
                             Selected: {effectiveMarkerPos.lat.toFixed(5)}, {effectiveMarkerPos.lng.toFixed(5)}
                         </Popup>
@@ -139,8 +142,12 @@ const LocationMap: React.FC<LocationMapProps> = ({
                 )}
 
                 {/* User Location Marker (Blue Dot representation usually, but standard marker for now with distinct popup) */}
-                {userLocation && (
-                    <Marker position={[userLocation.lat, userLocation.lng]} opacity={0.7}>
+                {userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' && (
+                    <Marker
+                        key={`user-${userLocation.lat}-${userLocation.lng}`}
+                        position={[userLocation.lat, userLocation.lng]}
+                        opacity={0.7}
+                    >
                         <Popup>You are here</Popup>
                     </Marker>
                 )}
