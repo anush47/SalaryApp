@@ -32,7 +32,20 @@ export class CompanyService {
     }
 
     // Fetch company from the database
-    const company = await Company.findOne(filter).lean(); // Use .lean() for better performance
+    let company = await Company.findOne(filter).lean();
+
+    // If company not found by ownership, check if user is an employee of the company
+    if (!company && context.user?.role !== "admin") {
+      const isEmployee = await Employee.exists({
+        user: context.user?.id,
+        company: companyId
+      });
+
+      if (isEmployee) {
+        // If user is an employee, fetch the company without the user filter
+        company = await Company.findOne({ _id: companyId }).lean();
+      }
+    }
 
     if (!company) {
       throw new NotFoundError("Company not found");

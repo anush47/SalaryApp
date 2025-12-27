@@ -26,7 +26,9 @@ import {
     ListItemText,
     ListItemSecondaryAction,
     Divider,
-    DialogActions
+    DialogActions,
+    Tabs,
+    Tab
 } from "@mui/material";
 import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import {
@@ -58,6 +60,7 @@ import { DatePicker as MUIDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import Link from "next/link";
+import { UnifiedAttendancePanel } from "./UnifiedAttendancePanel";
 
 interface CompanyAttendanceProps {
     user: any;
@@ -76,6 +79,11 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [tempRemarks, setTempRemarks] = useState<string>("");
     const [isUpdating, setIsUpdating] = useState(false);
     const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
+    const [tabValue, setTabValue] = useState(0);
+
+    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+        setTabValue(newValue);
+    };
 
     const hasChanged = viewLog && (
         tempStatus !== (viewLog.status || 'approved') ||
@@ -401,139 +409,153 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             <Box sx={{ mb: { xs: 2, lg: 0 } }}>
                                 <Typography variant="h4" fontWeight="bold">Attendance Dashboard</Typography>
                                 <Typography color="text.secondary" variant="body2">Real-time attendance tracking and approvals</Typography>
+                                <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 2 }}>
+                                    <Tab label="Daily Logs (All)" />
+                                    <Tab label="Employee History (Unified)" />
+                                </Tabs>
                             </Box>
-                            <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ width: { xs: '100%', lg: 'auto' } }}>
-                                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                    <MUIDatePicker
-                                        label="From"
-                                        value={startDate}
-                                        onChange={(newValue) => newValue && setStartDate(newValue)}
-                                        slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
-                                    />
-                                    <MUIDatePicker
-                                        label="To"
-                                        value={endDate}
-                                        onChange={(newValue) => newValue && setEndDate(newValue)}
-                                        slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
-                                    />
-                                </LocalizationProvider>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<Refresh />}
-                                    onClick={() => refetch()}
-                                    disabled={isLoading}
-                                    size="small"
-                                    sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
-                                >
-                                    Refresh
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<Download />}
-                                    size="small"
-                                    sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
-                                >
-                                    Export
-                                </Button>
-                            </Stack>
+                            {tabValue === 0 && (
+                                <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ width: { xs: '100%', lg: 'auto' } }}>
+                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                        <MUIDatePicker
+                                            label="From"
+                                            value={startDate}
+                                            onChange={(newValue) => newValue && setStartDate(newValue)}
+                                            slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
+                                        />
+                                        <MUIDatePicker
+                                            label="To"
+                                            value={endDate}
+                                            onChange={(newValue) => newValue && setEndDate(newValue)}
+                                            slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
+                                        />
+                                    </LocalizationProvider>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<Refresh />}
+                                        onClick={() => refetch()}
+                                        disabled={isLoading}
+                                        size="small"
+                                        sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
+                                    >
+                                        Refresh
+                                    </Button>
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<Download />}
+                                        size="small"
+                                        sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
+                                    >
+                                        Export
+                                    </Button>
+                                </Stack>
+                            )}
                         </Box>
                     }
                 />
                 <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
                     {/* Stats Section */}
-                    <Grid container spacing={2} mb={4}>
-                        {[
-                            {
-                                label: 'Present Now',
-                                value: presentEmployees.length,
-                                color: 'info.main',
-                                onClick: () => setOpenPresentDialog(true),
-                                cursor: 'pointer',
-                                action: 'View List'
-                            },
-                            { label: 'Total Records', value: stats.total, color: 'primary.main' },
-                            { label: 'Approved', value: stats.approved, color: 'success.main' },
-                            { label: 'Pending Approval', value: stats.pending, color: 'warning.main' },
-                            { label: 'Rejected', value: stats.rejected, color: 'error.main' }
-                        ].map((stat, idx) => (
-                            <Grid item xs={12} sm={6} md={2.4} key={idx}>
-                                <Paper
-                                    elevation={0}
-                                    onClick={stat.onClick}
-                                    sx={{
-                                        p: 2,
-                                        bgcolor: stat.color,
-                                        color: 'white',
-                                        borderRadius: 2,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        cursor: stat.cursor || 'default',
-                                        transition: 'all 0.2s',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': stat.cursor ? { transform: 'translateY(-2px)', boxShadow: 3 } : {}
-                                    }}>
-                                    <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                                        <Box>
-                                            <Typography variant="overline" sx={{ opacity: 0.8, lineHeight: 1.2 }}>{stat.label}</Typography>
-                                            <Typography variant="h4" fontWeight="bold">{stat.value}</Typography>
+                    {tabValue === 0 && (
+                        <Grid container spacing={2} mb={4}>
+                            {[
+                                {
+                                    label: 'Present Now',
+                                    value: presentEmployees.length,
+                                    color: 'info.main',
+                                    onClick: () => setOpenPresentDialog(true),
+                                    cursor: 'pointer',
+                                    action: 'View List'
+                                },
+                                { label: 'Total Records', value: stats.total, color: 'primary.main' },
+                                { label: 'Approved', value: stats.approved, color: 'success.main' },
+                                { label: 'Pending Approval', value: stats.pending, color: 'warning.main' },
+                                { label: 'Rejected', value: stats.rejected, color: 'error.main' }
+                            ].map((stat, idx) => (
+                                <Grid item xs={12} sm={6} md={2.4} key={idx}>
+                                    <Paper
+                                        elevation={0}
+                                        onClick={stat.onClick}
+                                        sx={{
+                                            p: 2,
+                                            bgcolor: stat.color,
+                                            color: 'white',
+                                            borderRadius: 2,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            cursor: stat.cursor || 'default',
+                                            transition: 'all 0.2s',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': stat.cursor ? { transform: 'translateY(-2px)', boxShadow: 3 } : {}
+                                        }}>
+                                        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                                            <Box>
+                                                <Typography variant="overline" sx={{ opacity: 0.8, lineHeight: 1.2 }}>{stat.label}</Typography>
+                                                <Typography variant="h4" fontWeight="bold">{stat.value}</Typography>
+                                            </Box>
+                                            {(stat as any).action && (
+                                                <Chip
+                                                    size="small"
+                                                    label={(stat as any).action}
+                                                    icon={<Visibility sx={{ fontSize: '1rem !important', color: 'inherit !important' }} />}
+                                                    sx={{
+                                                        bgcolor: 'rgba(255,255,255,0.2)',
+                                                        color: 'white',
+                                                        fontWeight: 'bold',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                                    }}
+                                                />
+                                            )}
                                         </Box>
-                                        {(stat as any).action && (
-                                            <Chip
-                                                size="small"
-                                                label={(stat as any).action}
-                                                icon={<Visibility sx={{ fontSize: '1rem !important', color: 'inherit !important' }} />}
-                                                sx={{
-                                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                                    color: 'white',
-                                                    fontWeight: 'bold',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
-                                                }}
-                                            />
-                                        )}
-                                    </Box>
-                                </Paper>
-                            </Grid>
-                        ))}
-                    </Grid>
+                                    </Paper>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    )}
 
-                    {/* DataGrid Section */}
-                    <Box sx={{ height: 'calc(100vh - 430px)', width: '100%', minHeight: 400 }}>
-                        <DataGrid
-                            rows={logs}
-                            columns={columns}
-                            getRowId={(row) => row._id}
-                            loading={isLoading}
-                            pageSizeOptions={[10, 25, 50]}
-                            initialState={{
-                                pagination: { paginationModel: { pageSize: 15 } },
-                            }}
-                            disableRowSelectionOnClick
-                            disableDensitySelector
-                            rowHeight={64}
-                            slots={{
-                                toolbar: GridToolbar,
-                            }}
-                            slotProps={{
-                                toolbar: {
-                                    showQuickFilter: true,
-                                    csvOptions: { disableToolbarButton: true },
-                                    printOptions: { disableToolbarButton: true },
-                                },
-                            }}
-                            sx={{
-                                border: 1,
-                                borderColor: 'divider',
-                                '& .MuiDataGrid-cell': {
-                                    py: 1,
-                                },
-                                '& .MuiDataGrid-columnHeaders': {
-                                    bgcolor: 'action.hover',
-                                },
-                            }}
-                        />
+                    {/* DataGrid Section / Unified Panel */}
+                    <Box sx={{ width: '100%', minHeight: 400 }}>
+                        {tabValue === 0 ? (
+                            <Box sx={{ height: 'calc(100vh - 430px)' }}>
+                                <DataGrid
+                                    rows={logs}
+                                    columns={columns}
+                                    getRowId={(row) => row._id}
+                                    loading={isLoading}
+                                    pageSizeOptions={[10, 25, 50]}
+                                    initialState={{
+                                        pagination: { paginationModel: { pageSize: 15 } },
+                                    }}
+                                    disableRowSelectionOnClick
+                                    disableDensitySelector
+                                    rowHeight={64}
+                                    slots={{
+                                        toolbar: GridToolbar,
+                                    }}
+                                    slotProps={{
+                                        toolbar: {
+                                            showQuickFilter: true,
+                                            csvOptions: { disableToolbarButton: true },
+                                            printOptions: { disableToolbarButton: true },
+                                        },
+                                    }}
+                                    sx={{
+                                        border: 1,
+                                        borderColor: 'divider',
+                                        '& .MuiDataGrid-cell': {
+                                            py: 1,
+                                        },
+                                        '& .MuiDataGrid-columnHeaders': {
+                                            bgcolor: 'action.hover',
+                                        },
+                                    }}
+                                />
+                            </Box>
+                        ) : (
+                            <UnifiedAttendancePanel companyId={companyId} />
+                        )}
                     </Box>
                 </CardContent>
             </Card>

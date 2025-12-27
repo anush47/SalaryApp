@@ -22,8 +22,12 @@ import {
     TableHead,
     TableRow,
     TextField,
-    Tooltip
+    Tooltip,
+    IconButton
 } from "@mui/material";
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LoadingButton } from "@mui/lab";
 import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
@@ -33,6 +37,8 @@ import dayjs from "dayjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEffectiveAllowedZones, calculateDistance } from "@/app/lib/utils/attendanceUtils";
 import { AttendanceZonesMap } from "@/app/components/attendance/AttendanceZonesMap";
+import { useAttendanceAggregation } from "@/app/hooks/useAttendanceAggregation";
+import { DailyAttendanceTable } from "@/app/components/attendance/DailyAttendanceTable";
 
 interface UserProps {
     user: {
@@ -58,6 +64,10 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         coords: { latitude: number; longitude: number; accuracy: number } | null;
     }>({ isInside: false, distance: null, error: null, fetching: true, coords: null });
 
+    // View Date Range State
+    const [viewStartDate, setViewStartDate] = useState(dayjs().startOf('month'));
+    const [viewEndDate, setViewEndDate] = useState(dayjs().endOf('month'));
+
     // Update time every second
     useEffect(() => {
         const timer = setInterval(() => {
@@ -77,6 +87,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             return employees[0];
         }
     });
+
+
 
     // 2. Compute Effective Zones using Shared Logic
     const zonesData = useMemo(() => {
@@ -219,6 +231,14 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     const isPending = lastLog?.status === 'pending';
     const isRejected = lastLog?.status === 'rejected';
 
+    // 3. Unified Attendance View Hook
+    const { records: dailyRecords, stats: dailyStats, loading: loadingDaily } = useAttendanceAggregation(
+        employee?._id,
+        employee?.company?._id || employee?.company,
+        viewStartDate.format("YYYY-MM-DD"),
+        viewEndDate.format("YYYY-MM-DD")
+    );
+
     const handleAttendance = async (type: "in" | "out") => {
         if (!navigator.geolocation) {
             showSnackbar({ message: "Geolocation is not supported by your browser", severity: "error" });
@@ -321,6 +341,10 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 <CircularProgress size={60} />
             </Box>
         );
+    }
+
+    if (!employee) {
+        return <Box p={4}><Alert severity="error">Employee profile not found.</Alert></Box>;
     }
 
     return (
@@ -538,93 +562,34 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                         <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden', height: '100%', maxHeight: 800, display: 'flex', flexDirection: 'column' }}>
                             <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <History color="primary" />
-                                <Typography variant="h6" fontWeight="bold">Recent Activity</Typography>
-                                <Chip label="Last 20 Records" size="small" variant="outlined" sx={{ ml: 'auto' }} />
+                                <Typography variant="h6" fontWeight="bold">My Attendance</Typography>
+                                <Box ml="auto" display="flex" gap={1} alignItems="center">
+                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                        <DatePicker
+                                            value={viewStartDate}
+                                            onChange={(v) => v && setViewStartDate(v)}
+                                            slotProps={{ textField: { size: 'small', sx: { width: 130 } } }}
+                                        />
+                                        <Typography>-</Typography>
+                                        <DatePicker
+                                            value={viewEndDate}
+                                            onChange={(v) => v && setViewEndDate(v)}
+                                            slotProps={{ textField: { size: 'small', sx: { width: 130 } } }}
+                                        />
+                                    </LocalizationProvider>
+                                    <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                                    <Chip label={`Worked: ${dailyStats.totalHours}h`} size="small" color="primary" variant="outlined" />
+                                    <Chip label={`OT: ${dailyStats.totalOT}h`} size="small" color="success" variant="outlined" />
+                                </Box>
                             </Box>
-                            <TableContainer sx={{ maxHeight: 600, overflowY: 'auto', flexGrow: 1 }}>
-                                <Table size="medium" stickyHeader>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Type</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Shift</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Date & Time</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper', width: 80, textAlign: 'center' }}>Verification</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Remarks</TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}>Status</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {loadingLogs ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
-                                                    <CircularProgress size={24} />
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : logs.length > 0 ? (
-                                            logs.slice(0, 20).map((log: any) => (
-                                                <TableRow key={log._id} hover>
-                                                    <TableCell>
-                                                        <Chip
-                                                            label={log.type?.toUpperCase()}
-                                                            size="small"
-                                                            color={log.type === 'in' ? "success" : "warning"}
-                                                            sx={{ fontWeight: 'bold' }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="body2" fontWeight="500">
-                                                            {log.shift?.name || '-'}
-                                                        </Typography>
-                                                        {log.shift?.startTime && (
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {log.shift.startTime} - {log.shift.endTime}
-                                                            </Typography>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="body2" fontWeight="500">
-                                                            {dayjs(log.timestamp).format("MMM D, YYYY")}
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {dayjs(log.timestamp).format("hh:mm:ss A")}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        {log.location?.isVerified ? (
-                                                            <Tooltip title="Verified Location">
-                                                                <CheckCircle color="success" />
-                                                            </Tooltip>
-                                                        ) : (
-                                                            <Tooltip title="Unverified Location">
-                                                                <Cancel color="error" />
-                                                            </Tooltip>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell sx={{ maxWidth: 200 }}>
-                                                        <Typography variant="body2" noWrap title={log.remarks}>
-                                                            {log.remarks || '-'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            label={(log.status || 'approved').toUpperCase()}
-                                                            size="small"
-                                                            color={log.status === 'pending' ? "warning" : log.status === 'rejected' ? "error" : "success"}
-                                                            variant="filled"
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
-                                                    <Typography color="text.secondary">No activity found.</Typography>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
+                            <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>
+                                <DailyAttendanceTable
+                                    records={dailyRecords}
+                                    loading={loadingDaily}
+                                    userRole="employee"
+                                // onEdit not enabled for pure employee view yet, usually via request
+                                />
+                            </Box>
                         </Paper>
                     </Grid>
                 </Grid>
