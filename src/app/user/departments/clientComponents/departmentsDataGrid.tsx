@@ -64,32 +64,36 @@ export interface Employee {
 const DepartmentsDataGrid: React.FC<{
   user: { id: string; name: string; email: string; role: string };
   isEditingDepartment: boolean;
-}> = ({ user, isEditingDepartment }) => {
+  companyId?: string; // Optional prop
+}> = ({ user, isEditingDepartment, companyId }) => {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
-    null
+    companyId || null
   );
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(
     null
   );
 
-  // Fetch user's companies first
+  // Fetch user's companies first (Skip if companyId provided)
   const { data: companies } = useQuery<any[]>({
     queryKey: ["companies", user.id],
     queryFn: () => fetchCompanies({ userId: user.id }),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    enabled: !companyId, // Disable fetch if companyId is locked
   });
 
-  // Set default company when companies load
+  // Set default company when companies load (Only if no pre-selected ID)
   React.useEffect(() => {
-    if (companies && companies.length > 0 && !selectedCompanyId) {
+    if (companyId) {
+      setSelectedCompanyId(companyId);
+    } else if (companies && companies.length > 0 && !selectedCompanyId) {
       setSelectedCompanyId(companies[0]._id);
     }
-  }, [companies, selectedCompanyId]);
+  }, [companies, selectedCompanyId, companyId]);
 
   // Fetch departments for selected company
   const {
@@ -353,7 +357,7 @@ const DepartmentsDataGrid: React.FC<{
       description: false,
     });
 
-  if (!companies || companies.length === 0) {
+  if ((!companies || companies.length === 0) && !companyId) {
     return (
       <Box
         sx={{
@@ -410,24 +414,28 @@ const DepartmentsDataGrid: React.FC<{
         alignItems: "center",
       }}
     >
-      <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center" }}>
-        <TextField
-          select
-          label="Company"
-          value={selectedCompanyId || ""}
-          onChange={(e) => setSelectedCompanyId(e.target.value)}
-          sx={{ minWidth: 300 }}
-        >
-          {companies?.map((company) => (
-            <MenuItem key={company._id} value={company._id}>
-              {company.name} ({company.employerNo})
-            </MenuItem>
-          ))}
-        </TextField>
+      <Box sx={{ mb: 2, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, alignItems: { xs: "stretch", sm: "center" } }}>
+        {!companyId && (
+          <TextField
+            select
+            label="Company"
+            value={selectedCompanyId || ""}
+            onChange={(e) => setSelectedCompanyId(e.target.value)}
+            sx={{ minWidth: { xs: "100%", sm: 300 } }}
+          >
+            {companies?.map((company) => (
+              <MenuItem key={company._id} value={company._id}>
+                {company.name} ({company.employerNo})
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={() => setAddDialogOpen(true)}
+          fullWidth={false} // Allow fullWidth via flex stretch on mobile if needed, or keeping explicit
+          sx={{ width: { xs: "100%", sm: "auto" } }}
         >
           Add Department
         </Button>

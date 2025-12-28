@@ -50,7 +50,7 @@ const Department = ({
               }}
             >
               <Typography variant="h4" component="h1">
-                Organization
+                Departments
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <ToggleButtonGroup

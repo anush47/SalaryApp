@@ -345,7 +345,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             <Box sx={{ mb: { xs: 2, lg: 0 } }}>
                                 <Typography variant="h4" fontWeight="bold">Attendance Dashboard</Typography>
                                 <Typography color="text.secondary" variant="body2">Real-time attendance tracking and approvals</Typography>
-                                <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 2 }}>
+                                <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 2 }} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
                                     <Tab label="Daily Logs (All)" />
                                     <Tab label="Employee History (Unified)" />
                                     <Tab label="Statistics" />

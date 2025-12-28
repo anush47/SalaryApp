@@ -9,12 +9,17 @@ import {
   Button,
   Box,
   CircularProgress,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
-import { Done, Edit } from "@mui/icons-material";
+import { Done, Edit, AccountTree, TableChart } from "@mui/icons-material";
 
-// Lazily load DepartmentsDataGrid
+// Lazily load components
 const DepartmentsDataGrid = lazy(
   () => import("./clientComponents/departmentsDataGrid")
+);
+const DepartmentHierarchy = lazy(
+  () => import("../../../departments/clientComponents/DepartmentHierarchy")
 );
 
 const Department = ({
@@ -25,6 +30,7 @@ const Department = ({
   companyId: string;
 }) => {
   const [isEditingDepartment, setIsEditingDepartment] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "hierarchy">("hierarchy");
 
   return (
     <Box>
@@ -49,26 +55,55 @@ const Department = ({
                 Departments
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                {isEditingDepartment ? (
-                  <Tooltip title="Save changes" arrow>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<Done />}
-                      onClick={() => setIsEditingDepartment(false)}
-                    >
-                      Done
-                    </Button>
-                  </Tooltip>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    startIcon={<Edit />}
-                    sx={{ mx: 0.25 }}
-                    onClick={() => setIsEditingDepartment(true)}
-                  >
-                    Edit
-                  </Button>
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(e, newMode) => {
+                    if (newMode !== null) {
+                      setViewMode(newMode);
+                      if (newMode === "hierarchy") {
+                        setIsEditingDepartment(false);
+                      }
+                    }
+                  }}
+                  size="small"
+                >
+                  <ToggleButton value="hierarchy" aria-label="hierarchy view">
+                    <Tooltip title="Hierarchy View" arrow>
+                      <AccountTree />
+                    </Tooltip>
+                  </ToggleButton>
+                  <ToggleButton value="table" aria-label="table view">
+                    <Tooltip title="Table View" arrow>
+                      <TableChart />
+                    </Tooltip>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+
+                {viewMode === "table" && (
+                  <>
+                    {isEditingDepartment ? (
+                      <Tooltip title="Save changes" arrow>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          startIcon={<Done />}
+                          onClick={() => setIsEditingDepartment(false)}
+                        >
+                          Done
+                        </Button>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        startIcon={<Edit />}
+                        sx={{ mx: 0.25 }}
+                        onClick={() => setIsEditingDepartment(true)}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </>
                 )}
               </Box>
             </Box>
@@ -78,11 +113,15 @@ const Department = ({
           sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
         >
           <Suspense fallback={<CircularProgress />}>
-            <DepartmentsDataGrid
-              user={user}
-              companyId={companyId}
-              isEditingDepartment={isEditingDepartment}
-            />
+            {viewMode === "hierarchy" ? (
+              <DepartmentHierarchy user={user} companyId={companyId} />
+            ) : (
+              <DepartmentsDataGrid
+                user={user}
+                companyId={companyId}
+                isEditingDepartment={isEditingDepartment}
+              />
+            )}
           </Suspense>
         </CardContent>
       </Card>
