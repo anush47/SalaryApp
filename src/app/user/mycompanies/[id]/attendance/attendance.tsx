@@ -570,6 +570,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     setOpenViewDialog(false);
                     refetch();
                 }}
+                disableTabSwitch={true}
             />
         </Box >
     );

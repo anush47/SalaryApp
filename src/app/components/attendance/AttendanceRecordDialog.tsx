@@ -18,7 +18,9 @@ import {
     IconButton,
     Tabs,
     Tab,
-    Alert
+    Alert,
+    useTheme,
+    useMediaQuery
 } from "@mui/material";
 import { CheckCircle, Cancel, LocationOn, Delete, AddCircle } from "@mui/icons-material";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -37,6 +39,7 @@ interface AttendanceRecordDialogProps {
     employee?: any; // The full employee object if available, mainly for creating new logs
     companyConfig?: any; // For map zones
     onSaveSuccess?: () => void;
+    disableTabSwitch?: boolean;
 }
 
 export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
@@ -45,9 +48,12 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     dailyRecord,
     employee,
     companyConfig,
-    onSaveSuccess
+    onSaveSuccess,
+    disableTabSwitch = false
 }) => {
     const { showSnackbar } = useSnackbar();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [activeTab, setActiveTab] = useState(0);
 
     // State for separate logs
@@ -249,7 +255,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     const isManualStatus = currentLog?.resolutionMode === 'status_only';
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
             <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box>
@@ -278,14 +284,26 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 ) : (
                     <Grid container sx={{ height: '100%' }}>
                         {/* Sidebar / Tabs */}
-                        <Grid item xs={3} sx={{ borderRight: '1px solid', borderColor: 'divider', bgcolor: 'background.neutral' }}>
+                        <Grid item xs={12} sm={3} sx={{
+                            borderRight: isMobile ? 'none' : '1px solid',
+                            borderBottom: isMobile ? '1px solid' : 'none',
+                            borderColor: 'divider',
+                            bgcolor: 'background.neutral'
+                        }}>
                             <Tabs
-                                orientation="vertical"
+                                orientation={isMobile ? "horizontal" : "vertical"}
+                                variant={isMobile ? "fullWidth" : "standard"}
                                 value={activeTab}
-                                onChange={(_, v) => setActiveTab(v)}
-                                sx={{ borderRight: 1, borderColor: 'divider', height: '100%', pt: 2 }}
+                                onChange={(_, v) => !disableTabSwitch && setActiveTab(v)}
+                                sx={{
+                                    borderRight: isMobile ? 'none' : 1,
+                                    borderColor: 'divider',
+                                    height: isMobile ? 'auto' : '100%',
+                                    pt: isMobile ? 0 : 2
+                                }}
                             >
                                 <Tab
+                                    disabled={disableTabSwitch}
                                     label={
                                         <Box display="flex" alignItems="center" gap={1}>
                                             <Typography fontWeight="bold">IN PUNCH</Typography>
@@ -294,6 +312,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                     }
                                 />
                                 <Tab
+                                    disabled={disableTabSwitch}
                                     label={
                                         <Box display="flex" alignItems="center" gap={1}>
                                             <Typography fontWeight="bold">OUT PUNCH</Typography>
@@ -305,7 +324,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         </Grid>
 
                         {/* Content Area */}
-                        <Grid item xs={9} sx={{ p: 3 }}>
+                        <Grid item xs={12} sm={9} sx={{ p: 3 }}>
 
                             {/* Header Status of the specific log */}
                             <Box display="flex" justifyContent="space-between" mb={3} alignItems="center">
