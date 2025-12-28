@@ -27,6 +27,7 @@ export interface AttendanceConfigData {
     salaryIntegration: boolean;
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
+    approvalMode?: "automatic" | "always" | "out_of_zone";
     features?: {
         pwaCheckIn: boolean;
         hardwareIntegration: boolean;
@@ -337,10 +338,20 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
                         control={<Checkbox checked={config.allowRemoteCheckIn || false} onChange={(e) => handlePolicyChange('allowRemoteCheckIn', e.target.checked)} disabled={!isEditing} />}
                         label="Allow Remote Check-In (Disables Geofencing)"
                     />
-                    <FormControlLabel
-                        control={<Checkbox checked={config.requireApproval || false} onChange={(e) => handlePolicyChange('requireApproval', e.target.checked)} disabled={!isEditing} />}
-                        label="Require Mandatory Approval"
-                    />
+                    <TextField
+                        select
+                        label="Approval Policy"
+                        value={config.approvalMode || (config.requireApproval ? "always" : "automatic")}
+                        onChange={(e) => handlePolicyChange('approvalMode', e.target.value)}
+                        disabled={!isEditing}
+                        size="small"
+                        sx={{ minWidth: 200, mt: 1, display: 'block' }}
+                        SelectProps={{ native: true }}
+                    >
+                        <option value="automatic">Automatic (No Approval)</option>
+                        <option value="always">Always Require Approval</option>
+                        <option value="out_of_zone">Require if Out of Zone</option>
+                    </TextField>
                     {type === 'employee' && (
                         <FormControlLabel
                             control={<Checkbox checked={config.isRemote || false} onChange={(e) => handlePolicyChange('isRemote', e.target.checked)} disabled={!isEditing} />}

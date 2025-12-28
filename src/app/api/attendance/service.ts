@@ -256,12 +256,19 @@ export class AttendanceService {
 
         // 4. Approval Check
         let status: "pending" | "approved" = "approved";
-        const requireApproval = overrides?.enabled
-            ? overrides.requireApproval
-            : company.attendanceConfig?.requireApproval;
 
-        if (requireApproval) {
+        // Determine effective settings (Employee override > Company config)
+        const approvalMode = overrides?.enabled
+            ? (overrides.approvalMode || (overrides.requireApproval ? "always" : "automatic"))
+            : (company.attendanceConfig?.approvalMode || (company.attendanceConfig?.requireApproval ? "always" : "automatic"));
+
+        if (approvalMode === 'always') {
             status = "pending";
+        } else if (approvalMode === 'out_of_zone') {
+            // If verification failed (not verified), require approval
+            if (!isVerified) {
+                status = "pending";
+            }
         }
 
         // Determine Timestamp

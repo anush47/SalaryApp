@@ -29,6 +29,7 @@ interface AttendanceOverrides {
     };
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
+    approvalMode?: "automatic" | "always" | "out_of_zone";
     isRemote: boolean;
     allowedLocations: {
         lat: number;
@@ -140,6 +141,7 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
                                         pwaCheckIn: config.pwaCheckIn || false,
                                         hardwareIntegration: config.hardwareIntegration || false,
                                         salaryIntegration: config.salaryIntegration || false,
+                                        approvalMode: config.approvalMode,
                                         // Map root allowedLocations to geoFencing for the component
                                         geoFencing: {
                                             enabled: config.geoFencing?.enabled || false,

@@ -56,6 +56,7 @@ export interface IEmployee extends Document {
     };
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
+    approvalMode?: "automatic" | "always" | "out_of_zone";
     isRemote: boolean;
   };
   leaveTypes: {
@@ -263,6 +264,11 @@ const employeeSchema = new Schema<IEmployee>(
       },
       allowRemoteCheckIn: { type: Boolean, default: false },
       requireApproval: { type: Boolean, default: false },
+      approvalMode: {
+        type: String,
+        enum: ["automatic", "always", "out_of_zone"],
+        default: "automatic",
+      },
       isRemote: { type: Boolean, default: false },
     },
     leaveTypes: [

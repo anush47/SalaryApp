@@ -82,6 +82,7 @@ export interface ICompany extends Document {
     salaryIntegration: boolean;
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
+    approvalMode?: "automatic" | "always" | "out_of_zone";
   };
   geoFencing: {
     enabled: boolean;
@@ -352,6 +353,11 @@ const companySchema = new Schema<ICompany>(
       salaryIntegration: { type: Boolean, default: false },
       allowRemoteCheckIn: { type: Boolean, default: false },
       requireApproval: { type: Boolean, default: false },
+      approvalMode: {
+        type: String,
+        enum: ["automatic", "always", "out_of_zone"],
+        default: "automatic",
+      },
     },
     geoFencing: {
       enabled: { type: Boolean, default: false },
