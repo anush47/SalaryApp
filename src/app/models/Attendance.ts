@@ -37,6 +37,7 @@ export interface IAttendance extends Document {
     };
     resolutionMode?: string; // "fixed", "roster", "dynamic", "manual", "auto_select"
     remarks?: string;
+    dayStatus?: "full" | "half" | "off";
 }
 
 const resolvedShiftSchema = new Schema({
@@ -113,6 +114,10 @@ const attendanceSchema = new Schema<IAttendance>(
         },
         remarks: {
             type: String,
+        },
+        dayStatus: {
+            type: String,
+            enum: ["full", "half", "off"],
         },
     },
     {

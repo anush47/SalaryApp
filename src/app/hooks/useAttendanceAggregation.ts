@@ -24,7 +24,7 @@ export interface DailyAttendanceRecord {
     holidayName?: string;
 
     // Attendance Data
-    status: 'Present' | 'Absent' | 'Leave' | 'Off' | 'Holiday' | 'Future';
+    status: 'Present' | 'Absent' | 'Leave' | 'Off' | 'Holiday' | 'Future' | 'Half Day';
     checkInTime?: string;
     checkInLocation?: string;
     checkOutTime?: string;
@@ -42,6 +42,7 @@ export interface DailyAttendanceRecord {
     // Metadata
     inLogId?: string;
     outLogId?: string;
+    resolutionMode?: string;
     isOvernightShift: boolean;
     requiresAttention: boolean; // e.g. Missed punch, Late
     remarks?: string;
@@ -235,6 +236,16 @@ export const useAttendanceAggregation = (
 
             if (dayjs().isBefore(currentDate, 'day')) {
                 status = 'Future';
+            } else if (inLog && inLog.dayStatus) {
+                // Manual Override Logic
+                if (inLog.dayStatus === 'full') status = 'Present';
+                else if (inLog.dayStatus === 'half') status = 'Half Day' as any; // Type hack or update interface
+                else if (inLog.dayStatus === 'off') status = 'Off';
+
+                // If present/half, calc duration
+                if (outLog) {
+                    finalDuration = dayjs(outLog.timestamp).diff(dayjs(inLog.timestamp), 'minute');
+                }
             } else if (inLog) {
                 status = 'Present';
                 if (outLog) {
@@ -275,7 +286,8 @@ export const useAttendanceAggregation = (
                 status,
                 inLogId: inLog?._id,
                 outLogId: outLog?._id,
-                checkInTime: inLog?.timestamp,
+                resolutionMode: inLog?.resolutionMode,
+                checkInTime: inLog?.resolutionMode === 'status_only' ? undefined : inLog?.timestamp,
                 checkInLocation: inLog?.location?.isVerified ? 'Verified' : 'Unverified',
                 checkOutTime: outLog?.timestamp,
                 checkOutLocation: outLog?.location?.isVerified ? 'Verified' : 'Unverified',

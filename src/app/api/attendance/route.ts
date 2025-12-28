@@ -35,15 +35,16 @@ export async function PUT(req: NextRequest) {
         try {
             const body = await req.json();
             console.log("PUT Attendance Payload:", body);
-            const { id, status, timestamp, shiftId, remarks } = z.object({
+            const { id, status, timestamp, shiftId, remarks, dayStatus } = z.object({
                 id: z.string(),
                 status: z.enum(["approved", "rejected", "pending"]),
                 timestamp: z.string().optional(),
                 shiftId: z.string().optional(),
-                remarks: z.string().optional()
+                remarks: z.string().optional(),
+                dayStatus: z.enum(["full", "half", "off"]).optional()
             }).parse(body);
 
-            const data = await AttendanceService.recordApproval(id, status as any, context, timestamp, shiftId, remarks);
+            const data = await AttendanceService.recordApproval(id, status as any, context, timestamp, shiftId, remarks, dayStatus);
             console.log("PUT Attendance Success:", data._id);
             return ApiResponseUtils.sendSuccess(data, "Status updated successfully");
         } catch (error) {

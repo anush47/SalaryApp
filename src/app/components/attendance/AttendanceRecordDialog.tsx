@@ -60,11 +60,12 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         timestamp: null as dayjs.Dayjs | null,
         status: 'approved',
         remarks: '',
-        shiftId: ''
+        shiftId: '',
+        dayStatus: 'full'
     });
 
     // Day Status (Simulated for now by modifying shift/logs?)
-    // TODO: Implement "Day Status" logic if backend supports it. For now, it reflects log status.
+    // This is now supported by backing field on IN log
 
     const [isUpdating, setIsUpdating] = useState(false);
 
@@ -99,19 +100,21 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     const initialLog = fetchedIn || fetchedOut;
                     if (initialLog) {
                         setFormData({
-                            timestamp: dayjs(initialLog.timestamp),
+                            timestamp: initialLog.resolutionMode === 'status_only' ? null : dayjs(initialLog.timestamp),
                             status: initialLog.status || 'approved',
                             remarks: initialLog.remarks || '',
-                            shiftId: initialLog.shift?.shiftId || ''
+                            shiftId: initialLog.shift?.shiftId || '',
+                            dayStatus: initialLog.dayStatus || (dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full')
                         });
                         setActiveTab(fetchedIn ? 0 : 1);
                     } else {
                         // No logs at all - Ready to create IN
                         setFormData({
-                            timestamp: dayjs(`${dailyRecord.date}T08:00:00`), // Default start time
+                            timestamp: null, // Default to Status Only as requested
                             status: 'approved',
                             remarks: '',
-                            shiftId: dailyRecord.shiftId || ''
+                            shiftId: dailyRecord.shiftId || '',
+                            dayStatus: dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full'
                         });
                         setActiveTab(0);
                     }
@@ -135,20 +138,20 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         const targetLog = activeTab === 0 ? inLog : outLog;
         if (targetLog) {
             setFormData({
-                timestamp: dayjs(targetLog.timestamp),
+                timestamp: targetLog.resolutionMode === 'status_only' ? null : dayjs(targetLog.timestamp),
                 status: targetLog.status || 'approved',
                 remarks: targetLog.remarks || '',
-                shiftId: targetLog.shift?.shiftId || ''
+                shiftId: targetLog.shift?.shiftId || '',
+                dayStatus: targetLog.dayStatus || 'full'
             });
         } else {
             // Reset for creation
             setFormData(prev => ({
                 ...prev,
-                timestamp: activeTab === 0
-                    ? dayjs(`${dailyRecord?.date}T09:00:00`)
-                    : dayjs(`${dailyRecord?.date}T17:00:00`),
+                timestamp: null,
                 remarks: '',
-                status: 'approved'
+                status: 'approved',
+                dayStatus: 'full'
             }));
         }
     }, [activeTab, inLog, outLog, dailyRecord]);
@@ -168,7 +171,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     formData.status as any,
                     formData.timestamp?.toISOString(),
                     formData.shiftId,
-                    formData.remarks
+                    formData.remarks,
+                    formData.dayStatus
                 );
                 if (res.success) {
                     showSnackbar({ message: `${type.toUpperCase()} Record updated`, severity: "success" });
@@ -189,19 +193,14 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 const res = await createAttendance({
                     type,
                     location: defaultLoc,
-                    employeeId: employee?._id || dailyRecord.inLogId ? null : (dailyRecord as any).employeeId, // We need to ensure we can get employeeID from somewhere!
-                    // dailyRecord does not strictly have employeeId properly typed in interface but likely available?
-                    // actually dailyRecord does NOT have employeeId. But we passed `employee` prop.
-                    // Fallback to searching context? No, dialog needs it.
-                    // Let's assume passed `employee` prop.
-                    timestamp: formData.timestamp?.toISOString(),
+                    employeeId: employee?._id || (dailyRecord as any).employeeId || undefined,
+                    timestamp: formData.timestamp ? formData.timestamp.toISOString() : dayjs(dailyRecord.date).startOf('day').toISOString(),
                     remarks: formData.remarks,
-                    status: formData.status
+                    status: formData.status,
+                    dayStatus: formData.dayStatus,
+                    resolutionMode: formData.timestamp ? undefined : 'status_only'
                 });
 
-                // IMPORTANT: If employee prop is missing (e.g. creating from view where we only have record), we need mechanism. 
-                // Currently UnifiedPanel passes employee.
-                // If createAttendance API needs valid employeeId, we must ensure it is present.
                 if (!employee?._id) console.warn("Missing Employee ID for creation!");
 
                 if (res.success) {
@@ -219,12 +218,14 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         }
     };
 
+    const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+
     // Deletion
     const handleDelete = async () => {
         const targetLog = activeTab === 0 ? inLog : outLog;
         if (!targetLog) return;
 
-        if (!confirm("Delete this specific log?")) return;
+        // confirmed via dialog
         setIsUpdating(true);
         try {
             const res = await deleteAttendance(targetLog._id);
@@ -234,7 +235,10 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 onClose();
             }
         } catch (e) { showSnackbar({ message: "Error deleting", severity: 'error' }); }
-        finally { setIsUpdating(false); }
+        finally {
+            setIsUpdating(false);
+            setDeleteConfirmationOpen(false);
+        }
     }
 
 
@@ -242,6 +246,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
     const currentLog = activeTab === 0 ? inLog : outLog;
     const isNew = !currentLog;
+    const isManualStatus = currentLog?.resolutionMode === 'status_only';
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -252,6 +257,14 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         <Typography variant="body2" color="text.secondary">
                             {dayjs(dailyRecord.date).format("dddd, MMMM D, YYYY")} | {employee?.name || (dailyRecord as any).shiftName || "Employee"}
                         </Typography>
+                        {(dailyRecord.isHoliday || dailyRecord.isOffDay) && (
+                            <Chip
+                                label={dailyRecord.isHoliday ? `Holiday: ${dailyRecord.holidayName || 'Public Holiday'}` : "Scheduled Off Day"}
+                                color={dailyRecord.isHoliday ? "secondary" : "default"}
+                                size="small"
+                                sx={{ mt: 0.5 }}
+                            />
+                        )}
                     </Box>
                     <IconButton onClick={onClose} size="small"><Cancel /></IconButton>
                 </Box>
@@ -306,7 +319,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         size="small"
                                     />
                                 )}
-                                {isNew && <Chip label="MISSING Record" color="error" size="small" />}
+                                {isNew && !dailyRecord.isOffDay && !dailyRecord.isHoliday && <Chip label="MISSING Record" color="error" size="small" />}
                             </Box>
 
                             {/* Form */}
@@ -320,6 +333,20 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             slotProps={{ textField: { fullWidth: true, size: 'small' } }}
                                         />
                                     </LocalizationProvider>
+                                    {isNew && (
+                                        <Box mt={1}>
+                                            <Typography variant="caption" display="flex" alignItems="center" gap={1}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!formData.timestamp}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setFormData({ ...formData, timestamp: dayjs() });
+                                                        else setFormData({ ...formData, timestamp: null });
+                                                    }}
+                                                /> Record Time? (Uncheck for Status Only)
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </Grid>
 
                                 <Grid item xs={6}>
@@ -335,6 +362,23 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         <option value="approved">Approved</option>
                                         <option value="pending">Pending</option>
                                         <option value="rejected">Rejected</option>
+                                    </TextField>
+                                </Grid>
+
+                                <Grid item xs={6}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        size="small"
+                                        label="Day Status Override"
+                                        value={formData.dayStatus}
+                                        onChange={(e) => setFormData({ ...formData, dayStatus: e.target.value })}
+                                        SelectProps={{ native: true }}
+                                        helperText="Overrides calculated status"
+                                    >
+                                        <option value="full">Full Day</option>
+                                        <option value="half">Half Day</option>
+                                        <option value="off">Off Day</option>
                                     </TextField>
                                 </Grid>
 
@@ -384,7 +428,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
             <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 {currentLog && (
-                    <Button onClick={handleDelete} color="error" disabled={isUpdating}>Delete Log</Button>
+                    <Button onClick={() => setDeleteConfirmationOpen(true)} color="error" disabled={isUpdating}>Delete Log</Button>
                 )}
                 <Box flexGrow={1} />
                 <Button onClick={onClose} disabled={isUpdating}>Close</Button>
@@ -392,6 +436,22 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     {isUpdating ? "Saving..." : (isNew ? "Create Record" : "Save Changes")}
                 </Button>
             </DialogActions>
-        </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            < Dialog open={deleteConfirmationOpen} onClose={() => setDeleteConfirmationOpen(false)}>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete this attendance record? This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteConfirmationOpen(false)}>Cancel</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained" autoFocus>
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog >
+        </Dialog >
     );
 };

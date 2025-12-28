@@ -22,6 +22,8 @@ export const attendanceCreateSchema = z.object({
     // Admin Overrides
     employeeId: z.string().optional(),
     timestamp: z.string().optional(),
+    dayStatus: z.string().optional(),
+    resolutionMode: z.string().optional(),
 });
 
 export const externalAttendanceSchema = z.object({
@@ -58,7 +60,7 @@ export class AttendanceService {
     static async createAttendance(body: any, context: RequestContext) {
         await dbConnect();
 
-        const { type, location, deviceId, deviceDetails, employeeId, timestamp } = attendanceCreateSchema.parse(body);
+        const { type, location, deviceId, deviceDetails, employeeId, timestamp, dayStatus, resolutionMode: inputResolutionMode } = attendanceCreateSchema.parse(body);
 
         // 1. User Validation
         const isEmployer = context.user?.role === 'employer' || context.user?.role === 'admin';
@@ -106,7 +108,7 @@ export class AttendanceService {
 
         // 2.5 Shift Validation & Resolution
         let resolvedShift: any = null;
-        let resolutionMode = "system"; // Default
+        let resolutionMode = inputResolutionMode || "system"; // Default to input or system
 
         if (type === 'in') {
             const now = new Date();
@@ -115,7 +117,9 @@ export class AttendanceService {
 
             // Determine Settings to know Mode
             const settings = ShiftService.getEffectiveSettings(employee, company);
-            resolutionMode = settings?.mode || "fixed";
+            if (inputResolutionMode !== 'status_only') {
+                resolutionMode = settings?.mode || "fixed";
+            }
 
             // Manual Mode: Use provided shiftId
             if (resolutionMode === 'manual' && body.shiftId) {
@@ -145,7 +149,7 @@ export class AttendanceService {
                     resolvedShift = shiftResult.shift;
                 }
 
-                if (resolvedShift) {
+                if (resolvedShift && resolutionMode !== 'status_only') {
                     const validation = ShiftService.validateCheckIn(resolvedShift, checkInTime);
                     if (!validation.valid) {
                         throw new ForbiddenError(validation.message || "Invalid check-in time for the current shift.");
@@ -278,6 +282,7 @@ export class AttendanceService {
             deviceId,
             deviceDetails,
             remarks: body.remarks,
+            dayStatus: dayStatus as any,
             shift: resolvedShift ? {
                 shiftId: resolvedShift._id,
                 name: resolvedShift.name,
@@ -285,7 +290,7 @@ export class AttendanceService {
                 endTime: resolvedShift.endTime,
                 type: resolvedShift.type
             } : undefined,
-            resolutionMode: isEmployer ? "manual_admin" : resolutionMode
+            resolutionMode: (isEmployer && resolutionMode !== 'status_only') ? "manual_admin" : resolutionMode
         });
 
         return attendance;
@@ -373,7 +378,7 @@ export class AttendanceService {
         return records;
     }
 
-    static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string, shiftId?: string, remarks?: string) {
+    static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string, shiftId?: string, remarks?: string, dayStatus?: string) {
         console.log(`[AttendanceService] recordApproval called for ID: ${attendanceId}, Status: ${status}, Timestamp: ${timestamp}`);
         await dbConnect();
 
@@ -435,6 +440,10 @@ export class AttendanceService {
         attendance.approvedAt = new Date();
         if (remarks !== undefined) {
             attendance.remarks = remarks;
+        }
+        if (dayStatus) {
+            // @ts-ignore
+            attendance.dayStatus = dayStatus;
         }
         await attendance.save();
         console.log(`[AttendanceService] Successfully saved attendance record: ${attendanceId}`);
