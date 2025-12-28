@@ -63,6 +63,7 @@ import Link from "next/link";
 
 import { UnifiedAttendancePanel } from "./UnifiedAttendancePanel";
 import { AttendanceRecordDialog } from "@/app/components/attendance/AttendanceRecordDialog";
+import { AttendanceStatisticsPanel } from "./AttendanceStatisticsPanel";
 
 interface CompanyAttendanceProps {
     user: any;
@@ -347,9 +348,10 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                 <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 2 }}>
                                     <Tab label="Daily Logs (All)" />
                                     <Tab label="Employee History (Unified)" />
+                                    <Tab label="Statistics" />
                                 </Tabs>
                             </Box>
-                            {tabValue === 0 && (
+                            {(tabValue === 0 || tabValue === 2) && (
                                 <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ width: { xs: '100%', lg: 'auto' } }}>
                                     <LocalizationProvider dateAdapter={AdapterDayjs}>
                                         <MUIDatePicker
@@ -488,8 +490,10 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                     }}
                                 />
                             </Box>
-                        ) : (
+                        ) : tabValue === 1 ? (
                             <UnifiedAttendancePanel companyId={companyId} />
+                        ) : (
+                            <AttendanceStatisticsPanel logs={logs} />
                         )}
                     </Box>
                 </CardContent>

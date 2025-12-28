@@ -569,26 +569,31 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
 
                     <Grid item xs={12} lg={7}>
                         <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden', height: '100%', maxHeight: 800, display: 'flex', flexDirection: 'column' }}>
-                            <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <History color="primary" />
-                                <Typography variant="h6" fontWeight="bold">My Attendance</Typography>
-                                <Box ml="auto" display="flex" gap={1} alignItems="center">
+                            <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <History color="primary" />
+                                    <Typography variant="h6" fontWeight="bold">My Attendance</Typography>
+                                </Box>
+                                <Box ml={{ xs: 0, md: 'auto' }} display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="center" width={{ xs: '100%', sm: 'auto' }}>
                                     <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <DatePicker
-                                            value={viewStartDate}
-                                            onChange={(v) => v && setViewStartDate(v)}
-                                            slotProps={{ textField: { size: 'small', sx: { width: 130 } } }}
-                                        />
-                                        <Typography>-</Typography>
-                                        <DatePicker
-                                            value={viewEndDate}
-                                            onChange={(v) => v && setViewEndDate(v)}
-                                            slotProps={{ textField: { size: 'small', sx: { width: 130 } } }}
-                                        />
+                                        <Box display="flex" gap={1} alignItems="center" width={{ xs: '100%', sm: 'auto' }}>
+                                            <DatePicker
+                                                value={viewStartDate}
+                                                onChange={(v) => v && setViewStartDate(v)}
+                                                slotProps={{ textField: { size: 'small', fullWidth: true, sx: { minWidth: 130 } } }}
+                                            />
+                                            <Typography>-</Typography>
+                                            <DatePicker
+                                                value={viewEndDate}
+                                                onChange={(v) => v && setViewEndDate(v)}
+                                                slotProps={{ textField: { size: 'small', fullWidth: true, sx: { minWidth: 130 } } }}
+                                            />
+                                        </Box>
                                     </LocalizationProvider>
-                                    <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-                                    <Chip label={`Worked: ${dailyStats.totalHours}h`} size="small" color="primary" variant="outlined" />
-                                    <Chip label={`OT: ${dailyStats.totalOT}h`} size="small" color="success" variant="outlined" />
+                                    <Stack direction="row" spacing={1} divider={<Divider orientation="vertical" flexItem />}>
+                                        <Chip label={`Worked: ${dailyStats.totalHours}h`} size="small" color="primary" variant="outlined" />
+                                        <Chip label={`OT: ${dailyStats.totalOT}h`} size="small" color="success" variant="outlined" />
+                                    </Stack>
                                 </Box>
                             </Box>
                             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>
