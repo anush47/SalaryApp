@@ -21,6 +21,7 @@ import {
   InputAdornment,
   FormControlLabel,
   Checkbox,
+  CardHeader,
 } from "@mui/material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { Save, Add, Delete } from "@mui/icons-material";
@@ -97,20 +98,37 @@ const ProfileForm: React.FC<UserProps> = ({ user }) => {
   }
 
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h5" gutterBottom>
-          My Profile
-        </Typography>
-        <Button
-          variant="outlined"
-          onClick={() => setIsEditing(!isEditing)}
-        >
-          {isEditing ? 'Cancel' : 'Edit'}
-        </Button>
-      </Box>
-      <Card>
-        <CardContent>
+    <Box>
+      <Card
+        sx={{
+          minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
+          overflowY: "auto",
+        }}
+      >
+        <CardHeader
+          title={
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+              }}
+            >
+              <Typography variant="h4" component="h1">
+                My Profile
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                {isEditing ? 'Cancel' : 'Edit'}
+              </Button>
+            </Box>
+          }
+        />
+        <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6}>
               <TextField
