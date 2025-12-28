@@ -19,6 +19,9 @@ export const attendanceCreateSchema = z.object({
     deviceId: z.string().optional(),
     deviceDetails: z.string().optional(),
     shiftId: z.string().optional(),
+    // Admin Overrides
+    employeeId: z.string().optional(),
+    timestamp: z.string().optional(),
 });
 
 export const externalAttendanceSchema = z.object({
@@ -49,21 +52,41 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 
 export class AttendanceService {
 
-    // Client App Check-in/out
+
+
+    // Client App Check-in/out & Admin Manual Entry
     static async createAttendance(body: any, context: RequestContext) {
         await dbConnect();
 
+        const { type, location, deviceId, deviceDetails, employeeId, timestamp } = attendanceCreateSchema.parse(body);
+
         // 1. User Validation
-        if (!context.user || context.user.role !== 'employee') {
+        const isEmployer = context.user?.role === 'employer' || context.user?.role === 'admin';
+
+        let targetEmployeeId = context.user?.id;
+
+        if (isEmployer) {
+            if (employeeId) {
+                // creating for specific employee
+                targetEmployeeId = employeeId; // This is the employee _ID not user ID? 
+                // Wait. employeeId passed usually acts as ID.
+                // But context.user.id is USER ID.
+                // We need to fetch Employee by _id if passed, or by user id if self.
+            } else {
+                throw new BadRequestError("Employee ID is required for manual entry.");
+            }
+        } else if (!context.user || context.user.role !== 'employee') {
             throw new ForbiddenError("Only employees can check in/out via this API.");
         }
 
-        const { type, location, deviceId, deviceDetails } = attendanceCreateSchema.parse(body);
+        // Logic split
+        let employee;
+        if (isEmployer && employeeId) {
+            employee = await Employee.findById(employeeId);
+        } else {
+            employee = await Employee.findOne({ user: context.user?.id });
+        }
 
-        // DEBUG: Temporary verify data receipt
-        // throw new BadRequestError(`DEBUG: ID=${deviceId?.slice(0, 5)} DETAILS=${deviceDetails?.slice(0, 20)}`);
-
-        const employee = await Employee.findOne({ user: context.user.id });
         if (!employee) {
             throw new NotFoundError("Employee record not found.");
         }
@@ -237,13 +260,16 @@ export class AttendanceService {
             status = "pending";
         }
 
+        // Determine Timestamp
+        const recordTime = (isEmployer && timestamp) ? new Date(timestamp) : new Date();
+
         // 5. Create Record
         const attendance = await Attendance.create({
             company: company._id,
             employee: employee._id,
-            timestamp: new Date(),
+            timestamp: recordTime,
             type,
-            method: "web",
+            method: isEmployer ? "manual" : "web",
             status,
             location: {
                 ...location,
@@ -259,10 +285,34 @@ export class AttendanceService {
                 endTime: resolvedShift.endTime,
                 type: resolvedShift.type
             } : undefined,
-            resolutionMode
+            resolutionMode: isEmployer ? "manual_admin" : resolutionMode
         });
 
         return attendance;
+    }
+
+    // Get single attendance record by ID
+    static async getAttendanceById(id: string, context: RequestContext) {
+        await dbConnect(); // Ensure DB connection
+        if (!context.user) throw new ForbiddenError("Authentication required");
+
+        // Permission check: Employer of that company OR the employee themselves
+        // First fetch the record to check permissions
+        const record = await Attendance.findById(id)
+            .populate('employee', 'name memberNo attendanceOverrides role')
+            .populate('shift', 'name startTime endTime');
+
+        if (!record) return null;
+
+        const isEmployer = await Company.exists({ _id: record.company, user: context.user.id });
+        const isSelf = (record.employee as any)._id.toString() === context.user.id;
+        const isCompanyAdmin = false; // TODO: Check if user is an admin of the company
+
+        if (!isEmployer && !isSelf && !isCompanyAdmin) {
+            throw new Error("Unauthorized to access this record");
+        }
+
+        return record;
     }
 
     // Dashboard / Report

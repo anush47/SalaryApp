@@ -1,13 +1,6 @@
 import { ApiResponse } from '@/app/lib/apiResponse';
 
-export const markAttendance = async (data: {
-    type: 'in' | 'out';
-    location: { lat: number; lng: number; accuracy: number };
-    deviceId?: string;
-    deviceDetails?: string;
-    shiftId?: string;
-    remarks?: string;
-}): Promise<ApiResponse> => {
+export const markAttendance = async (data: any): Promise<ApiResponse> => {
     const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -15,6 +8,8 @@ export const markAttendance = async (data: {
     });
     return response.json();
 };
+
+export const createAttendance = markAttendance;
 
 export const getAttendanceLogs = async (companyId: string, date?: string, startDate?: string, endDate?: string): Promise<ApiResponse> => {
     let url = `/api/attendance?companyId=${companyId}`;

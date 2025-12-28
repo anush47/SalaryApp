@@ -60,7 +60,9 @@ import { DatePicker as MUIDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import Link from "next/link";
+
 import { UnifiedAttendancePanel } from "./UnifiedAttendancePanel";
+import { AttendanceRecordDialog } from "@/app/components/attendance/AttendanceRecordDialog";
 
 interface CompanyAttendanceProps {
     user: any;
@@ -73,24 +75,14 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [openPresentDialog, setOpenPresentDialog] = useState(false);
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
-    const [tempStatus, setTempStatus] = useState<string>("");
-    const [tempTimestamp, setTempTimestamp] = useState<dayjs.Dayjs | null>(null);
-    const [tempShiftId, setTempShiftId] = useState<string>("");
-    const [tempRemarks, setTempRemarks] = useState<string>("");
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
+
     const [tabValue, setTabValue] = useState(0);
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
 
-    const hasChanged = viewLog && (
-        tempStatus !== (viewLog.status || 'approved') ||
-        !dayjs(tempTimestamp).isSame(dayjs(viewLog.timestamp)) ||
-        tempShiftId !== (viewLog.shift?.shiftId || "") ||
-        tempRemarks !== (viewLog.remarks || "")
-    );
+
 
 
 
@@ -119,61 +111,8 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
 
     const logs = logsResponse?.success ? logsResponse.data : [];
 
-    const prevLogForEmployee = React.useMemo(() => {
-        if (!viewLog || !logs) return null;
-        // In logs array (sorted desc), the previous record is the next one in the array with same employee and earlier timestamp
-        return logs.find((log: any) =>
-            log.employee?._id === viewLog.employee?._id &&
-            new Date(log.timestamp) < new Date(viewLog.timestamp)
-        );
-    }, [viewLog, logs]);
 
-    const minDateTime = prevLogForEmployee ? dayjs(prevLogForEmployee.timestamp) : undefined;
 
-    const handleUpdateRecord = async () => {
-        if (!viewLog) return;
-        setIsUpdating(true);
-        try {
-            const res = await updateAttendanceStatus(
-                viewLog._id,
-                tempStatus as any,
-                tempTimestamp?.toISOString(),
-                tempShiftId,
-                tempRemarks
-            );
-            if (res.success) {
-                showSnackbar({ message: "Record updated successfully", severity: "success" });
-                queryClient.invalidateQueries({ queryKey: ["companyAttendanceLogs"] });
-                setOpenViewDialog(false);
-            } else {
-                showSnackbar({ message: res.error?.message || "Failed to update record", severity: "error" });
-            }
-        } catch (err) {
-            showSnackbar({ message: "An error occurred", severity: "error" });
-        } finally {
-            setIsUpdating(false);
-        }
-    };
-
-    const handleDeleteRecord = async () => {
-        if (!viewLog) return;
-
-        setIsUpdating(true);
-        try {
-            const res = await deleteAttendance(viewLog._id);
-            if (res.success) {
-                showSnackbar({ message: "Record deleted successfully", severity: "success" });
-                queryClient.invalidateQueries({ queryKey: ["companyAttendanceLogs"] });
-                setOpenViewDialog(false);
-            } else {
-                showSnackbar({ message: res.error?.message || "Failed to delete record", severity: "error" });
-            }
-        } catch (err) {
-            showSnackbar({ message: "An error occurred", severity: "error" });
-        } finally {
-            setIsUpdating(false);
-        }
-    };
 
     const handleApproveReject = async (id: string, status: 'approved' | 'rejected') => {
         try {
@@ -332,10 +271,6 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                     color="info"
                                     onClick={() => {
                                         setViewLog(params.row);
-                                        setTempStatus(params.row.status || 'approved');
-                                        setTempTimestamp(dayjs(params.row.timestamp));
-                                        setTempShiftId(params.row.shift?.shiftId || "");
-                                        setTempRemarks(params.row.remarks || "");
                                         setOpenViewDialog(true);
                                     }}
                                     sx={{ border: '1px solid', borderColor: 'info.light' }}
@@ -368,7 +303,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                 </>
                             )}
                         </Stack>
-                    </Box>
+                    </Box >
                 );
             }
         }
@@ -620,289 +555,22 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                 </DialogContent>
             </Dialog>
 
-            {/* View Record Details Dialog */}
-            <Dialog
+            {/* Log Edit Dialog */}
+            <AttendanceRecordDialog
                 open={openViewDialog}
                 onClose={() => setOpenViewDialog(false)}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-                    Attendance Record Details
-                </DialogTitle>
-                <DialogContent sx={{ pt: 3 }}>
-                    {viewLog && (
-                        <Grid container spacing={2} sx={{ mt: 1 }}>
-                            <Grid item xs={12}>
-                                <Box display="flex" alignItems="center" gap={2} mb={2}>
-                                    <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
-                                        {viewLog.employee?.name?.charAt(0)}
-                                    </Avatar>
-                                    <Box>
-                                        <Typography variant="h6" fontWeight="bold">
-                                            {viewLog.employee?.name}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Member No: {viewLog.employee?.memberNo || 'N/A'}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                                <Divider sx={{ mb: 2 }} />
-                            </Grid>
-
-                            <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">Type</Typography>
-                                <Box mt={0.5}>
-                                    <Chip
-                                        label={viewLog.type?.toUpperCase()}
-                                        color={viewLog.type === 'in' ? "success" : "warning"}
-                                        size="small"
-                                        variant="filled"
-                                        sx={{ fontWeight: 'bold' }}
-                                    />
-                                </Box>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">Shift</Typography>
-                                <Box mt={0.5}>
-                                    <TextField
-                                        select
-                                        size="small"
-                                        fullWidth
-                                        value={tempShiftId}
-                                        onChange={(e) => setTempShiftId(e.target.value)}
-                                        variant="outlined"
-                                        SelectProps={{ native: true }}
-                                        sx={{
-                                            '& .MuiSelect-select': {
-                                                py: 0.5,
-                                                fontSize: '0.875rem',
-                                                fontWeight: 'bold',
-                                            }
-                                        }}
-                                    >
-                                        <option value="">No Shift</option>
-                                        {shifts.map((s: any) => (
-                                            <option key={s._id} value={s._id}>{s.name} ({s.startTime}-{s.endTime})</option>
-                                        ))}
-                                    </TextField>
-                                </Box>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">Status</Typography>
-                                <Box mt={0.5}>
-                                    <TextField
-                                        select
-                                        size="small"
-                                        fullWidth
-                                        value={tempStatus}
-                                        onChange={(e) => setTempStatus(e.target.value)}
-                                        variant="outlined"
-                                        SelectProps={{ native: true }}
-                                        sx={{
-                                            '& .MuiSelect-select': {
-                                                py: 0.5,
-                                                fontSize: '0.875rem',
-                                                fontWeight: 'bold',
-                                                color: (tempStatus === 'pending' ? 'warning.main' : tempStatus === 'rejected' ? 'error.main' : 'success.main')
-                                            }
-                                        }}
-                                    >
-                                        <option value="approved">APPROVED</option>
-                                        <option value="pending">PENDING</option>
-                                        <option value="rejected">REJECTED</option>
-                                    </TextField>
-                                </Box>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                <Typography variant="caption" color="text.secondary">Attendance Time</Typography>
-                                <Box mt={0.5}>
-                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <DateTimePicker
-                                            value={tempTimestamp}
-                                            onChange={(newValue) => setTempTimestamp(newValue)}
-                                            minDateTime={minDateTime}
-                                            slotProps={{
-                                                textField: {
-                                                    size: 'small',
-                                                    fullWidth: true,
-                                                    variant: 'outlined',
-                                                    helperText: minDateTime ? `Cannot be earlier than ${minDateTime.format('MMM DD, hh:mm A')}` : undefined
-                                                }
-                                            }}
-                                        />
-                                    </LocalizationProvider>
-                                </Box>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                <Typography variant="caption" color="text.secondary">Remarks</Typography>
-                                <Box mt={0.5}>
-                                    <TextField
-                                        fullWidth
-                                        multiline
-                                        rows={2}
-                                        size="small"
-                                        value={tempRemarks}
-                                        onChange={(e) => setTempRemarks(e.target.value)}
-                                        placeholder="Add any notes here..."
-                                        variant="outlined"
-                                        sx={{
-                                            '& .MuiInputBase-root': {
-                                                fontSize: '0.875rem',
-                                            }
-                                        }}
-                                    />
-                                </Box>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                <Divider sx={{ my: 1 }} />
-                                <Typography variant="subtitle2" gutterBottom sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <LocationOn fontSize="small" color="action" /> Location Details
-                                </Typography>
-                                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover' }}>
-                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                        <Typography variant="body2" color="text.secondary">Verification:</Typography>
-                                        {viewLog.location?.isVerified ? (
-                                            <Chip label="Verified In Range" color="success" size="small" icon={<CheckCircle />} />
-                                        ) : (
-                                            <Chip label="Outside Range / Unverified" color="error" size="small" icon={<Cancel />} />
-                                        )}
-                                    </Box>
-
-                                    {/* Map View */}
-                                    {(viewLog.location?.lat && viewLog.location?.lng) && (
-                                        <Box mt={2} mb={2}>
-                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                                Check-in Location (Marker) vs Company Zone (Circle)
-                                            </Typography>
-                                            <AttendanceZonesMap
-                                                companyConfig={companyData}
-                                                employeeOverrides={viewLog.employee?.attendanceOverrides}
-                                                markerLocation={{ lat: viewLog.location.lat, lng: viewLog.location.lng }}
-                                                height={250}
-                                                interactive={true}
-                                                fitBounds={true}
-                                            />
-                                        </Box>
-                                    )}
-
-                                    <Stack spacing={1}>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="caption" color="text.secondary">Latitude:</Typography>
-                                            <Typography variant="body2" fontFamily="monospace">{viewLog.location?.lat || 'N/A'}</Typography>
-                                        </Box>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="caption" color="text.secondary">Longitude:</Typography>
-                                            <Typography variant="body2" fontFamily="monospace">{viewLog.location?.lng || 'N/A'}</Typography>
-                                        </Box>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="caption" color="text.secondary">Accuracy:</Typography>
-                                            <Typography variant="body2" fontFamily="monospace">{viewLog.location?.accuracy ? `±${Math.round(viewLog.location.accuracy)}m` : 'N/A'}</Typography>
-                                        </Box>
-                                    </Stack>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                {viewLog.deviceDetails && (
-                                    <>
-                                        <Divider sx={{ my: 1 }} />
-                                        <Typography variant="subtitle2" gutterBottom sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <PhoneIphone fontSize="small" color="action" /> Device Information
-                                        </Typography>
-                                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover' }}>
-                                            <Stack spacing={1}>
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary">Device / Browser</Typography>
-                                                    <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                                                        {viewLog.deviceDetails}
-                                                    </Typography>
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary">Device Token</Typography>
-                                                    <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all', fontSize: '0.75rem' }}>
-                                                        {viewLog.deviceId || 'N/A'}
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                        </Paper>
-                                    </>
-                                )}
-                            </Grid>
-                        </Grid>
-                    )}
-                </DialogContent>
-                <Divider />
-                <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
-                    <Box>
-                        <Button
-                            onClick={() => setOpenDeleteConfirm(true)}
-                            color="error"
-                            startIcon={<Delete />}
-                            disabled={isUpdating}
-                        >
-                            Delete
-                        </Button>
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                        <Button
-                            onClick={() => setOpenViewDialog(false)}
-                            color="inherit"
-                            disabled={isUpdating}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleUpdateRecord}
-                            variant="outlined"
-                            color="primary"
-                            disabled={isUpdating || !hasChanged}
-                        >
-                            {isUpdating ? "Updating..." : "Update Record"}
-                        </Button>
-                    </Stack>
-                </DialogActions>
-            </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog
-                open={openDeleteConfirm}
-                onClose={() => setOpenDeleteConfirm(false)}
-                maxWidth="xs"
-                fullWidth
-            >
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
-                    <Delete /> Confirm Deletion
-                </DialogTitle>
-                <DialogContent>
-                    <Typography>
-                        Are you sure you want to delete this attendance record for <strong>{viewLog?.employee?.name}</strong>?
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        This action cannot be undone and will permanently remove this record from the system.
-                    </Typography>
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setOpenDeleteConfirm(false)} color="inherit" disabled={isUpdating}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={async () => {
-                            await handleDeleteRecord();
-                            setOpenDeleteConfirm(false);
-                        }}
-                        variant="contained"
-                        color="error"
-                        autoFocus
-                        disabled={isUpdating}
-                    >
-                        {isUpdating ? "Deleting..." : "Permanently Delete"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                dailyRecord={viewLog ? {
+                    date: viewLog.timestamp,
+                    inLogId: viewLog.type === 'in' ? viewLog._id : undefined,
+                    outLogId: viewLog.type === 'out' ? viewLog._id : undefined,
+                } as any : null}
+                employee={viewLog?.employee}
+                companyConfig={companyData}
+                onSaveSuccess={() => {
+                    setOpenViewDialog(false);
+                    refetch();
+                }}
+            />
         </Box >
     );
 };

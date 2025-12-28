@@ -40,6 +40,8 @@ export interface DailyAttendanceRecord {
     leaveId?: string;
 
     // Metadata
+    inLogId?: string;
+    outLogId?: string;
     isOvernightShift: boolean;
     requiresAttention: boolean; // e.g. Missed punch, Late
     remarks?: string;
@@ -255,6 +257,8 @@ export const useAttendanceAggregation = (
                 status = 'Holiday';
             } else if (shiftExpected.off) {
                 status = 'Off';
+            } else {
+                status = 'Absent';
             }
 
             // Push Record
@@ -263,24 +267,26 @@ export const useAttendanceAggregation = (
                 dayOfWeek: currentDate.format('dddd'),
                 shiftId: shiftExpected.shiftId || undefined,
                 shiftName: shiftExpected.name,
-                expectedStartTime: shiftExpected.start,
-                expectedEndTime: shiftExpected.end,
+                expectedStartTime: shiftExpected.off ? undefined : shiftExpected.start,
+                expectedEndTime: shiftExpected.off ? undefined : shiftExpected.end,
                 isOffDay: shiftExpected.off,
-                isHoliday: isHoliday,
+                isHoliday,
                 holidayName: holiday?.summary,
-                status: status,
+                status,
+                inLogId: inLog?._id,
+                outLogId: outLog?._id,
                 checkInTime: inLog?.timestamp,
+                checkInLocation: inLog?.location?.isVerified ? 'Verified' : 'Unverified',
                 checkOutTime: outLog?.timestamp,
+                checkOutLocation: outLog?.location?.isVerified ? 'Verified' : 'Unverified',
                 durationMinutes: finalDuration,
                 otMinutes: finalOT,
-                leaveStatus: relevantLeave ? (relevantLeave.halfDay ? (relevantLeave.halfDayPeriod === 'morning' ? 'Half-Morning' : 'Half-Afternoon') : 'Full') : undefined,
-                leaveType: relevantLeave?.leaveType?.name,
-                leaveColor: relevantLeave?.leaveType?.color,
-                leaveId: relevantLeave?._id,
+                leaveStatus: relevantLeave ? (relevantLeave.halfDay ? (relevantLeave.halfDayPeriod === 'morning' ? 'Half-Morning' : 'Half-Afternoon') : (relevantLeave.totalMinutes ? 'Short' : 'Full')) : undefined,
+                leaveType: (relevantLeave?.leaveType as any)?.name,
                 leaveReason: relevantLeave?.reason,
+                leaveId: relevantLeave?._id,
                 isOvernightShift: isOvernight,
-                requiresAttention: status === 'Absent' || (status === 'Present' && !outLog),
-                remarks: inLog?.remarks || outLog?.remarks
+                requiresAttention: status === 'Absent' || (status === 'Present' && !outLog && dayjs().diff(dayjs(inLog?.timestamp), 'hour') > 12)
             });
 
 

@@ -13,11 +13,13 @@ import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchEmployees } from '@/app/lib/api/employeeApi';
 import { useAttendanceAggregation, DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
 import { DailyAttendanceTable } from '@/app/components/attendance/DailyAttendanceTable';
 import { Refresh } from '@mui/icons-material';
+import { AttendanceRecordDialog } from '@/app/components/attendance/AttendanceRecordDialog';
+import { fetchCompany } from '@/app/lib/api/companyApi';
 
 interface UnifiedAttendancePanelProps {
     companyId: string;
@@ -28,6 +30,14 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
     const [currentDate, setCurrentDate] = useState(dayjs());
     const [startDate, setStartDate] = useState(dayjs().startOf('month'));
     const [endDate, setEndDate] = useState(dayjs().endOf('month'));
+    const [selectedRecord, setSelectedRecord] = useState<DailyAttendanceRecord | null>(null);
+
+    // Fetch Company Config for Map
+    const { data: companyData } = useQuery({
+        queryKey: ["company", companyId],
+        queryFn: () => fetchCompany(companyId),
+        enabled: !!companyId
+    });
 
     // Employee Fetching for Autocomplete
     const { data: employeesData, isLoading: loadingEmployees } = useQuery({
@@ -45,10 +55,11 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
         endDate.format('YYYY-MM-DD')
     );
 
+    const queryClient = useQueryClient();
+
     const handleEditRecord = (record: DailyAttendanceRecord) => {
-        // TODO: Implement Edit Dialog
-        // For now, we can show a placeholder or basic alert
-        alert(`Edit feature coming soon for ${record.date}`);
+        // Prioritize In-Log for editing, as it's the primary record
+        setSelectedRecord(record);
     };
 
     return (
@@ -128,6 +139,20 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
                     </Typography>
                 </Box>
             )}
+
+            {/* Edit Dialog */}
+            {/* Edit Dialog */}
+            <AttendanceRecordDialog
+                open={!!selectedRecord}
+                onClose={() => setSelectedRecord(null)}
+                dailyRecord={selectedRecord}
+                employee={selectedEmployee}
+                companyConfig={companyData}
+                onSaveSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ["attendanceLogs", companyId] });
+                    // Also invalidate aggregation if needed, but invalidating logs usually triggers re-aggregation if keys match
+                }}
+            />
         </Box>
     );
 };
