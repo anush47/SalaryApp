@@ -328,8 +328,8 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
             }
         });
 
-        // Return list of logs that are currently 'in'
-        return Object.values(latestLogs).filter((log: any) => log.type === 'in');
+        // Return list of logs that are currently 'in' and not rejected
+        return Object.values(latestLogs).filter((log: any) => log.type === 'in' && log.status !== 'rejected');
     }, [logs]);
 
     return (
@@ -571,6 +571,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     refetch();
                 }}
                 disableTabSwitch={true}
+                readOnly={user?.role === 'employee'}
             />
         </Box >
     );

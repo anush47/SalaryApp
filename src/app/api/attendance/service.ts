@@ -304,13 +304,17 @@ export class AttendanceService {
         // Permission check: Employer of that company OR the employee themselves
         // First fetch the record to check permissions
         const record = await Attendance.findById(id)
-            .populate('employee', 'name memberNo attendanceOverrides role')
+            .populate({
+                path: 'employee',
+                select: 'name memberNo attendanceOverrides role user', // Ensure 'user' is selected
+            })
             .populate('shift', 'name startTime endTime');
 
         if (!record) return null;
 
         const isEmployer = await Company.exists({ _id: record.company, user: context.user.id });
-        const isSelf = (record.employee as any)._id.toString() === context.user.id;
+        const employeeUser = (record.employee as any)?.user;
+        const isSelf = employeeUser && employeeUser.toString() === context.user.id;
         const isCompanyAdmin = false; // TODO: Check if user is an admin of the company
 
         if (!isEmployer && !isSelf && !isCompanyAdmin) {

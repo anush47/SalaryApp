@@ -3,7 +3,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Paper, Chip, Typography, Box, IconButton, Tooltip, TextField
 } from '@mui/material';
-import { CheckCircle, Cancel, Edit, Info, Hotel, Warning } from '@mui/icons-material';
+import { CheckCircle, Cancel, Edit, Info, Hotel, Warning, Visibility } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
 
@@ -64,7 +64,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                         <TableCell align="center">In</TableCell>
                         <TableCell align="center">Out</TableCell>
                         <TableCell align="right">Duration</TableCell>
-                        <TableCell align="right">OT</TableCell>
+                        {userRole === 'employer' && <TableCell align="right">OT</TableCell>}
                         <TableCell align="center">Actions</TableCell>
                     </TableRow>
                 </TableHead>
@@ -133,14 +133,16 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                 <TableCell align="right">
                                     {formatDuration(record.durationMinutes)}
                                 </TableCell>
-                                <TableCell align="right" sx={{ color: record.otMinutes > 0 ? 'success.main' : 'inherit', fontWeight: record.otMinutes > 0 ? 'bold' : 'normal' }}>
-                                    {record.otMinutes > 0 ? `+${formatDuration(record.otMinutes)}` : '-'}
-                                </TableCell>
+                                {userRole === 'employer' && (
+                                    <TableCell align="right" sx={{ color: record.otMinutes > 0 ? 'success.main' : 'inherit', fontWeight: record.otMinutes > 0 ? 'bold' : 'normal' }}>
+                                        {record.otMinutes > 0 ? `+${formatDuration(record.otMinutes)}` : '-'}
+                                    </TableCell>
+                                )}
                                 <TableCell align="center">
-                                    {(userRole === 'employer' || (userRole === 'employee' && !isOff)) && ( // Employees can't edit off days usually?
-                                        <Tooltip title="View/Edit Details">
+                                    {(userRole === 'employer' || (userRole === 'employee' && (!isOff || record.checkInTime || record.checkOutTime))) && (
+                                        <Tooltip title={userRole === 'employee' ? "View Details" : "Edit Details"}>
                                             <IconButton size="small" onClick={() => onEdit && onEdit(record)}>
-                                                <Edit fontSize="small" />
+                                                {userRole === 'employee' ? <Visibility fontSize="small" /> : <Edit fontSize="small" />}
                                             </IconButton>
                                         </Tooltip>
                                     )}

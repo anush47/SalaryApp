@@ -40,6 +40,7 @@ interface AttendanceRecordDialogProps {
     companyConfig?: any; // For map zones
     onSaveSuccess?: () => void;
     disableTabSwitch?: boolean;
+    readOnly?: boolean;
 }
 
 export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
@@ -49,7 +50,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     employee,
     companyConfig,
     onSaveSuccess,
-    disableTabSwitch = false
+    disableTabSwitch = false,
+    readOnly = false
 }) => {
     const { showSnackbar } = useSnackbar();
     const theme = useTheme();
@@ -259,7 +261,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
             <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box>
-                        <Typography variant="h6">Edit Attendance Details</Typography>
+                        <Typography variant="h6">{readOnly ? "View Attendance Details" : "Edit Attendance Details"}</Typography>
                         <Typography variant="body2" color="text.secondary">
                             {dayjs(dailyRecord.date).format("dddd, MMMM D, YYYY")} | {employee?.name || (dailyRecord as any).shiftName || "Employee"}
                         </Typography>
@@ -350,9 +352,10 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             value={formData.timestamp}
                                             onChange={(v) => setFormData({ ...formData, timestamp: v })}
                                             slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                            disabled={readOnly}
                                         />
                                     </LocalizationProvider>
-                                    {isNew && (
+                                    {isNew && !readOnly && (
                                         <Box mt={1}>
                                             <Typography variant="caption" display="flex" alignItems="center" gap={1}>
                                                 <input
@@ -377,6 +380,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         value={formData.status}
                                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                                         SelectProps={{ native: true }}
+                                        disabled={readOnly}
                                     >
                                         <option value="approved">Approved</option>
                                         <option value="pending">Pending</option>
@@ -394,6 +398,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         onChange={(e) => setFormData({ ...formData, dayStatus: e.target.value })}
                                         SelectProps={{ native: true }}
                                         helperText="Overrides calculated status"
+                                        disabled={readOnly}
                                     >
                                         <option value="full">Full Day</option>
                                         <option value="half">Half Day</option>
@@ -410,6 +415,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         value={formData.remarks}
                                         onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                                         size="small"
+                                        disabled={readOnly}
                                     />
                                 </Grid>
 
@@ -446,14 +452,16 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
             </DialogContent>
 
             <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                {currentLog && (
+                {currentLog && !readOnly && (
                     <Button onClick={() => setDeleteConfirmationOpen(true)} color="error" disabled={isUpdating}>Delete Log</Button>
                 )}
                 <Box flexGrow={1} />
                 <Button onClick={onClose} disabled={isUpdating}>Close</Button>
-                <Button variant="contained" onClick={handleSave} disabled={isUpdating}>
-                    {isUpdating ? "Saving..." : (isNew ? "Create Record" : "Save Changes")}
-                </Button>
+                {!readOnly && (
+                    <Button variant="contained" onClick={handleSave} disabled={isUpdating}>
+                        {isUpdating ? "Saving..." : (isNew ? "Create Record" : "Save Changes")}
+                    </Button>
+                )}
             </DialogActions>
 
             {/* Delete Confirmation Dialog */}

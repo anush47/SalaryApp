@@ -38,7 +38,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEffectiveAllowedZones, calculateDistance } from "@/app/lib/utils/attendanceUtils";
 import { AttendanceZonesMap } from "@/app/components/attendance/AttendanceZonesMap";
 import { useAttendanceAggregation } from "@/app/hooks/useAttendanceAggregation";
+import { AttendanceRecordDialog } from "@/app/components/attendance/AttendanceRecordDialog";
 import { DailyAttendanceTable } from "@/app/components/attendance/DailyAttendanceTable";
+import { DailyAttendanceRecord } from "@/app/hooks/useAttendanceAggregation";
 
 interface UserProps {
     user: {
@@ -238,6 +240,13 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         viewStartDate.format("YYYY-MM-DD"),
         viewEndDate.format("YYYY-MM-DD")
     );
+
+    // Filter out days with no activity (neither in nor out)
+    const displayRecords = useMemo(() => {
+        return dailyRecords.filter(r => r.checkInTime || r.checkOutTime);
+    }, [dailyRecords]);
+
+    const [viewRecord, setViewRecord] = useState<DailyAttendanceRecord | null>(null);
 
     const handleAttendance = async (type: "in" | "out") => {
         if (!navigator.geolocation) {
@@ -584,16 +593,26 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                             </Box>
                             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>
                                 <DailyAttendanceTable
-                                    records={dailyRecords}
+                                    records={displayRecords}
                                     loading={loadingDaily}
                                     userRole="employee"
-                                // onEdit not enabled for pure employee view yet, usually via request
+                                    onEdit={setViewRecord}
                                 />
                             </Box>
                         </Paper>
                     </Grid>
                 </Grid>
             </CardContent>
+
+            <AttendanceRecordDialog
+                open={!!viewRecord}
+                onClose={() => setViewRecord(null)}
+                dailyRecord={viewRecord}
+                employee={employee} // Pass employee for context if needed, though view only
+                companyConfig={employee?.company} // For map
+                readOnly={true}
+                disableTabSwitch={true}
+            />
         </Card>
     );
 };
