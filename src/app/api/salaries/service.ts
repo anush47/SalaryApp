@@ -25,6 +25,9 @@ import {
     ProcessedInOut,
 } from "./generate/salaryGeneration";
 import { initialInOutProcess } from "./initialInOutProcess";
+import { calculatePeriodDates, calculateExpectedWorkingDays } from "./utils/periodCalculation";
+import { calculateDailyRate, calculateBaseSalaryForPeriod } from "./utils/rateCalculation";
+import { getActiveAdvances, applyAdvanceDeductions, calculateTotalAdvanceDeduction } from "./utils/advanceDeduction";
 
 export class SalaryService {
     static async getSalary(salaryId: string, context: RequestContext) {
@@ -668,12 +671,31 @@ export class SalaryService {
 
         // Pre-check for employees with calculated OT but no InOut data
         for (const employee of employees) {
+            // Detailed Debug Logging
+            console.log(`[SalaryService] Validating Employee: ${employee.name} (${employee.memberNo})`);
+            console.log(`[SalaryService] Raw Config -> Period: ${employee.salaryPeriod}, Method: ${employee.calculationMethod}, OT: ${employee.otMethod}`);
+            console.log(`[SalaryService] Overrides:`, JSON.stringify(employee.overrides));
+            console.log(`[SalaryService] Company Defaults:`, JSON.stringify(company.salaryPeriodDefaults));
+
+            // Check for deprecated random OT method
+            if (employee.otMethod === "random") {
+                throw new BadRequestError(
+                    `Employee ${employee.name} (${employee.memberNo}) uses random OT which is no longer supported. ` +
+                    `Please update to 'calc' (attendance-based) or 'noOt' in employee settings.`
+                );
+            }
+
             const employeeInOut = update
                 ? (inOutInitial as ProcessedInOut)
                 : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
 
-            if (employee.otMethod === "calc" && !employeeInOut) {
-                throw new BadRequestError(`InOut required for calculated OT: ${employee.name}`);
+            // Check for attendance requirement based on calculation method
+            if (employee.calculationMethod === "attendance") {
+                if (employee.otMethod === "calc" && !employeeInOut) {
+                    throw new BadRequestError(
+                        `InOut required for attendance-based calculation: ${employee.name} (${employee.memberNo})`
+                    );
+                }
             }
         }
 
@@ -701,7 +723,10 @@ export class SalaryService {
 
                 // Set individual properties if no overrides, otherwise use overrides
                 if (!employee.overrides?.shifts) {
-                    employee.shifts = company.shifts;
+                    employee.shiftSettings = company.shiftSettings;
+                    console.log(`[SalaryService] Assigned company shifts to ${employee.name}:`, JSON.stringify(company.shiftSettings));
+                } else {
+                    console.log(`[SalaryService] ${employee.name} has shift override enabled, using employee shifts:`, JSON.stringify(employee.shiftSettings));
                 }
                 if (!employee.overrides?.probabilities) {
                     employee.probabilities = company.probabilities;
@@ -730,10 +755,12 @@ export class SalaryService {
                     : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
 
                 if (!update) {
-                    const generatedSalary = await generateSalaryForOneEmployee(
+                    // Generate new salary with enhanced logic
+                    const generatedSalary = await this.generateEnhancedSalary(
                         employee,
                         period,
-                        employeeInOut as RawInOut
+                        employeeInOut as RawInOut,
+                        company
                     );
                     return { salary: generatedSalary, exists: null };
                 } else {
@@ -741,10 +768,11 @@ export class SalaryService {
                         (s: { employee: any }) =>
                             s.employee.toString() === employee._id.toString()
                     );
-                    const generatedSalary = await generateSalaryForOneEmployee(
+                    const generatedSalary = await this.generateEnhancedSalary(
                         employee,
                         period,
                         employeeInOut as ProcessedInOut,
+                        company,
                         existingSalaryForUpdate
                     );
                     return { salary: generatedSalary, exists: null };
@@ -758,5 +786,112 @@ export class SalaryService {
         const exists = results.filter((r) => r && r.exists).map((r) => r.exists);
 
         return { salaries, exists };
+    }
+
+    /**
+     * Generate salary with enhanced features:
+     * - Flexible salary periods (daily/weekly/monthly/custom)
+     * - Advance deductions
+     * - Payment tracking initialization
+     */
+    private static async generateEnhancedSalary(
+        employee: any,
+        period: string,
+        employeeInOut: RawInOut | ProcessedInOut,
+        company: any,
+        existingSalary?: any
+    ) {
+        // Calculate period dates based on employee's salary period configuration
+        const { startDate, endDate, periodDays } = calculatePeriodDates(employee, period, company);
+
+        // Get active advances for deduction
+        const activeAdvances = await getActiveAdvances(employee._id.toString(), period);
+        const totalAdvanceDeduction = calculateTotalAdvanceDeduction(activeAdvances);
+
+        // Generate salary using existing logic (handles attendance-based calculation)
+        let generatedSalary;
+        if (existingSalary) {
+            generatedSalary = await generateSalaryForOneEmployee(
+                employee,
+                period,
+                employeeInOut as ProcessedInOut,
+                existingSalary
+            );
+        } else {
+            generatedSalary = await generateSalaryForOneEmployee(
+                employee,
+                period,
+                employeeInOut as RawInOut
+            );
+        }
+
+        if (generatedSalary && "message" in generatedSalary) {
+            throw new BadRequestError(
+                `Failed to generate salary for ${employee.name}: ${generatedSalary.message}`
+            );
+        }
+
+        // Calculate work days (for display purposes)
+        let workDays = periodDays;
+        if (employee.calculationMethod === "attendance" && generatedSalary.inOut) {
+            // Count actual work days from inOut records
+            workDays = generatedSalary.inOut.filter((io: any) => io.workingHours > 0).length;
+        } else if (employee.calculationMethod === "fixed_days") {
+            // Calculate expected working days from shift settings
+            workDays = calculateExpectedWorkingDays(employee, startDate, endDate);
+        }
+
+        // Calculate daily rate for the employee
+        const dailyRate = calculateDailyRate(employee);
+
+        // Calculate final salary with advance deductions
+        const finalSalaryBeforeAdvances = generatedSalary.finalSalary || 0;
+        const finalSalary = finalSalaryBeforeAdvances - totalAdvanceDeduction;
+
+        // Prepare enhanced salary data
+        const enhancedSalaryData = {
+            ...generatedSalary,
+            // Flexible period support - use employee values or fallback to company defaults
+            salaryPeriod: employee.salaryPeriod || company.salaryPeriodDefaults?.salaryPeriod || "monthly",
+            periodStartDate: startDate,
+            periodEndDate: endDate,
+            periodDays,
+            workDays,
+            ratePerDay: dailyRate,
+            rateDivisor: employee.rateDivisor || company.salaryPeriodDefaults?.rateDivisor || 30,
+            calculationMethod: employee.calculationMethod || company.salaryPeriodDefaults?.calculationMethod || "fixed_days",
+
+            // Advance deductions
+            advanceAmount: totalAdvanceDeduction,
+            finalSalary,
+
+            // Payment tracking initialization
+            totalPaid: 0,
+            outstandingBalance: finalSalary,
+            activeAdvances: activeAdvances.map(adv => ({
+                advanceId: adv.advanceId,
+                deductedAmount: adv.deductionAmount
+            })),
+            paymentStatus: "unpaid" as const,
+        };
+
+        // Save or update salary
+        let savedSalary;
+        if (existingSalary) {
+            savedSalary = await Salary.findByIdAndUpdate(
+                existingSalary._id,
+                enhancedSalaryData,
+                { new: true }
+            );
+        } else {
+            savedSalary = await Salary.create(enhancedSalaryData);
+        }
+
+        // Apply advance deductions to advance records
+        if (activeAdvances.length > 0 && savedSalary) {
+            await applyAdvanceDeductions(savedSalary._id.toString(), activeAdvances);
+        }
+
+        return savedSalary;
     }
 }

@@ -9,12 +9,16 @@ export const processSalaryWithInOut = async (
   existingSalary: any = undefined,
   gen: boolean = false
 ) => {
-  const { shifts } = employee;
+  console.log("processSalaryWithInOut called for:", employee.name);
+  console.log("ShiftSettings:", JSON.stringify(employee.shiftSettings, null, 2));
+
+  const shifts = employee.shiftSettings?.shifts || [];
   const source = existingSalary || employee;
 
   // Determine if inOut contains already processed records (objects) or unprocessed Dates
   const isProcessed =
-    (inOut as ProcessedInOut) !== undefined &&
+    Array.isArray(inOut) &&
+    inOut.length > 0 &&
     (inOut as ProcessedInOut)[0].in !== undefined;
 
   const records: {
@@ -51,32 +55,32 @@ export const processSalaryWithInOut = async (
     noPay = 0
   ) => {
     const shift = shifts.reduce((prev: any, curr: any) => {
-      const prevDiff = Math.abs(getTimeDifferenceInMinutes(prev.start, inDate));
-      const currDiff = Math.abs(getTimeDifferenceInMinutes(curr.start, inDate));
+      const prevDiff = Math.abs(getTimeDifferenceInMinutes(prev.startTime, inDate));
+      const currDiff = Math.abs(getTimeDifferenceInMinutes(curr.startTime, inDate));
       return currDiff < prevDiff && currDiff <= 6 * 60 ? curr : prev;
     });
-    const shiftStartHours = Number(shift.start.split(":")[0]);
-    const shiftStartMinutes = Number(shift.start.split(":")[1]);
+    const shiftStartHours = Number(shift.startTime.split(":")[0]);
+    const shiftStartMinutes = Number(shift.startTime.split(":")[1]);
     const actualInTime =
       inDate.getUTCHours() > shiftStartHours ||
-      (inDate.getUTCHours() === shiftStartHours &&
-        inDate.getUTCMinutes() > shiftStartMinutes)
+        (inDate.getUTCHours() === shiftStartHours &&
+          inDate.getUTCMinutes() > shiftStartMinutes)
         ? inDate
         : new Date(inDate.getTime()).setUTCHours(
-            shiftStartHours,
-            shiftStartMinutes,
-            0,
-            0
-          );
+          shiftStartHours,
+          shiftStartMinutes,
+          0,
+          0
+        );
 
     let workingHours = Math.max(
       (outDate.getTime() -
         (typeof actualInTime === "number"
           ? actualInTime
           : actualInTime.getTime())) /
-        1000 /
-        60 /
-        60,
+      1000 /
+      60 /
+      60,
       // if outdate is before indate, set to 0
       0
     );
@@ -169,8 +173,8 @@ export const processSalaryWithInOut = async (
 
       const shiftStart = new Date(inDate);
       shiftStart.setUTCHours(
-        Number(shift.start.split(":")[0]),
-        Number(shift.start.split(":")[1])
+        Number(shift.startTime.split(":")[0]),
+        Number(shift.startTime.split(":")[1])
       );
       if (inDate > shiftStart) {
         const lateHours =
@@ -267,7 +271,7 @@ export const processSalaryWithInOut = async (
             currentShift: { start: string; end: string }
           ) => {
             const currentDiff = Math.abs(
-              getTimeDifferenceInMinutes(currentShift.start, inDate)
+              getTimeDifferenceInMinutes(currentShift.startTime, inDate)
             );
             if (currentDiff < acc.minDiff) {
               return { shift: currentShift, minDiff: currentDiff };
@@ -291,14 +295,14 @@ export const processSalaryWithInOut = async (
 
         let outDate: Date | null = null;
         if (inOutIndex >= inOut.length) {
-          outDate = getShiftEnd(shift.end, inDate); // Default to shift end time
+          outDate = getShiftEnd(shift.endTime, inDate); // Default to shift end time
         } else {
           outDate = inOut[inOutIndex] as Date;
-          const shiftEndDate = getShiftEnd(shift.end, inDate);
+          const shiftEndDate = getShiftEnd(shift.endTime, inDate);
           const timeDifference =
             (outDate.getTime() - shiftEndDate.getTime()) / (1000 * 60);
 
-          const shiftStartDate = getShiftStart(shift.start, inDate);
+          const shiftStartDate = getShiftStart(shift.startTime, inDate);
 
           if (
             (timeDifference >= 0 && timeDifference < 12 * 60) || // Allow 12 hours after shift end
@@ -308,7 +312,7 @@ export const processSalaryWithInOut = async (
           ) {
             inOutIndex++;
           } else {
-            outDate = getShiftEnd(shift.end, inDate); // Default to shift end time
+            outDate = getShiftEnd(shift.endTime, inDate); // Default to shift end time
           }
         }
 
@@ -349,8 +353,8 @@ export const processSalaryWithInOut = async (
       }
 
       // Move to the next day
-      if (shift && shift.start) {
-        const [startHour, startMinute] = shift.start.split(":").map(Number);
+      if (shift && shift.startTime) {
+        const [startHour, startMinute] = shift.startTime.split(":").map(Number);
         day.setUTCHours(!isNaN(startHour) ? startHour : 8);
         day.setUTCMinutes(!isNaN(startMinute) ? startMinute : 0);
       } else {
@@ -439,7 +443,7 @@ export const generateSalaryWithInOut = async (
   inOut: RawInOut | ProcessedInOut,
   existingSalary: any = undefined
 ) => {
-  const { shifts } = employee;
+  const shifts = employee.shiftSettings?.shifts || [];
 
   const generateRandomRecord = (day: Date) => {
     const workingDayStatus = getWorkingDayStatus(day, employee, undefined);
@@ -459,7 +463,7 @@ export const generateSalaryWithInOut = async (
       shift = shifts[shiftIndex];
 
       // Check if this shift would end on the next day and if that day is an off day or holiday
-      const shiftEndTime = getShiftEnd(shift.end, day);
+      const shiftEndTime = getShiftEnd(shift.endTime, day);
       const nextDay = new Date(shiftEndTime);
       nextDay.setUTCDate(nextDay.getUTCDate());
 
@@ -483,7 +487,7 @@ export const generateSalaryWithInOut = async (
           if (i !== shiftIndex) {
             const alternativeShift = shifts[i];
             const alternativeShiftEndTime = getShiftEnd(
-              alternativeShift.end,
+              alternativeShift.endTime,
               day
             );
             const alternativeNextDay = new Date(alternativeShiftEndTime);
@@ -584,17 +588,17 @@ export const generateSalaryWithInOut = async (
 
     const halfDayTreshold = 6;
     // const fullDayTreshold = 8 + (shift.break || 1);
-    const shiftTreshold = calculateShiftTreshold(shift.start, shift.end);
+    const shiftTreshold = calculateShiftTreshold(shift.startTime, shift.endTime);
 
     if (!present) {
       //absent
       inDate.setUTCHours(
-        Number(shift.start.split(":")[0]),
-        Number(shift.start.split(":")[1])
+        Number(shift.startTime.split(":")[0]),
+        Number(shift.startTime.split(":")[1])
       );
       outDate.setUTCHours(
-        Number(shift.start.split(":")[0]),
-        Number(shift.start.split(":")[1])
+        Number(shift.startTime.split(":")[0]),
+        Number(shift.startTime.split(":")[1])
       );
     } //present
     else {
@@ -613,26 +617,26 @@ export const generateSalaryWithInOut = async (
           Math.random() < otProb
             ? Math.random() * outVaryLateMax // 80% chance to do OT
             : Math.random() < lateProb
-            ? -Math.random() * outVaryEarlyMax
-            : 0;
+              ? -Math.random() * outVaryEarlyMax
+              : 0;
       }
 
       //set in time to shift start + offset
       inDate.setUTCHours(
-        Number(shift.start.split(":")[0]),
-        Number(shift.start.split(":")[1]) + randomInOffset
+        Number(shift.startTime.split(":")[0]),
+        Number(shift.startTime.split(":")[1]) + randomInOffset
       );
       //if half day
       if (workingDayStatus === "half") {
         outDate.setUTCHours(
-          Number(shift.start.split(":")[0]) + halfDayTreshold,
-          Number(shift.start.split(":")[1]) + randomOutOffset
+          Number(shift.startTime.split(":")[0]) + halfDayTreshold,
+          Number(shift.startTime.split(":")[1]) + randomOutOffset
         );
       } else {
         //full day
         outDate.setUTCHours(
-          Number(shift.start.split(":")[0]) + shiftTreshold,
-          Number(shift.start.split(":")[1]) + randomOutOffset
+          Number(shift.startTime.split(":")[0]) + shiftTreshold,
+          Number(shift.startTime.split(":")[1]) + randomOutOffset
         );
       }
 
@@ -805,8 +809,8 @@ const getWorkingDayStatus = (
   // Determine if dynamic holidays are enabled
   // If employee has working days override, check employee's isDynamicHolidays
   // Otherwise, check company's isDynamicHolidays
-  const isDynamicHolidays = employee.overrides?.workingDays 
-    ? employee.workingDays?.isDynamicHolidays 
+  const isDynamicHolidays = employee.overrides?.workingDays
+    ? employee.workingDays?.isDynamicHolidays
     : employee.company?.workingDays?.isDynamicHolidays;
 
   // If day_status is undefined, populate it based on employee or company working days
@@ -828,7 +832,7 @@ const getWorkingDayStatus = (
   }
 
   // Default behavior - use employee's working days if override is true, otherwise company's
-  const workingDayStatus = employee.overrides?.workingDays 
+  const workingDayStatus = employee.overrides?.workingDays
     ? employee.workingDays?.[dayOfWeek] || "full"
     : employee.company?.workingDays?.[dayOfWeek] || "full";
 

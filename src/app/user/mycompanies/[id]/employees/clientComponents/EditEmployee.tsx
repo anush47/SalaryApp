@@ -194,6 +194,23 @@ const EditEmployeeForm: React.FC<{
             : companyDefaults.probabilities;
         }
       }
+      // Safety defaults for string fields to prevent controlled/uncontrolled errors
+      employee.phoneNumber = employee.phoneNumber || "";
+      employee.address = employee.address || "";
+      employee.email = employee.email || "";
+      employee.fullName = employee.fullName || "";
+      employee.motherName = employee.motherName || "";
+      employee.fatherName = employee.fatherName || "";
+      employee.spouseName = employee.spouseName || "";
+      employee.emergencyContact = employee.emergencyContact || "";
+      employee.nationality = employee.nationality || "Sri Lankan";
+
+      // Safety defaults for configuration fields
+      employee.salaryPeriod = employee.salaryPeriod || "monthly";
+      employee.calculationMethod = employee.calculationMethod || "fixed_days";
+      employee.rateDivisor = employee.rateDivisor || 30;
+      employee.otMethod = employee.otMethod || "noOt";
+
       setFormFields(employee);
     }
   }, [employeeData, companyData]);
@@ -239,6 +256,54 @@ const EditEmployeeForm: React.FC<{
     ) {
       // Handle checkbox state changes
       value = event.target.checked;
+
+      // Initialize with company defaults when enabling an override
+      if (name.startsWith("overrides.") && value === true && companyData) {
+        const overrideField = name.split(".")[1]; // e.g., "shifts", "workingDays", etc.
+
+        // Map override field names to their corresponding data fields and company sources
+        const fieldMappings: Record<string, { employeeField: string; companyField: string }> = {
+          shifts: { employeeField: "shiftSettings", companyField: "shiftSettings" },
+          workingDays: { employeeField: "workingDays", companyField: "workingDays" },
+          probabilities: { employeeField: "probabilities", companyField: "probabilities" },
+          paymentStructure: { employeeField: "paymentStructure", companyField: "paymentStructure" },
+          calendar: { employeeField: "calendar", companyField: "calendar" },
+          salaryPeriod: { employeeField: "salaryPeriod", companyField: "salaryPeriodDefaults" },
+        };
+
+        const mapping = fieldMappings[overrideField];
+        if (mapping) {
+          const companyValue = (companyData as any)[mapping.companyField];
+
+          // Special handling for salaryPeriod - copy multiple fields
+          if (overrideField === "salaryPeriod" && companyValue) {
+            setFormFields((prevFields) => ({
+              ...prevFields,
+              overrides: {
+                ...prevFields.overrides,
+                [overrideField]: value,
+              },
+              salaryPeriod: companyValue.salaryPeriod || "monthly",
+              calculationMethod: companyValue.calculationMethod || "fixed_days",
+              rateDivisor: companyValue.rateDivisor || 30,
+              payPeriodConfig: companyValue.payPeriodConfig,
+              customPeriodDays: companyValue.customPeriodDays,
+            }));
+            return;
+          } else if (companyValue) {
+            // For other overrides, copy the company value to the employee field
+            setFormFields((prevFields) => ({
+              ...prevFields,
+              overrides: {
+                ...prevFields.overrides,
+                [overrideField]: value,
+              },
+              [mapping.employeeField]: companyValue,
+            }));
+            return;
+          }
+        }
+      }
     } else if (name.startsWith("probabilities")) {
       // Handle probability changes
       value = parseInt(value);
@@ -1322,6 +1387,28 @@ const EditEmployeeForm: React.FC<{
                     }
                     label="Leave Types"
                   />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formFields.overrides?.attendance || false}
+                        name="overrides.attendance"
+                        onChange={handleChange}
+                        disabled={!isEditing || loading}
+                      />
+                    }
+                    label="Attendance Settings"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formFields.overrides?.salaryPeriod || false}
+                        name="overrides.salaryPeriod"
+                        onChange={handleChange}
+                        disabled={!isEditing || loading}
+                      />
+                    }
+                    label="Salary Period Configuration"
+                  />
                 </Grid>
               </Grid>
             </AccordionDetails>
@@ -1555,76 +1642,262 @@ const EditEmployeeForm: React.FC<{
           )
         }
 
-        <div className="my-5" />
+        {formFields.overrides?.attendance && (
+          <>
+            <div className="my-5" />
 
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Typography variant="h5">Attendance Settings</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <EmployeeAttendanceOverrides
-              isEditing={isEditing}
-              attendanceOverrideEnabled={formFields.overrides?.attendance || false}
-              onToggleOverride={(enabled) => {
-                setFormFields((prev) => ({
-                  ...prev,
-                  overrides: {
-                    ...prev.overrides,
-                    attendance: enabled
-                  }
-                }));
-              }}
-              attendanceOverrides={{
-                ...formFields.attendanceOverrides,
-                geoFencing: {
-                  ...formFields.geoFencing,
-                  enabled: formFields.geoFencing?.enabled || false,
-                  latitude: formFields.geoFencing?.latitude || 0,
-                  longitude: formFields.geoFencing?.longitude || 0,
-                  radiusMeters: formFields.geoFencing?.radiusMeters || 100,
-                  enforceValidation: formFields.geoFencing?.enforceValidation || false,
-                },
-                allowRemoteCheckIn: formFields.allowRemoteCheckIn,
-                requireApproval: formFields.requireApproval,
-                isRemote: formFields.isRemote,
-                allowedLocations: formFields.allowedLocations || [],
-                pwaCheckIn: (formFields.attendanceOverrides as any)?.features?.pwaCheckIn || false,
-                hardwareIntegration: (formFields.attendanceOverrides as any)?.features?.hardwareIntegration || false,
-                salaryIntegration: (formFields.attendanceOverrides as any)?.features?.salaryIntegration || false,
-              }}
-              onUpdateOverrides={(newOverrides) => {
-                const {
-                  pwaCheckIn,
-                  hardwareIntegration,
-                  salaryIntegration,
-                  enabled,
-                  geoFencing,
-                  allowRemoteCheckIn,
-                  requireApproval,
-                  isRemote,
-                  allowedLocations,
-                } = newOverrides;
-
-                setFormFields((prev) => ({
-                  ...prev,
-                  attendanceOverrides: {
-                    enabled,
-                    features: {
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h5">Attendance Settings</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <EmployeeAttendanceOverrides
+                  isEditing={isEditing}
+                  attendanceOverrideEnabled={formFields.overrides?.attendance || false}
+                  onToggleOverride={(enabled) => {
+                    setFormFields((prev) => ({
+                      ...prev,
+                      overrides: {
+                        ...prev.overrides,
+                        attendance: enabled
+                      }
+                    }));
+                  }}
+                  attendanceOverrides={{
+                    ...formFields.attendanceOverrides,
+                    geoFencing: {
+                      ...formFields.geoFencing,
+                      enabled: formFields.geoFencing?.enabled || false,
+                      latitude: formFields.geoFencing?.latitude || 0,
+                      longitude: formFields.geoFencing?.longitude || 0,
+                      radiusMeters: formFields.geoFencing?.radiusMeters || 100,
+                      enforceValidation: formFields.geoFencing?.enforceValidation || false,
+                    },
+                    allowRemoteCheckIn: formFields.allowRemoteCheckIn,
+                    requireApproval: formFields.requireApproval,
+                    isRemote: formFields.isRemote,
+                    allowedLocations: formFields.allowedLocations || [],
+                    pwaCheckIn: (formFields.attendanceOverrides as any)?.features?.pwaCheckIn || false,
+                    hardwareIntegration: (formFields.attendanceOverrides as any)?.features?.hardwareIntegration || false,
+                    salaryIntegration: (formFields.attendanceOverrides as any)?.features?.salaryIntegration || false,
+                  }}
+                  onUpdateOverrides={(newOverrides) => {
+                    const {
                       pwaCheckIn,
                       hardwareIntegration,
                       salaryIntegration,
-                    },
-                  },
-                  geoFencing,
-                  allowRemoteCheckIn,
-                  requireApproval,
-                  isRemote,
-                  allowedLocations,
-                }));
-              }}
-            />
-          </AccordionDetails>
-        </Accordion>
+                      enabled,
+                      geoFencing,
+                      allowRemoteCheckIn,
+                      requireApproval,
+                      isRemote,
+                      allowedLocations,
+                    } = newOverrides;
+
+                    setFormFields((prev) => ({
+                      ...prev,
+                      attendanceOverrides: {
+                        enabled,
+                        features: {
+                          pwaCheckIn,
+                          hardwareIntegration,
+                          salaryIntegration,
+                        },
+                      },
+                      geoFencing,
+                      allowRemoteCheckIn,
+                      requireApproval,
+                      isRemote,
+                      allowedLocations,
+                    }));
+                  }}
+                />
+              </AccordionDetails>
+            </Accordion>
+          </>
+        )}
+
+        {formFields.overrides?.salaryPeriod && (
+          <>
+            {/* Salary Period Configuration Section */}
+            <div className="my-5" />
+            <Grid item xs={12}>
+              <Accordion>
+                <AccordionSummary
+                  expandIcon={<ExpandMore />}
+                  aria-controls="salary-period-content"
+                  id="salary-period-header"
+                >
+                  <Typography variant="h5">Salary Period Configuration</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Configure how this employee's salary is calculated and paid.
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth required>
+                        <InputLabel id="salaryPeriod-label">Salary Period</InputLabel>
+                        <Select
+                          labelId="salaryPeriod-label"
+                          label="Salary Period"
+                          name="salaryPeriod"
+                          value={formFields.salaryPeriod || "monthly"}
+                          onChange={handleChange}
+                          variant="outlined"
+                          readOnly={!isEditing}
+                        >
+                          <MenuItem value="daily">Daily</MenuItem>
+                          <MenuItem value="weekly">Weekly</MenuItem>
+                          <MenuItem value="bi-weekly">Bi-Weekly</MenuItem>
+                          <MenuItem value="monthly">Monthly</MenuItem>
+                          <MenuItem value="custom">Custom</MenuItem>
+                        </Select>
+                        <FormHelperText>
+                          How often the employee is paid
+                        </FormHelperText>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth required>
+                        <InputLabel id="calculationMethod-label">Calculation Method</InputLabel>
+                        <Select
+                          labelId="calculationMethod-label"
+                          label="Calculation Method"
+                          name="calculationMethod"
+                          value={formFields.calculationMethod || "fixed_days"}
+                          onChange={handleChange}
+                          variant="outlined"
+                          readOnly={!isEditing}
+                        >
+                          <MenuItem value="attendance">Attendance-Based (with OT)</MenuItem>
+                          <MenuItem value="fixed_days">Fixed Days (no OT)</MenuItem>
+                          <MenuItem value="no_ot">Basic Salary Only</MenuItem>
+                        </Select>
+                        <FormHelperText>
+                          How salary is calculated each period
+                        </FormHelperText>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <TextField
+                          label="Rate Divisor"
+                          name="rateDivisor"
+                          type="number"
+                          value={formFields.rateDivisor || 30}
+                          onChange={handleChange}
+                          variant="filled"
+                          helperText="Divisor for daily rate calculation (e.g., 30, 26, 22)"
+                          InputProps={{
+                            readOnly: !isEditing,
+                          }}
+                        />
+                      </FormControl>
+                    </Grid>
+
+                    {formFields.salaryPeriod === "custom" && (
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Custom Period Days"
+                            name="customPeriodDays"
+                            type="number"
+                            value={formFields.customPeriodDays || ""}
+                            onChange={handleChange}
+                            variant="filled"
+                            helperText="Number of days in custom period"
+                            InputProps={{
+                              readOnly: !isEditing,
+                            }}
+                          />
+                        </FormControl>
+                      </Grid>
+                    )}
+
+
+
+
+
+                    {/* Pay Period Config for Monthly */}
+                    {formFields.salaryPeriod === "monthly" && (
+                      <>
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                            Custom Pay Period (Optional)
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Configure custom monthly pay period (e.g., 25th to 24th)
+                          </Typography>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <TextField
+                              label="Start Day"
+                              name="payPeriodConfig.startDay"
+                              type="number"
+                              value={formFields.payPeriodConfig?.startDay || ""}
+                              onChange={handleChange}
+                              variant="filled"
+                              helperText="Day of month (1-31)"
+                              inputProps={{ min: 1, max: 31 }}
+                              InputProps={{
+                                readOnly: !isEditing,
+                              }}
+                            />
+                          </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <TextField
+                              label="End Day"
+                              name="payPeriodConfig.endDay"
+                              type="number"
+                              value={formFields.payPeriodConfig?.endDay || ""}
+                              onChange={handleChange}
+                              variant="filled"
+                              helperText="Day of month (0 = end of month)"
+                              inputProps={{ min: 0, max: 31 }}
+                              InputProps={{
+                                readOnly: !isEditing,
+                              }}
+                            />
+                          </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <InputLabel id="payPeriodType-label">Period Type</InputLabel>
+                            <Select
+                              labelId="payPeriodType-label"
+                              label="Period Type"
+                              name="payPeriodConfig.type"
+                              value={formFields.payPeriodConfig?.type || "fixed_dates"}
+                              onChange={handleChange}
+                              variant="outlined"
+                              readOnly={!isEditing}
+                            >
+                              <MenuItem value="fixed_dates">Fixed Dates</MenuItem>
+                              <MenuItem value="start_to_end_of_month">Start to End of Month</MenuItem>
+                              <MenuItem value="end_to_end_of_month">End to End of Month</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </>
+                    )}
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
+            </Grid>
+          </>
+        )}
 
         <Grid mt={3} item xs={12}>
           <Link
@@ -1634,7 +1907,7 @@ const EditEmployeeForm: React.FC<{
               variant="outlined"
               color="primary"
               startIcon={<FormatAlignJustify />}
-              disabled={loading} // Disable button while loading
+              disabled={loading}
             >
               {loading ? <CircularProgress size={24} /> : "Generate AH"}
             </Button>

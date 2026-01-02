@@ -101,6 +101,7 @@ export interface Employee {
     calendar: boolean;
     leaveTypes: boolean;
     attendance: boolean;
+    salaryPeriod: boolean;
   };
   shiftSettings: {
     mode: "fixed" | "dynamic" | "roster" | "manual";
@@ -195,6 +196,17 @@ export interface Employee {
     name: string;
     _id?: string;
   }[];
+  // Salary Period Configuration
+  salaryPeriod?: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
+  customPeriodDays?: number;
+  rateDivisor?: number;
+
+  payPeriodConfig?: {
+    startDay?: number;
+    endDay?: number;
+    type?: "fixed_dates" | "start_to_end_of_month" | "end_to_end_of_month";
+  };
+  calculationMethod?: "attendance" | "fixed_days" | "no_ot";
 };
 
 
@@ -232,6 +244,7 @@ export const defaultEmployee: Employee = {
     calendar: false,
     leaveTypes: false,
     attendance: false,
+    salaryPeriod: false,
   },
   attendanceOverrides: {
     enabled: false,
@@ -288,6 +301,10 @@ export const defaultEmployee: Employee = {
   emergencyContact: "",
   editable: false,
   documents: {},
+  // Salary Period Configuration
+  salaryPeriod: "monthly",
+  rateDivisor: 30,
+  calculationMethod: "fixed_days",
 };
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {
@@ -444,7 +461,7 @@ const EmployeesDataGrid: React.FC<{
       headerName: "OT Method",
       flex: 1,
       type: "singleSelect",
-      valueOptions: ["random", "noOt", "calc"],
+      valueOptions: ["noOt", "calc"],
       editable: isEditingEmployeeInHome,
     },
     {

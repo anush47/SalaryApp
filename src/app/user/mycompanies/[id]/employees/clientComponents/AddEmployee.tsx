@@ -83,19 +83,19 @@ const AddEmployeeForm: React.FC<{
   });
 
   const fetchEmployeesForMemberNo = async (): Promise<Employee[]> => {
-    const response = await fetch(`/api/employees?companyId=${companyId}`);
+    const response = await fetch(`/api/employees?companyId=${companyId}&limit=1000`); // Increase limit to get all for dropdown
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error?.message || errorData.message || "Failed to fetch employees");
     }
     const data = await response.json();
 
-    // Handle the new API response structure
-    if (data.success) {
-      return data.data?.employees || data.employees || [];
-    } else {
-      throw new Error(data.error?.message || "Failed to fetch employees");
+    // Handle generic paginated response structure if present
+    if (data.success || data.code === 200 || Array.isArray(data.data) || Array.isArray(data.employees)) {
+      const list = data.data || data.employees || data;
+      return Array.isArray(list) ? list : (list.employees || []);
     }
+    return [];
   };
 
   const { data: employeesData, isLoading: isLoadingEmployees } = useQuery<
@@ -164,6 +164,15 @@ const AddEmployeeForm: React.FC<{
             late: 2,
             ot: 75,
           },
+        // Salary Period Configuration - inherit from company defaults
+        salaryPeriod: companyData.salaryPeriodDefaults?.salaryPeriod || "monthly",
+        calculationMethod: companyData.salaryPeriodDefaults?.calculationMethod || "fixed_days",
+        rateDivisor: companyData.salaryPeriodDefaults?.rateDivisor || 30,
+        customPeriodDays: companyData.salaryPeriodDefaults?.customPeriodDays,
+        dailyRateOverride: companyData.salaryPeriodDefaults?.dailyRateOverride,
+        weeklyRateOverride: companyData.salaryPeriodDefaults?.weeklyRateOverride,
+        monthlyRateOverride: companyData.salaryPeriodDefaults?.monthlyRateOverride,
+        payPeriodConfig: companyData.salaryPeriodDefaults?.payPeriodConfig,
       }));
     }
   }, [companyData, user]);
@@ -753,252 +762,9 @@ const AddEmployeeForm: React.FC<{
             </FormControl>
           </Grid>
         </Grid>
-        <div className="my-5" />
-        <Grid item xs={12}>
-          <Accordion>
-            <AccordionSummary
-              expandIcon={<ExpandMore />}
-              aria-controls="panel1-content"
-              id="panel1-header"
-            >
-              <Typography variant="h5">Overrides</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={
-                          formFields.overrides?.paymentStructure || false
-                        }
-                        name="overrides.paymentStructure"
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Payment Structure"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formFields.overrides?.shifts || false}
-                        name="overrides.shifts"
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Shifts"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formFields.overrides?.workingDays || false}
-                        name="overrides.workingDays"
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Working Days"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formFields.overrides?.calendar || false}
-                        name="overrides.calendar"
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Calendar"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formFields.overrides?.probabilities || false}
-                        name="overrides.probabilities"
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Probabilities"
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-        </Grid>
 
-        {formFields.overrides?.paymentStructure && (
-          <>
-            <div className="my-5" />
-            <Grid item xs={12}>
-              <PaymentStructure
-                isEditing={true}
-                handleChange={handleChange}
-                paymentStructure={formFields.paymentStructure}
-                setPaymentStructure={(paymentStructure) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    paymentStructure,
-                  }));
-                }}
-              />
-            </Grid>
-          </>
-        )}
 
-        {formFields.overrides?.shifts && (
-          <>
-            <div className="my-5" />
-            <Grid item xs={12}>
-              <ShiftConfigurationForm
-                isEditing={true}
-                settings={formFields.shiftSettings || { mode: 'fixed', shifts: [], autoSelect: false }}
-                onChange={(newSettings) =>
-                  setFormFields(prev => ({ ...prev, shiftSettings: newSettings } as Employee))
-                }
-              />
-            </Grid>
-          </>
-        )}
 
-        {formFields.overrides?.workingDays && (
-          <>
-            <div className="my-5" />
-            <Grid item xs={12}>
-              <WorkingDays
-                isEditing={true}
-                workingDays={formFields.workingDays}
-                setWorkingDays={(workingDays) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    workingDays,
-                  }));
-                }}
-              />
-            </Grid>
-          </>
-        )}
-
-        {formFields.overrides?.calendar && (
-          <>
-            <div className="my-5" />
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="h5">Calendar</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id="calendar-label">Calendar</InputLabel>
-                    <Select
-                      labelId="calendar-label"
-                      label="Calendar"
-                      name="calendar"
-                      value={formFields.calendar || "default"}
-                      onChange={handleChange}
-                      variant="outlined"
-                    >
-                      <MenuItem value="default">Default</MenuItem>
-                      <MenuItem value="other">Other</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </AccordionDetails>
-            </Accordion>
-          </>
-        )}
-
-        {
-          //if admin
-          user.role === "admin" &&
-          formFields.overrides.probabilities &&
-          (formFields.otMethod === "random" ||
-            formFields.otMethod === "noOt") && (
-            <>
-              <div className="my-5" />
-              <Grid item xs={12}>
-                <Accordion>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h5">Probabilities</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={3} mt={2}>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth>
-                          <TextField
-                            label="Work on Off Days (%)"
-                            name="probabilities.workOnOff"
-                            type="number"
-                            value={formFields.probabilities?.workOnOff}
-                            onChange={handleChange}
-                            variant="filled"
-                            InputProps={{}}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth>
-                          <TextField
-                            label="Work on Holidays (%)"
-                            name="probabilities.workOnHoliday"
-                            type="number"
-                            value={formFields.probabilities?.workOnHoliday}
-                            onChange={handleChange}
-                            variant="filled"
-                            InputProps={{}}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth>
-                          <TextField
-                            label="Absent (%)"
-                            name="probabilities.absent"
-                            type="number"
-                            value={formFields.probabilities?.absent}
-                            onChange={handleChange}
-                            variant="filled"
-                            InputProps={{}}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth>
-                          <TextField
-                            label="Late (%)"
-                            name="probabilities.late"
-                            type="number"
-                            value={formFields.probabilities?.late}
-                            onChange={handleChange}
-                            variant="filled"
-                            InputProps={{}}
-                          />
-                        </FormControl>
-                      </Grid>
-                      {formFields.otMethod !== "noOt" && (
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <TextField
-                              label="OT (%)"
-                              name="probabilities.ot"
-                              type="number"
-                              value={formFields.probabilities?.ot}
-                              onChange={handleChange}
-                              variant="filled"
-                              InputProps={{}}
-                            />
-                          </FormControl>
-                        </Grid>
-                      )}
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              </Grid>
-            </>
-          )
-        }
       </CardContent>
     </>
   );
@@ -1015,7 +781,6 @@ export const categories = [
 ));
 
 export const otMethods = [
-  { value: "random", label: "Randomly Generated" },
   { value: "noOt", label: "No Overtime" },
   { value: "calc", label: "Calculate from In-Out" },
 ].map((method) => (

@@ -1,26 +1,19 @@
 "use client";
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import {
   Card,
   CardContent,
   CardHeader,
   Typography,
-  Tooltip,
-  Button,
   Box,
   CircularProgress,
-  IconButton,
-  useTheme,
-  useMediaQuery,
+  Tabs,
+  Tab,
 } from "@mui/material";
-import { Add, Check, Done, Edit } from "@mui/icons-material";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 
-// Lazily load SalariesDataGrid and AddSalaryForm
-const PaymentsDataGrid = lazy(() => import("./paymentsDataGrid"));
-const NewPaymentForm = lazy(() => import("./newPaymentForm"));
-const EditPaymentForm = lazy(() => import("./editPaymentForm"));
+// Lazily load EPF and ETF components from the salaries folder (where they currently reside)
+const EpfPayments = lazy(() => import("../salaries/EpfPayments").then(module => ({ default: module.EpfPayments })));
+const EtfPayments = lazy(() => import("../salaries/EtfPayments").then(module => ({ default: module.EtfPayments })));
 
 const Payments = ({
   user,
@@ -29,18 +22,11 @@ const Payments = ({
   user: { name: string; email: string; id: string; role: string };
   companyId: string;
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
 
-  //fetch query from url
-  const searchParams = useSearchParams();
-  const gen = searchParams ? searchParams.get("gen") : null;
-  const paymentId = searchParams ? searchParams.get("paymentId") : null;
-
-  //open the form if gen is true
-  useEffect(() => {
-    if (gen === "true") setShowAddForm(true);
-  }, [gen]);
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
 
   return (
     <Box>
@@ -50,97 +36,47 @@ const Payments = ({
           overflowY: "auto",
         }}
       >
-        {paymentId ? (
-          <EditPaymentForm
-            companyId={companyId}
-            user={user}
-            paymentId={paymentId}
-            handleBackClick={() => {
-              //go back in browser
-              window.history.back();
-            }}
-          />
-        ) : showAddForm ? (
-          <div>
-            <NewPaymentForm
-              companyId={companyId}
-              handleBackClick={() => {
-                //go back in browser
-                window.history.back();
+        <CardHeader
+          title={
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
               }}
-              user={user}
-            />
-          </div>
-        ) : (
-          <>
-            <CardHeader
-              title={
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexDirection: { xs: "column", sm: "row" },
-                    gap: 2,
-                  }}
-                >
-                  <Typography variant="h4" component="h1">
-                    EPF/ETF Payments
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    {isEditing ? (
-                      <Tooltip title="Save changes" arrow>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          startIcon={<Done />}
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Done
-                        </Button>
-                      </Tooltip>
-                    ) : (
-                      <>
-                        <Tooltip title="Generate Salaries" arrow>
-                          <Link
-                            href={`/user/mycompanies/${companyId}?companyPageSelect=payments&gen=true`}
-                          >
-                            <Button
-                              variant="contained"
-                              color="primary"
-                              startIcon={<Add />}
-                            >
-                              New Payment
-                            </Button>
-                          </Link>
-                        </Tooltip>
-                        <Button
-                          variant="outlined"
-                          startIcon={<Edit />}
-                          sx={{ mx: 0.25 }}
-                          onClick={() => setIsEditing(true)}
-                        >
-                          Edit
-                        </Button>
-                      </>
-                    )}
-                  </Box>
-                </Box>
-              }
-            />
-            <CardContent
-              sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
             >
-              <Suspense fallback={<CircularProgress />}>
-                <PaymentsDataGrid
-                  companyId={companyId}
-                  user={user}
-                  isEditing={isEditing}
-                />
-              </Suspense>
-            </CardContent>
-          </>
-        )}
+              <Typography variant="h4" component="h1">
+                Fund Payments
+              </Typography>
+            </Box>
+          }
+          subheader={
+            <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 1 }}>
+              <Tab label="EPF Payments" />
+              <Tab label="ETF Payments" />
+            </Tabs>
+          }
+        />
+        <CardContent
+          sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
+        >
+          <Suspense fallback={<CircularProgress />}>
+            {tabValue === 0 && (
+              <EpfPayments
+                companyId={companyId}
+                user={user}
+              />
+            )}
+            {tabValue === 1 && (
+              <EtfPayments
+                companyId={companyId}
+                user={user}
+              />
+            )}
+          </Suspense>
+        </CardContent>
       </Card>
     </Box>
   );

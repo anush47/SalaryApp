@@ -55,6 +55,23 @@ export interface ISalary extends Document {
   advanceAmount: number;
   finalSalary: number;
   remark: string;
+  // Flexible Salary Period Support
+  salaryPeriod: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
+  periodStartDate: Date;
+  periodEndDate: Date;
+  periodDays?: number;
+  workDays?: number;
+  ratePerDay?: number;
+  rateDivisor?: number;
+  // Payment Tracking
+  totalPaid: number;
+  outstandingBalance: number;
+  activeAdvances: {
+    advanceId: Schema.Types.ObjectId;
+    deductedAmount: number;
+  }[];
+  paymentStatus: "unpaid" | "partially_paid" | "fully_paid" | "overpaid";
+  calculationMethod: "attendance" | "fixed_days" | "no_ot";
 }
 
 // Define the schema for the Salary model
@@ -213,6 +230,66 @@ const salarySchema = new Schema<ISalary>(
     },
     remark: {
       type: String,
+    },
+    // Flexible Salary Period Support
+    salaryPeriod: {
+      type: String,
+      enum: ["daily", "weekly", "bi-weekly", "monthly", "custom"],
+      required: true,
+    },
+    periodStartDate: {
+      type: Date,
+      required: true,
+    },
+    periodEndDate: {
+      type: Date,
+      required: true,
+    },
+    periodDays: {
+      type: Number,
+    },
+    workDays: {
+      type: Number,
+    },
+    ratePerDay: {
+      type: Number,
+    },
+    rateDivisor: {
+      type: Number,
+    },
+    // Payment Tracking
+    totalPaid: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+    outstandingBalance: {
+      type: Number,
+      required: true,
+    },
+    activeAdvances: [
+      {
+        advanceId: {
+          type: Schema.Types.ObjectId,
+          ref: "SalaryAdvance",
+          required: true,
+        },
+        deductedAmount: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "partially_paid", "fully_paid", "overpaid"],
+      default: "unpaid",
+      required: true,
+    },
+    calculationMethod: {
+      type: String,
+      enum: ["attendance", "fixed_days", "no_ot"],
+      required: true,
     },
   },
   {

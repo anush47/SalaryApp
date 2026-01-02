@@ -179,9 +179,15 @@ export class EmployeeService {
     body.name = body.name.trim().toUpperCase();
     body.nic = body.nic.trim().toUpperCase();
 
-    // Convert to int
     body.memberNo = parseInt(body.memberNo);
     body.basic = parseFloat(body.basic);
+    if (body.customPeriodDays) body.customPeriodDays = parseInt(body.customPeriodDays);
+    if (body.rateDivisor) body.rateDivisor = parseFloat(body.rateDivisor);
+
+    if (body.payPeriodConfig) {
+      if (body.payPeriodConfig.startDay) body.payPeriodConfig.startDay = parseInt(body.payPeriodConfig.startDay);
+      if (body.payPeriodConfig.endDay) body.payPeriodConfig.endDay = parseInt(body.payPeriodConfig.endDay);
+    }
 
     // Remove empty string values
     if (body.email === "") {
@@ -285,6 +291,13 @@ export class EmployeeService {
     // Convert to number
     body.memberNo = parseInt(body.memberNo);
     body.basic = parseFloat(body.basic);
+    if (body.customPeriodDays) body.customPeriodDays = parseInt(body.customPeriodDays);
+    if (body.rateDivisor) body.rateDivisor = parseFloat(body.rateDivisor);
+
+    if (body.payPeriodConfig) {
+      if (body.payPeriodConfig.startDay) body.payPeriodConfig.startDay = parseInt(body.payPeriodConfig.startDay);
+      if (body.payPeriodConfig.endDay) body.payPeriodConfig.endDay = parseInt(body.payPeriodConfig.endDay);
+    }
 
     // Remove empty string values
     if (body.email === "") {
@@ -367,6 +380,13 @@ export class EmployeeService {
       unsetFields.paymentStructure = 1;
     if (!parsedBody.overrides?.calendar) unsetFields.calendar = 1;
     if (!parsedBody.overrides?.leaveTypes) unsetFields.leaveTypes = 1;
+    if (!parsedBody.overrides?.salaryPeriod) {
+      unsetFields.salaryPeriod = 1;
+      unsetFields.customPeriodDays = 1;
+      unsetFields.rateDivisor = 1;
+      unsetFields.payPeriodConfig = 1;
+      unsetFields.calculationMethod = 1;
+    }
 
     // Remove fields from updateData if they are to be unset
     Object.keys(unsetFields).forEach((field) => {

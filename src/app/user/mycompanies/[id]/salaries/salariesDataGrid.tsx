@@ -25,6 +25,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 import { fetchSalaries, updateSalary, deleteSalaries } from "@/app/lib/api";
+import { PaymentDialog } from "./PaymentDialog";
 
 export interface Salary {
   id: string;
@@ -65,6 +66,10 @@ export interface Salary {
   advanceAmount: number;
   finalSalary: number;
   remark: string;
+  salaryPeriod?: string;
+  outstandingBalance?: number;
+  totalPaid?: number;
+  paymentStatus?: "unpaid" | "partially_paid" | "fully_paid" | "overpaid";
 }
 
 import { PaginatedResponse } from "@/app/lib/types";
@@ -249,6 +254,44 @@ const SalariesDataGrid: React.FC<{
       headerAlign: "left",
     },
     {
+      field: "outstandingBalance",
+      headerName: "Outstanding",
+      type: "number",
+      flex: 1,
+      align: "left",
+      headerAlign: "left",
+      renderCell: (params) => {
+        const val = params.value !== undefined ? params.value : params.row.finalSalary;
+        return (
+          <Box color={val > 0 ? "error.main" : "success.main"} fontWeight="bold">
+            {val?.toLocaleString()}
+          </Box>
+        );
+      }
+    },
+    {
+      field: "paymentStatus",
+      headerName: "Status",
+      flex: 1,
+      renderCell: (params) => {
+        let color: "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" = "default";
+        const status = params.value || "unpaid";
+        if (status === "unpaid") color = "error";
+        else if (status === "partially_paid") color = "warning";
+        else if (status === "fully_paid") color = "success";
+        else if (status === "overpaid") color = "info";
+
+        return (
+          <Chip
+            label={status.replace("_", " ")}
+            color={color}
+            size="small"
+            sx={{ textTransform: "capitalize" }}
+          />
+        );
+      }
+    },
+    {
       field: "remark",
       headerName: "Remark",
       flex: 1,
@@ -257,16 +300,27 @@ const SalariesDataGrid: React.FC<{
     {
       field: "actions",
       headerName: "Actions",
-      flex: 1,
+      flex: 1.5,
+      minWidth: 150,
       renderCell: (params) => {
         return (
-          <Link
-            href={`/user/mycompanies/${companyId}?companyPageSelect=salaries&salaryId=${params.id}`}
-          >
-            <Button variant="text" color="primary" size="small">
-              View
+          <Box display="flex" gap={1}>
+            <Link
+              href={`/user/mycompanies/${companyId}?companyPageSelect=salaries&salaryId=${params.id}`}
+            >
+              <Button variant="text" color="primary" size="small">
+                View
+              </Button>
+            </Link>
+            <Button
+              variant="text"
+              color="success"
+              size="small"
+              onClick={() => handlePaymentClick(params.row)}
+            >
+              Pay
             </Button>
-          </Link>
+          </Box>
         );
       },
     },
@@ -431,11 +485,27 @@ const SalariesDataGrid: React.FC<{
   };
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedSalaryForPayment, setSelectedSalaryForPayment] = useState<Salary | null>(null);
   const [salaryIds, setSalaryIds] = useState<string[]>([]);
 
   const handleDeleteClick = (salayId: string) => {
     setSalaryIds([salayId]);
     setDialogOpen(true);
+  };
+
+  const handlePaymentClick = (salary: Salary) => {
+    setSelectedSalaryForPayment(salary);
+    setPaymentDialogOpen(true);
+  };
+
+  const handlePaymentClose = (success?: boolean) => {
+    setPaymentDialogOpen(false);
+    setSelectedSalaryForPayment(null);
+    if (success) {
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ["salaries"] });
+    }
   };
 
   const handleDialogClose = async (confirmed: boolean) => {
@@ -588,6 +658,15 @@ const SalariesDataGrid: React.FC<{
         title="Confirm Deletion"
         message={`Are you sure you want to delete the salary record(s) ?`}
       />
+
+      {selectedSalaryForPayment && (
+        <PaymentDialog
+          open={paymentDialogOpen}
+          onClose={handlePaymentClose}
+          salary={selectedSalaryForPayment}
+          companyId={companyId}
+        />
+      )}
     </Box>
   );
 };

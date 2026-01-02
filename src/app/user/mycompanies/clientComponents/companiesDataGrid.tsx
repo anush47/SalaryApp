@@ -119,6 +119,21 @@ export interface Company {
   allowRemoteCheckIn: boolean;
   requireApproval: boolean;
   apiKey?: string;
+  // Salary Period Configuration (Company Defaults)
+  salaryPeriodDefaults?: {
+    salaryPeriod: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
+    customPeriodDays?: number;
+    rateDivisor: number;
+    dailyRateOverride?: number;
+    weeklyRateOverride?: number;
+    monthlyRateOverride?: number;
+    payPeriodConfig?: {
+      startDay?: number;
+      endDay?: number;
+      type?: "fixed_dates" | "start_to_end_of_month" | "end_to_end_of_month";
+    };
+    calculationMethod: "attendance" | "fixed_days" | "no_ot";
+  };
 }
 
 interface PaginatedResponse {

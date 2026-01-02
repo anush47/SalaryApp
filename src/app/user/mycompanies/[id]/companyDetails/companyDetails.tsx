@@ -203,6 +203,41 @@ const CompanyDetails = ({
         } as Company)
       );
       return;
+    } else if (name.startsWith("salaryPeriodDefaults")) {
+      const parts = name.split(".");
+      if (parts.length === 2) {
+        setFormFields(
+          (prevFields) =>
+          ({
+            ...prevFields,
+            salaryPeriodDefaults: {
+              ...prevFields?.salaryPeriodDefaults,
+              salaryPeriod: prevFields?.salaryPeriodDefaults?.salaryPeriod || "monthly",
+              rateDivisor: prevFields?.salaryPeriodDefaults?.rateDivisor || 30,
+              calculationMethod: prevFields?.salaryPeriodDefaults?.calculationMethod || "fixed_days",
+              [parts[1]]: value,
+            },
+          } as Company)
+        );
+      } else if (parts.length === 3) {
+        setFormFields(
+          (prevFields) =>
+          ({
+            ...prevFields,
+            salaryPeriodDefaults: {
+              ...prevFields?.salaryPeriodDefaults,
+              salaryPeriod: prevFields?.salaryPeriodDefaults?.salaryPeriod || "monthly",
+              rateDivisor: prevFields?.salaryPeriodDefaults?.rateDivisor || 30,
+              calculationMethod: prevFields?.salaryPeriodDefaults?.calculationMethod || "fixed_days",
+              payPeriodConfig: {
+                ...prevFields?.salaryPeriodDefaults?.payPeriodConfig,
+                [parts[2]]: value,
+              },
+            },
+          } as Company)
+        );
+      }
+      return;
     }
 
     setFormFields(
@@ -631,13 +666,20 @@ const CompanyDetails = ({
             <div className="my-5" />
 
             <Grid item xs={12}>
-              <ShiftConfigurationForm
-                isEditing={isEditing}
-                settings={formFields.shiftSettings || { mode: 'fixed', shifts: [], autoSelect: false }}
-                onChange={(newSettings) =>
-                  setFormFields(prev => ({ ...prev, shiftSettings: newSettings } as Company))
-                }
-              />
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography variant="h5">Shifts Configuration</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <ShiftConfigurationForm
+                    isEditing={isEditing}
+                    settings={formFields.shiftSettings || { mode: 'fixed', shifts: [], autoSelect: false }}
+                    onChange={(newSettings) =>
+                      setFormFields(prev => ({ ...prev, shiftSettings: newSettings } as Company))
+                    }
+                  />
+                </AccordionDetails>
+              </Accordion>
             </Grid>
 
             <Grid item xs={12}>
@@ -655,6 +697,200 @@ const CompanyDetails = ({
                   );
                 }}
               />
+            </Grid>
+
+            {/* Calendar Configuration */}
+            <Grid item xs={12}>
+              <div className="my-5" />
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography variant="h5">Calendar</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel id="calendar-label">Calendar</InputLabel>
+                      <Select
+                        labelId="calendar-label"
+                        label="Calendar"
+                        name="calendar"
+                        value={formFields.calendar || "default"}
+                        onChange={handleChange}
+                        variant="outlined"
+                        readOnly={!isEditing}
+                      >
+                        <MenuItem value="default">Default</MenuItem>
+                        <MenuItem value="other">Other</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
+            </Grid>
+
+            {/* Salary Period Configuration (Company Defaults) */}
+            <Grid item xs={12}>
+              <div className="my-5" />
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography variant="h5">Salary Period Defaults</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <Alert severity="info">
+                        These settings will be used as defaults for new employees.
+                        Employees can override these settings individually.
+                      </Alert>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="default-salaryPeriod-label">Default Salary Period</InputLabel>
+                        <Select
+                          labelId="default-salaryPeriod-label"
+                          label="Default Salary Period"
+                          name="salaryPeriodDefaults.salaryPeriod"
+                          value={formFields.salaryPeriodDefaults?.salaryPeriod || "monthly"}
+                          onChange={handleChange}
+                          variant="outlined"
+                          readOnly={!isEditing}
+                        >
+                          <MenuItem value="daily">Daily</MenuItem>
+                          <MenuItem value="weekly">Weekly</MenuItem>
+                          <MenuItem value="bi-weekly">Bi-Weekly</MenuItem>
+                          <MenuItem value="monthly">Monthly</MenuItem>
+                          <MenuItem value="custom">Custom</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="default-calculationMethod-label">Default Calculation Method</InputLabel>
+                        <Select
+                          labelId="default-calculationMethod-label"
+                          label="Default Calculation Method"
+                          name="salaryPeriodDefaults.calculationMethod"
+                          value={formFields.salaryPeriodDefaults?.calculationMethod || "fixed_days"}
+                          onChange={handleChange}
+                          variant="outlined"
+                          readOnly={!isEditing}
+                        >
+                          <MenuItem value="attendance">Attendance-Based (with OT)</MenuItem>
+                          <MenuItem value="fixed_days">Fixed Days (no OT)</MenuItem>
+                          <MenuItem value="no_ot">Basic Salary Only</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <TextField
+                          label="Default Rate Divisor"
+                          name="salaryPeriodDefaults.rateDivisor"
+                          type="number"
+                          value={formFields.salaryPeriodDefaults?.rateDivisor || 30}
+                          onChange={handleChange}
+                          variant="filled"
+                          helperText="Divisor for daily rate calculation (e.g., 30, 26, 22)"
+                          InputProps={{
+                            readOnly: !isEditing,
+                          }}
+                        />
+                      </FormControl>
+                    </Grid>
+
+                    {formFields.salaryPeriodDefaults?.salaryPeriod === "custom" && (
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Custom Period Days"
+                            name="salaryPeriodDefaults.customPeriodDays"
+                            type="number"
+                            value={formFields.salaryPeriodDefaults?.customPeriodDays || ""}
+                            onChange={handleChange}
+                            variant="filled"
+                            helperText="Number of days in custom period"
+                            InputProps={{
+                              readOnly: !isEditing,
+                            }}
+                          />
+                        </FormControl>
+                      </Grid>
+                    )}
+
+                    {/* Pay Period Config for Monthly */}
+                    {formFields.salaryPeriodDefaults?.salaryPeriod === "monthly" && (
+                      <>
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                            Custom Pay Period (Optional)
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Configure custom monthly pay period (e.g., 25th to 24th)
+                          </Typography>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <TextField
+                              label="Start Day"
+                              name="salaryPeriodDefaults.payPeriodConfig.startDay"
+                              type="number"
+                              value={formFields.salaryPeriodDefaults?.payPeriodConfig?.startDay || ""}
+                              onChange={handleChange}
+                              variant="filled"
+                              helperText="Day of month (1-31)"
+                              inputProps={{ min: 1, max: 31 }}
+                              InputProps={{
+                                readOnly: !isEditing,
+                              }}
+                            />
+                          </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <TextField
+                              label="End Day"
+                              name="salaryPeriodDefaults.payPeriodConfig.endDay"
+                              type="number"
+                              value={formFields.salaryPeriodDefaults?.payPeriodConfig?.endDay || ""}
+                              onChange={handleChange}
+                              variant="filled"
+                              helperText="Day of month (0 = end of month)"
+                              inputProps={{ min: 0, max: 31 }}
+                              InputProps={{
+                                readOnly: !isEditing,
+                              }}
+                            />
+                          </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <InputLabel id="default-payPeriodType-label">Period Type</InputLabel>
+                            <Select
+                              labelId="default-payPeriodType-label"
+                              label="Period Type"
+                              name="salaryPeriodDefaults.payPeriodConfig.type"
+                              value={formFields.salaryPeriodDefaults?.payPeriodConfig?.type || "fixed_dates"}
+                              onChange={handleChange}
+                              variant="outlined"
+                              readOnly={!isEditing}
+                            >
+                              <MenuItem value="fixed_dates">Fixed Dates</MenuItem>
+                              <MenuItem value="start_to_end_of_month">Start to End of Month</MenuItem>
+                              <MenuItem value="end_to_end_of_month">End to End of Month</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </>
+                    )}
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -691,33 +927,6 @@ const CompanyDetails = ({
             </Grid>
 
             <Grid item xs={12}>
-              <div className="my-5" />
-
-              <Accordion>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="h5">Calendar</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="calendar-label">Calendar</InputLabel>
-                      <Select
-                        labelId="calendar-label"
-                        label="Calendar"
-                        name="calendar"
-                        value={formFields.calendar || "default"}
-                        onChange={handleChange}
-                        variant="outlined"
-                        readOnly={!isEditing}
-                      >
-                        <MenuItem value="default">Default</MenuItem>
-                        <MenuItem value="other">Other</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </AccordionDetails>
-              </Accordion>
-
               <hr className="my-5" />
 
               <Typography variant="h5">User Info</Typography>
@@ -1001,48 +1210,47 @@ const CompanyDetails = ({
                   </Typography>
                 </Grid>
               )}
+            </Grid>
 
 
-
-              <Grid item xs={12}>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Delete />}
-                  onClick={onDeleteClick}
-                  disabled={!isEditing || isCompanyLoading}
-                >
-                  Delete Company
-                </Button>
-                <Dialog
-                  open={deleteDialogOpen}
-                  keepMounted
-                  onClose={handleDeleteCancelation}
-                  aria-describedby="alert-dialog-slide-description"
-                >
-                  <DialogTitle>{"Delete Employee?"}</DialogTitle>
-                  <DialogContent>
-                    <DialogContentText id="alert-dialog-slide-description">
-                      Are you sure you want to delete this company
-                    </DialogContentText>
-                  </DialogContent>
-                  <DialogActions>
-                    <Button onClick={handleDeleteCancelation}>Cancel</Button>
-                    <Button
-                      onClick={handleDeleteConfirmation}
-                      color="error"
-                      endIcon={<Delete />}
-                    >
-                      Delete
-                    </Button>
-                  </DialogActions>
-                </Dialog>
-              </Grid>
+            <Grid item xs={12}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Delete />}
+                onClick={onDeleteClick}
+                disabled={!isEditing || isCompanyLoading}
+              >
+                Delete Company
+              </Button>
+              <Dialog
+                open={deleteDialogOpen}
+                keepMounted
+                onClose={handleDeleteCancelation}
+                aria-describedby="alert-dialog-slide-description"
+              >
+                <DialogTitle>{"Delete Employee?"}</DialogTitle>
+                <DialogContent>
+                  <DialogContentText id="alert-dialog-slide-description">
+                    Are you sure you want to delete this company
+                  </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={handleDeleteCancelation}>Cancel</Button>
+                  <Button
+                    onClick={handleDeleteConfirmation}
+                    color="error"
+                    endIcon={<Delete />}
+                  >
+                    Delete
+                  </Button>
+                </DialogActions>
+              </Dialog>
             </Grid>
           </Grid>
         )}
       </CardContent>
-    </Card>
+    </Card >
   );
 };
 

@@ -18,7 +18,7 @@ export interface IEmployee extends Document {
   address: string;
   divideBy: 240 | 200;
   active: boolean;
-  otMethod: "random" | "noOt" | "calc";
+  otMethod: "noOt" | "calc";
   // New fields for hierarchy and access
   user?: string | Types.ObjectId | null;
   department?: string | Types.ObjectId | null;
@@ -26,6 +26,19 @@ export interface IEmployee extends Document {
   employeeType: "permanent" | "contract" | "intern" | "temporary";
   canLogin: boolean;
   taxType?: "company" | "individual";
+  // Salary Period Configuration
+  salaryPeriod: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
+  customPeriodDays?: number;
+  rateDivisor: number; // For daily rate calculation (default 30)
+  dailyRateOverride?: number;
+  weeklyRateOverride?: number;
+  monthlyRateOverride?: number;
+  payPeriodConfig?: {
+    startDay: number;
+    endDay?: number; // null or undefined = end of month
+    type: "fixed_dates" | "start_to_end_of_month" | "end_to_end_of_month";
+  };
+  calculationMethod: "attendance" | "fixed_days" | "no_ot";
   // Leave customization with override pattern
   overrides: {
     shifts: boolean;
@@ -35,6 +48,7 @@ export interface IEmployee extends Document {
     calendar: boolean;
     leaveTypes: boolean;
     attendance: boolean;
+    salaryPeriod: boolean;
   };
   attendanceOverrides: {
     enabled: boolean;
@@ -206,6 +220,39 @@ const employeeSchema = new Schema<IEmployee>(
       enum: ["company", "individual"],
       required: false,
     },
+    // Salary Period Configuration
+    salaryPeriod: {
+      type: String,
+      enum: ["daily", "weekly", "bi-weekly", "monthly", "custom"],
+    },
+    customPeriodDays: {
+      type: Number,
+    },
+    rateDivisor: {
+      type: Number,
+      default: 30,
+    },
+
+    payPeriodConfig: {
+      startDay: {
+        type: Number,
+        min: 1,
+        max: 31,
+      },
+      endDay: {
+        type: Number,
+        min: 1,
+        max: 31,
+      },
+      type: {
+        type: String,
+        enum: ["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"],
+      },
+    },
+    calculationMethod: {
+      type: String,
+      enum: ["attendance", "fixed_days", "no_ot"],
+    },
     overrides: {
       type: {
         shifts: {
@@ -233,6 +280,10 @@ const employeeSchema = new Schema<IEmployee>(
           default: false,
         },
         attendance: {
+          type: Boolean,
+          default: false,
+        },
+        salaryPeriod: {
           type: Boolean,
           default: false,
         },
@@ -388,8 +439,9 @@ const employeeSchema = new Schema<IEmployee>(
     },
     otMethod: {
       type: String,
+      enum: ["noOt", "calc"],
       required: true,
-      default: "random",
+      default: "noOt",
     },
     active: {
       type: Boolean,

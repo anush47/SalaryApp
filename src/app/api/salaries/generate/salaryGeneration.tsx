@@ -412,6 +412,11 @@ export async function generateSalaryForOneEmployee(
   salary?: any
 ) {
   try {
+    console.log("generateSalaryForOneEmployee called for:", employee.name);
+    console.log("Period:", period);
+    console.log("InOut Data Type:", Array.isArray(inOut) ? "Array" : typeof inOut);
+    console.log("InOut Length:", Array.isArray(inOut) ? inOut.length : "N/A");
+
     const source = salary || employee;
 
     source.divideBy = employee.divideBy || 240;

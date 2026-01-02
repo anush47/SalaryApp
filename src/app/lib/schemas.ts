@@ -131,6 +131,7 @@ export const employeeCreateSchema = z.object({
       paymentStructure: z.boolean(),
       calendar: z.boolean(),
       leaveTypes: z.boolean(),
+      salaryPeriod: z.boolean().optional().default(false),
     })
     .default({
       shifts: false,
@@ -139,7 +140,17 @@ export const employeeCreateSchema = z.object({
       paymentStructure: false,
       calendar: false,
       leaveTypes: false,
+      salaryPeriod: false,
     }),
+  salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).optional(),
+  customPeriodDays: z.number().optional(),
+  rateDivisor: z.number().optional(),
+  payPeriodConfig: z.object({
+    startDay: z.number().optional(),
+    endDay: z.number().optional(),
+    type: z.enum(["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"]).optional(),
+  }).optional(),
+  calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).optional(),
   leaveTypes: z.array(z.object({
     leaveType: z.string(),
     maxDaysPerPeriod: z.number().min(0).optional(),
@@ -196,6 +207,7 @@ export const employeeUpdateSchema = z.object({
       paymentStructure: z.boolean().optional(),
       calendar: z.boolean().optional(),
       leaveTypes: z.boolean().optional(),
+      salaryPeriod: z.boolean().optional(),
     })
     .optional(),
   leaveTypes: z.array(z.object({
@@ -261,6 +273,15 @@ export const employeeUpdateSchema = z.object({
       ),
     })
     .optional(),
+  salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).optional(),
+  customPeriodDays: z.number().optional(),
+  rateDivisor: z.number().optional(),
+  payPeriodConfig: z.object({
+    startDay: z.number().optional(),
+    endDay: z.number().optional(),
+    type: z.enum(["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"]).optional(),
+  }).optional(),
+  calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).optional(),
   phoneNumber: z
     .string()
     .regex(/^\d{10}$/, "Phone number must be a valid")
@@ -357,6 +378,17 @@ export const companyCreateSchema = z.object({
   }),
   attendanceConfig: attendanceConfigSchema.optional(),
   geoFencing: geoFencingSchema.optional(),
+  salaryPeriodDefaults: z.object({
+    salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).default("monthly"),
+    customPeriodDays: z.number().optional(),
+    rateDivisor: z.number().default(30),
+    payPeriodConfig: z.object({
+      startDay: z.number().optional(),
+      endDay: z.number().optional(),
+      type: z.enum(["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"]).optional(),
+    }).optional(),
+    calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).default("attendance"),
+  }).optional(),
 });
 
 export const companyUpdateSchema = z.object({
@@ -422,6 +454,17 @@ export const companyUpdateSchema = z.object({
   requireApproval: z.boolean().optional(),
   allowRemoteCheckIn: z.boolean().optional(),
   apiKey: z.string().optional(),
+  salaryPeriodDefaults: z.object({
+    salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).optional(),
+    customPeriodDays: z.number().optional(),
+    rateDivisor: z.number().optional(),
+    payPeriodConfig: z.object({
+      startDay: z.number().optional(),
+      endDay: z.number().optional(),
+      type: z.enum(["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"]).optional(),
+    }).optional(),
+    calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).optional(),
+  }).optional(),
 });
 
 export const companyIdSchema = z.string().min(1, "Company ID is required");

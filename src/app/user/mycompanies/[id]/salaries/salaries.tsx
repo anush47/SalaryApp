@@ -12,6 +12,8 @@ import {
   IconButton,
   useTheme,
   useMediaQuery,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { Add, Check, Done, Edit } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +23,9 @@ import Link from "next/link";
 const SalariesDataGrid = lazy(() => import("./salariesDataGrid"));
 const AddSalaryForm = lazy(() => import("./generateSalaryForm"));
 const EditSalaryForm = lazy(() => import("./editSalaryForm"));
+
+import { SalaryPayments } from "./SalaryPayments";
+import { SalaryAdvances } from "./SalaryAdvances";
 
 export let salaryId: string | null;
 
@@ -43,6 +48,12 @@ const Salaries = ({
   useEffect(() => {
     if (gen === "true") setShowAddForm(true);
   }, [gen]);
+
+  const [tabValue, setTabValue] = useState(0);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
 
   return (
     <Box>
@@ -86,59 +97,87 @@ const Salaries = ({
                     gap: 2,
                   }}
                 >
-                  <Typography variant="h4" component="h1">
-                    Salaries
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    {isEditing ? (
-                      <Tooltip title="Save changes" arrow>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          startIcon={<Done />}
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Done
-                        </Button>
-                      </Tooltip>
-                    ) : (
-                      <>
-                        <Tooltip title="Generate Salaries" arrow>
-                          <Link
-                            href={`/user/mycompanies/${companyId}?companyPageSelect=salaries&gen=true`}
-                          >
-                            <Button
-                              variant="contained"
-                              color="primary"
-                              startIcon={<Add />}
-                            >
-                              Generate
-                            </Button>
-                          </Link>
-                        </Tooltip>
-                        <Button
-                          variant="outlined"
-                          startIcon={<Edit />}
-                          sx={{ mx: 0.25 }}
-                          onClick={() => setIsEditing(true)}
-                        >
-                          Edit
-                        </Button>
-                      </>
-                    )}
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Typography variant="h4" component="h1">
+                      Salaries & Payments
+                    </Typography>
                   </Box>
+
+                  {tabValue === 0 && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {isEditing ? (
+                        <Tooltip title="Save changes" arrow>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            startIcon={<Done />}
+                            onClick={() => setIsEditing(false)}
+                          >
+                            Done
+                          </Button>
+                        </Tooltip>
+                      ) : (
+                        <>
+                          <Tooltip title="Generate Salaries" arrow>
+                            <Link
+                              href={`/user/mycompanies/${companyId}?companyPageSelect=salaries&gen=true`}
+                            >
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<Add />}
+                              >
+                                Generate
+                              </Button>
+                            </Link>
+                          </Tooltip>
+                          <Button
+                            variant="outlined"
+                            startIcon={<Edit />}
+                            sx={{ mx: 0.25 }}
+                            onClick={() => setIsEditing(true)}
+                          >
+                            Edit
+                          </Button>
+                        </>
+                      )}
+                    </Box>
+                  )}
                 </Box>
+              }
+              subheader={
+                <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 1 }}>
+                  <Tab label="All Salaries" />
+                  <Tab label="Payments" />
+                  <Tab label="Advances" />
+
+                </Tabs>
               }
             />
             <CardContent
               sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
             >
               <Suspense fallback={<CircularProgress />}>
-                <SalariesDataGrid
-                  companyId={companyId}
-                  user={user}
-                  isEditing={isEditing}
-                />
+                {tabValue === 0 && (
+                  <SalariesDataGrid
+                    companyId={companyId}
+                    user={user}
+                    isEditing={isEditing}
+                  />
+                )}
+                {tabValue === 1 && (
+                  <SalaryPayments
+                    companyId={companyId}
+                    user={user}
+                  />
+                )}
+                {tabValue === 2 && (
+                  <SalaryAdvances
+                    companyId={companyId}
+                    user={user}
+                  />
+                )}
+
               </Suspense>
             </CardContent>
           </>

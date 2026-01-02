@@ -98,6 +98,19 @@ export interface ICompany extends Document {
     }[];
   };
   apiKey?: string;
+  salaryPeriodDefaults?: SalaryPeriodDefaults;
+}
+
+export interface SalaryPeriodDefaults {
+  salaryPeriod: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
+  customPeriodDays?: number;
+  rateDivisor: number;
+  payPeriodConfig?: {
+    startDay?: number;
+    endDay?: number;
+    type?: "fixed_dates" | "start_to_end_of_month" | "end_to_end_of_month";
+  };
+  calculationMethod: "attendance" | "fixed_days" | "no_ot";
 }
 
 // Define Shift Schema separately to handle String _id
@@ -376,6 +389,32 @@ const companySchema = new Schema<ICompany>(
       ],
     },
     apiKey: { type: String },
+    salaryPeriodDefaults: {
+      salaryPeriod: {
+        type: String,
+        enum: ["daily", "weekly", "bi-weekly", "monthly", "custom"],
+        default: "monthly",
+      },
+      customPeriodDays: Number,
+      rateDivisor: {
+        type: Number,
+        default: 30,
+      },
+      payPeriodConfig: {
+        startDay: Number,
+        endDay: Number,
+        type: {
+          type: String,
+          enum: ["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"],
+          default: "fixed_dates",
+        },
+      },
+      calculationMethod: {
+        type: String,
+        enum: ["attendance", "fixed_days", "no_ot"],
+        default: "fixed_days",
+      },
+    },
   },
   {
     timestamps: true, // Optionally add timestamps for createdAt and updatedAt
