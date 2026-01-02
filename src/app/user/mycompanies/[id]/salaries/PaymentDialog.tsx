@@ -21,8 +21,10 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
-import { createSalaryPayment } from "@/app/lib/api";
+import { createSalaryPayment, fetchSalaryAdvances } from "@/app/lib/api";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { useQuery } from "@tanstack/react-query";
+import { STALE_TIME } from "@/app/lib/consts";
 
 interface PaymentDialogProps {
     open: boolean;
@@ -60,6 +62,22 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
         }
     }, [open, salary]);
 
+    // Fetch active advances for this employee
+    const { data: advancesData } = useQuery({
+        queryKey: ["salary-advances", companyId, salary?.employee],
+        queryFn: () => fetchSalaryAdvances({
+            companyId,
+            employeeId: salary?.employee,
+            status: "active"
+        }),
+        enabled: !!salary?.employee && open,
+        staleTime: STALE_TIME
+    });
+
+    const activeAdvances = Array.isArray(advancesData) ? advancesData : (advancesData?.data || []);
+    const totalAdvanceDebt = activeAdvances.reduce((sum: number, adv: any) => sum + (Number(adv.remainingBalance) || 0), 0);
+    const netPosition = (salary?.outstandingBalance || 0) - totalAdvanceDebt;
+
     const handleSave = async () => {
         if (!amount || parseFloat(amount) <= 0) {
             setError("Please enter a valid amount");
@@ -76,7 +94,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
         try {
             const paymentData = {
-                salary: salary._id, // Use _id for MongoDB compatibility if id is virtual
+                salaryId: salary._id, // Use _id for MongoDB compatibility if id is virtual
                 employee: salary.employee,
                 company: companyId,
                 period: salary.period,
@@ -137,15 +155,66 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         </Grid>
                         <Grid item xs={6}>
                             <Typography variant="subtitle2" color="text.secondary">
-                                Outstanding
+                                To Pay (Outstanding)
                             </Typography>
-                            <Typography
-                                variant="body2"
-                                fontWeight="bold"
-                                color={outstanding > 0 ? "error.main" : "success.main"}
-                            >
-                                LKR {outstanding.toLocaleString()}
-                            </Typography>
+                            <Box display="flex" alignItems="center" gap={1}>
+                                <Typography
+                                    variant="body2"
+                                    fontWeight="bold"
+                                    color="error.main"
+                                    sx={{ textDecoration: amount && parseFloat(amount) > 0 ? 'line-through' : 'none', opacity: amount && parseFloat(amount) > 0 ? 0.6 : 1 }}
+                                >
+                                    LKR {outstanding.toLocaleString()}
+                                </Typography>
+                                {(amount && parseFloat(amount) > 0) && (
+                                    <>
+                                        <span>→</span>
+                                        <Typography
+                                            variant="body2"
+                                            fontWeight="bold"
+                                            color={(outstanding - parseFloat(amount)) > 0 ? "warning.main" : "success.main"}
+                                        >
+                                            LKR {(outstanding - parseFloat(amount)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </Typography>
+                                    </>
+                                )}
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </Box>
+
+                {/* Simplified Payment Summary */}
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                    <Grid container spacing={1} alignItems="center">
+                        <Grid item xs={8}><Typography variant="body1">Salary Payable</Typography></Grid>
+                        <Grid item xs={4} textAlign="right"><Typography variant="body1" fontWeight="bold">{outstanding.toLocaleString()}</Typography></Grid>
+
+                        <Grid item xs={8}><Typography variant="body2" color="text.secondary">Remaining Debt</Typography></Grid>
+                        <Grid item xs={4} textAlign="right"><Typography variant="body2" color="text.secondary">({totalAdvanceDebt.toLocaleString()})</Typography></Grid>
+
+                        <Grid item xs={12}><Box sx={{ my: 1, borderTop: '1px dashed', borderColor: 'divider' }} /></Grid>
+
+                        <Grid item xs={6}><Typography variant="subtitle1" fontWeight="bold" color={netPosition < 0 ? "success.main" : "text.primary"}>Net Position</Typography></Grid>
+                        <Grid item xs={6} textAlign="right">
+                            <Box display="flex" justifyContent="flex-end" alignItems="center" gap={1}>
+                                <Typography variant="subtitle1" fontWeight="bold" color={netPosition < 0 ? "success.main" : "text.primary"}
+                                    sx={{ textDecoration: amount && parseFloat(amount) > 0 ? 'line-through' : 'none', opacity: amount && parseFloat(amount) > 0 ? 0.6 : 1 }}
+                                >
+                                    {netPosition.toLocaleString()}
+                                </Typography>
+                                {(amount && parseFloat(amount) > 0) && (
+                                    <>
+                                        <Typography variant="caption" color="text.secondary">→</Typography>
+                                        <Typography
+                                            variant="subtitle1"
+                                            fontWeight="bold"
+                                            color={(netPosition - parseFloat(amount)) < 0 ? "success.main" : "text.primary"}
+                                        >
+                                            {(netPosition - parseFloat(amount)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </Typography>
+                                    </>
+                                )}
+                            </Box>
                         </Grid>
                     </Grid>
                 </Box>

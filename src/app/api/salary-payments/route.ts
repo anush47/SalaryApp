@@ -41,11 +41,29 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
     return ApiMiddleware.authenticated(req, async (req, context) => {
         try {
+            let paymentIds: string[] = [];
+
+            // Check for query param (single)
             const paymentId = req.nextUrl.searchParams.get("paymentId");
-            if (!paymentId) {
-                return ApiResponseUtils.sendBadRequest("Payment ID is required");
+            if (paymentId) {
+                paymentIds = [paymentId];
+            } else {
+                // Check body for bulk (optional)
+                try {
+                    const body = await req.json();
+                    if (body.paymentIds && Array.isArray(body.paymentIds)) {
+                        paymentIds = body.paymentIds;
+                    }
+                } catch (e) {
+                    // Body might be empty if just query param expected, ignore error
+                }
             }
-            const result = await SalaryPaymentService.deletePayment(paymentId, context);
+
+            if (paymentIds.length === 0) {
+                return ApiResponseUtils.sendBadRequest("Payment ID(s) is required");
+            }
+
+            const result = await SalaryPaymentService.deletePayments(paymentIds, context);
             return ApiResponseUtils.sendSuccess(result, result.message);
         } catch (error) {
             throw error;

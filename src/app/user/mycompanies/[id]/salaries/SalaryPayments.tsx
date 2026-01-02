@@ -93,6 +93,20 @@ export const SalaryPayments: React.FC<{
             valueFormatter: (params) => dayjs(params.value).format("YYYY-MM-DD"),
         },
         {
+            field: "type",
+            headerName: "Type",
+            flex: 0.8,
+            renderCell: (params) => (
+                <Chip
+                    label={params.value || "salary"}
+                    size="small"
+                    variant="outlined"
+                    color={params.value === "advance" ? "secondary" : "default"}
+                    sx={{ textTransform: "capitalize" }}
+                />
+            )
+        },
+        {
             field: "employee",
             headerName: "Employee",
             flex: 1.5,

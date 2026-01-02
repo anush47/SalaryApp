@@ -419,15 +419,49 @@ export async function generateSalaryForOneEmployee(
 
     const source = salary || employee;
 
+    // Calculate period duration in days
+    let periodDays = 30; // Default to monthly
+    if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      periodDays = 1;
+    } else if (period.includes(" to ")) {
+      const [start, end] = period.split(" to ");
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    // Prorate basic salary if not monthly
+    // Resolve rate divisor: Employee Override -> Company Default -> 30
+    const companyDefaults = employee.company?.salaryPeriodDefaults;
+    const rateDivisor = employee.rateDivisor || companyDefaults?.rateDivisor || 30;
+
+    // Check if period is standard monthly (YYYY-MM)
+    const isMonthly = /^\d{4}-\d{2}$/.test(period);
+
+    let effectiveBasic = source.basic;
+    if (!isMonthly && periodDays < 30) {
+      effectiveBasic = (source.basic / rateDivisor) * periodDays;
+      // Round to 2 decimals
+      effectiveBasic = Math.round(effectiveBasic * 100) / 100;
+    }
+
+    // User request: "basic is always monthly" -> This implies source.basic coming from employee is monthly. 
+    // And "shoud be devided and used per day correctly" -> We just did that with effectiveBasic.
+    // IMPORTANT: We must update source.basic to effectiveBasic so that calculations downstream use it.
+    source.basic = effectiveBasic;
+
     source.divideBy = employee.divideBy || 240;
     source.totalSalary = parseValue("totalSalary", employee.totalSalary, 0);
 
     //if totalSalary then parse totalSalary to number
     if (source.totalSalary && source.totalSalary !== "") {
+      // If totalSalary is provided, it is for the "selected one" (the period), so we use it directly as target.
+      // But we need to pass a "basic" to parseValue for "percentage of basic" logic?
+      // parseValue for totalSalary uses 3rd arg `source.basic` if value is percentage.
       source.totalSalary = parseValue(
         "totalSalary",
         source.totalSalary,
-        source.basic
+        source.basic // This is now effectiveBasic
       );
     }
 

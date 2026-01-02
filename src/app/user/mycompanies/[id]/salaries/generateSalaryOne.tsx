@@ -161,6 +161,7 @@ const GenerateSalaryOne = ({
         employees: [employeeId],
         period,
         inOut,
+        save: false, // Preview only
       });
 
 
@@ -247,6 +248,7 @@ const GenerateSalaryOne = ({
     setFormFields((prevFields) => ({
       ...prevFields,
       finalSalary,
+      outstandingBalance: finalSalary - advanceAmount,
     }));
   };
 
@@ -343,6 +345,7 @@ const GenerateSalaryOne = ({
         ...(user.role === "admin" ? [companyId] : []),
       ];
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["salary-advances"] });
     } catch (error) {
       showSnackbar({
         message: "Error saving salary. Please try again.",

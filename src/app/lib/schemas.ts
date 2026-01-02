@@ -602,6 +602,28 @@ export const salaryCreateSchema = z.object({
   advanceAmount: z.number().optional(),
   finalSalary: z.number().min(0, "Final salary must be a positive number"),
   remark: z.string().optional(),
+
+  // Flexible Period Fields
+  salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).optional(),
+  periodStartDate: z.union([z.string(), z.date()]).optional(),
+  periodEndDate: z.union([z.string(), z.date()]).optional(),
+  periodDays: z.number().optional(),
+  workDays: z.number().optional(),
+  ratePerDay: z.number().optional(),
+  rateDivisor: z.number().optional(),
+  calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).optional(),
+
+  // Payment Tracking Fields
+  totalPaid: z.number().optional().default(0),
+  outstandingBalance: z.number().optional(),
+  paymentStatus: z.enum(["unpaid", "partially_paid", "fully_paid", "overpaid"]).optional().default("unpaid"),
+
+  activeAdvances: z.array(z.object({
+    advanceId: z.string().optional(),
+    deductedAmount: z.number().optional()
+  })).optional(),
+
+  leaveDeductions: z.array(z.any()).optional(),
 });
 
 export const salaryUpdateSchema = salaryCreateSchema.extend({
@@ -614,11 +636,12 @@ export const periodSchema = z.string();
 export const salaryGenerateSchema = z.object({
   employees: z.array(z.string()).optional(),
   companyId: z.string().min(1, "Company ID is required"),
-  period: z.string().regex(/^\d{4}-\d{2}$/, "Period must be in the format YYYY-MM"),
+  period: z.string().min(1, "Period is required"), // Validation is handled by service layer to support multiple formats
   inOut: z.any().optional(),
   update: z.boolean().optional(),
   useLiveAttendance: z.boolean().optional(),
   existingSalaries: z.array(z.any()).optional(),
+  save: z.boolean().optional(),
 });
 
 // Purchase-related schemas

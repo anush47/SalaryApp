@@ -739,37 +739,70 @@ const startEndDates = async (
   inOut: (string | number | Date)[],
   calendar: string = "default"
 ) => {
-  const periodStartDate = new Date(period);
-  const inOutStartDate = inOut ? new Date(inOut[0]) : undefined;
-  let startDate = new Date();
-  const halfMonthInMillis = (30 * 24 * 60 * 60 * 1000) / 2; // Approximate half month in milliseconds
-  if (
-    inOutStartDate &&
-    inOutStartDate < periodStartDate &&
-    periodStartDate.getTime() - inOutStartDate.getTime() <= halfMonthInMillis
-  ) {
-    startDate = inOutStartDate;
-  } else {
-    startDate = periodStartDate;
-  }
-  const endDate = new Date(startDate);
-  endDate.setMonth(endDate.getMonth() + 1);
+  try {
+    const periodStartDate = new Date(period);
+    const inOutStartDate = inOut ? new Date(inOut[0]) : undefined;
+    let startDate = new Date();
+    const halfMonthInMillis = (30 * 24 * 60 * 60 * 1000) / 2; // Approximate half month in milliseconds
 
-  //holidays
-  //transform to yyyy-mm-dd for holidays
-  const startDateHoliday = startDate.toISOString().split("T")[0];
-  const endDateHoliday = endDate.toISOString().split("T")[0];
-  const holidayResponse = await getHolidays(
-    startDateHoliday,
-    endDateHoliday,
-    calendar
-  );
-  if (!holidayResponse.holidays && holidayResponse.messege) {
-    throw new Error(holidayResponse.messege);
-  }
+    // Determine start date logic (defaults to periodStartDate unless inOut is earlier and reasonable)
+    // Note: checking if period is valid date first
+    if (!isNaN(periodStartDate.getTime())) {
+      if (
+        inOutStartDate &&
+        inOutStartDate < periodStartDate &&
+        periodStartDate.getTime() - inOutStartDate.getTime() <= halfMonthInMillis
+      ) {
+        startDate = inOutStartDate;
+      } else {
+        startDate = periodStartDate;
+      }
+    } else {
+      // Fallback if period cannot be parsed directly (though string logic handled below)
+      startDate = new Date();
+    }
 
-  const { holidays } = holidayResponse;
-  return { startDate, endDate, holidays };
+    let endDate = new Date(startDate);
+
+    // FIX: Properly calculate endDate based on period string format
+    if (typeof period === 'string') {
+      if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Daily: endDate is same as startDate (end of day handled by comparison logic usually, or loop runs once)
+        endDate = new Date(startDate);
+      } else if (period.includes(" to ")) {
+        // Range: endDate is the end date of the range
+        const [start, end] = period.split(" to ");
+        endDate = new Date(end);
+      } else {
+        // Monthly or Default: Add 1 month
+        endDate.setMonth(endDate.getMonth() + 1);
+        endDate.setDate(0); // Set to last day of the specific month
+      }
+    } else {
+      // Fallback for Date object input (assumed monthly)
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+
+    //holidays
+    //transform to yyyy-mm-dd for holidays
+    const startDateHoliday = startDate.toISOString().split("T")[0];
+    const endDateHoliday = endDate.toISOString().split("T")[0];
+    const holidayResponse = await getHolidays(
+      startDateHoliday,
+      endDateHoliday,
+      calendar
+    );
+    if (!holidayResponse.holidays && holidayResponse.messege) {
+      throw new Error(holidayResponse.messege);
+    }
+
+    const { holidays } = holidayResponse;
+    return { startDate, endDate, holidays };
+  } catch (err) {
+    console.error("Error in startEndDates:", err);
+    // Fallback
+    return { startDate: new Date(), endDate: new Date(), holidays: [] };
+  }
 };
 
 const getShiftEnd = (shift: string, inDate: Date): Date => {

@@ -1,7 +1,9 @@
 import { Schema, model, models, Document, Types } from "mongoose";
 
 export interface ISalaryPayment extends Document {
-    salary: Types.ObjectId;
+    salary?: Types.ObjectId;
+    advance?: Types.ObjectId;
+    type: "salary" | "advance";
     employee: Types.ObjectId;
     company: Types.ObjectId;
     period: string;
@@ -31,6 +33,15 @@ const salaryPaymentSchema = new Schema<ISalaryPayment>(
         salary: {
             type: Schema.Types.ObjectId,
             ref: "Salary",
+        },
+        advance: {
+            type: Schema.Types.ObjectId,
+            ref: "SalaryAdvance",
+        },
+        type: {
+            type: String,
+            enum: ["salary", "advance"],
+            default: "salary",
             required: true,
         },
         employee: {
@@ -103,6 +114,7 @@ const salaryPaymentSchema = new Schema<ISalaryPayment>(
 
 // Indexes for performance
 salaryPaymentSchema.index({ salary: 1 });
+salaryPaymentSchema.index({ advance: 1 });
 salaryPaymentSchema.index({ employee: 1, period: -1 });
 salaryPaymentSchema.index({ company: 1, period: -1 });
 salaryPaymentSchema.index({ status: 1 });

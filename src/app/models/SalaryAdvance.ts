@@ -8,6 +8,8 @@ export interface ISalaryAdvance extends Document {
     amount: number;
     advanceDate: Date;
     reason?: string;
+    paymentMethod: "cash" | "bank_transfer" | "cheque";
+    referenceNo?: string;
 
     // Deduction Plan
     deductionStartPeriod: string;
@@ -48,6 +50,15 @@ const salaryAdvanceSchema = new Schema<ISalaryAdvance>(
             required: true,
         },
         reason: {
+            type: String,
+        },
+        paymentMethod: {
+            type: String,
+            enum: ["cash", "bank_transfer", "cheque"],
+            required: true,
+            default: "cash",
+        },
+        referenceNo: {
             type: String,
         },
         deductionStartPeriod: {

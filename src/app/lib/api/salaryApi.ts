@@ -32,7 +32,8 @@ export async function fetchSalaries(params: {
     if (data && data.data && data.pagination) {
         return {
             data: data.data,
-            pagination: data.pagination
+            pagination: data.pagination,
+            summary: data.summary
         };
     }
 
@@ -54,6 +55,7 @@ export async function generateSalaries(data: {
     inOut?: string | any[];
     existingSalaries?: any[];
     update?: boolean;
+    save?: boolean;
 }) {
     return apiFetch('/api/salaries/generate', {
         method: 'POST',

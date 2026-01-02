@@ -1,7 +1,9 @@
+import mongoose from "mongoose";
 import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
 import Salary from "@/app/models/Salary";
+import SalaryPayment from "@/app/models/SalaryPayment";
 import Attendance from "@/app/models/Attendance";
 import { PurchaseService } from "../purchases/service";
 import { AttendanceService } from "../attendance/service";
@@ -12,6 +14,7 @@ import {
     createPaginatedResponse,
     getTotalCount,
 } from "@/app/lib/pagination";
+
 import {
     salaryCreateSchema,
     salaryUpdateSchema,
@@ -26,8 +29,16 @@ import {
 } from "./generate/salaryGeneration";
 import { initialInOutProcess } from "./initialInOutProcess";
 import { calculatePeriodDates, calculateExpectedWorkingDays } from "./utils/periodCalculation";
+import SalaryAdvance from "@/app/models/SalaryAdvance";
 import { calculateDailyRate, calculateBaseSalaryForPeriod } from "./utils/rateCalculation";
-import { getActiveAdvances, applyAdvanceDeductions, calculateTotalAdvanceDeduction } from "./utils/advanceDeduction";
+import {
+    getActiveAdvances,
+    rollbackAdvanceDeductions,
+    applyAdvanceDeductions,
+    reconcileAdvances,
+    calculateTotalAdvanceDeduction
+} from "./utils/advanceDeduction";
+import { expandPeriodForSalaryType } from "./utils/periodExpansion";
 
 export class SalaryService {
     static async getSalary(salaryId: string, context: RequestContext) {
@@ -262,11 +273,59 @@ export class SalaryService {
             };
         });
 
+        // Fetch active advances for these employees to calculate total debt
+        const employeeIds = enrichedSalaries.map(s => (s as any).employee);
+        const activeAdvances = await SalaryAdvance.find({
+            employee: { $in: employeeIds },
+            status: "active",
+            remainingBalance: { $gt: 0 }
+        }).select("employee remainingBalance").lean();
+
+        // Create a map of employee -> total debt
+        const debtMap = new Map<string, number>();
+        activeAdvances.forEach((adv: any) => {
+            const empId = String(adv.employee);
+            const current = debtMap.get(empId) || 0;
+            debtMap.set(empId, current + (Number(adv.remainingBalance) || 0));
+        });
+
+        // Add totalAdvanceDebt to salaries
+        const finalSalaries = enrichedSalaries.map(s => ({
+            ...s,
+            totalAdvanceDebt: debtMap.get(String((s as any).employee)) || 0
+        }));
+
+        // Calculate Financial Summary (Totals for ALL matching records, not just page)
+        // Aggregation requires ObjectId casting for $match
+        const employeeObjectIds = employeeIdList.map(id => new mongoose.Types.ObjectId(String(id)));
+
+        const aggregationMatch = {
+            ...salaryFilter,
+            employee: { $in: employeeObjectIds }
+        };
+
+        const totalOutstandingStats = await Salary.aggregate([
+            { $match: aggregationMatch },
+            { $group: { _id: null, total: { $sum: "$outstandingBalance" } } }
+        ]);
+        const totalOutstanding = totalOutstandingStats[0]?.total || 0;
+
+        const totalAdvanceDebtStats = await SalaryAdvance.aggregate([
+            { $match: { employee: { $in: employeeObjectIds }, status: "active", remainingBalance: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: "$remainingBalance" } } }
+        ]);
+        const totalAdvanceDebt = totalAdvanceDebtStats[0]?.total || 0;
+
         return {
-            data: enrichedSalaries,
+            data: finalSalaries,
             page,
             limit,
-            total
+            total,
+            summary: {
+                totalOutstanding,
+                totalAdvanceDebt,
+                netPosition: totalOutstanding - totalAdvanceDebt
+            }
         };
     }
 
@@ -281,6 +340,13 @@ export class SalaryService {
         const salaryDocs = [];
 
         for (const salary of body.salaries) {
+            // Cleanup payload for saving
+            if (typeof salary.employee === 'object' && salary.employee?._id) {
+                salary.employee = salary.employee._id.toString();
+            }
+            if ('preview' in salary) delete salary.preview;
+            if ('_id' in salary) delete salary._id; // Remove generated preview ID to allow fresh insertion
+
             salary.basic = Number(salary.basic);
             salary.advanceAmount = Number(salary.advanceAmount);
             salary.finalSalary = Number(salary.finalSalary);
@@ -364,17 +430,45 @@ export class SalaryService {
                 (parsedSalary.noPay.amount || 0);
             parsedSalary.finalSalary = finalSalary;
 
+            // RECONCILE: Advance Amount vs Active Advances Detail
+            // When creating salaries, if advanceAmount (scalar) is less than total activeAdvances (detail),
+            // it means we are doing a partial deduction or manual override. We must adjust the details to match.
+            if (parsedSalary.activeAdvances && parsedSalary.activeAdvances.length > 0) {
+                const targetAmount = Number(parsedSalary.advanceAmount) || 0;
+                // Use centralized reconciliation logic
+                parsedSalary.activeAdvances = reconcileAdvances(
+                    parsedSalary.activeAdvances.map((a: any) => ({ ...a, deductionAmount: a.deductedAmount })),
+                    targetAmount
+                ).map(a => ({ ...a, deductedAmount: a.deductionAmount }));
+            }
+
+            // Set initial outstanding balance (Final Salary - Advances)
+            // finalSalary is Net Earnings (before Advance).
+            parsedSalary.outstandingBalance = finalSalary - (parsedSalary.advanceAmount || 0);
+
             // Add the parsed salary to the array
             salaryDocs.push(parsedSalary);
         }
 
         // Use insertMany to save all salary documents efficiently
+        let savedSalaries: any[] = [];
         if (salaryDocs.length > 0) {
-            await Salary.insertMany(salaryDocs);
+            savedSalaries = await Salary.insertMany(salaryDocs);
+
+            // Apply advance deductions for each saved salary
+            for (const salary of savedSalaries) {
+                if (salary.activeAdvances && salary.activeAdvances.length > 0) {
+                    const advancesForDeduction = salary.activeAdvances.map((a: any) => ({
+                        advanceId: a.advanceId,
+                        deductionAmount: a.deductedAmount
+                    }));
+                    await applyAdvanceDeductions(salary._id.toString(), advancesForDeduction);
+                }
+            }
         }
 
         return {
-            message: `${salaryDocs.length} Salary records created successfully`,
+            message: `${savedSalaries.length} Salary records created successfully`,
         };
     }
 
@@ -451,12 +545,67 @@ export class SalaryService {
             throw new ForbiddenError("Access denied.");
         }
 
-        const existingSalary = await Salary.findById(parsedBody.id);
+        const existingSalary: any = await Salary.findById(parsedBody.id).lean();
         if (!existingSalary) {
             throw new NotFoundError("Salary not found");
         }
 
-        const updatedSalaries = await Salary.findByIdAndUpdate(
+        // Recalculate outstanding balance based on new Final Salary and existing Total Paid AND Advances
+        const totalPaid = existingSalary.totalPaid || 0;
+        const advanceDed = parsedBody.advanceAmount || 0;
+        parsedBody.outstandingBalance = finalSalary - totalPaid - advanceDed;
+
+        // Rollback previous advance deductions before updating
+        if (existingSalary.activeAdvances && existingSalary.activeAdvances.length > 0) {
+            const advancesForRollback = existingSalary.activeAdvances.map((a: any) => ({
+                advanceId: a.advanceId,
+                deductionAmount: a.deductedAmount
+            }));
+            await rollbackAdvanceDeductions(existingSalary._id.toString(), advancesForRollback);
+        }
+
+        // Check if we need to fetch NEW advances (if none currently linked but amount > 0)
+        let baseAdvances = existingSalary.activeAdvances || [];
+        if (baseAdvances.length === 0 && Number(parsedBody.advanceAmount) > 0) {
+            console.log(`[SalaryService] No active advances linked, but advanceAmount > 0. Fetching potential advances.`);
+            try {
+                // Ensure correct types
+                const potentialAdvances = await getActiveAdvances(parsedBody.employee, parsedBody.period);
+                baseAdvances = potentialAdvances.map(p => ({
+                    advanceId: p.advanceId,
+                    deductedAmount: p.deductionAmount,
+                    _id: p._id
+                }));
+            } catch (e) {
+                console.error("[SalaryService] Failed to fetch active advances", e);
+            }
+        }
+
+        // RECONCILE: Check if the total 'advanceAmount' in body matches the sum of existing 'activeAdvances'
+        // If user edited 'advanceAmount' on frontend, we need to adjust the detailed 'activeAdvances'.
+        if (baseAdvances && baseAdvances.length > 0) {
+            const targetAdvanceAmount = Number(parsedBody.advanceAmount) || 0;
+
+            // Use centralized reconciliation logic (map to interface)
+            const mappedBase = baseAdvances.map((a: any) => ({
+                advanceId: a.advanceId,
+                // Handle diverse naming: deductedAmount (Salary Schema) vs deductionAmount (Utils)
+                deductionAmount: Number(a.deductedAmount || a.deductionAmount || 0),
+                _id: a._id
+            }));
+
+            const reconciled = reconcileAdvances(mappedBase, targetAdvanceAmount);
+
+            // Map back to Salary Schema structure
+            parsedBody.activeAdvances = reconciled.map(r => ({
+                advanceId: r.advanceId,
+                deductedAmount: r.deductionAmount,
+                _id: r._id
+            }));
+
+        }
+
+        const updatedSalary = await Salary.findByIdAndUpdate(
             parsedBody.id,
             parsedBody,
             {
@@ -465,13 +614,23 @@ export class SalaryService {
             }
         ).lean();
 
-        if (!updatedSalaries) {
+        if (!updatedSalary) {
             throw new Error("Failed to update salary");
+        }
+
+        // Apply new advance deductions
+        const salaryForDeduction = updatedSalary as any;
+        if (salaryForDeduction.activeAdvances && salaryForDeduction.activeAdvances.length > 0) {
+            const advancesForDeduction = salaryForDeduction.activeAdvances.map((a: any) => ({
+                advanceId: a.advanceId,
+                deductionAmount: a.deductedAmount
+            }));
+            await applyAdvanceDeductions(salaryForDeduction._id.toString(), advancesForDeduction);
         }
 
         return {
             message: "Salary updated successfully",
-            salaries: updatedSalaries,
+            salaries: updatedSalary,
         };
     }
 
@@ -532,8 +691,25 @@ export class SalaryService {
 
         //if admin
         if (context.user?.role === "admin") {
+            // Fetch salaries to be deleted to rollback advances
+            const salariesToDelete = await Salary.find({ _id: { $in: salaryIds } });
+
+            // Rollback advance deductions
+            for (const salary of salariesToDelete) {
+                if (salary.activeAdvances && salary.activeAdvances.length > 0) {
+                    const advancesForRollback = salary.activeAdvances.map((a: any) => ({
+                        advanceId: a.advanceId,
+                        deductionAmount: a.deductedAmount
+                    }));
+                    await rollbackAdvanceDeductions(salary._id.toString(), advancesForRollback);
+                }
+            }
+
             // Delete all salaries in one operation
             const deleteResult = await Salary.deleteMany({ _id: { $in: salaryIds } });
+
+            // Delete related payments
+            await SalaryPayment.deleteMany({ salary: { $in: salaryIds } });
 
             if (deleteResult.deletedCount === 0) {
                 throw new NotFoundError("No salaries were deleted");
@@ -550,12 +726,49 @@ export class SalaryService {
                     (company) => String(company._id) === String(employee.company)
                 )
             );
+
+            // Delete strictly
+
+
+            // First fetching to rollback advances
+            const salariesToDelete = await Salary.find({
+                _id: { $in: salaryIds },
+                employee: {
+                    $nin: employeesAidedOrVisit.map((employee) => employee._id),
+                },
+            });
+
+            // Rollback advance deductions
+            for (const salary of salariesToDelete) {
+                if (salary.activeAdvances && salary.activeAdvances.length > 0) {
+                    const advancesForRollback = salary.activeAdvances.map((a: any) => ({
+                        advanceId: a.advanceId,
+                        deductionAmount: a.deductedAmount
+                    }));
+                    await rollbackAdvanceDeductions(salary._id.toString(), advancesForRollback);
+                }
+            }
+
             await Salary.deleteMany({
                 _id: { $in: salaryIds },
                 employee: {
                     $nin: employeesAidedOrVisit.map((employee) => employee._id),
                 },
             });
+
+            // Delete related payments (only for those permitted)
+            // But we need to know exactly which IDs were deleted?
+            // Actually salaryIds filtered by permitted employees.
+            // Let's use the same filter for payments payment.salary IN salaryIds AND salary.employee NOT IN protected.
+            // Simplest: use the same salaryIds but filtering happens via the salary deletion?
+            // If we delete salaries first, we can just delete payments where salary IN salaryIds?
+            // But some salaryIds might NOT have been deleted due to protection.
+            // We should use salariesToDelete IDs.
+            const deletedSalaryIds = salariesToDelete.map(s => s._id);
+            if (deletedSalaryIds.length > 0) {
+                await SalaryPayment.deleteMany({ salary: { $in: deletedSalaryIds } });
+            }
+
             if (employeesAidedOrVisit.length > 0) {
                 throw new ForbiddenError(`You are not allowed to delete Salaries for employees in ${companiesAidedOrVisit
                     .map((company) => company.name)
@@ -570,7 +783,21 @@ export class SalaryService {
         await dbConnect();
 
         const parsedBody = salaryGenerateSchema.parse(body);
-        let { employees: employeeIds, companyId, period, inOut, update, existingSalaries } = parsedBody;
+        let { employees: employeeIds, companyId, period, inOut, update, existingSalaries, save } = parsedBody;
+
+        // Default save to true if not specified to maintain backward compatibility (or user preference?)
+        // User requested: "saved only when i save" -> default to false for new requests if we want strict adherence
+        // But schema says optional. Let's assume frontend will send save=true/false.
+        // If save is undefined, we can default to false as per user request "saved only when i save"
+        // However, existing calls might expect saving. Let's make it explicit from frontend for save=true.
+        // For now, let's treat undefined as true to avoid breaking existing flows, but frontend will send false for preview.
+        // Actually, user said "saved only when i save", so default logic should probably be: if save is explicit true.
+        // But to be safe with existing calls, let's stick to Schema parsing.
+        // Let's use `save ?? true` for existing behavior or `save || false` for new.
+        // Given the request, I will respect the flag. existing calls are not many.
+
+        // Actually, let's default to true for backward compatibility unless specified.
+        const shouldSave = save !== false;
 
         let filter: { user?: string; _id?: string } = {
             user: context.user?.id,
@@ -699,23 +926,60 @@ export class SalaryService {
             }
         }
 
+        // === FLEXIBLE PERIOD EXPANSION ===
+        // Expand periods based on each employee's salary period type
+        const salaryGenerationTasks: Array<{
+            employee: any;
+            period: string;
+            index: number;
+        }> = [];
+
+        for (let index = 0; index < employees.length; index++) {
+            const employee = employees[index];
+            const salaryPeriod = employee.salaryPeriod || company.salaryPeriodDefaults?.salaryPeriod || "monthly";
+
+            // Expand the input period based on this employee's salary type
+            const expandedPeriods = expandPeriodForSalaryType(
+                period,
+                salaryPeriod as 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'custom'
+            );
+
+            console.log(`[SalaryService] Employee: ${employee.name}, Salary Period: ${salaryPeriod}, Expanded ${period} to ${expandedPeriods.length} periods`);
+
+            // Create a generation task for each expanded period
+            for (const expandedPeriod of expandedPeriods) {
+                salaryGenerationTasks.push({
+                    employee,
+                    period: expandedPeriod,
+                    index
+                });
+            }
+        }
+
+        console.log(`[SalaryService] Total salary generation tasks: ${salaryGenerationTasks.length}`);
+
+        // Fetch existing salaries for all expanded periods
+        const allExpandedPeriods = [...new Set(salaryGenerationTasks.map(t => t.period))];
         const empIds = employees.map((e: { _id: any }) => e._id);
         const existingSalariesFromDB = await Salary.find({
             employee: { $in: empIds },
-            period: period,
+            period: { $in: allExpandedPeriods },
         });
+        // Create composite key map: employeeId_period -> salary
         const existingSalariesMap = new Map(
-            existingSalariesFromDB.map((s: { employee: { toString: () => any } }) => [
-                s.employee.toString(),
+            existingSalariesFromDB.map((s: any) => [
+                `${s.employee.toString()}_${s.period}`,
                 s,
             ])
         );
 
-        const salaryPromises = employees.map(
-            async (
-                employee: any,
-                index: any
-            ) => {
+        console.log(`[SalaryService] Found ${existingSalariesFromDB.length} existing salaries across ${allExpandedPeriods.length} periods`);
+
+        // Generate salaries for each task (employee + period combination)
+        const salaryPromises = salaryGenerationTasks.map(
+            async (task) => {
+                const { employee, period: taskPeriod, index } = task;
+
                 employee.index = index;
                 if (openHours) {
                     employee.openHours = openHours;
@@ -744,38 +1008,99 @@ export class SalaryService {
                 // Add company data to employee object for use in getWorkingDayStatus
                 employee.company = company;
 
-                const existingSalary = existingSalariesMap.get(employee._id.toString());
+                // Check for existing salary using composite key (employeeId_period)
+                const existingSalaryKey = `${employee._id.toString()}_${taskPeriod}`;
+                const existingSalary = existingSalariesMap.get(existingSalaryKey);
 
                 if (existingSalary && !update) {
-                    return { exists: employee._id, salary: null };
+                    return { exists: employee._id, salary: null, period: taskPeriod };
                 }
 
-                const employeeInOut = update
+                let employeeInOut = update
                     ? (inOutInitial as ProcessedInOut)
                     : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
 
+                // Filter inOut data to match the taskPeriod
+                if (employeeInOut) {
+                    // Calculate period dates for the task
+                    // We can reuse calculatePeriodDates from utils but we need to import it or implement simple check
+                    // Let's implement simple check leveraging the period string format
+                    let periodStart: Date, periodEnd: Date;
+
+                    if (taskPeriod.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        // Daily
+                        periodStart = new Date(taskPeriod); // UTC Midnight
+                        periodEnd = new Date(taskPeriod);
+                        periodEnd.setUTCHours(23, 59, 59, 999); // UTC End of Day
+                    } else if (taskPeriod.match(/^\d{4}-\d{2}$/)) {
+                        // Monthly
+                        periodStart = new Date(taskPeriod + "-01");
+                        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+                        periodEnd.setUTCHours(23, 59, 59, 999);
+                    } else if (taskPeriod.includes(" to ")) {
+                        // Range
+                        const [start, end] = taskPeriod.split(" to ");
+                        periodStart = new Date(start);
+                        periodEnd = new Date(end);
+                        periodEnd.setUTCHours(23, 59, 59, 999);
+                    } else {
+                        // Fallback to full range
+                        periodStart = new Date(0);
+                        periodEnd = new Date(8640000000000000);
+                    }
+
+                    if (Array.isArray(employeeInOut) && employeeInOut.length > 0) {
+                        const originalCount = employeeInOut.length;
+                        const sample = employeeInOut[0];
+                        const isDate = sample instanceof Date;
+                        const isString = typeof sample === 'string';
+
+                        if (isDate || isString) {
+                            // RawInOut (Date[] or String[])
+                            employeeInOut = (employeeInOut as any[])
+                                .map(d => (d instanceof Date ? d : new Date(d)))
+                                .filter(d => {
+                                    if (isNaN(d.getTime())) return false;
+                                    return d >= periodStart && d <= periodEnd;
+                                }) as RawInOut;
+                        } else if (typeof sample === 'object' && 'in' in sample) {
+                            // ProcessedInOut
+                            employeeInOut = (employeeInOut as ProcessedInOut).filter(io => {
+                                const inDate = new Date(io.in);
+                                if (isNaN(inDate.getTime())) return false;
+                                return inDate >= periodStart && inDate <= periodEnd;
+                            });
+                        }
+                        console.log(`[SalaryService] Filtered inOut for ${employee.name} (${taskPeriod}): ${originalCount} -> ${employeeInOut.length}`);
+                    }
+                }
+
+
                 if (!update) {
-                    // Generate new salary with enhanced logic
+                    // Generate new salary with enhanced logic for this specific period
                     const generatedSalary = await this.generateEnhancedSalary(
                         employee,
-                        period,
+                        taskPeriod, // Use the task-specific period
                         employeeInOut as RawInOut,
-                        company
+                        company,
+                        undefined, // existingSalary
+                        shouldSave // Pass save flag
                     );
-                    return { salary: generatedSalary, exists: null };
+                    return { salary: generatedSalary, exists: null, period: taskPeriod };
                 } else {
                     const existingSalaryForUpdate = existingSalaries?.find(
-                        (s: { employee: any }) =>
-                            s.employee.toString() === employee._id.toString()
+                        (s: { employee: any; period: string }) =>
+                            s.employee.toString() === employee._id.toString() && s.period === taskPeriod
                     );
                     const generatedSalary = await this.generateEnhancedSalary(
                         employee,
-                        period,
+                        taskPeriod, // Use the task-specific period
                         employeeInOut as ProcessedInOut,
                         company,
-                        existingSalaryForUpdate
+                        existingSalaryForUpdate,
+                        shouldSave // Pass save flag
                     );
-                    return { salary: generatedSalary, exists: null };
+                    return { salary: generatedSalary, exists: null, period: taskPeriod };
                 }
             }
         );
@@ -799,7 +1124,8 @@ export class SalaryService {
         period: string,
         employeeInOut: RawInOut | ProcessedInOut,
         company: any,
-        existingSalary?: any
+        existingSalary?: any,
+        shouldSave: boolean = true
     ) {
         // Calculate period dates based on employee's salary period configuration
         const { startDate, endDate, periodDays } = calculatePeriodDates(employee, period, company);
@@ -874,6 +1200,16 @@ export class SalaryService {
             })),
             paymentStatus: "unpaid" as const,
         };
+
+        if (!shouldSave) {
+            // Return preview data without saving
+            // Add a temporary ID for frontend key purposes
+            return {
+                ...enhancedSalaryData,
+                _id: existingSalary?._id || new mongoose.Types.ObjectId().toString(),
+                preview: true // Flag to indicate this is a preview
+            };
+        }
 
         // Save or update salary
         let savedSalary;

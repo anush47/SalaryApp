@@ -13,6 +13,12 @@ import {
   FormControl,
   Autocomplete,
   Stack,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormLabel,
+  Paper,
+  Divider,
 } from "@mui/material";
 import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
@@ -24,6 +30,8 @@ import GenerateSalaryOne from "./generateSalaryOne";
 import Link from "next/link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { useSnackbar } from "@/app/context/SnackbarContext";
+import { fetchEmployee } from "@/app/lib/api/employeeApi";
+import { fetchCompany } from "@/app/lib/api/companyApi";
 import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
 
@@ -68,7 +76,6 @@ const AddSalaryForm: React.FC<{
     netSalary: "",
   });
 
-  //salary interface
   const [loading, setLoading] = useState<boolean>(false);
   const [employees, setEmployees] = useState<
     {
@@ -82,12 +89,35 @@ const AddSalaryForm: React.FC<{
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
   );
+
+  // Flexible period selection state
+  const [periodSelectionMode, setPeriodSelectionMode] = useState<"month" | "specific">("month");
+  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
+  const [selectedEmployeeSalaryPeriod, setSelectedEmployeeSalaryPeriod] = useState<string>("monthly");
+
   const { showSnackbar } = useSnackbar();
   const [errors, setErrors] = useState<{
     employee?: string;
     basic?: string;
   }>({});
   const [purchased, setPurchased] = useState<boolean>(true);
+
+  // Helper function to format period based on selection
+  const getFormattedPeriod = (): string => {
+    if (periodSelectionMode === "month" || selectedEmployeeSalaryPeriod === "monthly" || employeeSelection === "all") {
+      return period; // Return YYYY-MM format
+    }
+
+    // For specific period selection
+    if (selectedEmployeeSalaryPeriod === "daily" && startDate && endDate) {
+      // Return date range format: "YYYY-MM-DD to YYYY-MM-DD"
+      return `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
+    }
+
+    // Fallback to month
+    return period;
+  };
 
   const fetchEmployees = async (): Promise<
     {
@@ -213,7 +243,7 @@ const AddSalaryForm: React.FC<{
                       ? `${option.name}`
                       : `${option.memberNo} - ${option.name} - ${option.nic}`
                   }
-                  onChange={(_, newValue) => {
+                  onChange={async (_, newValue) => {
                     if (newValue) {
                       setFormFields((prevFields) => ({
                         ...prevFields,
@@ -221,6 +251,29 @@ const AddSalaryForm: React.FC<{
                         employeeName: newValue.name,
                       }));
                       setEmployeeSelection(newValue._id);
+
+                      // Fetch employee details using API utility
+                      if (newValue._id !== "all") {
+                        try {
+                          const employee = await fetchEmployee(newValue._id);
+                          let salaryPeriod = employee?.salaryPeriod;
+
+                          // If employee doesn't have salary period, check company defaults
+                          if (!salaryPeriod) {
+                            const company = await fetchCompany(companyId);
+                            salaryPeriod = company?.salaryPeriodDefaults?.salaryPeriod || "monthly";
+                            console.log(`Employee has no salary period, using company default: ${salaryPeriod}`);
+                          }
+
+                          setSelectedEmployeeSalaryPeriod(salaryPeriod);
+                          console.log(`🎯 Selected employee salary period: ${salaryPeriod}`);
+                        } catch (error) {
+                          console.error("Failed to fetch employee details:", error);
+                          setSelectedEmployeeSalaryPeriod("monthly");
+                        }
+                      } else {
+                        setSelectedEmployeeSalaryPeriod("monthly");
+                      }
                     }
                   }}
                   value={
@@ -232,7 +285,7 @@ const AddSalaryForm: React.FC<{
                     <TextField
                       {...params}
                       label="Employee"
-                      variant="outlined" // Changed to outlined for consistency
+                      variant="outlined"
                       fullWidth
                     />
                   )}
@@ -241,6 +294,89 @@ const AddSalaryForm: React.FC<{
                   }
                 />
               </FormControl>
+
+              {/* Period Selection Mode - Only show for non-monthly employees */}
+              {selectedEmployeeSalaryPeriod !== "monthly" && employeeSelection !== "all" && (
+                <Paper elevation={1} sx={{ p: 2 }}>
+                  <FormControl component="fieldset" fullWidth>
+                    <FormLabel component="legend" sx={{ mb: 1 }}>
+                      Period Selection
+                    </FormLabel>
+                    <RadioGroup
+                      value={periodSelectionMode}
+                      onChange={(e) => {
+                        setPeriodSelectionMode(e.target.value as "month" | "specific");
+                        // Reset date selection when switching modes
+                        if (e.target.value === "month") {
+                          setStartDate(null);
+                          setEndDate(null);
+                        }
+                      }}
+                    >
+                      <FormControlLabel
+                        value="month"
+                        control={<Radio />}
+                        label={`Entire month (generates ${selectedEmployeeSalaryPeriod === "daily"
+                          ? "~30 daily salaries"
+                          : selectedEmployeeSalaryPeriod === "weekly"
+                            ? "~4 weekly salaries"
+                            : selectedEmployeeSalaryPeriod === "bi-weekly"
+                              ? "~2 bi-weekly salaries"
+                              : "monthly salary"
+                          })`}
+                      />
+                      <FormControlLabel
+                        value="specific"
+                        control={<Radio />}
+                        label="Specific periods"
+                      />
+                    </RadioGroup>
+                  </FormControl>
+
+                  {/* Specific Period Selection for Daily employees */}
+                  {selectedEmployeeSalaryPeriod === "daily" && periodSelectionMode === "specific" && (
+                    <Box sx={{ mt: 2 }}>
+                      <Divider sx={{ mb: 2 }} />
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Select date range for daily salary generation
+                      </Typography>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
+                          <DatePicker
+                            label="Start Date"
+                            value={startDate}
+                            onChange={(newValue) => setStartDate(newValue)}
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                variant: "outlined",
+                              },
+                            }}
+                          />
+                          <DatePicker
+                            label="End Date"
+                            value={endDate}
+                            onChange={(newValue) => setEndDate(newValue)}
+                            minDate={startDate || undefined}
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                variant: "outlined",
+                              },
+                            }}
+                          />
+                        </LocalizationProvider>
+                      </Stack>
+                      {startDate && endDate && (
+                        <Typography variant="caption" color="primary" sx={{ mt: 1, display: "block" }}>
+                          Will generate {endDate.diff(startDate, "day") + 1} daily salary records
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+                </Paper>
+              )}
+
               <FormControl fullWidth>
                 <Box display={"flex"} alignItems="center" gap={2}>
                   <LocalizationProvider
@@ -255,7 +391,6 @@ const AddSalaryForm: React.FC<{
                         setPeriod(dayjs(newValue).format("YYYY-MM"));
                       }}
                       slotProps={{
-                        // Added slotProps for consistency
                         textField: {
                           fullWidth: true,
                           variant: "outlined",
@@ -264,9 +399,8 @@ const AddSalaryForm: React.FC<{
                               <>
                                 {!purchased && (
                                   <Link
-                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${
-                                      period.split("-")[1]
-                                    }-${period.split("-")[0]}`}
+                                    href={`/user/mycompanies/${companyId}?companyPageSelect=purchases&newPurchase=true&periods=${period.split("-")[1]
+                                      }-${period.split("-")[0]}`}
                                   >
                                     <Button
                                       variant="contained"
@@ -296,14 +430,14 @@ const AddSalaryForm: React.FC<{
             {employeeSelection === "all" ? (
               <GenerateSalaryAll
                 companyId={companyId}
-                period={period}
+                period={getFormattedPeriod()}
                 user={user}
               />
             ) : (
               <GenerateSalaryOne
                 companyId={companyId}
                 employeeId={employeeSelection}
-                period={period}
+                period={getFormattedPeriod()}
                 user={user}
               />
             )}

@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
         const salary = await SalaryService.getSalary(salaryId, context);
         return ApiResponseUtils.sendSuccess({ salary }, "Salary retrieved successfully");
       } else {
-        const { data, page, limit, total } = await SalaryService.getSalaries(req, context);
-        const response = { salaries: data, page, limit, total };
+        const { data, page, limit, total, summary } = await SalaryService.getSalaries(req, context);
+        const response = { salaries: data, page, limit, total, summary };
         return NextResponse.json({
           success: true,
           message: "Salaries retrieved successfully",

@@ -47,6 +47,8 @@ export const AdvanceDialog: React.FC<AdvanceDialogProps> = ({
     );
     const [date, setDate] = useState<Dayjs | null>(dayjs());
     const [amount, setAmount] = useState<string>("");
+    const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank_transfer" | "cheque">("cash");
+    const [referenceNo, setReferenceNo] = useState<string>("");
     const [reason, setReason] = useState<string>("");
 
     // Deduction Plan
@@ -65,6 +67,8 @@ export const AdvanceDialog: React.FC<AdvanceDialogProps> = ({
             else setEmployee(null);
             setDate(dayjs());
             setAmount("");
+            setPaymentMethod("cash");
+            setReferenceNo("");
             setReason("");
             setStartPeriod(dayjs().add(1, 'month'));
             setMonths(1);
@@ -92,7 +96,7 @@ export const AdvanceDialog: React.FC<AdvanceDialogProps> = ({
     const loadEmployees = async () => {
         setSearchLoading(true);
         try {
-            const res = await fetchEmployees(companyId, 1, 100); // Fetch first 100 for now
+            const res = await fetchEmployees({ companyId, page: 1, limit: 100 }); // Fetch first 100 for now
             if (res && res.employees) {
                 setEmployeeOptions(
                     res.employees.map((e: any) => ({ id: e._id, name: e.name }))
@@ -128,10 +132,12 @@ export const AdvanceDialog: React.FC<AdvanceDialogProps> = ({
 
         try {
             const advanceData = {
-                employee: employee.id,
+                employeeId: employee.id,
                 company: companyId,
                 amount: parseFloat(amount),
                 advanceDate: date.toDate(),
+                paymentMethod,
+                referenceNo,
                 reason: reason,
                 deductionStartPeriod: startPeriod.format("YYYY-MM"),
                 deductionMonths: months,
@@ -206,6 +212,32 @@ export const AdvanceDialog: React.FC<AdvanceDialogProps> = ({
                             />
                         </LocalizationProvider>
                     </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                            <InputLabel>Payment Method</InputLabel>
+                            <Select
+                                value={paymentMethod}
+                                label="Payment Method"
+                                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                            >
+                                <MenuItem value="cash">Cash</MenuItem>
+                                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                                <MenuItem value="cheque">Cheque</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    {(paymentMethod === "bank_transfer" || paymentMethod === "cheque") && (
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Reference / Cheque No"
+                                fullWidth
+                                value={referenceNo}
+                                onChange={(e) => setReferenceNo(e.target.value)}
+                            />
+                        </Grid>
+                    )}
 
                     <Grid item xs={12}>
                         <TextField

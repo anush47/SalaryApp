@@ -220,7 +220,10 @@ export const SalaryAdvances: React.FC<{
                 open={advanceDialogOpen}
                 onClose={(success) => {
                     setAdvanceDialogOpen(false);
-                    if (success) queryClient.invalidateQueries({ queryKey: ["salary-advances"] });
+                    if (success) {
+                        queryClient.invalidateQueries({ queryKey: ["salary-advances"] });
+                        queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+                    }
                 }}
                 companyId={companyId}
             />

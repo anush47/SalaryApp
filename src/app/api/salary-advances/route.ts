@@ -41,11 +41,29 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
     return ApiMiddleware.authenticated(req, async (req, context) => {
         try {
+            let advanceIds: string[] = [];
+
+            // Check for query param (single)
             const advanceId = req.nextUrl.searchParams.get("advanceId");
-            if (!advanceId) {
-                return ApiResponseUtils.sendBadRequest("Advance ID is required");
+            if (advanceId) {
+                advanceIds = [advanceId];
+            } else {
+                // Check body for bulk (optional)
+                try {
+                    const body = await req.json();
+                    if (body.advanceIds && Array.isArray(body.advanceIds)) {
+                        advanceIds = body.advanceIds;
+                    }
+                } catch (e) {
+                    // Body might be empty
+                }
             }
-            const result = await SalaryAdvanceService.deleteAdvance(advanceId, context);
+
+            if (advanceIds.length === 0) {
+                return ApiResponseUtils.sendBadRequest("Advance ID(s) is required");
+            }
+
+            const result = await SalaryAdvanceService.deleteAdvances(advanceIds, context);
             return ApiResponseUtils.sendSuccess(result, result.message);
         } catch (error) {
             throw error;

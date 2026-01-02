@@ -135,11 +135,10 @@ export function calculateProgressiveTax(
       totalTax += taxForThisSlab;
 
       taxBreakdown.push({
-        slab: `Rs. ${slab.min.toLocaleString()} - ${
-          slab.max === Infinity
+        slab: `Rs. ${slab.min.toLocaleString()} - ${slab.max === Infinity
             ? "Above"
             : `Rs. ${slab.max.toLocaleString()}`
-        }`,
+          }`,
         rate: slab.rate,
         taxableAmount: taxableInThisSlab,
         taxAmount: taxForThisSlab,
@@ -187,7 +186,31 @@ export async function calculateTax(
   period?: string
 ): Promise<TaxCalculationResult> {
   // Get tax configuration
-  const periodDate = period ? new Date(period + "-01") : new Date();
+  let periodDate = new Date();
+
+  if (period) {
+    if (period.match(/^\d{4}-\d{2}$/)) {
+      // Monthly format (YYYY-MM) -> Append -01
+      periodDate = new Date(period + "-01");
+    } else if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // Daily format (YYYY-MM-DD) -> Use as is
+      periodDate = new Date(period);
+    } else {
+      // Other formats (e.g. ranges) -> extracting start date or defaulting to now
+      // Try to extract the first date if it's a range
+      const match = period.match(/(\d{4}-\d{2}-\d{2})/);
+      if (match) {
+        periodDate = new Date(match[1]);
+      }
+    }
+  }
+
+  // Validate date
+  if (isNaN(periodDate.getTime())) {
+    console.warn(`[TaxCalculation] Invalid period format: ${period}, defaulting to current date`);
+    periodDate = new Date();
+  }
+
   const taxConfig = await getTaxConfiguration(periodDate, companyId);
 
   // Calculate gross salary (components that contribute to taxable income)

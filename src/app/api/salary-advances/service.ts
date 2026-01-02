@@ -6,6 +6,7 @@ import Salary from "@/app/models/Salary";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import { z } from "zod";
+import SalaryPayment from "@/app/models/SalaryPayment";
 
 // Validation schemas
 export const salaryAdvanceCreateSchema = z.object({
@@ -16,6 +17,8 @@ export const salaryAdvanceCreateSchema = z.object({
     deductionStartPeriod: z.string().min(1, "Deduction start period is required"),
     deductionMonths: z.number().int().positive("Deduction months must be positive"),
     note: z.string().optional(),
+    paymentMethod: z.enum(["cash", "bank_transfer", "cheque"]).default("cash"),
+    referenceNo: z.string().optional(),
 });
 
 export const salaryAdvanceUpdateSchema = z.object({
@@ -65,6 +68,8 @@ export class SalaryAdvanceService {
             amount: parsedBody.amount,
             advanceDate: new Date(parsedBody.advanceDate),
             reason: parsedBody.reason,
+            paymentMethod: parsedBody.paymentMethod,
+            referenceNo: parsedBody.referenceNo,
             deductionStartPeriod: parsedBody.deductionStartPeriod,
             deductionMonths: parsedBody.deductionMonths,
             monthlyDeduction,
@@ -74,6 +79,26 @@ export class SalaryAdvanceService {
             relatedPayments: [],
             createdBy: context.user?.id,
             note: parsedBody.note,
+        });
+
+        // Create a corresponding Payment record
+        await SalaryPayment.create({
+            employee: parsedBody.employeeId,
+            company: employee.company,
+            period: parsedBody.deductionStartPeriod, // Or advanceDate month? User wants to see it as payment. Use advanceDate month usually.
+            // But salaryPayment requires period string. Let's use deductionStartPeriod or format advanceDate.
+            // Best to use deductionStartPeriod to show when it starts affecting? 
+            // OR the month of payment. Usually advanceDate.
+            // Let's use format YYYY-MM from advanceDate
+            salaryPeriod: "monthly", // Default
+            paymentDate: new Date(parsedBody.advanceDate),
+            amount: parsedBody.amount,
+            paymentMethod: parsedBody.paymentMethod,
+            referenceNo: parsedBody.referenceNo,
+            madeBy: context.user?.id,
+            status: "acknowledged", // Advances are paid immediately?
+            type: "advance",
+            advance: advance._id,
         });
 
         return {
@@ -134,38 +159,54 @@ export class SalaryAdvanceService {
         };
     }
 
-    static async deleteAdvance(advanceId: string, context: RequestContext) {
+    static async deleteAdvances(advanceIds: string[], context: RequestContext) {
         await dbConnect();
 
-        const advance = await SalaryAdvance.findById(advanceId);
-        if (!advance) {
-            throw new NotFoundError("Advance not found");
+        if (!Array.isArray(advanceIds) || advanceIds.length === 0) {
+            throw new BadRequestError("Advance IDs array is required");
+        }
+
+        const advances = await SalaryAdvance.find({ _id: { $in: advanceIds } });
+        if (advances.length === 0) {
+            throw new NotFoundError("No advances found");
         }
 
         // Verify company access
-        const filter: { user?: string; _id: any } = {
-            user: context.user?.id,
-            _id: advance.company,
-        };
-        if (context.user?.role === "admin") {
-            delete filter.user;
+        const companyIds = [...new Set(advances.map(a => a.company.toString()))];
+
+        for (const companyId of companyIds) {
+            const filter: { user?: string; _id: any } = {
+                user: context.user?.id,
+                _id: companyId,
+            };
+            if (context.user?.role === "admin") {
+                delete filter.user;
+            }
+
+            const company = await Company.findOne(filter);
+            if (!company) {
+                throw new ForbiddenError(`Access denied to company ${companyId}`);
+            }
         }
 
-        const company = await Company.findOne(filter);
-        if (!company) {
-            throw new ForbiddenError("Access denied.");
-        }
-
-        // Check if advance has been partially deducted
-        if (advance.totalDeducted > 0) {
+        // Check if any advance has been partially deducted
+        const usedAdvances = advances.filter(a => a.totalDeducted > 0);
+        if (usedAdvances.length > 0) {
             throw new BadRequestError(
-                "Cannot delete advance that has already been partially deducted. Consider marking it as written off instead."
+                `Cannot delete ${usedAdvances.length} advance(s) that have already been partially deducted. Consider marking them as written off.`
             );
         }
 
-        await SalaryAdvance.findByIdAndDelete(advanceId);
+        await SalaryAdvance.deleteMany({ _id: { $in: advanceIds } });
 
-        return { message: "Advance deleted successfully" };
+        // Also delete related payments
+        await SalaryPayment.deleteMany({ advance: { $in: advanceIds }, type: "advance" });
+
+        return { message: `${advances.length} Advance(s) deleted successfully` };
+    }
+
+    static async deleteAdvance(advanceId: string, context: RequestContext) {
+        return this.deleteAdvances([advanceId], context);
     }
 
     static async getAdvances(req: any, context: RequestContext) {

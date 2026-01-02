@@ -134,7 +134,9 @@ export class SalaryPaymentService {
         await payment.save();
 
         // Update salary totals
-        await this.updateSalaryTotals(payment.salary.toString());
+        if (payment.salary) {
+            await this.updateSalaryTotals(payment.salary.toString());
+        }
 
         return {
             message: "Payment updated successfully",
@@ -142,36 +144,48 @@ export class SalaryPaymentService {
         };
     }
 
-    static async deletePayment(paymentId: string, context: RequestContext) {
+    static async deletePayments(paymentIds: string[], context: RequestContext) {
         await dbConnect();
 
-        const payment = await SalaryPayment.findById(paymentId);
-        if (!payment) {
-            throw new NotFoundError("Payment not found");
+        if (!Array.isArray(paymentIds) || paymentIds.length === 0) {
+            throw new BadRequestError("Payment IDs array is required");
+        }
+
+        const payments = await SalaryPayment.find({ _id: { $in: paymentIds } });
+        if (payments.length === 0) {
+            throw new NotFoundError("No payments found");
         }
 
         // Verify company access
-        const filter: { user?: string; _id: any } = {
-            user: context.user?.id,
-            _id: payment.company,
-        };
-        if (context.user?.role === "admin") {
-            delete filter.user;
+        const companyIds = [...new Set(payments.map(p => p.company.toString()))];
+        for (const companyId of companyIds) {
+            const filter: { user?: string; _id: any } = {
+                user: context.user?.id,
+                _id: companyId,
+            };
+            if (context.user?.role === "admin") {
+                delete filter.user;
+            }
+
+            const company = await Company.findOne(filter);
+            if (!company) {
+                throw new ForbiddenError(`Access denied to company ${companyId}`);
+            }
         }
 
-        const company = await Company.findOne(filter);
-        if (!company) {
-            throw new ForbiddenError("Access denied.");
-        }
+        // Get salary IDs to update totals later
+        const salaryIds = [...new Set(payments.filter(p => p.salary).map(p => p.salary.toString()))];
 
-        const salaryId = payment.salary.toString();
+        await SalaryPayment.deleteMany({ _id: { $in: paymentIds } });
 
-        await SalaryPayment.findByIdAndDelete(paymentId);
+        // Update salary totals for all affected salaries
+        await Promise.all(salaryIds.map(id => this.updateSalaryTotals(id)));
 
-        // Update salary totals
-        await this.updateSalaryTotals(salaryId);
+        return { message: `${payments.length} Payment(s) deleted successfully` };
+    }
 
-        return { message: "Payment deleted successfully" };
+    static async deletePayment(paymentId: string, context: RequestContext) {
+        return this.deletePayments([paymentId], context);
     }
 
     static async acknowledgePayment(body: any, context: RequestContext) {
@@ -272,6 +286,7 @@ export class SalaryPaymentService {
             salary.totalPaid = totalPaid;
 
             // Calculate outstanding balance
+            // finalSalary is Pre-Advance. So we subtract Advances and Paid.
             const advancesDeducted = salary.activeAdvances?.reduce(
                 (sum, adv) => sum + adv.deductedAmount,
                 0

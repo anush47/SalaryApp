@@ -188,6 +188,11 @@ export interface PaginatedResponse<T = any> {
     hasNextPage: boolean;
     hasPrevPage: boolean;
   };
+  summary?: {
+    totalOutstanding: number;
+    totalAdvanceDebt: number;
+    netPosition: number;
+  };
 }
 
 // API Response types

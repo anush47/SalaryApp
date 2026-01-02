@@ -42,11 +42,13 @@ const GenerateSalaryAll = ({
   const [openDialog, setOpenDialog] = useState(false);
 
   const fetchEmployeesData = async (companyId: string): Promise<Employee[]> => {
-    const employees = await fetchEmployees({ companyId });
-    return employees.map((employee: any) => ({
+    const response: any = await fetchEmployees({ companyId });
+    const employeesData = Array.isArray(response) ? response : (response.employees || response.data || []);
+    return employeesData.map((employee: any) => ({
       ...employee,
       id: employee._id,
-      include: employee.active,
+      active: employee.active !== false,
+      include: employee.active !== false,
     }));
   };
 
@@ -65,7 +67,7 @@ const GenerateSalaryAll = ({
   useEffect(() => {
     if (employees) {
       const activeEmployeeIds = employees
-        .filter((employee: any) => employee.active)
+        .filter((employee: any) => employee.active !== false)
         .map((employee: any) => employee.id);
       setEmployeeIds(activeEmployeeIds);
     }
@@ -102,6 +104,7 @@ const GenerateSalaryAll = ({
         ...(user.role === "admin" ? [companyId] : []),
       ];
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["salary-advances"] });
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       setErrors({});
@@ -175,6 +178,7 @@ const GenerateSalaryAll = ({
         employees: employeeIds,
         period,
         inOut,
+        save: false, // Preview only
       });
       if (
         (!data.salaries[0] ||

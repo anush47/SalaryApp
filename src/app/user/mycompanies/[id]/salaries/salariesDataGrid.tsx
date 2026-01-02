@@ -17,6 +17,10 @@ import {
   DialogContentText,
   DialogTitle,
   DialogActions,
+  Grid,
+  Typography,
+  Paper,
+  Divider
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import Link from "next/link";
@@ -70,6 +74,7 @@ export interface Salary {
   outstandingBalance?: number;
   totalPaid?: number;
   paymentStatus?: "unpaid" | "partially_paid" | "fully_paid" | "overpaid";
+  totalAdvanceDebt?: number;
 }
 
 import { PaginatedResponse } from "@/app/lib/types";
@@ -103,6 +108,7 @@ const fetchSalariesData = async (
       noPayReason: salary.noPay?.reason || salary.noPayReason,
     })),
     pagination,
+    summary: data.summary // Pass through summary from API
   };
 };
 
@@ -134,7 +140,7 @@ const SalariesDataGrid: React.FC<{
     isError,
     error,
   } = useQuery<PaginatedResponse, Error>({
-    queryKey: ["salaries", companyId, period, paginationModel.page, paginationModel.pageSize, searchQuery],
+    queryKey: ["salaries", companyId, period, paginationModel.page, paginationModel.pageSize, searchQuery, "v2"], // Force cache refresh for summary
     queryFn: () => fetchSalariesData(companyId, paginationModel.page + 1, paginationModel.pageSize, period, searchQuery),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -255,19 +261,22 @@ const SalariesDataGrid: React.FC<{
     },
     {
       field: "outstandingBalance",
-      headerName: "Outstanding",
+      headerName: "To Pay",
       type: "number",
       flex: 1,
       align: "left",
       headerAlign: "left",
       renderCell: (params) => {
-        const val = params.value !== undefined ? params.value : params.row.finalSalary;
+        const val =
+          params.value !== undefined
+            ? params.value
+            : params.row.finalSalary - (params.row.advanceAmount || 0);
         return (
           <Box color={val > 0 ? "error.main" : "success.main"} fontWeight="bold">
             {val?.toLocaleString()}
           </Box>
         );
-      }
+      },
     },
     {
       field: "paymentStatus",
@@ -356,6 +365,7 @@ const SalariesDataGrid: React.FC<{
         ...(user.role === "admin" ? [companyId] : []),
       ];
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["salary-advances"] });
       showSnackbar({
         message: "Salary updated successfully!",
         severity: "success",
@@ -505,6 +515,7 @@ const SalariesDataGrid: React.FC<{
     if (success) {
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ["salaries"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
     }
   };
 
@@ -651,6 +662,45 @@ const SalariesDataGrid: React.FC<{
           }
         />
       </div>
+
+      {paginatedResponse?.summary && (
+        <Paper elevation={0} variant="outlined" sx={{ mt: 2, p: 2, bgcolor: 'background.default' }}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ textTransform: 'uppercase', fontWeight: 'bold' }}>
+            Company Financial Overview (Filtered Salaries)
+          </Typography>
+          <Grid container spacing={4}>
+            <Grid item xs={12} sm={4}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Total Payable (Salaries)</Typography>
+                <Typography variant="h6" fontWeight="bold">
+                  LKR {paginatedResponse.summary.totalOutstanding.toLocaleString()}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Box>
+                <Typography variant="caption" color="warning.main">Total Active Advance Debt</Typography>
+                <Typography variant="h6" fontWeight="bold" color="warning.main">
+                  LKR {paginatedResponse.summary.totalAdvanceDebt.toLocaleString()}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Box>
+                <Typography variant="caption" color={paginatedResponse.summary.netPosition < 0 ? "success.main" : "text.primary"}>
+                  Net Company Position
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color={paginatedResponse.summary.netPosition < 0 ? "success.main" : "text.primary"}>
+                  LKR {paginatedResponse.summary.netPosition.toLocaleString()}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {paginatedResponse.summary.netPosition < 0 ? "(Asset / Employee Owes)" : "(Liability / Company Pays)"}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       <ConfirmationDialog
         open={dialogOpen}
