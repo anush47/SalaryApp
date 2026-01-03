@@ -96,7 +96,7 @@ export class SalaryAdvanceService {
             paymentMethod: parsedBody.paymentMethod,
             referenceNo: parsedBody.referenceNo,
             madeBy: context.user?.id,
-            status: "pending", // User requested pending by default
+            status: employee.autoAcknowledge ? "acknowledged" : "pending",
             type: "advance",
             advance: advance._id,
         });

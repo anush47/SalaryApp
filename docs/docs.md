@@ -195,6 +195,8 @@ Run with: `node scripts/migration-flexible-leaves.js`
 *   **Automated Salary Generation:** The system can generate salaries based on employee basic pay, attendance data, overtime, and other additions/deductions.
 *   **Attendance Integration:** It processes in/out time data (from CSV uploads) to calculate working hours, overtime, and no-pay days.
 *   **PDF Generation:** The system can generate various PDF documents, including payslips, EPF/ETF reports, and official government forms like Form A.
+*   **Auto-Acknowledgment System:** Employers can enable `autoAcknowledge` for specific employees. When enabled, newly generated salaries and advances are automatically marked as "Acknowledged".
+*   **Integrated Payment History:** Employees have a unified "Payments" tab that combines salary payments and advances, ensuring clear visibility of their financial history.
 
 #### 3.4.1. Tax Calculation (APIT)
 
@@ -573,6 +575,17 @@ To ensure a consistent user experience across the application (Salaries, Payment
     *   Use `Link` from `next/link` wrapping a `Button` (variant `text`) for consistent styling.
     *   *Example:* Navigate to employee details via `?companyPageSelect=employees&employeeId=...` query params to maintain context.
 
+3.  **Value Transformation Guidelines (`renderCell` vs `valueGetter`):**
+    *   **Priority:** Use `renderCell` as the primary method for transforming displayed values (formatting dates, currency, case changes).
+    *   **Rationale:** `renderCell` is more robust for complex display logic and handles cases where the column might not have a direct field mapping. It also provides direct access to `params.row`, making it safer for nested property checks (e.g., `row.type === "advance"`).
+    *   **Best Practices:**
+        *   Always include a safe check for `params.row` to prevent `TypeError: cannot read property of undefined`.
+        *   Use `renderCell` for:
+            *   Date formatting (e.g., `dayjs(val).format()`)
+            *   Currency/Number formatting (e.g., `val.toLocaleString()`)
+            *   Case transformations (e.g., `.toUpperCase()`)
+            *   Conditional logic based on other row properties.
+
 4.  **Component Modes:**
     *   For complex DataGrids reusable in different contexts (e.g., "All Requests" vs "My Requests"), use a `mode` prop.
     *   Adapt `columnVisibilityModel` and API query parameters based on the mode.
@@ -598,4 +611,10 @@ To ensure a consistent user experience across the application (Salaries, Payment
 *   **Text Search:** Implement text search in the service layer using MongoDB regex queries (`$regex`) for string fields.
 *   **Relational Search:** For searching populated fields (e.g., Employee Name in Leave Request), pre-fetch matching IDs and use `$in`, or use aggregation pipelines if complex matching is required.
 *   **DTO Pattern:** Accepting a generic `params` object in service methods allows for flexible extension (filtering, searching, sorting) without changing the function signature.
+
+### 10.2. Production Population
+*   **Model Imports:** When using Mongoose `.populate()`, ensure the target model is explicitly imported in the service file. If the model hasn't been initialized elsewhere, Mongoose might fail to find the reference, resulting in unpopulated objects (displaying as empty or `-`).
+
+### 10.3. Sequential Data Processing
+*   **Stateful Generation:** When generating data across multiple periods (e.g., monthly salaries for an entire year), maintain a running state of balances (like salary advances) to ensure deductions in one period correctly affect the starting balance of the next.
 

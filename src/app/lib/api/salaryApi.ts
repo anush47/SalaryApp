@@ -92,3 +92,13 @@ export async function deleteSalaries(salaryIds: string[]) {
         body: JSON.stringify({ salaryIds }),
     });
 }
+
+/**
+ * Acknowledge salary payment
+ */
+export async function acknowledgeSalary(paymentId: string) {
+    return apiFetch('/api/salaries/acknowledge', {
+        method: 'PATCH',
+        body: JSON.stringify({ paymentId }),
+    });
+}

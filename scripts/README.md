@@ -211,5 +211,21 @@ Add documentation for other migration scripts here as they're created.
 
 ---
 
+## commands
+
+count lines:
+```zsh
+find . -type f \
+  ! -path "./node_modules/*" \
+  ! -path "./.next/*" \
+  ! -path "./scripts/*" \
+  ! -path "./.claude.md" \
+  ! -path "./.git/*" \
+  ! -path "./public/*" \
+  -exec wc -l {} + | tail -n 1
+```
+
+---
+
 **Last Updated:** 2025-10-12
 **Related:** See `SECURITY_AUDIT_REPORT.md` for context

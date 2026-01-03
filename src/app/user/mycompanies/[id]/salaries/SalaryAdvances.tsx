@@ -120,6 +120,11 @@ export const SalaryAdvances: React.FC<{
             valueFormatter: (params) => params.value?.toLocaleString(),
         },
         {
+            field: "reason",
+            headerName: "Reason",
+            flex: 1.5,
+        },
+        {
             field: "remainingBalance",
             headerName: "Remaining",
             flex: 1,

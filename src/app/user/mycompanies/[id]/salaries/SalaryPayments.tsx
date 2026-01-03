@@ -90,7 +90,7 @@ export const SalaryPayments: React.FC<{
             headerName: "Date",
             flex: 1,
             minWidth: 100,
-            valueFormatter: (params) => dayjs(params.value).format("YYYY-MM-DD"),
+            renderCell: (params) => dayjs(params.value).format("YYYY-MM-DD"),
         },
         {
             field: "type",
@@ -140,13 +140,13 @@ export const SalaryPayments: React.FC<{
             type: "number",
             align: "right",
             headerAlign: "right",
-            valueFormatter: (params) => params.value?.toLocaleString(),
+            renderCell: (params) => params.value?.toLocaleString(),
         },
         {
             field: "paymentMethod",
             headerName: "Method",
             flex: 1,
-            valueFormatter: (params) => params.value?.replace("_", " ").toUpperCase(),
+            renderCell: (params) => params.value?.replace("_", " ").toUpperCase(),
         },
         {
             field: "status",
@@ -162,6 +162,17 @@ export const SalaryPayments: React.FC<{
             field: "adminNote",
             headerName: "Note",
             flex: 1.5,
+            renderCell: (params) => {
+                const row = params.row;
+                if (!row) return "-";
+
+                // Show advance reason for advances, otherwise show admin note
+                if (row.type === "advance" && row.advance?.reason) {
+                    return row.advance.reason;
+                }
+
+                return row.adminNote || "-";
+            }
         },
         {
             field: "actions",

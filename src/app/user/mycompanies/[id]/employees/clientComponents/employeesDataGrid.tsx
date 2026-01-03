@@ -207,6 +207,7 @@ export interface Employee {
     type?: "fixed_dates" | "start_to_end_of_month" | "end_to_end_of_month";
   };
   calculationMethod?: "attendance" | "fixed_days" | "no_ot";
+  autoAcknowledge?: boolean;
 };
 
 
@@ -305,6 +306,7 @@ export const defaultEmployee: Employee = {
   salaryPeriod: "monthly",
   rateDivisor: 30,
   calculationMethod: "fixed_days",
+  autoAcknowledge: true,
 };
 
 export const ddmmyyyy_to_mmddyyyy = (ddmmyyyy: string) => {

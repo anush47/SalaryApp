@@ -837,6 +837,21 @@ const EditEmployeeForm: React.FC<{
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formFields.autoAcknowledge ?? true}
+                  onChange={(e) =>
+                    setFormFields({ ...formFields, autoAcknowledge: e.target.checked })
+                  }
+                  name="autoAcknowledge"
+                  disabled={!isEditing}
+                />
+              }
+              label="Auto Acknowledge Payments"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth error={!!errors.startedAt}>
               <LocalizationProvider
                 dateAdapter={AdapterDayjs}

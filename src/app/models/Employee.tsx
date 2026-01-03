@@ -139,6 +139,7 @@ export interface IEmployee extends Document {
   documents: Map<string, string>;
   emergencyContact: string;
   editable: boolean;
+  autoAcknowledge: boolean;
 }
 
 // Define Shift Schema separately to handle String _id
@@ -542,6 +543,10 @@ const employeeSchema = new Schema<IEmployee>(
     editable: {
       type: Boolean,
       default: false,
+    },
+    autoAcknowledge: {
+      type: Boolean,
+      default: true,
     },
   },
   {

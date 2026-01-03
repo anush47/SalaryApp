@@ -265,6 +265,7 @@ const AddEmployeeForm: React.FC<{
     if (
       name === "active" ||
       name === "canLogin" ||
+      name === "autoAcknowledge" ||
       name === "isMarried" ||
       name === "editable" ||
       name.startsWith("overrides")
@@ -520,6 +521,21 @@ const AddEmployeeForm: React.FC<{
                 value={formFields.designation}
                 onChange={handleChange}
                 variant="filled"
+              />
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFields.autoAcknowledge ?? true}
+                    name="autoAcknowledge"
+                    color="primary"
+                    onChange={handleChange}
+                  />
+                }
+                label="Auto Acknowledge Payments"
               />
             </FormControl>
           </Grid>

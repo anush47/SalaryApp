@@ -446,6 +446,13 @@ export class SalaryService {
             // finalSalary is Net Earnings (before Advance).
             parsedSalary.outstandingBalance = finalSalary - (parsedSalary.advanceAmount || 0);
 
+            // Auto Acknowledge Check
+            // @ts-ignore
+            if (employee.autoAcknowledge) {
+                // @ts-ignore
+                parsedSalary.acknowledgmentStatus = "acknowledged";
+            }
+
             // Add the parsed salary to the array
             salaryDocs.push(parsedSalary);
         }
@@ -1212,9 +1219,15 @@ export class SalaryService {
 
         // Get active advances for deduction
         // If providedAdvances is present, filter active from that state instead of DB
-        let activeAdvances;
+        let activeAdvances: AdvanceDeduction[];
         if (providedAdvances) {
-            activeAdvances = providedAdvances.filter(a => Number(a.remainingBalance) > 0);
+            // Map raw advance state to AdvanceDeduction structure
+            activeAdvances = providedAdvances
+                .filter(a => (Number(a.remainingBalance) || 0) > 0)
+                .map(a => ({
+                    advanceId: (a.advanceId || a._id || a).toString(),
+                    deductionAmount: Math.min(Number(a.monthlyDeduction) || 0, Number(a.remainingBalance) || 0),
+                }));
         } else {
             activeAdvances = await getActiveAdvances(employee._id.toString(), period);
         }
@@ -1286,6 +1299,8 @@ export class SalaryService {
                 deductedAmount: adv.deductionAmount
             })),
             paymentStatus: "unpaid" as const,
+            // @ts-ignore
+            acknowledgmentStatus: employee.autoAcknowledge ? "acknowledged" : "pending",
         };
 
         if (!shouldSave) {

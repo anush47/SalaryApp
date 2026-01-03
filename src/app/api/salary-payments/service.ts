@@ -3,6 +3,7 @@ import SalaryPayment from "@/app/models/SalaryPayment";
 import Salary from "@/app/models/Salary";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
+import SalaryAdvance from "@/app/models/SalaryAdvance";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import { z } from "zod";
@@ -266,6 +267,7 @@ export class SalaryPaymentService {
         const payments = await SalaryPayment.find(query)
             .populate("employee", "name memberNo nic")
             .populate("madeBy", "name email")
+            .populate("advance", "reason amount advanceDate")
             .sort({ paymentDate: -1 })
             .lean();
 
@@ -279,7 +281,7 @@ export class SalaryPaymentService {
             status: { $in: ["acknowledged", "pending"] },
         });
 
-        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+        const totalPaid = payments.reduce((sum: number, p) => sum + p.amount, 0);
 
         const salary = await Salary.findById(salaryId);
         if (salary) {
@@ -288,7 +290,7 @@ export class SalaryPaymentService {
             // Calculate outstanding balance
             // finalSalary is Pre-Advance. So we subtract Advances and Paid.
             const advancesDeducted = salary.activeAdvances?.reduce(
-                (sum, adv) => sum + adv.deductedAmount,
+                (sum: number, adv: any) => sum + adv.deductedAmount,
                 0
             ) || 0;
 

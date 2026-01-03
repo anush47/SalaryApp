@@ -27,6 +27,13 @@ import {
   Stack,
   TextField,
   MenuItem,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import {
   Download,
@@ -40,6 +47,7 @@ import dayjs from "dayjs";
 import { fetchSalaries } from "@/app/lib/api/salaryApi";
 import { formatPeriodLabel } from "@/app/lib/formatUtils";
 import { SalaryDetailView } from "./SalaryDetailView";
+import EmployeePaymentsTab from "./EmployeePaymentsTab";
 
 
 interface UserProps {
@@ -58,6 +66,7 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedSalary, setSelectedSalary] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   // 1. Fetch Employee Data
   const {
@@ -253,6 +262,12 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
         }
       />
       <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
+            <Tab label="Payslips" />
+            <Tab label="Payments" />
+          </Tabs>
+        </Box>
         <Grid container spacing={3}>
           {/* Month Selector */}
           {!selectedSalary && (
@@ -273,128 +288,150 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
             </Grid>
           )}
 
-          {/* Content Switcher */}
-          {selectedSalary ? (
-            // Detailed View
-            <SalaryDetailView
-              salary={selectedSalary}
-              employee={employee}
-              onDownload={handleDownloadPDF}
-            />
-          ) : (
-            // Monthly Summary View
+          {/* Tab Content */}
+          {activeTab === 0 && (
             <>
-              {/* Monthly Totals Card */}
-              {monthlyTotals && (
-                <Grid item xs={12}>
-                  <Card sx={{ mb: 3, bgcolor: "secondary.main", color: "secondary.contrastText" }}>
-                    <CardContent>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                        <Typography variant="h6">Monthly Summary: {dayjs(selectedMonth).format("MMMM YYYY")}</Typography>
-                        <Button
-                          variant="outlined"
-                          color="inherit"
-                          startIcon={<Download />}
-                          onClick={() => handleDownloadPDF("payslip")}
-                          size="small"
-                        >
-                          Download All
-                        </Button>
-                      </Box>
-                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
-                      <Grid container spacing={2}>
-                        <Grid item xs={6} md={3}>
-                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Basic</Typography>
-                          <Typography variant="h6">LKR {monthlyTotals.basic.toLocaleString()}</Typography>
-                        </Grid>
-                        <Grid item xs={6} md={3}>
-                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Earnings</Typography>
-                          <Typography variant="h6">LKR {(monthlyTotals.basic + monthlyTotals.otAmount + monthlyTotals.totalAdditions).toLocaleString()}</Typography>
-                        </Grid>
-                        <Grid item xs={6} md={3}>
-                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Deductions</Typography>
-                          <Typography variant="h6">LKR {monthlyTotals.totalDeductions.toLocaleString()}</Typography>
-                        </Grid>
-                        <Grid item xs={6} md={3}>
-                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Net Pay</Typography>
-                          <Typography variant="h4" fontWeight="bold">LKR {monthlyTotals.finalSalary.toLocaleString()}</Typography>
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              )}
-
-              {/* Monthly Attendance Table */}
-              {monthlyAttendance.length > 0 && (
-                <Grid item xs={12}>
-                  <Card sx={{ mb: 3 }}>
-                    <CardHeader
-                      title="Monthly Attendance Detail"
-                      subheader={`${monthlyAttendance.length} records found`}
-                      action={
-                        <Button
-                          variant="outlined"
-                          startIcon={<Download />}
-                          onClick={() => handleDownloadPDF("attendance")}
-                          size="small"
-                        >
-                          PDF Report
-                        </Button>
-                      }
-                    />
-                    <CardContent>
-                      <Box sx={{ overflowX: "auto" }}>
-                        <InOutTable
-                          inOuts={monthlyAttendance.map((record: any, index: number) => ({
-                            ...record,
-                            id: index, // Frontend ID for table
-                          }))}
-                          setInOuts={() => { }}
-                          fetchSalary={() => { }}
-                          editable={false}
-                          isDynamicHolidays={false}
-                        />
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              )}
-
-              {/* List of Payslips */}
-              <Grid item xs={12}>
-                <TableContainer component={Paper}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Period</TableCell>
-                        <TableCell align="right">Basic</TableCell>
-                        <TableCell align="right">Net Salary</TableCell>
-                        <TableCell align="right">Action</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {groupedSalaries[selectedMonth]?.map((salary: any) => (
-                        <TableRow key={salary._id} hover>
-                          <TableCell>{formatPeriodLabel(salary.period)}</TableCell>
-                          <TableCell align="right">LKR {salary.basic?.toLocaleString()}</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 'bold' }}>LKR {salary.finalSalary?.toLocaleString()}</TableCell>
-                          <TableCell align="right">
-                            <Button size="small" variant="contained" onClick={() => setSelectedSalary(salary)}>
-                              View
+              {/* Content Switcher */}
+              {selectedSalary ? (
+                // Detailed View
+                <SalaryDetailView
+                  salary={selectedSalary}
+                  employee={employee}
+                  onDownload={handleDownloadPDF}
+                />
+              ) : (
+                // Monthly Summary View
+                <>
+                  {/* Monthly Totals Card */}
+                  {monthlyTotals && (
+                    <Grid item xs={12}>
+                      <Card sx={{ mb: 3, bgcolor: "secondary.main", color: "secondary.contrastText" }}>
+                        <CardContent>
+                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                            <Typography variant="h6">Monthly Summary: {dayjs(selectedMonth).format("MMMM YYYY")}</Typography>
+                            <Button
+                              variant="outlined"
+                              color="inherit"
+                              startIcon={<Download />}
+                              onClick={() => handleDownloadPDF("payslip")}
+                              size="small"
+                            >
+                              Download All
                             </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {(!groupedSalaries[selectedMonth] || groupedSalaries[selectedMonth].length === 0) && (
-                        <TableRow>
-                          <TableCell colSpan={4} align="center">No records found for this month.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Grid>
+                          </Box>
+                          <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
+                          <Grid container spacing={2}>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Basic</Typography>
+                              <Typography variant="h6">LKR {monthlyTotals.basic.toLocaleString()}</Typography>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Earnings</Typography>
+                              <Typography variant="h6">LKR {(monthlyTotals.basic + monthlyTotals.otAmount + monthlyTotals.totalAdditions).toLocaleString()}</Typography>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Deductions</Typography>
+                              <Typography variant="h6">LKR {monthlyTotals.totalDeductions.toLocaleString()}</Typography>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Net Pay</Typography>
+                              <Typography variant="h4" fontWeight="bold">LKR {monthlyTotals.finalSalary.toLocaleString()}</Typography>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )}
+
+                  {/* Monthly Attendance Table */}
+                  {monthlyAttendance.length > 0 && (
+                    <Grid item xs={12}>
+                      <Card sx={{ mb: 3 }}>
+                        <CardHeader
+                          title="Monthly Attendance Detail"
+                          subheader={`${monthlyAttendance.length} records found`}
+                          action={
+                            <Button
+                              variant="outlined"
+                              startIcon={<Download />}
+                              onClick={() => handleDownloadPDF("attendance")}
+                              size="small"
+                            >
+                              PDF Report
+                            </Button>
+                          }
+                        />
+                        <CardContent>
+                          <Box sx={{ overflowX: "auto" }}>
+                            <InOutTable
+                              inOuts={monthlyAttendance.map((record: any, index: number) => ({
+                                ...record,
+                                id: index, // Frontend ID for table
+                              }))}
+                              setInOuts={() => { }}
+                              fetchSalary={() => { }}
+                              editable={false}
+                              isDynamicHolidays={false}
+                            />
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )}
+
+                  {/* List of Payslips */}
+                  <Grid item xs={12}>
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Period</TableCell>
+                            <TableCell align="right">Basic</TableCell>
+                            <TableCell align="center">Status</TableCell>
+                            <TableCell align="right">Net Salary</TableCell>
+                            <TableCell align="right">Action</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {groupedSalaries[selectedMonth]?.map((salary: any) => (
+                            <TableRow key={salary._id} hover>
+                              <TableCell>{formatPeriodLabel(salary.period)}</TableCell>
+                              <TableCell align="right">LKR {salary.basic?.toLocaleString()}</TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={salary.acknowledgmentStatus === "acknowledged" ? "Acknowledged" : "Pending"}
+                                  color={salary.acknowledgmentStatus === "acknowledged" ? "success" : "warning"}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>LKR {salary.finalSalary?.toLocaleString()}</TableCell>
+                              <TableCell align="right">
+                                <Button size="small" variant="contained" onClick={() => setSelectedSalary(salary)}>
+                                  View
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {(!groupedSalaries[selectedMonth] || groupedSalaries[selectedMonth].length === 0) && (
+                            <TableRow>
+                              <TableCell colSpan={5} align="center">No records found for this month.</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Grid>
+                </>
+              )}
+
+            </>
+          )}
+
+          {/* Tab 2: Payments */}
+          {activeTab === 1 && (
+            <>
+              <EmployeePaymentsTab employeeId={employeeId} />
             </>
           )}
 
@@ -405,3 +442,4 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
 };
 
 export default EmployeePayslips;
+
