@@ -19,6 +19,7 @@ interface DocumentsProps {
   editable: boolean;
   companyId: string;
   employeeId: string;
+  isAdmin?: boolean;
   manualUpload?: {
     pendingFiles: Record<string, File>;
     setPendingFiles: (files: Record<string, File>) => void;
@@ -31,6 +32,7 @@ const Documents: React.FC<DocumentsProps> = ({
   editable,
   companyId,
   employeeId,
+  isAdmin = false,
   manualUpload
 }) => {
   const [newDocName, setNewDocName] = useState("");
@@ -38,25 +40,35 @@ const Documents: React.FC<DocumentsProps> = ({
   // Local state for file selected in "Add" section (for manual mode)
   const [selectedAddFile, setSelectedAddFile] = useState<File | null>(null);
 
-  const handleAddDocument = () => {
-    if (newDocName.trim()) {
-      if (manualUpload && selectedAddFile) {
+  const handleAddDocument = (overrideName?: string, overrideFile?: File) => {
+    const name = (overrideName || newDocName).trim();
+    const file = overrideFile || selectedAddFile;
+
+    if (name) {
+      if (manualUpload && file) {
         // Validation: Check if name exists in docs or pending
-        if (documents[newDocName] || manualUpload.pendingFiles[newDocName]) {
-          // alert/snackbar? For now just ignore or need error handling props
-          return;
-        }
+        // if (documents[name] || manualUpload.pendingFiles[name]) {
+        //   return;
+        // }
         manualUpload.setPendingFiles({
           ...manualUpload.pendingFiles,
-          [newDocName.trim()]: selectedAddFile
+          [name]: file
         });
         setNewDocName("");
         setSelectedAddFile(null);
+      } else if (isAdmin && !file && setDocuments) {
+        // Admin mode: add placeholder without file
+        const updatedDocuments = {
+          ...documents,
+          [name]: "",
+        };
+        setDocuments(updatedDocuments);
+        setNewDocName("");
       } else if (setDocuments && newDocKey) {
         // Immediate mode
         const updatedDocuments = {
           ...documents,
-          [newDocName.trim()]: newDocKey.trim(),
+          [name]: newDocKey.trim(),
         };
         setDocuments(updatedDocuments);
         setNewDocName("");
@@ -102,8 +114,44 @@ const Documents: React.FC<DocumentsProps> = ({
             {key ? (
               <FileViewer fileKey={key} filename={name} showPreview={false} />
             ) : (
-              // Should not happen for saved docs usually, but if key is empty
-              <Typography variant="body2">No file</Typography>
+              <Box>
+                {manualUpload?.pendingFiles[name] ? (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="body2" color="primary" noWrap sx={{ maxWidth: 150 }}>
+                      {manualUpload.pendingFiles[name].name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      (Ready)
+                    </Typography>
+                    <IconButton size="small" onClick={() => handleRemoveDocument(name, true)} color="error">
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="caption" color="error">
+                      File missing
+                    </Typography>
+                    {editable && !isAdmin && (
+                      <FileUpload
+                        folder="employees"
+                        entityId={employeeId}
+                        companyId={companyId}
+                        mode="manual"
+                        onFileSelect={(file) => {
+                          manualUpload?.setPendingFiles({
+                            ...manualUpload.pendingFiles,
+                            [name]: file
+                          });
+                        }}
+                        label="Upload"
+                        maxSizeMB={10}
+                        accept="image/*,application/pdf"
+                      />
+                    )}
+                  </Box>
+                )}
+              </Box>
             )}
           </Grid>
           {editable && (
@@ -120,44 +168,46 @@ const Documents: React.FC<DocumentsProps> = ({
         </Grid>
       ))}
 
-      {/* Pending (Unsaved) Documents */}
-      {manualUpload && Object.entries(manualUpload.pendingFiles).map(([name, file]) => (
-        <Grid container spacing={2} key={`pending-${name}`} alignItems="center" mb={1}>
-          <Grid item xs={5}>
-            <TextField
-              fullWidth
-              label="Document Name"
-              value={name}
-              InputProps={{
-                readOnly: true,
-              }}
-              variant="outlined"
-              size="small"
-            />
-          </Grid>
-          <Grid item xs={5}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                {file.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                (Pending Upload)
-              </Typography>
-            </Box>
-          </Grid>
-          {editable && (
-            <Grid item xs={2}>
-              <IconButton
-                color="error"
-                onClick={() => handleRemoveDocument(name, true)}
+      {/* Pending (Unsaved) Documents - Only those that aren't matching existing names */}
+      {manualUpload && Object.entries(manualUpload.pendingFiles)
+        .filter(([name]) => !documents.hasOwnProperty(name))
+        .map(([name, file]) => (
+          <Grid container spacing={2} key={`pending-${name}`} alignItems="center" mb={1}>
+            <Grid item xs={5}>
+              <TextField
+                fullWidth
+                label="Document Name"
+                value={name}
+                InputProps={{
+                  readOnly: true,
+                }}
+                variant="outlined"
                 size="small"
-              >
-                <Delete />
-              </IconButton>
+              />
             </Grid>
-          )}
-        </Grid>
-      ))}
+            <Grid item xs={5}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                  {file.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  (Pending Upload)
+                </Typography>
+              </Box>
+            </Grid>
+            {editable && (
+              <Grid item xs={2}>
+                <IconButton
+                  color="error"
+                  onClick={() => handleRemoveDocument(name, true)}
+                  size="small"
+                >
+                  <Delete />
+                </IconButton>
+              </Grid>
+            )}
+          </Grid>
+        ))}
 
 
       {editable && (
@@ -185,7 +235,7 @@ const Documents: React.FC<DocumentsProps> = ({
               </Box>
             ) : null}
 
-            {/* Manual Mode: Show selected file */}
+            {/* Manual Mode: Show selected file (only for Admin or if auto-add not triggered) */}
             {manualUpload && selectedAddFile ? (
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography variant="caption" noWrap sx={{ maxWidth: 150 }}>
@@ -205,12 +255,20 @@ const Documents: React.FC<DocumentsProps> = ({
                 companyId={companyId}
                 mode={manualUpload ? 'manual' : 'immediate'}
                 onUploadComplete={(key, filename) => {
-                  setNewDocKey(key);
-                  if (!newDocName) setNewDocName(filename);
+                  if (!isAdmin) {
+                    handleAddDocument(newDocName || filename, undefined);
+                  } else {
+                    setNewDocKey(key);
+                    if (!newDocName) setNewDocName(filename);
+                  }
                 }}
                 onFileSelect={(file) => {
-                  setSelectedAddFile(file);
-                  if (!newDocName) setNewDocName(file.name);
+                  if (!isAdmin) {
+                    handleAddDocument(newDocName || file.name, file);
+                  } else {
+                    setSelectedAddFile(file);
+                    if (!newDocName) setNewDocName(file.name);
+                  }
                 }}
                 label="Upload Doc"
                 maxSizeMB={10}
@@ -219,11 +277,13 @@ const Documents: React.FC<DocumentsProps> = ({
             )}
           </Grid>
           <Grid item xs={2}>
+            {/* Add button - for admin it allows name-only, for employee it's mostly fallback if auto-add failed */}
             <Button
               variant="contained"
-              onClick={handleAddDocument}
-              disabled={!newDocName.trim() || (!newDocKey && !selectedAddFile)}
+              onClick={() => handleAddDocument()}
+              disabled={!newDocName.trim() || (!isAdmin && !newDocKey && !selectedAddFile)}
               startIcon={<Add />}
+              size="small"
             >
               Add
             </Button>

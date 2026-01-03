@@ -527,6 +527,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                           setEmployeeData({ ...employeeData, documents: docs })
                         }
                         editable={isEditing}
+                        isAdmin={false}
                         companyId={employeeData.company?._id || employeeData.company}
                         employeeId={employeeData._id}
                         manualUpload={{

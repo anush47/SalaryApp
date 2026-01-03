@@ -1221,6 +1221,7 @@ const EditEmployeeForm: React.FC<{
                 setFormFields({ ...formFields, documents: docs })
               }
               editable={isEditing}
+              isAdmin={true}
               companyId={companyId!}
               employeeId={employeeId!}
               manualUpload={{
