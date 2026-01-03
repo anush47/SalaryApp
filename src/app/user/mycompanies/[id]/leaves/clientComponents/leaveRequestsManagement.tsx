@@ -148,6 +148,7 @@ const LeaveRequestsManagement: React.FC<{
       flex: 1,
       minWidth: 200,
       renderCell: (params) => {
+        if (!params.row.employee) return <Typography variant="body2" color="text.secondary">Deleted Employee</Typography>;
         return (
           <Link
             href={`/user/mycompanies/${companyId}?companyPageSelect=employees&employeeId=${params.row.employee._id}`}
@@ -166,6 +167,7 @@ const LeaveRequestsManagement: React.FC<{
       flex: 1,
       minWidth: 150,
       renderCell: (params) => {
+        if (!params.value) return "-";
         return (
           <Chip
             label={params.value.name}
@@ -185,7 +187,7 @@ const LeaveRequestsManagement: React.FC<{
       minWidth: 140,
       renderCell: (params) => {
         const date = dayjs(params.row.startDate);
-        if (params.row.leaveType.isShortLeave) {
+        if (params.row.leaveType?.isShortLeave) {
           return date.format("DD-MM-YYYY | HH:mm");
         }
         return date.format("DD-MM-YYYY");
@@ -198,7 +200,7 @@ const LeaveRequestsManagement: React.FC<{
       minWidth: 140,
       renderCell: (params) => {
         const date = dayjs(params.row.endDate);
-        if (params.row.leaveType.isShortLeave) {
+        if (params.row.leaveType?.isShortLeave) {
           return date.format("DD-MM-YYYY | HH:mm");
         }
         return date.format("DD-MM-YYYY");
@@ -210,7 +212,7 @@ const LeaveRequestsManagement: React.FC<{
       flex: 0.8,
       minWidth: 120,
       valueGetter: (value, row) => {
-        if (row.leaveType.isShortLeave) {
+        if (row.leaveType?.isShortLeave) {
           return `${row.totalMinutes || 0} mins`;
         }
         if (row.halfDay) {
@@ -431,13 +433,13 @@ const LeaveRequestsManagement: React.FC<{
               <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Box>
                   <Typography variant="h6" gutterBottom>
-                    {selectedRequest.employee.name}
+                    {selectedRequest.employee?.name || "Deleted Employee"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Member No: {selectedRequest.employee.memberNo}
+                    Member No: {selectedRequest.employee?.memberNo || "N/A"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Designation: {selectedRequest.employee.designation || 'N/A'}
+                    Designation: {selectedRequest.employee?.designation || 'N/A'}
                   </Typography>
                 </Box>
                 <Chip
@@ -458,9 +460,9 @@ const LeaveRequestsManagement: React.FC<{
                     Leave Type
                   </Typography>
                   <Chip
-                    label={selectedRequest.leaveType.name}
+                    label={selectedRequest.leaveType?.name || "Unknown"}
                     size="small"
-                    sx={{ bgcolor: selectedRequest.leaveType.color || 'primary.main', color: '#fff' }}
+                    sx={{ bgcolor: selectedRequest.leaveType?.color || 'primary.main', color: '#fff' }}
                   />
                 </Box>
 
@@ -469,7 +471,7 @@ const LeaveRequestsManagement: React.FC<{
                     Duration
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {selectedRequest.leaveType.isShortLeave ? (
+                    {selectedRequest.leaveType?.isShortLeave ? (
                       <>
                         {dayjs(selectedRequest.startDate).format("DD MMM YYYY")}
                         <Box component="span" sx={{ mx: 1, color: 'text.secondary' }}>|</Box>
