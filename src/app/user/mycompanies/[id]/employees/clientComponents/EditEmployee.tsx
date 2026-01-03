@@ -210,6 +210,7 @@ const EditEmployeeForm: React.FC<{
       employee.calculationMethod = employee.calculationMethod || "fixed_days";
       employee.rateDivisor = employee.rateDivisor || 30;
       employee.otMethod = employee.otMethod || "noOt";
+      employee.autoAcknowledge = employee.autoAcknowledge ?? true;
 
       setFormFields(employee);
     }
