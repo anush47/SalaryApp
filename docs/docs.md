@@ -618,3 +618,35 @@ To ensure a consistent user experience across the application (Salaries, Payment
 ### 10.3. Sequential Data Processing
 *   **Stateful Generation:** When generating data across multiple periods (e.g., monthly salaries for an entire year), maintain a running state of balances (like salary advances) to ensure deductions in one period correctly affect the starting balance of the next.
 
+## 11. Recent Architectural Improvements (Salary & Attendance 2.0)
+
+### 11.1. Attendance-Driven Salary Architecture
+Refactored the salary engine to move away from legacy `inOut` processing to a robust `dailyRecords` structure.
+
+*   **Granular Daily Records**: Instead of simple IN/OUT strings, each day now stores a rich `DailyAttendanceRecord` object containing:
+    *   Linked Attendance IDs (`inLogId`, `outLogId`)
+    *   Shift Information (ID, Name, Times) - *Actual recorded shift*
+    *   Detailed OT Breakdown (`normalOT`, `doubleOT`, `tripleOT`)
+    *   Break Analysis (`breakHours`)
+    *   Holiday Status (`isMercantileHoliday`, `isPublicHoliday`)
+*   **Separation of Concerns**:
+    *   `AttendanceAggregator`: Responsible for fetching raw punches, pairing them based on time proximity, detecting shifts, and linking leave requests.
+    *   `DailyCalculationService`: Pure logic for processing a single day's stats (OT, late, working hours) given the inputs.
+    *   `SalaryGenerationService`: Orchestrates the process, summing up daily totals into the final salary slip.
+*   **Timezone Awareness**: All calculations now respect the company's timezone (passed explicitly to services) ensuring accurate "Start of Day" and "End of Day" determination, vital for overnight shifts.
+
+### 11.2. Attendance Shift Management Pattern
+Implements a dual-view strategy for managing shifts within attendance:
+
+*   **Unified View Strategy (Aggregated)**:
+    *   Displays a "Daily" table row even if there are multiple punches.
+    *   **Shift Resolution**: The displayed shift is prioritized based on the *actual* IN record's assigned shift, falling back to the roster only if no record exists.
+    *   **Synchronized Updates**: Changing a shift in this view automatically finds and updates both the IN and OUT records (paired by type) to maintain data consistency.
+*   **All Records View Strategy (Raw)**:
+    *   Displays every single punch (IN/OUT) as a separate row.
+    *   **Read-Only Context**: Shift editing is *disabled* in this granular view to prevent desynchronization (e.g., updating the IN record's shift but forgetting the OUT record). Users are guided to use the Unified View for shift adjustments.
+
+### 11.3. Service-to-Service Communication
+*   **Type Sharing**: Strictly use `src/app/lib/types.ts` for shared interfaces (`Company`, `Employee`, `Salary`) to prevent drift between Mongoose models, Service logic, and Frontend components (DataGrids).
+*   **Signature Consistency**: When Services call other Services (e.g., `SalaryService` calling `AttendanceService`), ensuring function signatures match exactly (including optional arguments like `timezone`) is critical to prevent build failures.
+
