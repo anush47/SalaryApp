@@ -27,10 +27,12 @@ const GenerateSalaryAll = ({
   period,
   companyId,
   user,
+  selectedEmployeeId,
 }: {
   period: string;
   companyId: string;
   user: { id: string; name: string; email: string; role: string };
+  selectedEmployeeId?: string;
 }) => {
   const [loading, setLoading] = useState(false);
   const { showSnackbar } = useSnackbar();
@@ -66,12 +68,19 @@ const GenerateSalaryAll = ({
 
   useEffect(() => {
     if (employees) {
+      // If a specific employee is selected from the parent, only select that one
+      if (selectedEmployeeId && selectedEmployeeId !== 'all') {
+        setEmployeeIds([selectedEmployeeId]);
+        return;
+      }
+
+      // Otherwise select all active employees
       const activeEmployeeIds = employees
         .filter((employee: any) => employee.active !== false)
         .map((employee: any) => employee.id);
       setEmployeeIds(activeEmployeeIds);
     }
-  }, [employees]);
+  }, [employees, selectedEmployeeId]);
 
   const onSaveClick = async () => {
     const isValid = Object.keys(errors).length === 0;
@@ -341,6 +350,7 @@ const GenerateSalaryAll = ({
               setGeneratedSalaries={setGeneratedSalaries}
               loading={loading || isLoading}
               setLoading={setLoading}
+              companyId={companyId}
               error={null}
             />
           )}

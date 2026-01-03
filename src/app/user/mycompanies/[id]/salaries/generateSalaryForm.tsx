@@ -26,7 +26,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import "dayjs/locale/en-gb";
 import GenerateSalaryAll from "./generateSalaryAll";
-import GenerateSalaryOne from "./generateSalaryOne";
+
 import Link from "next/link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { useSnackbar } from "@/app/context/SnackbarContext";
@@ -427,20 +427,13 @@ const AddSalaryForm: React.FC<{
             </Stack>
           </Grid>
           <Grid item xs={12}>
-            {employeeSelection === "all" ? (
-              <GenerateSalaryAll
-                companyId={companyId}
-                period={getFormattedPeriod()}
-                user={user}
-              />
-            ) : (
-              <GenerateSalaryOne
-                companyId={companyId}
-                employeeId={employeeSelection}
-                period={getFormattedPeriod()}
-                user={user}
-              />
-            )}
+            {/* Unified Salary Generation Component */}
+            <GenerateSalaryAll
+              companyId={companyId}
+              period={getFormattedPeriod()}
+              user={user}
+              selectedEmployeeId={employeeSelection !== "all" ? employeeSelection : undefined}
+            />
           </Grid>
         </Grid>
       </CardContent>

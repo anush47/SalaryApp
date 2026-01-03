@@ -975,9 +975,32 @@ export class SalaryService {
 
         console.log(`[SalaryService] Found ${existingSalariesFromDB.length} existing salaries across ${allExpandedPeriods.length} periods`);
 
-        // Generate salaries for each task (employee + period combination)
-        const salaryPromises = salaryGenerationTasks.map(
-            async (task) => {
+        // Group tasks by employee ID for sequential processing
+        const tasksByEmployee = new Map<string, typeof salaryGenerationTasks>();
+        for (const task of salaryGenerationTasks) {
+            const empId = task.employee._id.toString();
+            if (!tasksByEmployee.has(empId)) {
+                tasksByEmployee.set(empId, []);
+            }
+            tasksByEmployee.get(empId)!.push(task);
+        }
+
+        const results: { salary: any; exists: any; period: string }[] = [];
+
+        // Process each employee's tasks sequentially
+        for (const [empId, tasks] of tasksByEmployee) {
+            // Sort tasks by period (ascending) to ensure correct deduction order
+            tasks.sort((a, b) => a.period.localeCompare(b.period));
+
+            // Fetch initial advance state for the employee
+            // We use the first period to check for active advances
+            // We clone the result to maintain a running state purely for this batch generation
+            // Note: getActiveAdvances returns raw documents or objects. We ensure deep copy for safety.
+            let currentAdvanceState = (await getActiveAdvances(empId, tasks[0].period)).map((a: any) => ({ ...a }));
+
+            console.log(`[SalaryService] Processing ${tasks.length} tasks for employee ${empId} with ${currentAdvanceState.length} active advances`);
+
+            for (const task of tasks) {
                 const { employee, period: taskPeriod, index } = task;
 
                 employee.index = index;
@@ -988,9 +1011,6 @@ export class SalaryService {
                 // Set individual properties if no overrides, otherwise use overrides
                 if (!employee.overrides?.shifts) {
                     employee.shiftSettings = company.shiftSettings;
-                    console.log(`[SalaryService] Assigned company shifts to ${employee.name}:`, JSON.stringify(company.shiftSettings));
-                } else {
-                    console.log(`[SalaryService] ${employee.name} has shift override enabled, using employee shifts:`, JSON.stringify(employee.shiftSettings));
                 }
                 if (!employee.overrides?.probabilities) {
                     employee.probabilities = company.probabilities;
@@ -1012,100 +1032,120 @@ export class SalaryService {
                 const existingSalaryKey = `${employee._id.toString()}_${taskPeriod}`;
                 const existingSalary = existingSalariesMap.get(existingSalaryKey);
 
+                let salaryResult;
+
                 if (existingSalary && !update) {
-                    return { exists: employee._id, salary: null, period: taskPeriod };
-                }
-
-                let employeeInOut = update
-                    ? (inOutInitial as ProcessedInOut)
-                    : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
-
-                // Filter inOut data to match the taskPeriod
-                if (employeeInOut) {
-                    // Calculate period dates for the task
-                    // We can reuse calculatePeriodDates from utils but we need to import it or implement simple check
-                    // Let's implement simple check leveraging the period string format
-                    let periodStart: Date, periodEnd: Date;
-
-                    if (taskPeriod.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                        // Daily
-                        periodStart = new Date(taskPeriod); // UTC Midnight
-                        periodEnd = new Date(taskPeriod);
-                        periodEnd.setUTCHours(23, 59, 59, 999); // UTC End of Day
-                    } else if (taskPeriod.match(/^\d{4}-\d{2}$/)) {
-                        // Monthly
-                        periodStart = new Date(taskPeriod + "-01");
-                        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
-                        periodEnd.setUTCHours(23, 59, 59, 999);
-                    } else if (taskPeriod.includes(" to ")) {
-                        // Range
-                        const [start, end] = taskPeriod.split(" to ");
-                        periodStart = new Date(start);
-                        periodEnd = new Date(end);
-                        periodEnd.setUTCHours(23, 59, 59, 999);
-                    } else {
-                        // Fallback to full range
-                        periodStart = new Date(0);
-                        periodEnd = new Date(8640000000000000);
-                    }
-
-                    if (Array.isArray(employeeInOut) && employeeInOut.length > 0) {
-                        const originalCount = employeeInOut.length;
-                        const sample = employeeInOut[0];
-                        const isDate = sample instanceof Date;
-                        const isString = typeof sample === 'string';
-
-                        if (isDate || isString) {
-                            // RawInOut (Date[] or String[])
-                            employeeInOut = (employeeInOut as any[])
-                                .map(d => (d instanceof Date ? d : new Date(d)))
-                                .filter(d => {
-                                    if (isNaN(d.getTime())) return false;
-                                    return d >= periodStart && d <= periodEnd;
-                                }) as RawInOut;
-                        } else if (typeof sample === 'object' && 'in' in sample) {
-                            // ProcessedInOut
-                            employeeInOut = (employeeInOut as ProcessedInOut).filter(io => {
-                                const inDate = new Date(io.in);
-                                if (isNaN(inDate.getTime())) return false;
-                                return inDate >= periodStart && inDate <= periodEnd;
-                            });
-                        }
-                        console.log(`[SalaryService] Filtered inOut for ${employee.name} (${taskPeriod}): ${originalCount} -> ${employeeInOut.length}`);
-                    }
-                }
-
-
-                if (!update) {
-                    // Generate new salary with enhanced logic for this specific period
-                    const generatedSalary = await this.generateEnhancedSalary(
-                        employee,
-                        taskPeriod, // Use the task-specific period
-                        employeeInOut as RawInOut,
-                        company,
-                        undefined, // existingSalary
-                        shouldSave // Pass save flag
-                    );
-                    return { salary: generatedSalary, exists: null, period: taskPeriod };
+                    salaryResult = { exists: employee._id, salary: null, period: taskPeriod };
                 } else {
-                    const existingSalaryForUpdate = existingSalaries?.find(
-                        (s: { employee: any; period: string }) =>
-                            s.employee.toString() === employee._id.toString() && s.period === taskPeriod
-                    );
-                    const generatedSalary = await this.generateEnhancedSalary(
-                        employee,
-                        taskPeriod, // Use the task-specific period
-                        employeeInOut as ProcessedInOut,
-                        company,
-                        existingSalaryForUpdate,
-                        shouldSave // Pass save flag
-                    );
-                    return { salary: generatedSalary, exists: null, period: taskPeriod };
+                    let employeeInOut = update
+                        ? (inOutInitial as ProcessedInOut)
+                        : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
+
+                    // Filter inOut data to match the taskPeriod
+                    if (employeeInOut) {
+                        // Calculate period dates for the task
+                        // We can reuse calculatePeriodDates from utils but we need to import it or implement simple check
+                        // Let's implement simple check leveraging the period string format
+                        let periodStart: Date, periodEnd: Date;
+
+                        if (taskPeriod.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                            // Daily
+                            periodStart = new Date(taskPeriod); // UTC Midnight
+                            periodEnd = new Date(taskPeriod);
+                            periodEnd.setUTCHours(23, 59, 59, 999); // UTC End of Day
+                        } else if (taskPeriod.match(/^\d{4}-\d{2}$/)) {
+                            // Monthly
+                            periodStart = new Date(taskPeriod + "-01");
+                            periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+                            periodEnd.setUTCHours(23, 59, 59, 999);
+                        } else if (taskPeriod.includes(" to ")) {
+                            // Range
+                            const [start, end] = taskPeriod.split(" to ");
+                            periodStart = new Date(start);
+                            periodEnd = new Date(end);
+                            periodEnd.setUTCHours(23, 59, 59, 999);
+                        } else {
+                            // Fallback to full range
+                            periodStart = new Date(0);
+                            periodEnd = new Date(8640000000000000);
+                        }
+
+                        if (Array.isArray(employeeInOut) && employeeInOut.length > 0) {
+                            const originalCount = employeeInOut.length;
+                            const sample = employeeInOut[0];
+                            const isDate = sample instanceof Date;
+                            const isString = typeof sample === 'string';
+
+                            if (isDate || isString) {
+                                // RawInOut (Date[] or String[])
+                                employeeInOut = (employeeInOut as any[])
+                                    .map(d => (d instanceof Date ? d : new Date(d)))
+                                    .filter(d => {
+                                        if (isNaN(d.getTime())) return false;
+                                        return d >= periodStart && d <= periodEnd;
+                                    }) as RawInOut;
+                            } else if (typeof sample === 'object' && 'in' in sample) {
+                                // ProcessedInOut
+                                employeeInOut = (employeeInOut as ProcessedInOut).filter(io => {
+                                    const inDate = new Date(io.in);
+                                    if (isNaN(inDate.getTime())) return false;
+                                    return inDate >= periodStart && inDate <= periodEnd;
+                                });
+                            }
+                        }
+                    }
+
+                    if (!update) {
+                        // Generate new salary with enhanced logic for this specific period
+                        const generatedSalary = await this.generateEnhancedSalary(
+                            employee,
+                            taskPeriod, // Use the task-specific period
+                            employeeInOut as RawInOut,
+                            company,
+                            undefined, // existingSalary
+                            shouldSave, // Pass save flag
+                            currentAdvanceState // Pass running advance state
+                        );
+                        salaryResult = { salary: generatedSalary, exists: null, period: taskPeriod };
+                    } else {
+                        const existingSalaryForUpdate = existingSalaries?.find(
+                            (s: { employee: any; period: string }) =>
+                                s.employee.toString() === employee._id.toString() && s.period === taskPeriod
+                        );
+                        const generatedSalary = await this.generateEnhancedSalary(
+                            employee,
+                            taskPeriod, // Use the task-specific period
+                            employeeInOut as ProcessedInOut,
+                            company,
+                            existingSalaryForUpdate,
+                            shouldSave, // Pass save flag
+                            currentAdvanceState // Pass running advance state
+                        );
+                        salaryResult = { salary: generatedSalary, exists: null, period: taskPeriod };
+                    }
+                }
+
+                results.push(salaryResult);
+
+                // Update currentAdvanceState based on deductions made in this salary
+                // This ensures subsequent periods for the same employee see the depleted balance
+                if (salaryResult.salary && salaryResult.salary.activeAdvances) {
+                    for (const deduction of salaryResult.salary.activeAdvances) {
+                        const advanceState = currentAdvanceState.find((a: any) => a.advanceId.toString() === deduction.advanceId.toString());
+                        if (advanceState) {
+                            // Subtract the deducted amount from the running balance
+                            const deducted = Number(deduction.deductedAmount) || 0;
+                            // Ensure valid number, avoid NaNs
+                            const currentBalance = Number(advanceState.remainingBalance);
+                            advanceState.remainingBalance = currentBalance - deducted;
+
+                            // If balance drops to 0 or less, effective remaining is 0
+                            if (advanceState.remainingBalance < 0) advanceState.remainingBalance = 0;
+                        }
+                    }
                 }
             }
-        );
-
-        const results = await Promise.all(salaryPromises);
+        }
 
         const salaries = results.filter((r) => r && r.salary).map((r) => r.salary);
         const exists = results.filter((r) => r && r.exists).map((r) => r.exists);
@@ -1125,13 +1165,21 @@ export class SalaryService {
         employeeInOut: RawInOut | ProcessedInOut,
         company: any,
         existingSalary?: any,
-        shouldSave: boolean = true
+        shouldSave: boolean = true,
+        providedAdvances?: any[] // Optional: Passed cumulative state for sequential generation
     ) {
         // Calculate period dates based on employee's salary period configuration
         const { startDate, endDate, periodDays } = calculatePeriodDates(employee, period, company);
 
         // Get active advances for deduction
-        const activeAdvances = await getActiveAdvances(employee._id.toString(), period);
+        // If providedAdvances is present, filter active from that state instead of DB
+        let activeAdvances;
+        if (providedAdvances) {
+            activeAdvances = providedAdvances.filter(a => Number(a.remainingBalance) > 0);
+        } else {
+            activeAdvances = await getActiveAdvances(employee._id.toString(), period);
+        }
+
         const totalAdvanceDeduction = calculateTotalAdvanceDeduction(activeAdvances);
 
         // Generate salary using existing logic (handles attendance-based calculation)

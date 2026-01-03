@@ -25,14 +25,17 @@ import {
 import React, { useState } from "react";
 import { LoadingButton } from "@mui/lab";
 import { Salary } from "./salariesDataGrid";
-import { ExpandMore } from "@mui/icons-material";
+import { ExpandMore, Visibility } from "@mui/icons-material";
+import { SalaryEditDialog } from "./SalaryEditDialog";
 
 interface GeneratedSalariesProps {
   generatedSalaries: Salary[];
   setGeneratedSalaries: React.Dispatch<React.SetStateAction<Salary[]>>;
   error: string | null;
   loading: boolean;
+  loading: boolean;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  companyId: string;
 }
 
 const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
@@ -41,8 +44,53 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
   error,
   loading,
   setLoading,
+  companyId,
 }) => {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedSalary, setSelectedSalary] = useState<Salary | null>(null);
+
+  const handleEditSave = (updatedSalary: Salary) => {
+    setGeneratedSalaries((prev) =>
+      prev.map((s) => (s._id === updatedSalary._id ? updatedSalary : s))
+    );
+  };
+
+  const handleViewClick = (id: string) => {
+    const salary = generatedSalaries.find(s => s._id === id);
+    if (salary) {
+      setSelectedSalary(salary);
+      setEditDialogOpen(true);
+    }
+  };
+
   const columns: GridColDef[] = [
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 150,
+      renderCell: (params) => (
+        <Box>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<Visibility />}
+            onClick={() => handleViewClick(params.id.toString())}
+          >
+            View
+          </Button>
+          <Button
+            variant="text"
+            color="error"
+            size="small"
+            onClick={() => {
+              handleDeleteClick(params.id.toString());
+            }}
+          >
+            Delete
+          </Button>
+        </Box>
+      )
+    },
     {
       field: "memberNo",
       headerName: "Member No",
@@ -149,25 +197,26 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
       flex: 1,
       editable: true,
     },
-    {
-      field: "delete",
-      headerName: "Delete",
-      flex: 1,
-      renderCell: (params) => {
-        return (
-          <Button
-            variant="text"
-            color="error"
-            size="small"
-            onClick={() => {
-              handleDeleteClick(params.id.toString());
-            }}
-          >
-            Delete
-          </Button>
-        );
-      },
-    },
+    // Converted to consolidated Actions column
+    // {
+    //   field: "delete",
+    //   headerName: "Delete",
+    //   flex: 1,
+    //   renderCell: (params) => {
+    //     return (
+    //       <Button
+    //         variant="text"
+    //         color="error"
+    //         size="small"
+    //         onClick={() => {
+    //           handleDeleteClick(params.id.toString());
+    //         }}
+    //       >
+    //         Delete
+    //       </Button>
+    //     );
+    //   },
+    // },
   ];
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
@@ -319,11 +368,17 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
               initialState={{
                 pagination: {
                   paginationModel: {
-                    pageSize: 5,
+                    pageSize: 50,
                   },
                 },
+                sorting: {
+                  sortModel: [
+                    { field: 'memberNo', sort: 'asc' },
+                    { field: 'period', sort: 'asc' }
+                  ]
+                }
               }}
-              pageSizeOptions={[5]}
+              pageSizeOptions={[50, 100]}
               slots={{
                 toolbar: (props) => (
                   <GridToolbar
@@ -354,6 +409,13 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
             onClose={handleDialogClose}
             title="Confirm Deletion"
             message={`Are you sure you want to delete the salary record?`}
+          />
+          <SalaryEditDialog
+            open={editDialogOpen}
+            salary={selectedSalary}
+            onClose={() => setEditDialogOpen(false)}
+            onSave={handleEditSave}
+            companyId={companyId}
           />
         </Box>
       </AccordionDetails>
