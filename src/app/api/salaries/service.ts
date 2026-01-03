@@ -36,7 +36,8 @@ import {
     rollbackAdvanceDeductions,
     applyAdvanceDeductions,
     reconcileAdvances,
-    calculateTotalAdvanceDeduction
+    calculateTotalAdvanceDeduction,
+    AdvanceDeduction
 } from "./utils/advanceDeduction";
 import { expandPeriodForSalaryType } from "./utils/periodExpansion";
 
@@ -912,7 +913,7 @@ export class SalaryService {
             console.log(`[SalaryService] Company Defaults:`, JSON.stringify(company.salaryPeriodDefaults));
 
             // Check for deprecated random OT method
-            if (employee.otMethod === "random") {
+            if ((employee.otMethod as any) === "random") {
                 throw new BadRequestError(
                     `Employee ${employee.name} (${employee.memberNo}) uses random OT which is no longer supported. ` +
                     `Please update to 'calc' (attendance-based) or 'noOt' in employee settings.`

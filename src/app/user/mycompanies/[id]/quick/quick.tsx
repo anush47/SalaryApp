@@ -728,6 +728,7 @@ const QuickTools = ({
                               error={null}
                               loading={loading}
                               setLoading={() => { }}
+                              companyId={companyId}
                             />
                           )}
                         </AccordionDetails>

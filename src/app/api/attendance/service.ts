@@ -376,7 +376,7 @@ export class AttendanceService {
             if (subordinates.length > 0) {
                 // Even if manager, can only see own or subordinates. 
                 // If employeeId is requested, verify it is one of them.
-                const allowedList = [currentEmployee._id.toString(), ...subordinates.map(s => s._id.toString())];
+                const allowedList = [(currentEmployee._id as any).toString(), ...subordinates.map(s => (s._id as any).toString())];
                 if (employeeId && !allowedList.includes(employeeId)) {
                     throw new ForbiddenError("You are not authorized to view this employee's records.");
                 } else if (!employeeId) {
@@ -385,10 +385,10 @@ export class AttendanceService {
                 }
             } else {
                 // Regular Employee: only sees own
-                if (employeeId && employeeId !== currentEmployee._id.toString()) {
+                if (employeeId && employeeId !== (currentEmployee._id as any).toString()) {
                     throw new ForbiddenError("You are not authorized to view this employee's records.");
                 }
-                filter.employee = currentEmployee._id;
+                filter.employee = currentEmployee._id as any;
             }
         }
 

@@ -264,10 +264,10 @@ export const processSalaryWithInOut = async (
         const closestShiftData = shifts.reduce(
           (
             acc: {
-              shift: { start: string; end: string } | null;
+              shift: { startTime: string; endTime: string } | null;
               minDiff: number;
             },
-            currentShift: { start: string; end: string }
+            currentShift: { startTime: string; endTime: string }
           ) => {
             const currentDiff = Math.abs(
               getTimeDifferenceInMinutes(currentShift.startTime, inDate)

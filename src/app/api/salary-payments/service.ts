@@ -175,7 +175,7 @@ export class SalaryPaymentService {
         }
 
         // Get salary IDs to update totals later
-        const salaryIds = [...new Set(payments.filter(p => p.salary).map(p => p.salary.toString()))];
+        const salaryIds = [...new Set(payments.filter(p => p.salary).map(p => p.salary!.toString()))];
 
         await SalaryPayment.deleteMany({ _id: { $in: paymentIds } });
 

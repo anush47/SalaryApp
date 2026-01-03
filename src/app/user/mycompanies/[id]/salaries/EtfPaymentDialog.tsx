@@ -101,8 +101,13 @@ export default function EtfPaymentDialog({
 
             if (receiptFile) {
                 // Upload receipt
-                const uploadResult = await uploadFile(receiptFile, 'etf-receipts');
-                receiptUrl = uploadResult.url;
+                const uploadResult = await uploadFile({
+                    file: receiptFile,
+                    folder: 'etf-receipts',
+                    entityId: companyId, // Using companyId as placeholder for new record
+                    companyId
+                });
+                receiptUrl = uploadResult.key;
                 receiptFilename = receiptFile.name;
             }
 

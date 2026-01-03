@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
+import dayOfYear from 'dayjs/plugin/dayOfYear';
 
 dayjs.extend(isoWeek);
+dayjs.extend(dayOfYear);
 
 /**
  * Expand a monthly period (YYYY-MM) into an array of daily periods (YYYY-MM-DD)

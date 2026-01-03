@@ -33,7 +33,6 @@ interface GeneratedSalariesProps {
   setGeneratedSalaries: React.Dispatch<React.SetStateAction<Salary[]>>;
   error: string | null;
   loading: boolean;
-  loading: boolean;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   companyId: string;
 }

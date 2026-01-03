@@ -105,8 +105,13 @@ export default function EpfPaymentDialog({
 
             if (receiptFile) {
                 // Upload receipt
-                const uploadResult = await uploadFile(receiptFile, 'epf-receipts');
-                receiptUrl = uploadResult.url;
+                const uploadResult = await uploadFile({
+                    file: receiptFile,
+                    folder: 'epf-receipts',
+                    entityId: companyId, // Using companyId as placeholder for new record
+                    companyId
+                });
+                receiptUrl = uploadResult.key;
                 receiptFilename = receiptFile.name;
             }
 

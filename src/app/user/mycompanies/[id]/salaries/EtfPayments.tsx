@@ -100,7 +100,7 @@ export const EtfPayments: React.FC<{
             headerName: "Date",
             flex: 1,
             minWidth: 100,
-            valueFormatter: (params) => params.value ? dayjs(params.value).format("YYYY-MM-DD") : "-",
+            renderCell: (params) => params.value ? dayjs(params.value).format("YYYY-MM-DD") : "-",
         },
         {
             field: "totalAmount",
@@ -110,13 +110,13 @@ export const EtfPayments: React.FC<{
             type: "number",
             align: "right",
             headerAlign: "right",
-            valueFormatter: (params) => params.value?.toLocaleString(),
+            renderCell: (params) => params.value?.toLocaleString() || "-",
         },
         {
             field: "paymentMethod",
             headerName: "Method",
             flex: 1,
-            valueFormatter: (params) => params.value?.replace("_", " ").toUpperCase() || "-",
+            renderCell: (params) => params.value?.replace("_", " ").toUpperCase() || "-",
         },
         {
             field: "receiptFile",

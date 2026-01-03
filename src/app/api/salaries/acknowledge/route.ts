@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { ApiMiddleware } from "@/app/lib/apiMiddleware";
 import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 import dbConnect from "@/app/lib/db";
@@ -14,7 +15,7 @@ export async function PATCH(req: NextRequest) {
             const { paymentId } = body;
 
             if (!paymentId) {
-                return ApiResponseUtils.sendError("Payment ID is required", 400);
+                return ApiResponseUtils.sendBadRequest("Payment ID is required");
             }
 
             // Find the payment
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest) {
 
             // Update acknowledgment status
             payment.status = "acknowledged";
-            payment.acknowledgedBy = context.user?.id;
+            payment.acknowledgedBy = new mongoose.Types.ObjectId(context.user?.id) as any;
             payment.acknowledgedAt = new Date();
             await payment.save();
 

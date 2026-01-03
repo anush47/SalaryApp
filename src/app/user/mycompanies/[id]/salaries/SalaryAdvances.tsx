@@ -93,7 +93,7 @@ export const SalaryAdvances: React.FC<{
             headerName: "Date",
             flex: 1,
             minWidth: 100,
-            valueFormatter: (params) => dayjs(params.value).format("YYYY-MM-DD"),
+            renderCell: (params) => dayjs(params.value).format("YYYY-MM-DD"),
         },
         {
             field: "employee",
@@ -117,7 +117,7 @@ export const SalaryAdvances: React.FC<{
             headerName: "Amount",
             flex: 1,
             type: "number",
-            valueFormatter: (params) => params.value?.toLocaleString(),
+            renderCell: (params) => params.value?.toLocaleString() || "0",
         },
         {
             field: "reason",
