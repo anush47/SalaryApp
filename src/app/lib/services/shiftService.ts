@@ -71,9 +71,25 @@ export class ShiftService {
 
         // 3. Handle Modes
         if (settings.mode === "fixed") {
-            // Return the default shift or the first one
-            const shift = settings.shifts.find(s => s._id === settings.defaultShiftId) || settings.shifts[0];
-            return { shift: shift || null, source: "fixed_schedule" };
+            // Return the default shift. Prioritize Employee Default if set (aligning with Aggregation View), otherwise Company Default.
+            const empDefaultId = employee.shiftSettings?.defaultShiftId;
+            const defId = empDefaultId || settings.defaultShiftId;
+
+            // We need to find this ID in the available shifts (Company or Employee pool)
+            // settings.shifts might only be Company shifts if overrides are off.
+            // But we should search in the 'scope' of available shifts.
+            // If overrides are off, usually only Company shifts are relevant?
+            // But if we allow Employee Default usage, we might need to look in Employee shifts?
+            // Safest: Search in `settings.shifts` (which is Company's if overrides off). 
+            // If empDefaultId points to a shift NOT in Company list, we might miss it if we only check `settings.shifts`.
+            // Let's check `settings.shifts` first.
+            let shift = settings.shifts.find(s => s._id === defId);
+            if (!shift && empDefaultId) {
+                // Try finding it in employee shifts if not found in company settings
+                shift = employee.shiftSettings?.shifts?.find((s: any) => s._id === empDefaultId);
+            }
+
+            return { shift: shift || settings.shifts[0] || null, source: "fixed_schedule" };
         }
 
         if (settings.mode === "dynamic") {
@@ -84,13 +100,25 @@ export class ShiftService {
                 if (bestMatch) return { shift: bestMatch, source: "auto_select" };
             }
             // Fallback to default
-            const shift = settings.shifts.find(s => s._id === settings.defaultShiftId); // Removed default first one fallback for dynamic to respect strict auto-select/default
+            const empDefaultId = employee.shiftSettings?.defaultShiftId;
+            const defId = empDefaultId || settings.defaultShiftId;
+
+            let shift = settings.shifts.find(s => s._id === defId);
+            if (!shift && empDefaultId) {
+                shift = employee.shiftSettings?.shifts?.find((s: any) => s._id === empDefaultId);
+            }
+
             return { shift: shift || null, source: "default" };
         }
 
         if (settings.mode === "roster") {
             // If meant to be roster but no assignment found, return null or default fallback?
-            const shift = settings.shifts.find(s => s._id === settings.defaultShiftId);
+            const empDefaultId = employee.shiftSettings?.defaultShiftId;
+            const defId = empDefaultId || settings.defaultShiftId;
+            let shift = settings.shifts.find(s => s._id === defId);
+            if (!shift && empDefaultId) {
+                shift = employee.shiftSettings?.shifts?.find((s: any) => s._id === empDefaultId);
+            }
             return { shift: shift || null, source: "default" };
         }
 
@@ -128,13 +156,45 @@ export class ShiftService {
         let bestShift: Shift | undefined;
         let minDiff = Infinity;
 
+        // 1. Priority: Check if time is INSIDE the shift window
+        for (const shift of shifts) {
+            if (!shift.startTime || !shift.endTime) continue;
+
+            const start = dayjs(shift.startTime, "HH:mm");
+            const end = dayjs(shift.endTime, "HH:mm");
+
+            if (!start.isValid() || !end.isValid()) continue;
+
+            const isOvernight = end.isBefore(start);
+
+            // Check containment
+            let isInside = false;
+            if (isOvernight) {
+                // e.g. 22:00 to 06:00. Time is inside if >= 22:00 OR <= 06:00
+                if (targetTime.isSame(start) || targetTime.isAfter(start) || targetTime.isSame(end) || targetTime.isBefore(end)) {
+                    isInside = true;
+                }
+            } else {
+                // Standard day shift: 09:00 to 17:00
+                if ((targetTime.isSame(start) || targetTime.isAfter(start)) && (targetTime.isSame(end) || targetTime.isBefore(end))) {
+                    isInside = true;
+                }
+            }
+
+            if (isInside) {
+                // Found a containing shift! Return immediately or collect if needed.
+                // Assuming non-overlapping shifts, returning first match is safe.
+                return shift;
+            }
+        }
+
+        // 2. Fallback: Closest Start Time
         shifts.forEach(shift => {
             if (!shift.startTime) return;
             const shiftStart = dayjs(shift.startTime, "HH:mm");
             if (!shiftStart.isValid()) return;
 
             // Calculate difference in minutes
-            // Handle day wrapping: if difference is large > 12h, maybe it's closer across midnight
             let diff = Math.abs(targetTime.diff(shiftStart, "minute"));
             if (diff > 720) { // 12 hours
                 diff = 1440 - diff;

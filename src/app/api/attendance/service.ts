@@ -15,7 +15,7 @@ export const attendanceCreateSchema = z.object({
         lat: z.number(),
         lng: z.number(),
         accuracy: z.number(),
-    }),
+    }).optional().nullable(), // Make location optional
     deviceId: z.string().optional(),
     deviceDetails: z.string().optional(),
     shiftId: z.string().optional(),
@@ -227,11 +227,14 @@ export class AttendanceService {
             }
             // Note: Previously, logic was mixing them (Additive). Now it is Exclusive based on user request "if overriden then them or else company ones".
 
-            // Check if user is within ANY valid location
-            if (validLocations.length === 0) {
+            if (!location) {
+                // No location provided (Failed to fetch on client)
+                isVerified = false;
+            } else if (validLocations.length === 0) {
                 // No locations set up - Assuming validation is open/not configured yet
                 isVerified = true;
             } else {
+                // Check if user is within ANY valid location
                 for (const loc of validLocations) {
                     const distance = getDistance(
                         location.lat, location.lng,
@@ -250,7 +253,14 @@ export class AttendanceService {
                 : company.geoFencing?.enforceValidation;
 
             if (!isVerified && effectiveEnforce) {
-                throw new ForbiddenError("You are not within the allowed clock-in range.");
+                // If location is missing AND enforcement is on, we should block
+                // Unless there's a policy to allow missing location? 
+                // Assuming block for safety if enforced.
+                if (!location) {
+                    throw new ForbiddenError("Location access is required for check-in.");
+                } else {
+                    throw new ForbiddenError("You are not within the allowed clock-in range.");
+                }
             }
         }
 
@@ -282,10 +292,10 @@ export class AttendanceService {
             type,
             method: isEmployer ? "manual" : "web",
             status,
-            location: {
+            location: location ? {
                 ...location,
                 isVerified
-            },
+            } : undefined, // Save undefined if no location
             deviceId,
             deviceDetails,
             remarks: body.remarks,
@@ -337,9 +347,11 @@ export class AttendanceService {
 
         // Filters: Date Range, Employee, Company
         const companyId = req.nextUrl.searchParams.get("companyId");
+        const employeeId = req.nextUrl.searchParams.get("employeeId");
         const date = req.nextUrl.searchParams.get("date"); // YYYY-MM-DD
         const startDateParam = req.nextUrl.searchParams.get("startDate");
         const endDateParam = req.nextUrl.searchParams.get("endDate");
+        const limitParam = req.nextUrl.searchParams.get("limit");
 
         if (!companyId) throw new BadRequestError("Company ID is required");
 
@@ -348,6 +360,10 @@ export class AttendanceService {
 
         const isEmployer = context.user.role === 'employer' || context.user.role === 'admin';
         let filter: any = { company: companyId };
+
+        if (employeeId) {
+            filter.employee = employeeId;
+        }
 
         if (!isEmployer) {
             // Find employee record for the current user
@@ -358,11 +374,20 @@ export class AttendanceService {
             const subordinates = await Employee.find({ manager: currentEmployee._id }, "_id");
 
             if (subordinates.length > 0) {
-                // Manager: sees own and subordinates
-                const allowedEmployeeIds = [currentEmployee._id, ...subordinates.map(s => s._id)];
-                filter.employee = { $in: allowedEmployeeIds };
+                // Even if manager, can only see own or subordinates. 
+                // If employeeId is requested, verify it is one of them.
+                const allowedList = [currentEmployee._id.toString(), ...subordinates.map(s => s._id.toString())];
+                if (employeeId && !allowedList.includes(employeeId)) {
+                    throw new ForbiddenError("You are not authorized to view this employee's records.");
+                } else if (!employeeId) {
+                    // If no specific employee requested, limit to allowed list
+                    filter.employee = { $in: allowedList };
+                }
             } else {
                 // Regular Employee: only sees own
+                if (employeeId && employeeId !== currentEmployee._id.toString()) {
+                    throw new ForbiddenError("You are not authorized to view this employee's records.");
+                }
                 filter.employee = currentEmployee._id;
             }
         }
@@ -370,6 +395,11 @@ export class AttendanceService {
         // Date Range Logic
         if (startDateParam || endDateParam) {
             filter.timestamp = {};
+            // If fetching "previous" records, we might want < timestamp
+            // But standard API usually does range. 
+            // Let's support standard range. 
+            // For "Previous" logic, we might need strict inequality if passed special params?
+            // Or just rely on standard <= endDate.
             if (startDateParam) filter.timestamp.$gte = new Date(startDateParam);
             if (endDateParam) filter.timestamp.$lte = new Date(endDateParam);
         } else if (date) {
@@ -381,10 +411,15 @@ export class AttendanceService {
         }
 
         // Fetch
-        const records = await Attendance.find(filter)
+        let query = Attendance.find(filter)
             .populate("employee", "name memberNo nic designation attendanceOverrides")
-            .sort({ timestamp: -1 })
-            .lean();
+            .sort({ timestamp: -1 });
+
+        if (limitParam) {
+            query = query.limit(parseInt(limitParam));
+        }
+
+        const records = await query.lean();
 
         return records;
     }

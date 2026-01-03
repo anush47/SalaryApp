@@ -3,7 +3,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Paper, Chip, Typography, Box, IconButton, Tooltip, TextField
 } from '@mui/material';
-import { CheckCircle, Cancel, Edit, Info, Hotel, Warning, Visibility } from '@mui/icons-material';
+import { CheckCircle, Cancel, Edit, Info, Hotel, Warning, Visibility, PhoneIphone } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
 
@@ -125,10 +125,54 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                     )}
                                 </TableCell>
                                 <TableCell align="center" sx={{ fontWeight: 'medium' }}>
-                                    {formatTime(record.checkInTime)}
+                                    <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
+                                        {record.sessions && record.sessions.length > 0 ? (
+                                            record.sessions.map((session, idx) => (
+                                                <Box key={idx} display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                                                    {formatTime(session.checkInTime)}
+                                                    {session.inDeviceChange && (
+                                                        <Tooltip title="Device Changed">
+                                                            <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                        </Tooltip>
+                                                    )}
+                                                </Box>
+                                            ))
+                                        ) : (
+                                            <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                                                {formatTime(record.checkInTime)}
+                                                {record.inDeviceChange && (
+                                                    <Tooltip title="Device Changed">
+                                                        <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                    </Tooltip>
+                                                )}
+                                            </Box>
+                                        )}
+                                    </Box>
                                 </TableCell>
                                 <TableCell align="center" sx={{ fontWeight: 'medium' }}>
-                                    {formatTime(record.checkOutTime)}
+                                    <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
+                                        {record.sessions && record.sessions.length > 0 ? (
+                                            record.sessions.map((session, idx) => (
+                                                <Box key={idx} display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                                                    {formatTime(session.checkOutTime)}
+                                                    {session.outDeviceChange && (
+                                                        <Tooltip title="Device Changed">
+                                                            <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                        </Tooltip>
+                                                    )}
+                                                </Box>
+                                            ))
+                                        ) : (
+                                            <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                                                {formatTime(record.checkOutTime)}
+                                                {record.outDeviceChange && (
+                                                    <Tooltip title="Device Changed">
+                                                        <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                    </Tooltip>
+                                                )}
+                                            </Box>
+                                        )}
+                                    </Box>
                                 </TableCell>
                                 <TableCell align="right">
                                     {formatDuration(record.durationMinutes)}

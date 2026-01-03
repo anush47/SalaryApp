@@ -248,19 +248,36 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
 
     const [viewRecord, setViewRecord] = useState<DailyAttendanceRecord | null>(null);
 
+    // State for Device ID check
+    const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+    useEffect(() => {
+        let deviceId = localStorage.getItem("attendance_device_id");
+        if (!deviceId) {
+            deviceId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+            localStorage.setItem("attendance_device_id", deviceId);
+        }
+        setCurrentDeviceId(deviceId);
+    }, []);
+
+    const isDeviceChanged = lastLog && currentDeviceId && lastLog.deviceId && lastLog.deviceId !== currentDeviceId;
+
     const handleAttendance = async (type: "in" | "out") => {
+        // Geolocation Check
         if (!navigator.geolocation) {
             showSnackbar({ message: "Geolocation is not supported by your browser", severity: "error" });
             return;
         }
+
+        // If inside Strict Zone and we know we are outside, block.
         if (isStrictGeofencing && !locationStatus.isInside && locationStatus.coords) {
             showSnackbar({ message: "You are outside the allowed area. Cannot check in.", severity: "error" });
             return;
         }
+
         setLoading(true);
 
         const getLocation = (highAccuracy: boolean = true): Promise<{ lat: number, lng: number, accuracy: number } | null> => {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         resolve({
@@ -278,6 +295,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                             return;
                         }
 
+                        // If cached location exists, use it
                         if (locationStatus.coords) {
                             resolve({
                                 lat: locationStatus.coords.latitude,
@@ -285,8 +303,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                 accuracy: (locationStatus.coords as any).accuracy || 20
                             });
                         } else {
-                            if (isStrictGeofencing) reject(error);
-                            else resolve(null);
+                            // Proceed without location (returns null)
+                            resolve(null);
                         }
                     },
                     { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 15000 : 30000, maximumAge: 10000 }
@@ -294,9 +312,9 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             });
         };
 
+        // Determine Location Logic
         let locationPromise: Promise<{ lat: number, lng: number, accuracy: number } | null>;
 
-        // OPTIMIZATION: Use cached location if available and recent
         if (locationStatus.coords && !locationStatus.error) {
             console.log("Using cached location for ultra-fast check-in");
             locationPromise = Promise.resolve({
@@ -309,39 +327,41 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             locationPromise = getLocation();
         }
 
-        locationPromise.then(async (location) => {
-            let deviceId = localStorage.getItem("attendance_device_id");
-            if (!deviceId) {
-                deviceId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
-                localStorage.setItem("attendance_device_id", deviceId);
-            }
+        try {
+            const location = await locationPromise;
+            // Use state device ID
             const deviceDetails = navigator.userAgent || "Unknown Device";
-            try {
-                const payload: any = { type, deviceId, deviceDetails, remarks };
-                if (location) {
-                    payload.location = location;
-                } else {
-                    payload.location = { lat: 0, lng: 0, accuracy: 0 };
-                }
-                const res = await markAttendance(payload);
-                if (res.success) {
-                    showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
-                    setRemarks(""); // Reset remarks after success
-                    refetchLogs();
-                } else {
-                    showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
-                }
-            } catch (error) {
-                showSnackbar({ message: "An error occurred", severity: "error" });
-            } finally {
-                setLoading(false);
+            const payload: any = { type, deviceId: currentDeviceId, deviceDetails, remarks };
+
+            if (location) {
+                payload.location = location;
+            } else {
+                payload.location = null;
             }
-        }).catch((error: GeolocationPositionError) => {
-            setLoading(false);
-            let msg = "Unable to retrieve your location";
-            if (error.code === 1) msg = "Location permission denied. Please allow location access.";
+
+            // Warning for user
+            if (!location) {
+                showSnackbar({ message: "Checking in without location data (Location not detected).", severity: "warning" });
+            }
+
+            const res = await markAttendance(payload);
+
+            if (res.success) {
+                showSnackbar({ message: `Successfully Checked ${type === 'in' ? 'In' : 'Out'}!`, severity: "success" });
+                setRemarks("");
+                refetchLogs();
+            } else {
+                showSnackbar({ message: res.error?.message || "Failed to mark attendance", severity: "error" });
+            }
+
+        } catch (error) {
+            console.error("Attendance Error:", error);
+            let msg = "An error occurred";
+            if (error instanceof Error) msg = error.message;
             showSnackbar({ message: msg, severity: "error" });
-        });
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (loadingEmployee) {
@@ -494,51 +514,70 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                     rows={2}
                                 />
 
-                                {/* Geolocaton Status Alert */}
+                                {/* Device Change Warning */}
+                                {/* Combined Environment Status */}
                                 <Paper elevation={0} sx={{
                                     p: 2,
                                     mb: 2,
                                     borderRadius: 2,
-                                    bgcolor: locationStatus.fetching ? 'info.50' : locationStatus.error ? 'error.50' : locationStatus.isInside ? 'success.50' : (strictEnforce ? 'error.50' : 'warning.50'),
+                                    bgcolor: 'background.paper',
                                     border: '1px solid',
-                                    borderColor: locationStatus.fetching ? 'info.main' : locationStatus.error ? 'error.main' : locationStatus.isInside ? 'success.main' : (strictEnforce ? 'error.main' : 'warning.main'),
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 2
+                                    borderColor: 'divider'
                                 }}>
-                                    {locationStatus.fetching ? (
-                                        <CircularProgress size={24} color="info" />
-                                    ) : locationStatus.error ? (
-                                        <LocationOn color="error" fontSize="large" />
-                                    ) : (
-                                        <LocationOn color={locationStatus.isInside ? "success" : (strictEnforce ? "error" : "warning")} fontSize="large" />
-                                    )}
-                                    <Box>
-                                        <Typography variant="subtitle1" fontWeight="bold" color="text.primary">
-                                            {locationStatus.fetching ? "Detecting Location..." :
-                                                locationStatus.error ? "Location Error" :
-                                                    locationStatus.isInside ? "You are in an Allowed Zone" : (strictEnforce ? "OUTSIDE Allowed Zone (Check-in Blocked)" : "OUTSIDE Allowed Zone (Check-in Permitted)")}
-                                        </Typography>
-                                        {!locationStatus.fetching && !locationStatus.error && (
-                                            <Typography variant="body2" color="text.secondary">
-                                                {locationStatus.isInside
-                                                    ? "Ready to Check In."
-                                                    : `Distance to zone: ${locationStatus.distance ? locationStatus.distance.toFixed(0) + 'm' : 'Unknown'}`
-                                                }
-                                            </Typography>
+                                    <Stack spacing={2}>
+                                        {/* Location Section */}
+                                        <Box display="flex" alignItems="center" gap={2} sx={{
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            bgcolor: locationStatus.fetching ? 'info.lighter' : locationStatus.error ? 'error.lighter' : locationStatus.isInside ? 'success.lighter' : 'warning.lighter'
+                                        }}>
+                                            {locationStatus.fetching ? (
+                                                <CircularProgress size={24} color="info" />
+                                            ) : locationStatus.error ? (
+                                                <LocationOn color="error" fontSize="large" />
+                                            ) : (
+                                                <LocationOn color={locationStatus.isInside ? "success" : (strictEnforce ? "error" : "warning")} fontSize="large" />
+                                            )}
+                                            <Box>
+                                                <Typography variant="subtitle2" fontWeight="bold">
+                                                    {locationStatus.fetching ? "Detecting Location..." :
+                                                        locationStatus.error ? "Location Error" :
+                                                            locationStatus.isInside ? "You are in an Allowed Zone" : (strictEnforce ? "Restriction: Outside Allowed Zone" : "Warning: Outside Allowed Zone")}
+                                                </Typography>
+                                                {!locationStatus.fetching && !locationStatus.error && (
+                                                    <Typography variant="caption" display="block">
+                                                        {locationStatus.isInside
+                                                            ? "GPS verification successful."
+                                                            : `Distance to nearest zone: ${locationStatus.distance ? locationStatus.distance.toFixed(0) + 'm' : 'Unknown'}`
+                                                        }
+                                                    </Typography>
+                                                )}
+                                                {locationStatus.error && <Typography variant="caption" color="error">{locationStatus.error}</Typography>}
+                                            </Box>
+                                        </Box>
+
+                                        {/* Device Section */}
+                                        {isDeviceChanged && (
+                                            <>
+                                                {/* <Divider /> */}
+                                                <Box display="flex" alignItems="center" gap={2} sx={{
+                                                    p: 1.5,
+                                                    borderRadius: 2,
+                                                    bgcolor: 'warning.lighter'
+                                                }}>
+                                                    <History color="warning" fontSize="large" />
+                                                    <Box>
+                                                        <Typography variant="subtitle2" fontWeight="bold" color="warning.dark">
+                                                            New Device Detected
+                                                        </Typography>
+                                                        <Typography variant="caption" color="warning.dark">
+                                                            Different from your last record. This event will be flagged.
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                            </>
                                         )}
-                                        {locationStatus.error && (
-                                            <Typography variant="body2" color="error">
-                                                {locationStatus.error}
-                                            </Typography>
-                                        )}
-                                        {/* Warning if no zones */}
-                                        {geoEnabled && effectiveZones.length === 0 && (
-                                            <Typography variant="body2" color="error" fontWeight="bold">
-                                                ⚠️ No Allowed Zones Configured! Contact Administrator.
-                                            </Typography>
-                                        )}
-                                    </Box>
+                                    </Stack>
                                 </Paper>
 
                                 {/* Common Map Component */}

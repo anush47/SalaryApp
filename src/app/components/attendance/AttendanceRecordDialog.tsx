@@ -22,15 +22,79 @@ import {
     useTheme,
     useMediaQuery
 } from "@mui/material";
-import { CheckCircle, Cancel, LocationOn, Delete, AddCircle } from "@mui/icons-material";
+import { CheckCircle, Cancel, LocationOn, Delete, AddCircle, Warning } from "@mui/icons-material";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from "dayjs";
 import { AttendanceZonesMap } from "@/app/components/attendance/AttendanceZonesMap";
-import { updateAttendanceStatus, deleteAttendance, createAttendance } from "@/app/lib/api/attendanceApi";
+import { updateAttendanceStatus, deleteAttendance, createAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { DailyAttendanceRecord } from "@/app/hooks/useAttendanceAggregation";
+
+// Helper Component for Device Check
+const PreviousDeviceCheck = ({ currentLog, employeeId, companyId }: { currentLog: any, employeeId: string, companyId: string }) => {
+    const [previousLog, setPreviousLog] = useState<any>(null);
+    const [checking, setChecking] = useState(false);
+
+    useEffect(() => {
+        if (!currentLog || !employeeId || !companyId) return;
+
+        const checkPrevious = async () => {
+            setChecking(true);
+            try {
+                // Fetch records ending BEFORE current log time
+                // Using endDate = current timestamp (exclusive? API uses <= so might fetch current. Need to filter or use strict < if backend supported, but standard is <=)
+                // We will fetch limit=2, sort=-1. The first one should be current (or similar), second is previous.
+                // OR ensure endDate is slightly less?
+                const endDate = dayjs(currentLog.timestamp).subtract(1, 'second').toISOString();
+
+                // Using the new support for employeeId and limit
+                const qs = new URLSearchParams({
+                    companyId,
+                    employeeId,
+                    endDate,
+                    limit: "1"
+                });
+
+                const res = await fetch(`/api/attendance?${qs.toString()}`);
+                const data = await res.json();
+
+                if (data.success && data.data && data.data.length > 0) {
+                    setPreviousLog(data.data[0]);
+                } else {
+                    setPreviousLog(null);
+                }
+            } catch (e) { console.error("Prev dev check failed", e); }
+            finally { setChecking(false); }
+        };
+
+        checkPrevious();
+    }, [currentLog, employeeId, companyId]);
+
+    if (checking) return <Typography variant="caption" color="text.secondary">Checking device history...</Typography>;
+
+    if (!previousLog) return null; // No history to compare
+
+    // Check if device ID changed
+    // If current has no ID (manual/web without ID?), and prev had one, it's a change.
+    // Normalized comparison
+    const currentId = currentLog.deviceId || "unknown";
+    const prevId = previousLog.deviceId || "unknown";
+
+    if (currentId !== prevId) {
+        return (
+            <Alert severity="warning" icon={<Warning />} sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold">New Device Detected</Typography>
+                <Typography variant="body2">
+                    This record was created using a different device than the previous record ({dayjs(previousLog.timestamp).format("MMM D HH:mm")}).
+                </Typography>
+            </Alert>
+        );
+    }
+
+    return null;
+};
 
 interface AttendanceRecordDialogProps {
     open: boolean;
@@ -442,6 +506,36 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         <Alert severity="info">
                                             You are creating a manual record. Location will be set to company default or require manual override.
                                         </Alert>
+                                    </Grid>
+                                )}
+
+                                {/* Device Info & Comparison */}
+                                {currentLog && (
+                                    <Grid item xs={12}>
+                                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper' }}>
+                                            <Typography variant="subtitle2" gutterBottom>Device Information</Typography>
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="caption" color="text.secondary">Device ID</Typography>
+                                                    <Typography variant="body2" fontFamily="monospace">
+                                                        {currentLog.deviceId || "N/A"}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="caption" color="text.secondary">Device Details</Typography>
+                                                    <Typography variant="body2">
+                                                        {currentLog.deviceDetails || "N/A"}
+                                                    </Typography>
+                                                </Grid>
+                                            </Grid>
+
+                                            {/* Previous Device Check */}
+                                            <PreviousDeviceCheck
+                                                currentLog={currentLog}
+                                                employeeId={currentLog?.employee?._id || currentLog?.employee}
+                                                companyId={currentLog?.company}
+                                            />
+                                        </Paper>
                                     </Grid>
                                 )}
                             </Grid>

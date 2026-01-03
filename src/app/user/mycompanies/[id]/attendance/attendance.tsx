@@ -134,6 +134,38 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
         }
     };
 
+    // Verify Sorting and Comput Device Changes
+    const deviceChangeMap = React.useMemo(() => {
+        const map: Record<string, boolean> = {};
+        if (!logs || logs.length === 0) return map;
+
+        // Group by Employee
+        const empLogs: Record<string, any[]> = {};
+        logs.forEach((log: any) => {
+            const empId = log.employee?._id || log.employee;
+            if (!empId) return;
+            if (!empLogs[empId]) empLogs[empId] = [];
+            empLogs[empId].push(log);
+        });
+
+        // For each employee, sort logs ASCENDING to trace changes
+        Object.values(empLogs).forEach(list => {
+            list.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+            let lastDevice: string | null = null;
+            list.forEach(log => {
+                const currentDevice = log.deviceId || null;
+                // Only flag if we have a previous device to compare
+                if (lastDevice && currentDevice && lastDevice !== currentDevice) {
+                    map[log._id] = true;
+                }
+                if (currentDevice) lastDevice = currentDevice;
+            });
+        });
+
+        return map;
+    }, [logs]);
+
     const columns: GridColDef[] = [
         {
             field: "memberNo",
@@ -235,24 +267,35 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
             width: 140,
             align: 'center',
             headerAlign: 'center',
-            renderCell: (params) => (
-                <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} height="100%">
-                    {params.value?.isVerified ? (
-                        <Tooltip title="Verified within allowed radius">
-                            <CheckCircle sx={{ color: 'success.main', fontSize: '1.2rem' }} />
+            renderCell: (params) => {
+                const isDeviceChange = deviceChangeMap[params.row._id];
+                return (
+                    <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} height="100%">
+                        {params.value?.isVerified ? (
+                            <Tooltip title="Verified within allowed radius">
+                                <CheckCircle sx={{ color: 'success.main', fontSize: '1.2rem' }} />
+                            </Tooltip>
+                        ) : (
+                            <Tooltip title="Outside allowed radius">
+                                <Cancel sx={{ color: 'error.main', fontSize: '1.2rem' }} />
+                            </Tooltip>
+                        )}
+                        <Tooltip title={`Lat: ${params.value?.lat}, Lng: ${params.value?.lng}`}>
+                            <IconButton size="small" color="primary">
+                                <LocationOn sx={{ fontSize: '1.2rem' }} />
+                            </IconButton>
                         </Tooltip>
-                    ) : (
-                        <Tooltip title="Outside allowed radius">
-                            <Cancel sx={{ color: 'error.main', fontSize: '1.2rem' }} />
-                        </Tooltip>
-                    )}
-                    <Tooltip title={`Lat: ${params.value?.lat}, Lng: ${params.value?.lng}`}>
-                        <IconButton size="small" color="primary">
-                            <LocationOn sx={{ fontSize: '1.2rem' }} />
-                        </IconButton>
-                    </Tooltip>
-                </Box>
-            ),
+
+                        {isDeviceChange && (
+                            <Tooltip title="Device Changed (Different from previous record)">
+                                <IconButton size="small" color="warning">
+                                    <PhoneIphone sx={{ fontSize: '1.2rem', color: 'orange' }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Box>
+                );
+            },
         },
         {
             field: "actions",
