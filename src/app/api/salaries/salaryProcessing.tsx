@@ -9,8 +9,7 @@ export const processSalaryWithInOut = async (
   existingSalary: any = undefined,
   gen: boolean = false
 ) => {
-  console.log("processSalaryWithInOut called for:", employee.name);
-  console.log("ShiftSettings:", JSON.stringify(employee.shiftSettings, null, 2));
+
 
   const shifts = employee.shiftSettings?.shifts || [];
   const source = existingSalary || employee;

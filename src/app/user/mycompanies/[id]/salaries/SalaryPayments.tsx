@@ -205,13 +205,16 @@ export const SalaryPayments: React.FC<{
                 filterModel={filterModel}
                 onFilterModelChange={setFilterModel}
                 slots={{ toolbar: GridToolbar }}
+                disableRowSelectionOnClick
+                disableDensitySelector
                 slotProps={{
                     toolbar: {
                         showQuickFilter: true,
                         quickFilterProps: { debounceMs: 500 },
+                        csvOptions: { disableToolbarButton: true },
+                        printOptions: { disableToolbarButton: true },
                     },
                 }}
-                disableRowSelectionOnClick
             />
 
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>

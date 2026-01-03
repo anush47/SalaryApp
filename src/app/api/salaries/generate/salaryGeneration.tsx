@@ -243,13 +243,15 @@ function calculateSalaryDetails(
   ot: number,
   holidayPay: number
 ) {
-  const parsedAdditions = source.paymentStructure.additions.map((addition) => ({
+
+
+  const parsedAdditions = (source.paymentStructure?.additions || []).map((addition) => ({
     name: addition.name,
     amount: parseValue(addition.name, addition.amount, source.basic),
     affectTotalEarnings: addition.affectTotalEarnings,
   }));
 
-  const parsedDeductions = source.paymentStructure.deductions
+  const parsedDeductions = (source.paymentStructure?.deductions || [])
     .filter((deduction) => deduction.name !== "EPF 8%")
     .map((deduction) => ({
       name: deduction.name,
@@ -447,8 +449,6 @@ export async function generateSalaryForOneEmployee(
 
     // User request: "basic is always monthly" -> This implies source.basic coming from employee is monthly. 
     // And "shoud be devided and used per day correctly" -> We just did that with effectiveBasic.
-    // IMPORTANT: We must update source.basic to effectiveBasic so that calculations downstream use it.
-    source.basic = effectiveBasic;
 
     source.divideBy = employee.divideBy || 240;
     source.totalSalary = parseValue("totalSalary", employee.totalSalary, 0);
@@ -461,7 +461,7 @@ export async function generateSalaryForOneEmployee(
       source.totalSalary = parseValue(
         "totalSalary",
         source.totalSalary,
-        source.basic // This is now effectiveBasic
+        effectiveBasic // Use calculated effectiveBasic
       );
     }
 
@@ -502,7 +502,7 @@ export async function generateSalaryForOneEmployee(
       parsedDeductions,
       totalAdditions,
       totalDeductions,
-    } = calculateSalaryDetails(source, salary, ot, holidayPay);
+    } = calculateSalaryDetails({ ...source, basic: effectiveBasic }, salary, ot, holidayPay);
 
     // Calculate leave deductions for no-pay leaves
     const {
@@ -512,7 +512,7 @@ export async function generateSalaryForOneEmployee(
     } = await calculateLeaveDeductions(
       employee._id,
       period,
-      source.basic,
+      effectiveBasic, // Use effectiveBasic
       source.divideBy
     );
 
@@ -539,7 +539,7 @@ export async function generateSalaryForOneEmployee(
 
     if (employee.taxType !== "individual") {
       taxCalculation = await calculateTax(
-        source.basic,
+        effectiveBasic, // Use effectiveBasic
         holidayPay,
         parsedAdditions,
         ot,
@@ -556,7 +556,7 @@ export async function generateSalaryForOneEmployee(
     // If taxType is company or undefined, totalTax is calculated value.
 
     const finalSalary =
-      employee.basic +
+      effectiveBasic + // use effectiveBasic
       holidayPay +
       totalAdditions +
       ot -
@@ -569,7 +569,7 @@ export async function generateSalaryForOneEmployee(
       inOut: inOutProcessed,
       employee: employee._id,
       period,
-      basic: source.basic, // Employee's basic salary
+      basic: effectiveBasic, // Employee's effective basic salary
       holidayPay,
       noPay: {
         amount: totalNoPay, // No Pay deduction amount (attendance + leaves)

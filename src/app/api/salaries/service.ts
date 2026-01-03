@@ -808,7 +808,7 @@ export class SalaryService {
             delete filter.user;
         }
 
-        const company = (await Company.findOne(filter)) as any;
+        const company = (await Company.findOne(filter).lean()) as any;
 
         if (!company) {
             throw new NotFoundError("Company not found");
@@ -832,12 +832,12 @@ export class SalaryService {
             employees = await Employee.find({
                 company: companyId.toString(),
                 active: true,
-            });
+            }).lean();
         } else {
             employees = await Employee.find({
                 _id: { $in: employeeIds },
                 company: companyId.toString(),
-            });
+            }).lean();
         }
 
         // If no employees
@@ -985,20 +985,47 @@ export class SalaryService {
             tasksByEmployee.get(empId)!.push(task);
         }
 
-        const results: { salary: any; exists: any; period: string }[] = [];
 
-        // Process each employee's tasks sequentially
+
+        // Pre-processing: Sort tasks and fetch initial advance states in parallel
+        const advanceStateMap = new Map<string, any[]>();
+        const advanceFetchPromises: Promise<void>[] = [];
+
         for (const [empId, tasks] of tasksByEmployee) {
             // Sort tasks by period (ascending) to ensure correct deduction order
             tasks.sort((a, b) => a.period.localeCompare(b.period));
 
-            // Fetch initial advance state for the employee
-            // We use the first period to check for active advances
-            // We clone the result to maintain a running state purely for this batch generation
-            // Note: getActiveAdvances returns raw documents or objects. We ensure deep copy for safety.
-            let currentAdvanceState = (await getActiveAdvances(empId, tasks[0].period)).map((a: any) => ({ ...a }));
+            // Queue up advance fetch for the first period of the sequence
+            // We use the first period to check for active advances valid at start of batch
+            advanceFetchPromises.push(
+                getActiveAdvances(empId, tasks[0].period)
+                    .then(advances => {
+                        // Deep copy to separate from source state
+                        advanceStateMap.set(empId, advances.map((a: any) => ({ ...a })));
+                    })
+                    .catch(error => {
+                        console.error(`[SalaryService] Failed to fetch advances for ${empId}`, error);
+                        advanceStateMap.set(empId, []); // Fallback to empty if failed, or could throw
+                    })
+            );
+        }
 
-            console.log(`[SalaryService] Processing ${tasks.length} tasks for employee ${empId} with ${currentAdvanceState.length} active advances`);
+
+        await Promise.all(advanceFetchPromises);
+
+
+        // Process each employee's tasks in parallel
+        const processEmployeeTasks = async (empId: string, tasks: typeof salaryGenerationTasks, initialAdvances: any[]) => {
+            const employeeResults: { salary: any; exists: any; period: string }[] = [];
+
+            // Advances are already pre-fetched and sorted
+            // Use the injected initial state
+            // Deep copy again if we want to be paranoid, but the map already has fresh copies for this employee logic
+            // Since this function runs once per employee, utilizing the array from map (which is specific to this emp) is safe 
+            // AS LONG AS we map it to a new array for mutation within this function instance
+            let currentAdvanceState = initialAdvances.map(a => ({ ...a }));
+
+
 
             for (const task of tasks) {
                 const { employee, period: taskPeriod, index } = task;
@@ -1125,7 +1152,7 @@ export class SalaryService {
                     }
                 }
 
-                results.push(salaryResult);
+                employeeResults.push(salaryResult);
 
                 // Update currentAdvanceState based on deductions made in this salary
                 // This ensures subsequent periods for the same employee see the depleted balance
@@ -1145,7 +1172,19 @@ export class SalaryService {
                     }
                 }
             }
-        }
+            return employeeResults;
+        };
+
+        // Execute parallel processing across employees
+        const allEmployeeResultArrays = await Promise.all(
+            Array.from(tasksByEmployee.entries()).map(([empId, tasks]) => {
+                const initialAdvances = advanceStateMap.get(empId) || [];
+                return processEmployeeTasks(empId, tasks, initialAdvances);
+            })
+        );
+
+        // Flatten results
+        const results = allEmployeeResultArrays.flat();
 
         const salaries = results.filter((r) => r && r.salary).map((r) => r.salary);
         const exists = results.filter((r) => r && r.exists).map((r) => r.exists);

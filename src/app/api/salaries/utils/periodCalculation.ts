@@ -25,26 +25,17 @@ export function calculatePeriodDates(
     // If overrides are enabled, prioritize employee settings
     const isOverrideEnabled = employee.overrides?.salaryPeriod;
 
-    // Debug logging for configuration source
-    console.log(`[SalaryGen] Resolving Period Config for ${employee.name} (${employee._id})`);
-    console.log(`[SalaryGen] Employee Override Enabled: ${isOverrideEnabled}`);
-    console.log(`[SalaryGen] Employee Config: Period=${salaryPeriod}, Type=${payPeriodConfig?.type}`);
-
     if (!isOverrideEnabled && company?.salaryPeriodDefaults) {
         // Use company defaults if override is NOT enabled
         const defaults = company.salaryPeriodDefaults;
         salaryPeriod = defaults.salaryPeriod;
         payPeriodConfig = defaults.payPeriodConfig;
         customPeriodDays = defaults.customPeriodDays;
-
-        console.log(`[SalaryGen] Using Company Defaults: Period=${salaryPeriod}`);
     } else {
         // Fallback or explicit override: ensure salaryPeriod exists
         if (!salaryPeriod) {
             console.warn(`[SalaryGen] Salary period missing for employee ${employee._id} (Override: ${isOverrideEnabled}). Defaulting to monthly.`);
             salaryPeriod = "monthly";
-        } else {
-            console.log(`[SalaryGen] Using Employee Override/Config: Period=${salaryPeriod}`);
         }
     }
 

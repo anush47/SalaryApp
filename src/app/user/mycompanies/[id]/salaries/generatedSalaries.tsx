@@ -64,33 +64,7 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
   };
 
   const columns: GridColDef[] = [
-    {
-      field: "actions",
-      headerName: "Actions",
-      width: 150,
-      renderCell: (params) => (
-        <Box>
-          <Button
-            variant="text"
-            size="small"
-            startIcon={<Visibility />}
-            onClick={() => handleViewClick(params.id.toString())}
-          >
-            View
-          </Button>
-          <Button
-            variant="text"
-            color="error"
-            size="small"
-            onClick={() => {
-              handleDeleteClick(params.id.toString());
-            }}
-          >
-            Delete
-          </Button>
-        </Box>
-      )
-    },
+
     {
       field: "memberNo",
       headerName: "Member No",
@@ -196,6 +170,33 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
       headerName: "Remark",
       flex: 1,
       editable: true,
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 150,
+      renderCell: (params) => (
+        <Box>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<Visibility />}
+            onClick={() => handleViewClick(params.id.toString())}
+          >
+            View
+          </Button>
+          <Button
+            variant="text"
+            color="error"
+            size="small"
+            onClick={() => {
+              handleDeleteClick(params.id.toString());
+            }}
+          >
+            Delete
+          </Button>
+        </Box>
+      )
     },
     // Converted to consolidated Actions column
     // {
@@ -373,8 +374,7 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
                 },
                 sorting: {
                   sortModel: [
-                    { field: 'memberNo', sort: 'asc' },
-                    { field: 'period', sort: 'asc' }
+                    { field: 'memberNo', sort: 'asc' }
                   ]
                 }
               }}
