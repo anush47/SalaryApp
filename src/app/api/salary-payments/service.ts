@@ -86,7 +86,11 @@ export class SalaryPaymentService {
             referenceNo: parsedBody.referenceNo,
             madeBy: context.user?.id,
             adminNote: parsedBody.adminNote,
-            status: "pending",
+            status: employee.autoAcknowledge ? "acknowledged" : "pending",
+            ...(employee.autoAcknowledge && {
+                acknowledgedBy: employee._id,
+                acknowledgedAt: new Date(),
+            }),
         });
 
         // Update salary totals
@@ -217,6 +221,15 @@ export class SalaryPaymentService {
         payment.status = "acknowledged";
 
         await payment.save();
+
+        // Also acknowledge the associated salary if exists
+        if (payment.salary) {
+            await Salary.findByIdAndUpdate(payment.salary, {
+                acknowledgmentStatus: "acknowledged",
+                acknowledgedAt: new Date(),
+                acknowledgedBy: payment.employee
+            });
+        }
 
         return {
             message: "Payment acknowledged successfully",
