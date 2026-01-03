@@ -5,6 +5,7 @@ import {
   isPeriodBefore,
 } from "./helpers";
 import autoTable from "jspdf-autotable";
+import { formatPeriodLabel } from "@/app/lib/formatUtils";
 
 export const getPaySlipDoc = (
   company: CompanySchema,
@@ -13,12 +14,12 @@ export const getPaySlipDoc = (
   salary: (string | number)[],
   employee:
     | {
-        _id: string;
-        memberNo: number;
-        name: string;
-        nic: string;
-        designation: string;
-      }
+      _id: string;
+      memberNo: number;
+      name: string;
+      nic: string;
+      designation: string;
+    }
     | undefined
 ) => {
   //remove inOut columns
@@ -64,11 +65,7 @@ export const getPaySlipDoc = (
   doc.text(`PAYSLIP`, doc.internal.pageSize.width - 8, y, {
     align: "right",
   });
-  let [year, month] = period.split("-");
-  const monthName = new Date(`${month}-01-2020`).toLocaleString("default", {
-    month: "long",
-  });
-  const periodText = `${monthName} - ${year}`;
+  const periodText = formatPeriodLabel(period);
   y += 6;
   doc.setFontSize(14);
   doc.setFont("courier", "normal");
@@ -388,9 +385,9 @@ export const getPaySlipDoc = (
             data.cell.text = [
               Number(data.cell.text) !== 0
                 ? Number(data.cell.text).toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
                 : "-",
             ];
           }

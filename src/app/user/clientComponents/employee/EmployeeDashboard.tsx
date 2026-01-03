@@ -39,6 +39,7 @@ import {
 import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
 import { fetchSalaries } from "@/app/lib/api/salaryApi";
 import { getNICDetails } from "@/app/lib/nicUtils";
+import { formatPeriodLabel } from "@/app/lib/formatUtils";
 
 interface UserProps {
   user: {
@@ -475,7 +476,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                           <Receipt color="primary" />
                         </ListItemIcon>
                         <ListItemText
-                          primary={salary.period}
+                          primary={formatPeriodLabel(salary.period)}
                           secondary={`Final Salary: LKR ${salary.finalSalary?.toLocaleString()}`}
                         />
                         <Button

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Box,
@@ -38,6 +38,9 @@ import { useSnackbar } from "@/app/context/SnackbarContext";
 import { InOutTable } from "../../mycompanies/[id]/salaries/inOutTable";
 import dayjs from "dayjs";
 import { fetchSalaries } from "@/app/lib/api/salaryApi";
+import { formatPeriodLabel } from "@/app/lib/formatUtils";
+import { SalaryDetailView } from "./SalaryDetailView";
+
 
 interface UserProps {
   user: {
@@ -53,7 +56,7 @@ interface UserProps {
 
 const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
-  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedSalary, setSelectedSalary] = useState<any>(null);
 
   // 1. Fetch Employee Data
@@ -87,48 +90,126 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
 
   const rawSalaries = salariesData?.salaries || salariesData?.data?.salaries || (Array.isArray(salariesData) ? salariesData : []);
   const salaries = Array.isArray(rawSalaries) ? rawSalaries.filter((s: any) => s.period) : [];
-  const sortedSalaries = salaries.sort(
-    (a: any, b: any) => b.period.localeCompare(a.period)
-  );
 
-  // Auto-select latest salary
+  // Group by Month (YYYY-MM)
+  const groupedSalaries = useMemo(() => {
+    const groups: { [key: string]: any[] } = {};
+    salaries.forEach((salary: any) => {
+      // Extract YYYY-MM from period (handles YYYY-MM-DD and YYYY-MM)
+      // For Weekly (YYYY-Www), we might need to approximate or just list them.
+      // Assuming period string format, let's try to extract YYYY-MM
+      let monthKey = "";
+      if (/^\d{4}-\d{2}/.test(salary.period)) {
+        monthKey = salary.period.substring(0, 7);
+      } else {
+        // Fallback for weekly/bi-weekly if they don't match standard YYYY-MM prefix
+        // or handle separately. For now, try to group by prefix
+        monthKey = salary.period.substring(0, 7);
+      }
+
+      if (!groups[monthKey]) groups[monthKey] = [];
+      groups[monthKey].push(salary);
+    });
+    return groups;
+  }, [salaries]);
+
+  // Sorted Months
+  const sortedMonths = Object.keys(groupedSalaries).sort((a, b) => b.localeCompare(a));
+
+  // Auto-select latest month
   useEffect(() => {
-    if (sortedSalaries && sortedSalaries.length > 0 && !selectedPeriod) {
-      // Only auto-select if nothing is selected yet to prevent overwriting user choice if re-fetched
-      const latest = sortedSalaries[0];
-      setSelectedPeriod(latest.period);
-      setSelectedSalary(latest);
-    } else if (sortedSalaries && sortedSalaries.length > 0 && selectedPeriod) {
-      // If period is selected, ensure we have the salary object (e.g. after refresh)
-      const current = sortedSalaries.find((s: any) => s.period === selectedPeriod);
-      if (current) setSelectedSalary(current);
+    if (sortedMonths.length > 0 && !selectedMonth) {
+      setSelectedMonth(sortedMonths[0]);
     }
-  }, [sortedSalaries, selectedPeriod]);
+  }, [sortedMonths, selectedMonth]);
 
-  const handlePeriodChange = (period: string) => {
-    setSelectedPeriod(period);
-    const salary = sortedSalaries.find((s: any) => s.period === period);
-    setSelectedSalary(salary || null);
-  };
+  // Calculate Monthly Totals for the selected month
+  const monthlyTotals = useMemo(() => {
+    if (!selectedMonth || !groupedSalaries[selectedMonth]) return null;
+    const records = groupedSalaries[selectedMonth];
 
-  const handleDownloadPDF = async (pdfType: "payslip" | "attendance") => {
-    if (!selectedSalary || !employee) {
+    return records.reduce(
+      (acc, curr) => ({
+        basic: acc.basic + (curr.basic || 0),
+        finalSalary: acc.finalSalary + (curr.finalSalary || 0),
+        otAmount: acc.otAmount + (curr.ot?.amount || 0),
+        totalAdditions: acc.totalAdditions + (curr.paymentStructure?.additions?.reduce((sum: number, a: any) => sum + (a.amount || 0), 0) || 0),
+        totalDeductions: acc.totalDeductions + (curr.paymentStructure?.deductions?.reduce((sum: number, d: any) => sum + (d.amount || 0), 0) || 0) + (curr.noPay?.amount || 0) + (curr.advanceAmount || 0),
+      }),
+      { basic: 0, finalSalary: 0, otAmount: 0, totalAdditions: 0, totalDeductions: 0 }
+    );
+  }, [selectedMonth, groupedSalaries]);
+
+  // Aggregate Attendance for the selected month
+  const monthlyAttendance = useMemo(() => {
+    if (!selectedMonth || !groupedSalaries[selectedMonth]) return [];
+    const records = groupedSalaries[selectedMonth];
+
+    // Flat map all inOut arrays and sort by date/time
+    const allInOuts = records.flatMap((record: any) =>
+      (record.inOut || []).map((io: any) => ({
+        ...io,
+        // Tag with source record info if needed, or just display raw
+        sourcePeriod: record.period,
+        employeeName: employee?.name,
+        employeeNIC: employee?.nic,
+        // We might need salary specifics for calculations if InOutTable uses them,
+        // but for view-only it usually needs the IO data.
+        // InOutTable expects basics.
+        basic: record.basic,
+        divideBy: record.divideBy,
+      }))
+    );
+
+    // Sort by date (inTime)
+    return allInOuts.sort((a: any, b: any) => new Date(a.inTime).getTime() - new Date(b.inTime).getTime());
+  }, [selectedMonth, groupedSalaries, employee]);
+
+
+  const handleDownloadPDF = async (type: "payslip" | "attendance") => {
+    const targetSalary = selectedSalary; // Must have selected a salary for specific download
+    if (!targetSalary || !employee) {
+      // If mostly summary is viewed, maybe download ALL for that month?
+      // Currently backend supports array of salaryIds
+      if (!selectedSalary && selectedMonth) {
+        // Download all for month
+        try {
+          const response = await fetch("/api/pdf", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              companyId: employee.company._id,
+              period: selectedMonth, // Passing the month (YYYY-MM) might trigger "all" logic if backend supports it or we pass specific IDs
+              salaryIds: groupedSalaries[selectedMonth].map(s => s._id),
+              pdfType: type === 'attendance' ? 'attendance' : 'payslip',
+            }),
+          });
+          if (!response.ok) throw new Error("Failed to generate PDF");
+          const blob = await response.blob();
+          window.open(URL.createObjectURL(blob), "_blank");
+        } catch (error: any) {
+          showSnackbar({ message: error.message, severity: "error" });
+        }
+        return;
+      }
+
       showSnackbar({
-        message: "No salary selected or employee data missing.",
+        message: "No salary selected.",
         severity: "warning",
       });
       return;
     }
 
+    // Individual Download
     try {
       const response = await fetch("/api/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId: employee.company._id,
-          period: selectedSalary.period,
-          salaryIds: [selectedSalary._id],
-          pdfType: pdfType,
+          period: targetSalary.period,
+          salaryIds: [targetSalary._id],
+          pdfType: type,
         }),
       });
       if (!response.ok) throw new Error("Failed to generate PDF");
@@ -139,14 +220,9 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
     }
   };
 
-  if (loadingEmployee || (loadingSalaries && !selectedPeriod)) {
+  if (loadingEmployee || (loadingSalaries && !selectedMonth)) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="80vh"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
         <CircularProgress size={60} />
       </Box>
     );
@@ -160,406 +236,169 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
     );
   }
 
-  if (!employee) {
-    return (
-      <Box p={3}>
-        <Alert severity="error">Employee data not available</Alert>
-      </Box>
-    );
-  }
-
   return (
-    <Card
-      sx={{
-        minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" },
-        overflowY: "auto",
-      }}
-    >
+    <Card sx={{ minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" }, overflowY: "auto" }}>
       <CardHeader
         title={
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            flexDirection={{ xs: "column", sm: "row" }}
-            gap={2}
-          >
+          <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection={{ xs: "column", sm: "row" }} gap={2}>
             <Typography variant="h4" component="h1">
               Payslips
             </Typography>
             {selectedSalary && (
-              <Box
-                display="flex"
-                flexDirection={{ xs: "column", sm: "row" }}
-                gap={1}
-                width={{ xs: "100%", sm: "auto" }}
-              >
-                <Button
-                  variant="outlined"
-                  startIcon={<Download />}
-                  onClick={() => handleDownloadPDF("payslip")}
-                  fullWidth
-                >
-                  Download PDF
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Download />}
-                  onClick={() => handleDownloadPDF("attendance")}
-                  fullWidth
-                >
-                  Attendance Report
-                </Button>
-              </Box>
+              <Button variant="text" onClick={() => setSelectedSalary(null)}>
+                Back to Monthly Summary
+              </Button>
             )}
           </Box>
         }
       />
-      <CardContent
-        sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
-      >
-
-        {sortedSalaries.length === 0 ? (
-          <Alert severity="info">No payslips available</Alert>
-        ) : (
-          <Grid container spacing={3}>
-            {/* Period Selector */}
+      <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
+        <Grid container spacing={3}>
+          {/* Month Selector */}
+          {!selectedSalary && (
             <Grid item xs={12}>
               <TextField
                 select
                 fullWidth
-                label="Select Pay Period"
-                value={selectedPeriod}
-                onChange={(e) => handlePeriodChange(e.target.value)}
+                label="Select Month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
               >
-                {sortedSalaries.map((salary: any) => (
-                  <MenuItem key={salary._id} value={salary.period}>
-                    {dayjs(salary.period).format("MMMM YYYY")}
+                {sortedMonths.map((month) => (
+                  <MenuItem key={month} value={month}>
+                    {dayjs(month).format("MMMM YYYY")}
                   </MenuItem>
                 ))}
               </TextField>
             </Grid>
+          )}
 
-            {selectedSalary && (
-              <>
-                {/* Salary Summary Card */}
+          {/* Content Switcher */}
+          {selectedSalary ? (
+            // Detailed View
+            <SalaryDetailView
+              salary={selectedSalary}
+              employee={employee}
+              onDownload={handleDownloadPDF}
+            />
+          ) : (
+            // Monthly Summary View
+            <>
+              {/* Monthly Totals Card */}
+              {monthlyTotals && (
                 <Grid item xs={12}>
-                  <Card
-                    sx={{
-                      mb: 3,
-                      bgcolor: "primary.main",
-                      color: "primary.contrastText",
-                    }}
-                  >
+                  <Card sx={{ mb: 3, bgcolor: "secondary.main", color: "secondary.contrastText" }}>
                     <CardContent>
-                      <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
-                          <Typography
-                            variant="body2"
-                            color="primary.contrastText"
-                            sx={{ opacity: 0.9 }}
-                          >
-                            Period
-                          </Typography>
-                          <Typography
-                            variant="h5"
-                            color="primary.contrastText"
-                            sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
-                          >
-                            {selectedSalary.period}
-                          </Typography>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="h6">Monthly Summary: {dayjs(selectedMonth).format("MMMM YYYY")}</Typography>
+                        <Button
+                          variant="outlined"
+                          color="inherit"
+                          startIcon={<Download />}
+                          onClick={() => handleDownloadPDF("payslip")}
+                          size="small"
+                        >
+                          Download All
+                        </Button>
+                      </Box>
+                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
+                      <Grid container spacing={2}>
+                        <Grid item xs={6} md={3}>
+                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Basic</Typography>
+                          <Typography variant="h6">LKR {monthlyTotals.basic.toLocaleString()}</Typography>
                         </Grid>
-                        <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
-                          <Typography
-                            variant="body2"
-                            color="primary.contrastText"
-                            sx={{ opacity: 0.9 }}
-                          >
-                            Basic Salary
-                          </Typography>
-                          <Typography
-                            variant="h5"
-                            color="primary.contrastText"
-                            sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
-                          >
-                            LKR {selectedSalary.basic?.toLocaleString()}
-                          </Typography>
+                        <Grid item xs={6} md={3}>
+                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Earnings</Typography>
+                          <Typography variant="h6">LKR {(monthlyTotals.basic + monthlyTotals.otAmount + monthlyTotals.totalAdditions).toLocaleString()}</Typography>
                         </Grid>
-                        <Grid item xs={12} sm={4} sx={{ textAlign: { xs: "center", sm: "left" } }}>
-                          <Typography
-                            variant="body2"
-                            color="primary.contrastText"
-                            sx={{ opacity: 0.9 }}
-                          >
-                            Final Salary
-                          </Typography>
-                          <Typography
-                            variant="h4"
-                            color="primary.contrastText"
-                            fontWeight="bold"
-                            sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" }, wordBreak: "break-all" }}
-                          >
-                            LKR {selectedSalary.finalSalary?.toLocaleString()}
-                          </Typography>
+                        <Grid item xs={6} md={3}>
+                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Deductions</Typography>
+                          <Typography variant="h6">LKR {monthlyTotals.totalDeductions.toLocaleString()}</Typography>
+                        </Grid>
+                        <Grid item xs={6} md={3}>
+                          <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Net Pay</Typography>
+                          <Typography variant="h4" fontWeight="bold">LKR {monthlyTotals.finalSalary.toLocaleString()}</Typography>
                         </Grid>
                       </Grid>
                     </CardContent>
                   </Card>
                 </Grid>
+              )}
 
-                {/* Earnings */}
-                <Grid item xs={12} md={6}>
-                  <Card>
+              {/* Monthly Attendance Table */}
+              {monthlyAttendance.length > 0 && (
+                <Grid item xs={12}>
+                  <Card sx={{ mb: 3 }}>
+                    <CardHeader
+                      title="Monthly Attendance Detail"
+                      subheader={`${monthlyAttendance.length} records found`}
+                      action={
+                        <Button
+                          variant="outlined"
+                          startIcon={<Download />}
+                          onClick={() => handleDownloadPDF("attendance")}
+                          size="small"
+                        >
+                          PDF Report
+                        </Button>
+                      }
+                    />
                     <CardContent>
-                      <Box display="flex" alignItems="center" gap={1} mb={2}>
-                        <TrendingUp color="success" />
-                        <Typography variant="h6">Earnings</Typography>
-                      </Box>
-                      <Divider sx={{ mb: 2 }} />
-                      <TableContainer sx={{ overflowX: "auto" }}>
-                        <Table size="small">
-                          <TableBody>
-                            <TableRow>
-                              <TableCell>Basic Salary</TableCell>
-                              <TableCell align="right">
-                                LKR {selectedSalary.basic?.toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                            {selectedSalary.holidayPay > 0 && (
-                              <TableRow>
-                                <TableCell>Holiday Pay</TableCell>
-                                <TableCell align="right">
-                                  LKR{" "}
-                                  {selectedSalary.holidayPay?.toLocaleString()}
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {selectedSalary.ot?.amount > 0 && (
-                              <TableRow>
-                                <TableCell>
-                                  Overtime
-                                  {selectedSalary.ot.reason && (
-                                    <Typography
-                                      variant="caption"
-                                      display="block"
-                                      color="text.secondary"
-                                    >
-                                      {selectedSalary.ot.reason}
-                                    </Typography>
-                                  )}
-                                </TableCell>
-                                <TableCell align="right">
-                                  LKR {selectedSalary.ot.amount?.toLocaleString()}
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {selectedSalary.paymentStructure?.additions?.map(
-                              (addition: any, index: number) => (
-                                <TableRow key={index}>
-                                  <TableCell>{addition.name}</TableCell>
-                                  <TableCell align="right">
-                                    LKR {addition.amount?.toLocaleString()}
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            )}
-                            <TableRow sx={{ backgroundColor: "success.light" }}>
-                              <TableCell>
-                                <strong>Total Earnings</strong>
-                              </TableCell>
-                              <TableCell align="right">
-                                <strong>
-                                  LKR{" "}
-                                  {(
-                                    selectedSalary.basic +
-                                    (selectedSalary.holidayPay || 0) +
-                                    (selectedSalary.ot?.amount || 0) +
-                                    (selectedSalary.paymentStructure?.additions?.reduce(
-                                      (sum: number, a: any) => sum + a.amount,
-                                      0
-                                    ) || 0)
-                                  ).toLocaleString()}
-                                </strong>
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Deductions */}
-                <Grid item xs={12} md={6}>
-                  <Card>
-                    <CardContent>
-                      <Box display="flex" alignItems="center" gap={1} mb={2}>
-                        <TrendingDown color="error" />
-                        <Typography variant="h6">Deductions</Typography>
-                      </Box>
-                      <Divider sx={{ mb: 2 }} />
-                      <TableContainer sx={{ overflowX: "auto" }}>
-                        <Table size="small">
-                          <TableBody>
-                            {selectedSalary.paymentStructure?.deductions?.map(
-                              (deduction: any, index: number) => (
-                                <TableRow key={index}>
-                                  <TableCell>{deduction.name}</TableCell>
-                                  <TableCell align="right">
-                                    LKR {deduction.amount?.toLocaleString()}
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            )}
-                            {selectedSalary.noPay?.amount > 0 && (
-                              <TableRow>
-                                <TableCell>
-                                  No Pay
-                                  {selectedSalary.noPay.reason && (
-                                    <Typography
-                                      variant="caption"
-                                      display="block"
-                                      color="text.secondary"
-                                    >
-                                      {selectedSalary.noPay.reason}
-                                    </Typography>
-                                  )}
-                                </TableCell>
-                                <TableCell align="right">
-                                  LKR{" "}
-                                  {selectedSalary.noPay.amount?.toLocaleString()}
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {selectedSalary.advanceAmount > 0 && (
-                              <TableRow>
-                                <TableCell>Advance</TableCell>
-                                <TableCell align="right">
-                                  LKR{" "}
-                                  {selectedSalary.advanceAmount?.toLocaleString()}
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            <TableRow sx={{ backgroundColor: "error.light" }}>
-                              <TableCell>
-                                <strong>Total Deductions</strong>
-                              </TableCell>
-                              <TableCell align="right">
-                                <strong>
-                                  LKR{" "}
-                                  {(
-                                    (selectedSalary.paymentStructure?.deductions?.reduce(
-                                      (sum: number, d: any) => sum + d.amount,
-                                      0
-                                    ) || 0) +
-                                    (selectedSalary.noPay?.amount || 0) +
-                                    (selectedSalary.advanceAmount || 0)
-                                  ).toLocaleString()}
-                                </strong>
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Leave Deductions (if any) */}
-                {selectedSalary.leaveDeductions &&
-                  selectedSalary.leaveDeductions.length > 0 && (
-                    <Grid item xs={12}>
-                      <Accordion>
-                        <AccordionSummary expandIcon={<ExpandMore />}>
-                          <Typography variant="h6">
-                            Leave Deductions (
-                            {selectedSalary.leaveDeductions.length})
-                          </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                          <TableContainer component={Paper}>
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell>Leave Type</TableCell>
-                                  <TableCell align="center">Days</TableCell>
-                                  <TableCell align="right">Amount</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {selectedSalary.leaveDeductions.map(
-                                  (ld: any, index: number) => (
-                                    <TableRow key={index}>
-                                      <TableCell>{ld.leaveType}</TableCell>
-                                      <TableCell align="center">
-                                        {ld.days}
-                                      </TableCell>
-                                      <TableCell align="right">
-                                        LKR {ld.amount?.toLocaleString()}
-                                      </TableCell>
-                                    </TableRow>
-                                  )
-                                )}
-                                <TableRow sx={{ backgroundColor: "grey.100" }}>
-                                  <TableCell>
-                                    <strong>Total Leave Deductions</strong>
-                                  </TableCell>
-                                  <TableCell align="center">
-                                    <strong>
-                                      {selectedSalary.leaveDeductions.reduce(
-                                        (sum: number, ld: any) => sum + ld.days,
-                                        0
-                                      )}
-                                    </strong>
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    <strong>
-                                      LKR{" "}
-                                      {selectedSalary.leaveDeductions
-                                        .reduce(
-                                          (sum: number, ld: any) =>
-                                            sum + ld.amount,
-                                          0
-                                        )
-                                        .toLocaleString()}
-                                    </strong>
-                                  </TableCell>
-                                </TableRow>
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </AccordionDetails>
-                      </Accordion>
-                    </Grid>
-                  )}
-
-                {/* Attendance Details (if any) */}
-                {selectedSalary.inOut && selectedSalary.inOut.length > 0 && (
-                  <Grid item xs={12}>
-                    <Box sx={{ overflowX: "auto" }}>
-                      <InOutTable
-                        inOuts={selectedSalary.inOut.map(
-                          (record: any, index: number) => ({
+                      <Box sx={{ overflowX: "auto" }}>
+                        <InOutTable
+                          inOuts={monthlyAttendance.map((record: any, index: number) => ({
                             ...record,
-                            id: index,
-                            employeeName: employee?.name,
-                            employeeNIC: employee?.nic,
-                            basic: selectedSalary.basic,
-                            divideBy: selectedSalary.divideBy,
-                          })
-                        )}
-                        setInOuts={() => { }}
-                        fetchSalary={() => { }}
-                        editable={false}
-                        isDynamicHolidays={false}
-                      />
-                    </Box>
-                  </Grid>
-                )}
-              </>
-            )}
-          </Grid>
-        )}
+                            id: index, // Frontend ID for table
+                          }))}
+                          setInOuts={() => { }}
+                          fetchSalary={() => { }}
+                          editable={false}
+                          isDynamicHolidays={false}
+                        />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              {/* List of Payslips */}
+              <Grid item xs={12}>
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Period</TableCell>
+                        <TableCell align="right">Basic</TableCell>
+                        <TableCell align="right">Net Salary</TableCell>
+                        <TableCell align="right">Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {groupedSalaries[selectedMonth]?.map((salary: any) => (
+                        <TableRow key={salary._id} hover>
+                          <TableCell>{formatPeriodLabel(salary.period)}</TableCell>
+                          <TableCell align="right">LKR {salary.basic?.toLocaleString()}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 'bold' }}>LKR {salary.finalSalary?.toLocaleString()}</TableCell>
+                          <TableCell align="right">
+                            <Button size="small" variant="contained" onClick={() => setSelectedSalary(salary)}>
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {(!groupedSalaries[selectedMonth] || groupedSalaries[selectedMonth].length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={4} align="center">No records found for this month.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            </>
+          )}
+
+        </Grid>
       </CardContent>
     </Card>
   );
