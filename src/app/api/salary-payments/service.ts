@@ -222,15 +222,6 @@ export class SalaryPaymentService {
 
         await payment.save();
 
-        // Also acknowledge the associated salary if exists
-        if (payment.salary) {
-            await Salary.findByIdAndUpdate(payment.salary, {
-                acknowledgmentStatus: "acknowledged",
-                acknowledgedAt: new Date(),
-                acknowledgedBy: payment.employee
-            });
-        }
-
         return {
             message: "Payment acknowledged successfully",
             payment,

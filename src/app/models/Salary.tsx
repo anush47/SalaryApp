@@ -72,7 +72,6 @@ export interface ISalary extends Document {
   }[];
   paymentStatus: "unpaid" | "partially_paid" | "fully_paid" | "overpaid";
   calculationMethod: "attendance" | "fixed_days" | "no_ot";
-  acknowledgmentStatus: "pending" | "acknowledged";
 }
 
 // Define the schema for the Salary model
@@ -292,14 +291,9 @@ const salarySchema = new Schema<ISalary>(
       enum: ["attendance", "fixed_days", "no_ot"],
       required: true,
     },
-    acknowledgmentStatus: {
-      type: String,
-      enum: ["pending", "acknowledged"],
-      default: "pending",
-    },
   },
   {
-    timestamps: true, // Optionally add timestamps for createdAt and updatedAt
+    timestamps: true,
   }
 );
 

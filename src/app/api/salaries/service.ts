@@ -448,11 +448,6 @@ export class SalaryService {
             parsedSalary.outstandingBalance = finalSalary - (parsedSalary.advanceAmount || 0);
 
             // Auto Acknowledge Check
-            // @ts-ignore
-            if (employee.autoAcknowledge) {
-                // @ts-ignore
-                parsedSalary.acknowledgmentStatus = "acknowledged";
-            }
 
             // Add the parsed salary to the array
             salaryDocs.push(parsedSalary);
@@ -1300,8 +1295,6 @@ export class SalaryService {
                 deductedAmount: adv.deductionAmount
             })),
             paymentStatus: "unpaid" as const,
-            // @ts-ignore
-            acknowledgmentStatus: employee.autoAcknowledge ? "acknowledged" : "pending",
         };
 
         if (!shouldSave) {

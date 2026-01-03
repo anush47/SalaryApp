@@ -399,10 +399,14 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                               <TableCell align="right">LKR {salary.basic?.toLocaleString()}</TableCell>
                               <TableCell align="center">
                                 <Chip
-                                  label={salary.acknowledgmentStatus === "acknowledged" ? "Acknowledged" : "Pending"}
-                                  color={salary.acknowledgmentStatus === "acknowledged" ? "success" : "warning"}
+                                  label={(salary.paymentStatus || "unpaid").replace("_", " ")}
+                                  color={
+                                    salary.paymentStatus === "fully_paid" ? "success" :
+                                      salary.paymentStatus === "partially_paid" ? "warning" :
+                                        salary.paymentStatus === "overpaid" ? "info" : "error"
+                                  }
                                   size="small"
-                                  variant="outlined"
+                                  sx={{ textTransform: "capitalize" }}
                                 />
                               </TableCell>
                               <TableCell align="right" sx={{ fontWeight: 'bold' }}>LKR {salary.finalSalary?.toLocaleString()}</TableCell>

@@ -40,16 +40,6 @@ export async function PATCH(req: NextRequest) {
             payment.acknowledgedAt = new Date();
             await payment.save();
 
-            // Also acknowledge the associated salary if it exists and is not already acknowledged
-            if (payment.salary) {
-                const Salary = (await import("@/app/models/Salary")).default;
-                await Salary.findByIdAndUpdate(payment.salary, {
-                    acknowledgmentStatus: "acknowledged",
-                    acknowledgedAt: new Date(),
-                    acknowledgedBy: payment.employee
-                });
-            }
-
             return ApiResponseUtils.sendSuccess(
                 { payment },
                 "Payment acknowledged successfully"
