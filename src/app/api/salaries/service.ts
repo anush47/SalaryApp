@@ -432,15 +432,29 @@ export class SalaryService {
             parsedSalary.finalSalary = finalSalary;
 
             // RECONCILE: Advance Amount vs Active Advances Detail
-            // When creating salaries, if advanceAmount (scalar) is less than total activeAdvances (detail),
-            // it means we are doing a partial deduction or manual override. We must adjust the details to match.
-            if (parsedSalary.activeAdvances && parsedSalary.activeAdvances.length > 0) {
+            let baseAdvances = parsedSalary.activeAdvances || [];
+            if (baseAdvances.length === 0 && Number(parsedSalary.advanceAmount) > 0) {
+                try {
+                    baseAdvances = await getActiveAdvances(parsedSalary.employee, parsedSalary.period);
+                } catch (e) {
+                    console.error("[SalaryService] Failed to fetch active advances during creation", e);
+                }
+            }
+
+            if (baseAdvances && baseAdvances.length > 0) {
                 const targetAmount = Number(parsedSalary.advanceAmount) || 0;
                 // Use centralized reconciliation logic
-                parsedSalary.activeAdvances = reconcileAdvances(
-                    parsedSalary.activeAdvances.map((a: any) => ({ ...a, deductionAmount: a.deductedAmount })),
+                const reconciled = reconcileAdvances(
+                    baseAdvances.map((a: any) => ({
+                        ...a,
+                        deductionAmount: Number(a.deductedAmount || a.deductionAmount || 0)
+                    })),
                     targetAmount
-                ).map(a => ({ ...a, deductedAmount: a.deductionAmount }));
+                );
+                parsedSalary.activeAdvances = reconciled.map(a => ({
+                    advanceId: a.advanceId,
+                    deductedAmount: a.deductionAmount
+                }));
             }
 
             // Set initial outstanding balance (Final Salary - Advances)
@@ -1026,6 +1040,11 @@ export class SalaryService {
             // Deep copy again if we want to be paranoid, but the map already has fresh copies for this employee logic
             // Since this function runs once per employee, utilizing the array from map (which is specific to this emp) is safe 
             // AS LONG AS we map it to a new array for mutation within this function instance
+            // Ensure initialAdvances is an array
+            if (!Array.isArray(initialAdvances)) {
+                console.error(`[SalaryService] initialAdvances for ${empId} is not an array:`, initialAdvances);
+                initialAdvances = [];
+            }
             let currentAdvanceState = initialAdvances.map(a => ({ ...a }));
 
 
@@ -1266,9 +1285,8 @@ export class SalaryService {
         // Calculate daily rate for the employee
         const dailyRate = calculateDailyRate(employee);
 
-        // Calculate final salary with advance deductions
-        const finalSalaryBeforeAdvances = generatedSalary.finalSalary || 0;
-        const finalSalary = finalSalaryBeforeAdvances - totalAdvanceDeduction;
+        // Calculate final salary (Net Earnings BEFORE advances)
+        const finalSalary = generatedSalary.finalSalary || 0;
 
         // Prepare enhanced salary data
         const enhancedSalaryData = {
@@ -1283,13 +1301,13 @@ export class SalaryService {
             rateDivisor: employee.rateDivisor || company.salaryPeriodDefaults?.rateDivisor || 30,
             calculationMethod: employee.calculationMethod || company.salaryPeriodDefaults?.calculationMethod || "fixed_days",
 
-            // Advance deductions
+            // Salary totals
             advanceAmount: totalAdvanceDeduction,
-            finalSalary,
+            finalSalary, // Now stores "Before Advances" for consistency
 
             // Payment tracking initialization
             totalPaid: 0,
-            outstandingBalance: finalSalary,
+            outstandingBalance: finalSalary - totalAdvanceDeduction,
             activeAdvances: activeAdvances.map(adv => ({
                 advanceId: adv.advanceId,
                 deductedAmount: adv.deductionAmount
@@ -1310,6 +1328,15 @@ export class SalaryService {
         // Save or update salary
         let savedSalary;
         if (existingSalary) {
+            // ROLLBACK previous advance deductions before updating
+            if (existingSalary.activeAdvances && existingSalary.activeAdvances.length > 0) {
+                const advancesForRollback = existingSalary.activeAdvances.map((a: any) => ({
+                    advanceId: a.advanceId,
+                    deductionAmount: a.deductedAmount
+                }));
+                await rollbackAdvanceDeductions(existingSalary._id.toString(), advancesForRollback);
+            }
+
             savedSalary = await Salary.findByIdAndUpdate(
                 existingSalary._id,
                 enhancedSalaryData,

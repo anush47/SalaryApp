@@ -4,13 +4,12 @@ import SalaryAdvance from "@/app/models/SalaryAdvance";
 export interface AdvanceDeduction {
     advanceId: string;
     deductionAmount: number;
+    monthlyDeduction?: number;
+    remainingBalance?: number;
     // adding _id for consistency with mongoose subdocs
     _id?: string;
 }
 
-/**
- * Get active advances for an employee that should be deducted in the given period
- */
 export async function getActiveAdvances(
     employeeId: string,
     period: string
@@ -20,13 +19,14 @@ export async function getActiveAdvances(
         status: "active",
         remainingBalance: { $gt: 0 },
         deductionStartPeriod: { $lte: period },
-    }).lean();
+    }).sort({ advanceDate: 1 }).lean();
 
     const result = advances.map((adv) => ({
         advanceId: adv._id.toString(),
         deductionAmount: Math.min(Number(adv.monthlyDeduction) || 0, Number(adv.remainingBalance) || 0),
+        monthlyDeduction: Number(adv.monthlyDeduction) || 0,
+        remainingBalance: Number(adv.remainingBalance) || 0,
     }));
-    console.log(`[AdvanceDeduction] getActiveAdvances for ${employeeId} period ${period}: Found ${advances.length}, Result:`, JSON.stringify(result));
     return result;
 }
 
@@ -122,30 +122,39 @@ export function reconcileAdvances(
         return baseAdvances.map(a => ({ ...a, deductionAmount: Number(a.deductionAmount) }));
     }
 
-    console.log(`[AdvanceDeduction] Reconciling: Detail Sum (${totalAdvanceDetail}) != Target (${targetAmount})`);
+    console.log(`[AdvanceDeduction] Reconciling with FIFO: Current sum (${totalAdvanceDetail}) -> Target (${targetAmount})`);
 
-    // Clone
-    const reconciled = baseAdvances.map(a => ({ ...a, deductionAmount: Number(a.deductionAmount) }));
+    // Clone base advances with 0 deduction amount initially
+    const reconciled = baseAdvances.map(a => ({
+        ...a,
+        deductionAmount: 0
+    }));
 
-    if (totalAdvanceDetail === 0) {
-        // Base is 0. If we have advances, assign target to first one?
-        // Or distribute evenly? Assigning to oldest (first) is standard debt payoff.
-        if (reconciled.length > 0) {
-            reconciled[0].deductionAmount = targetAmount;
-        }
-    } else {
-        // Proportional distribution
-        const ratio = targetAmount / totalAdvanceDetail;
-        for (const adv of reconciled) {
-            adv.deductionAmount = Math.round(adv.deductionAmount * ratio * 100) / 100;
-        }
+    let remainingToDistribute = targetAmount;
 
-        // Fix rounding
-        const newSum = reconciled.reduce((sum, adv) => sum + adv.deductionAmount, 0);
-        const diff = targetAmount - newSum;
-        if (Math.abs(diff) > 0.001 && reconciled.length > 0) {
-            reconciled[0].deductionAmount += diff;
-        }
+    for (const adv of reconciled) {
+        if (remainingToDistribute <= 0) break;
+
+        // Determine how much we CAN deduct from this advance
+        // If we have remainingBalance from the DB/state, use it as a cap
+        let maxAvailable = Number(adv.remainingBalance) || Infinity;
+
+        // If it's the last advance and we still have money to distribute, 
+        // we might allow over-deducting or just stop? 
+        // In reality, remainingBalance should be accurate.
+
+        const deduction = Math.min(remainingToDistribute, maxAvailable);
+        adv.deductionAmount = Math.round(deduction * 100) / 100;
+
+        remainingToDistribute -= adv.deductionAmount;
+        remainingToDistribute = Math.round(remainingToDistribute * 100) / 100;
+    }
+
+    // If there's still money remaining after going through all active advances
+    // (e.g. user entered 500 but total debt is 400), assign the rest to the last advance
+    // This allows "over-deducting" or creating a positive balance if the system allows.
+    if (remainingToDistribute > 0 && reconciled.length > 0) {
+        reconciled[reconciled.length - 1].deductionAmount += remainingToDistribute;
     }
 
     return reconciled;

@@ -232,10 +232,9 @@ const EmployeesInclude: React.FC<Props> = ({
   return (
     <Accordion>
       <AccordionSummary expandIcon={<ExpandMore />}>
-        <Typography variant="h6">{`Employees to Include - ${
-          employees.filter((employee) => employeeIds.includes(employee._id))
-            .length
-        }`}</Typography>
+        <Typography variant="h6">{`Employees to Include - ${(employees || []).filter((employee) => employeeIds.includes(employee._id))
+          .length
+          }`}</Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Box
@@ -247,7 +246,7 @@ const EmployeesInclude: React.FC<Props> = ({
           }}
         >
           <DataGrid
-            rows={employees}
+            rows={employees || []}
             columns={columns}
             getRowId={(row) => row._id}
             initialState={{
