@@ -385,8 +385,8 @@ export const companyCreateSchema = z.object({
     customPeriodDays: z.number().optional(),
     rateDivisor: z.number().default(30),
     payPeriodConfig: z.object({
-      startDay: z.number().optional(),
-      endDay: z.number().optional(),
+      startDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
+      endDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
       type: z.enum(["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"]).optional(),
     }).optional(),
     calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).default("attendance"),
@@ -461,8 +461,8 @@ export const companyUpdateSchema = z.object({
     customPeriodDays: z.number().optional(),
     rateDivisor: z.number().optional(),
     payPeriodConfig: z.object({
-      startDay: z.number().optional(),
-      endDay: z.number().optional(),
+      startDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
+      endDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
       type: z.enum(["fixed_dates", "start_to_end_of_month", "end_to_end_of_month"]).optional(),
     }).optional(),
     calculationMethod: z.enum(["attendance", "fixed_days", "no_ot"]).optional(),

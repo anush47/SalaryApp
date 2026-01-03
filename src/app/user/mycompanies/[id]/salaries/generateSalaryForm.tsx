@@ -159,7 +159,7 @@ const AddSalaryForm: React.FC<{
   });
 
   useEffect(() => {
-    if (employeesData) {
+    if (Array.isArray(employeesData)) {
       setEmployees([
         ...employeesData,
         { memberNo: "all", _id: "all", name: "ALL", nic: "all" },

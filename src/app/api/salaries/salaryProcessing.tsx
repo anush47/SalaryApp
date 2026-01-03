@@ -58,6 +58,11 @@ export const processSalaryWithInOut = async (
       const currDiff = Math.abs(getTimeDifferenceInMinutes(curr.startTime, inDate));
       return currDiff < prevDiff && currDiff <= 6 * 60 ? curr : prev;
     });
+
+    // DEBUG LOGS
+    console.log(`[SalaryProcessing] Processing record for ${inDate.toISOString()}`);
+    console.log(`[SalaryProcessing] Available shifts:`, shifts.map((s: any) => ({ start: s.startTime, break: s.break })));
+    console.log(`[SalaryProcessing] Selected shift: ${shift.startTime}, Break: ${shift.break}`);
     const shiftStartHours = Number(shift.startTime.split(":")[0]);
     const shiftStartMinutes = Number(shift.startTime.split(":")[1]);
     const actualInTime =
@@ -89,7 +94,7 @@ export const processSalaryWithInOut = async (
     const halfDayTreshold = 6;
     // manage break
     if (workingHours > halfDayTreshold) {
-      workingHours -= shift.break || 0; // subtract break time if working hours exceed half day threshold
+      workingHours -= Number(shift.break) || 0; // subtract break time if working hours exceed half day threshold
     }
 
     const { ot, otHours } = calculateOT(

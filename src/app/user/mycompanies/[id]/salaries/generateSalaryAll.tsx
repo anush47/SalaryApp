@@ -75,7 +75,7 @@ const GenerateSalaryAll = ({
       }
 
       // Otherwise select all active employees
-      const activeEmployeeIds = employees
+      const activeEmployeeIds = (Array.isArray(employees) ? employees : [])
         .filter((employee: any) => employee.active !== false)
         .map((employee: any) => employee.id);
       setEmployeeIds(activeEmployeeIds);
