@@ -56,6 +56,7 @@ export async function generateSalaries(data: {
     existingSalaries?: any[];
     update?: boolean;
     save?: boolean;
+    useLiveAttendance?: boolean;
 }) {
     return apiFetch('/api/salaries/generate', {
         method: 'POST',

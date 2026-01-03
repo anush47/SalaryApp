@@ -411,7 +411,8 @@ export async function generateSalaryForOneEmployee(
   employee: any,
   period: string,
   inOut: RawInOut | ProcessedInOut | undefined,
-  salary?: any
+  salary?: any,
+  timezone: string = "Asia/Colombo"
 ) {
   try {
     console.log("generateSalaryForOneEmployee called for:", employee.name);
@@ -485,15 +486,15 @@ export async function generateSalaryForOneEmployee(
     switch (employee.otMethod) {
       case "noOt":
         ({ ot, otReason, noPay, noPayReason, inOutProcessed, holidayPay } =
-          await noOtCalc(employee, period, inOutProcessed, salary));
+          await noOtCalc(employee, period, inOutProcessed, salary, timezone));
         break;
       case "calc":
         ({ ot, otReason, noPay, noPayReason, inOutProcessed, holidayPay } =
-          await OtCalc(employee, period, inOutProcessed, salary));
+          await OtCalc(employee, period, inOutProcessed, salary, timezone));
         break;
       default:
         ({ ot, otReason, noPay, noPayReason, inOutProcessed, holidayPay } =
-          await randomCalc(employee, period, inOutProcessed, salary));
+          await randomCalc(employee, period, inOutProcessed, salary, timezone));
         break;
     }
 
@@ -610,7 +611,8 @@ const randomCalc = async (
   employee: any,
   period: string,
   inOutProcessed: ProcessedInOut | RawInOut,
-  salary: any
+  salary: any,
+  timezone: string
 ) => {
   let {
     inOutProcessed: processedInOut,
@@ -619,7 +621,7 @@ const randomCalc = async (
     otReason,
     noPayReason,
     holidayPay,
-  } = await generateSalaryWithInOut(employee, period, inOutProcessed, salary);
+  } = await generateSalaryWithInOut(employee, period, inOutProcessed, salary, timezone);
 
   return {
     ot,
@@ -636,7 +638,8 @@ const noOtCalc = async (
   employee: any,
   period: string,
   inOutProcessed: ProcessedInOut | RawInOut,
-  salary: any
+  salary: any,
+  timezone: string
 ) => {
   let {
     inOutProcessed: processedInOut,
@@ -645,7 +648,7 @@ const noOtCalc = async (
     otReason,
     noPayReason,
     holidayPay,
-  } = await generateSalaryWithInOut(employee, period, inOutProcessed, salary);
+  } = await generateSalaryWithInOut(employee, period, inOutProcessed, salary, timezone);
 
   return {
     ot,
@@ -662,7 +665,8 @@ const OtCalc = async (
   employee: any,
   period: string,
   inOutProcessed: ProcessedInOut | RawInOut,
-  salary: any
+  salary: any,
+  timezone: string
 ) => {
   let {
     inOutProcessed: processedInOut,
@@ -671,7 +675,7 @@ const OtCalc = async (
     otReason,
     noPayReason,
     holidayPay,
-  } = await processSalaryWithInOut(employee, period, inOutProcessed, salary);
+  } = await processSalaryWithInOut(employee, period, inOutProcessed, salary, false, timezone);
   return {
     ot,
     otReason,

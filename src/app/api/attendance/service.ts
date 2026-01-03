@@ -113,7 +113,7 @@ export class AttendanceService {
         if (type === 'in') {
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
-            const checkInTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' });
+            const checkInTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: company.timezone || 'Asia/Colombo' });
 
             // Determine Settings to know Mode
             const settings = ShiftService.getEffectiveSettings(employee, company);

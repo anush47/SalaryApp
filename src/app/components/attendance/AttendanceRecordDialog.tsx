@@ -102,9 +102,11 @@ interface AttendanceRecordDialogProps {
     dailyRecord: DailyAttendanceRecord | null;
     employee?: any; // The full employee object if available, mainly for creating new logs
     companyConfig?: any; // For map zones
+    shifts?: any[]; // Available shifts for selection
     onSaveSuccess?: () => void;
     disableTabSwitch?: boolean;
     readOnly?: boolean;
+    disableShiftChange?: boolean; // New prop to disable shift editing
 }
 
 export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
@@ -113,14 +115,26 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     dailyRecord,
     employee,
     companyConfig,
+    shifts = [],
     onSaveSuccess,
     disableTabSwitch = false,
-    readOnly = false
+    readOnly = false,
+    disableShiftChange = false
 }) => {
     const { showSnackbar } = useSnackbar();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [activeTab, setActiveTab] = useState(0);
+
+    // Debug: Log shifts
+    useEffect(() => {
+        console.log('AttendanceRecordDialog - Shifts received:', shifts);
+        console.log('AttendanceRecordDialog - Shifts count:', shifts?.length);
+        if (shifts && shifts.length > 0) {
+            console.log('First shift FULL object:', JSON.stringify(shifts[0], null, 2));
+            console.log('First shift keys:', Object.keys(shifts[0]));
+        }
+    }, [shifts]);
 
     // State for separate logs
     const [inLog, setInLog] = useState<any>(null);
@@ -135,6 +149,16 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         shiftId: '',
         dayStatus: 'full'
     });
+
+    // Track original values to detect changes
+    const [originalShiftId, setOriginalShiftId] = useState<string>('');
+    const [originalDayStatus, setOriginalDayStatus] = useState<string>('full');
+
+    // Debug: Log form data changes (AFTER formData is declared)
+    useEffect(() => {
+        console.log('AttendanceRecordDialog - FormData shiftId:', formData.shiftId);
+        console.log('AttendanceRecordDialog - Full formData:', formData);
+    }, [formData]);
 
     // Day Status (Simulated for now by modifying shift/logs?)
     // This is now supported by backing field on IN log
@@ -160,6 +184,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     results.forEach(res => {
                         if (res.success) {
                             const rec = res.data;
+                            console.log('Fetched attendance record:', rec);
+                            console.log('Record shift data:', rec.shift);
                             if (rec._id === dailyRecord.inLogId) fetchedIn = rec;
                             if (rec._id === dailyRecord.outLogId) fetchedOut = rec;
                         }
@@ -168,16 +194,79 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     setInLog(fetchedIn);
                     setOutLog(fetchedOut);
 
+                    // If we only have one record (from "All" view), try to fetch the paired record
+                    if ((fetchedIn && !fetchedOut) || (!fetchedIn && fetchedOut)) {
+                        const singleLog = fetchedIn || fetchedOut;
+                        const employeeId = singleLog.employee?._id || singleLog.employee;
+                        const companyId = singleLog.company;
+                        const logDate = dayjs(singleLog.timestamp).format('YYYY-MM-DD');
+
+                        console.log('Only one record found, searching for paired record...');
+                        console.log('Employee:', employeeId, 'Date:', logDate);
+
+                        try {
+                            // Fetch all records for this employee on this day
+                            const dayRecordsRes = await fetch(`/api/attendance?companyId=${companyId}&employeeId=${employeeId}&startDate=${logDate}&endDate=${logDate}`);
+                            const dayRecordsData = await dayRecordsRes.json();
+
+                            if (dayRecordsData.success && dayRecordsData.data) {
+                                console.log('Found day records:', dayRecordsData.data);
+
+                                // Find the paired record
+                                const records = dayRecordsData.data;
+                                if (fetchedIn && !fetchedOut) {
+                                    // We have IN, find the next OUT
+                                    const pairedOut = records.find((r: any) =>
+                                        r.type === 'out' &&
+                                        dayjs(r.timestamp).isAfter(dayjs(fetchedIn.timestamp))
+                                    );
+                                    if (pairedOut) {
+                                        console.log('Found paired OUT record:', pairedOut._id);
+                                        setOutLog(pairedOut);
+                                        fetchedOut = pairedOut;
+                                    }
+                                } else if (fetchedOut && !fetchedIn) {
+                                    // We have OUT, find the previous IN
+                                    const pairedIn = records
+                                        .filter((r: any) =>
+                                            r.type === 'in' &&
+                                            dayjs(r.timestamp).isBefore(dayjs(fetchedOut.timestamp))
+                                        )
+                                        .sort((a: any, b: any) => dayjs(b.timestamp).diff(dayjs(a.timestamp)))[0]; // Get the closest IN before OUT
+
+                                    if (pairedIn) {
+                                        console.log('Found paired IN record:', pairedIn._id);
+                                        setInLog(pairedIn);
+                                        fetchedIn = pairedIn;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to fetch paired record:', e);
+                        }
+                    }
+
                     // Initialize Form with IN log by default or OUT if IN missing
                     const initialLog = fetchedIn || fetchedOut;
+                    console.log('Initial log for form:', initialLog);
+
                     if (initialLog) {
+                        const shiftId = initialLog.shift?.shiftId || '';
+                        const dayStatus = initialLog.dayStatus || (dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full');
+
+                        console.log('Extracted shiftId:', shiftId);
+                        console.log('Extracted dayStatus:', dayStatus);
+                        console.log('Available shifts:', shifts);
+
                         setFormData({
                             timestamp: initialLog.resolutionMode === 'status_only' ? null : dayjs(initialLog.timestamp),
                             status: initialLog.status || 'approved',
                             remarks: initialLog.remarks || '',
-                            shiftId: initialLog.shift?.shiftId || '',
-                            dayStatus: initialLog.dayStatus || (dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full')
+                            shiftId,
+                            dayStatus
                         });
+                        setOriginalShiftId(shiftId);
+                        setOriginalDayStatus(dayStatus);
                         setActiveTab(fetchedIn ? 0 : 1);
                     } else {
                         // No logs at all - Ready to create IN
@@ -235,6 +324,20 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         const type = activeTab === 0 ? 'in' : 'out';
         const targetLog = activeTab === 0 ? inLog : outLog;
 
+        // Find the selected shift to get full details
+        const selectedShift = formData.shiftId
+            ? shifts.find((s: any) => (s._id || s.shiftId) === formData.shiftId)
+            : null;
+
+        // If shift found, format it correctly for the API
+        const shiftForAPI = selectedShift ? {
+            shiftId: selectedShift._id || selectedShift.shiftId,
+            name: selectedShift.name || selectedShift.shiftName,
+            startTime: selectedShift.startTime,
+            endTime: selectedShift.endTime,
+            type: selectedShift.type
+        } : null;
+
         try {
             if (targetLog) {
                 // Update
@@ -244,12 +347,40 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     formData.timestamp?.toISOString(),
                     formData.shiftId,
                     formData.remarks,
-                    formData.dayStatus
+                    formData.dayStatus,
+                    shiftForAPI // Pass formatted shift object
                 );
                 if (res.success) {
-                    showSnackbar({ message: `${type.toUpperCase()} Record updated`, severity: "success" });
+                    // If shift was changed, also update the paired record
+                    const shiftChanged = formData.shiftId !== originalShiftId;
+
+                    // Determine the paired record based on current record type
+                    // If current is OUT, pair with IN (before it)
+                    // If current is IN, pair with OUT (after it)
+                    const otherLog = type === 'out' ? inLog : outLog;
+
+                    if (shiftChanged && otherLog) {
+                        console.log(`Shift changed on ${type.toUpperCase()} - updating paired ${type === 'out' ? 'IN' : 'OUT'} record:`, otherLog._id);
+                        try {
+                            await updateAttendanceStatus(
+                                otherLog._id,
+                                otherLog.status,
+                                otherLog.resolutionMode === 'status_only' ? undefined : otherLog.timestamp,
+                                formData.shiftId,
+                                otherLog.remarks,
+                                otherLog.dayStatus,
+                                shiftForAPI
+                            );
+                        } catch (e) {
+                            console.error('Failed to update paired record:', e);
+                        }
+                    }
+
+                    showSnackbar({
+                        message: `${type.toUpperCase()} Record updated${shiftChanged && otherLog ? ' (both IN/OUT updated)' : ''}`,
+                        severity: "success"
+                    });
                     onSaveSuccess?.();
-                    // Refresh local state? simpler to close
                     onClose();
                 } else {
                     showSnackbar({ message: res.error?.message || "Failed to update", severity: "error" });
@@ -270,7 +401,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     remarks: formData.remarks,
                     status: formData.status,
                     dayStatus: formData.dayStatus,
-                    resolutionMode: formData.timestamp ? undefined : 'status_only'
+                    resolutionMode: formData.timestamp ? undefined : 'status_only',
+                    shift: shiftForAPI // Pass formatted shift object
                 });
 
                 if (!employee?._id) console.warn("Missing Employee ID for creation!");
@@ -457,6 +589,40 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         select
                                         fullWidth
                                         size="small"
+                                        label="Shift"
+                                        value={formData.shiftId}
+                                        onChange={(e) => {
+                                            console.log('Shift changed to:', e.target.value);
+                                            setFormData({ ...formData, shiftId: e.target.value });
+                                        }}
+                                        SelectProps={{ native: true }}
+                                        helperText={disableShiftChange ? "Shift editing disabled in this view" : "Select the shift for this attendance"}
+                                        disabled={readOnly || disableShiftChange}
+                                    >
+                                        <option value="">No Shift</option>
+                                        {shifts && shifts.length > 0 ? (
+                                            shifts.map((shift: any, index: number) => {
+                                                // Shifts use _id and name, not shiftId and shiftName
+                                                const id = shift._id || shift.shiftId;
+                                                const name = shift.name || shift.shiftName;
+                                                console.log(`Rendering shift option ${index}:`, id, name);
+                                                return (
+                                                    <option key={`shift-${index}`} value={id}>
+                                                        {name} ({shift.startTime} - {shift.endTime})
+                                                    </option>
+                                                );
+                                            })
+                                        ) : (
+                                            <option disabled>No shifts available</option>
+                                        )}
+                                    </TextField>
+                                </Grid>
+
+                                <Grid item xs={6}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        size="small"
                                         label="Day Status Override"
                                         value={formData.dayStatus}
                                         onChange={(e) => setFormData({ ...formData, dayStatus: e.target.value })}
@@ -469,6 +635,17 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         <option value="off">Off Day</option>
                                     </TextField>
                                 </Grid>
+
+                                {!readOnly && currentLog && (formData.shiftId !== originalShiftId || formData.dayStatus !== originalDayStatus) && (
+                                    <Grid item xs={12}>
+                                        <Alert severity="info" icon={<Warning />}>
+                                            <Typography variant="caption">
+                                                <strong>Note:</strong> Changing the shift or day status will affect OT calculations in salary generation.
+                                                Salaries may need to be regenerated to reflect these changes.
+                                            </Typography>
+                                        </Alert>
+                                    </Grid>
+                                )}
 
                                 <Grid item xs={12}>
                                     <TextField

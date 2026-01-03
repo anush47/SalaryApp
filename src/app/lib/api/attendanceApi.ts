@@ -21,11 +21,19 @@ export const getAttendanceLogs = async (companyId: string, date?: string, startD
     return response.json();
 };
 
-export const updateAttendanceStatus = async (id: string, status: 'approved' | 'rejected' | 'pending', timestamp?: string, shiftId?: string, remarks?: string, dayStatus?: string): Promise<ApiResponse> => {
+export const updateAttendanceStatus = async (
+    id: string,
+    status: 'approved' | 'rejected' | 'pending',
+    timestamp?: string,
+    shiftId?: string,
+    remarks?: string,
+    dayStatus?: string,
+    shift?: any // Full shift object with name, startTime, endTime, etc.
+): Promise<ApiResponse> => {
     const response = await fetch('/api/attendance', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, timestamp, shiftId, remarks, dayStatus }),
+        body: JSON.stringify({ id, status, timestamp, shiftId, remarks, dayStatus, shift }),
     });
     return response.json();
 };

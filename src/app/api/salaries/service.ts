@@ -7,6 +7,8 @@ import SalaryPayment from "@/app/models/SalaryPayment";
 import Attendance from "@/app/models/Attendance";
 import { PurchaseService } from "../purchases/service";
 import { AttendanceService } from "../attendance/service";
+import { SalaryGenerationService } from "./services/salaryGenerationService";
+import { RawInOut, ProcessedInOut, generateSalaryForOneEmployee } from "./generate/salaryGeneration";
 import { BadRequestError, NotFoundError, ForbiddenError } from "@/app/lib/errorHandler";
 import { RequestContext } from "@/app/lib/apiResponse";
 import {
@@ -22,11 +24,6 @@ import {
     periodSchema,
     salaryGenerateSchema
 } from "@/app/lib/schemas";
-import {
-    generateSalaryForOneEmployee,
-    RawInOut,
-    ProcessedInOut,
-} from "./generate/salaryGeneration";
 import { initialInOutProcess } from "./initialInOutProcess";
 import { calculatePeriodDates, calculateExpectedWorkingDays } from "./utils/periodCalculation";
 import SalaryAdvance from "@/app/models/SalaryAdvance";
@@ -862,84 +859,16 @@ export class SalaryService {
             throw new NotFoundError("No active employees found for the company");
         }
 
+        // Retrieve company timezone
+        const companyTimezone = company.timezone || "Asia/Colombo";
 
-
-        // Inside generateSalaries method, before initialInOutProcess call:
-
-        let inOutInitial = initialInOutProcess(inOut, employees as any);
-
-        // --- Live Attendance Integration ---
-        if (parsedBody.useLiveAttendance) {
-            // Fetch validated attendance records using Service Layer
-            const liveAttendanceMap = await AttendanceService.getAttendanceForSalaryPeriod(
-                companyId.toString(),
-                period,
-                employees.map(e => (e._id as any).toString())
-            );
-
-            // Merge with existing inOutInitial
-            // inOutInitial can be ProcessedInOut (array) OR Dictionary of RawInOut
-            // However, initialInOutProcess returns a Dictionary of RawInOut (Date[])
-            // UNLESS parsedBody.inOut was already ProcessedInOut (which happens if update=true and we pass processed data back)
-
-            // To be safe, we only support merging if we are dealing with RawInOut Dictionaries.
-            // If inOutInitial is an Array (ProcessedInOut), it means we strictly passed back already calculated data,
-            // so we probably shouldn't be merging raw live data into it easily without re-processing.
-            // But usually, 'generate' calls come with Raw CSV strings.
-
-            if (!Array.isArray(inOutInitial)) {
-                // It is { [employeeId: string]: RawInOut }
-                Object.keys(liveAttendanceMap).forEach(empId => {
-                    if (!inOutInitial[empId]) {
-                        inOutInitial[empId] = [];
-                    }
-                    // Merge and Deduplicate (optional, but good practice)
-                    // converting to time string for unique checks
-                    const existingTimes = new Set(inOutInitial[empId].map(d => d.getTime()));
-
-                    liveAttendanceMap[empId].forEach(date => {
-                        if (!existingTimes.has(date.getTime())) {
-                            inOutInitial[empId].push(date);
-                        }
-                    });
-
-                    // Re-sort
-                    inOutInitial[empId].sort((a, b) => a.getTime() - b.getTime());
-                });
-            }
-        }
-        // -----------------------------------
-        // -----------------------------------
-
-        const openHours = company.openHours;
-
-        // Pre-check for employees with calculated OT but no InOut data
+        // Validation Loop - only for non-attendance employees
         for (const employee of employees) {
-            // Detailed Debug Logging
-            console.log(`[SalaryService] Validating Employee: ${employee.name} (${employee.memberNo})`);
-            console.log(`[SalaryService] Raw Config -> Period: ${employee.salaryPeriod}, Method: ${employee.calculationMethod}, OT: ${employee.otMethod}`);
-            console.log(`[SalaryService] Overrides:`, JSON.stringify(employee.overrides));
-            console.log(`[SalaryService] Company Defaults:`, JSON.stringify(company.salaryPeriodDefaults));
-
             // Check for deprecated random OT method
             if ((employee.otMethod as any) === "random") {
                 throw new BadRequestError(
-                    `Employee ${employee.name} (${employee.memberNo}) uses random OT which is no longer supported. ` +
-                    `Please update to 'calc' (attendance-based) or 'noOt' in employee settings.`
+                    `Employee ${employee.name} uses 'random' OT which is deprecated. Update to 'calc'.`
                 );
-            }
-
-            const employeeInOut = update
-                ? (inOutInitial as ProcessedInOut)
-                : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
-
-            // Check for attendance requirement based on calculation method
-            if (employee.calculationMethod === "attendance") {
-                if (employee.otMethod === "calc" && !employeeInOut) {
-                    throw new BadRequestError(
-                        `InOut required for attendance-based calculation: ${employee.name} (${employee.memberNo})`
-                    );
-                }
             }
         }
 
@@ -1052,10 +981,8 @@ export class SalaryService {
             for (const task of tasks) {
                 const { employee, period: taskPeriod, index } = task;
 
+
                 employee.index = index;
-                if (openHours) {
-                    employee.openHours = openHours;
-                }
 
                 // Set individual properties if no overrides, otherwise use overrides
                 if (!employee.overrides?.shifts) {
@@ -1086,92 +1013,19 @@ export class SalaryService {
                 if (existingSalary && !update) {
                     salaryResult = { exists: employee._id, salary: null, period: taskPeriod };
                 } else {
-                    let employeeInOut = update
-                        ? (inOutInitial as ProcessedInOut)
-                        : (inOutInitial as { [employeeId: string]: RawInOut })[(employee._id as any).toString()];
+                    // For attendance employees, employeeInOut is not needed (handled by SalaryGenerationService)
+                    const employeeInOut = undefined;
 
-                    // Filter inOut data to match the taskPeriod
-                    if (employeeInOut) {
-                        // Calculate period dates for the task
-                        // We can reuse calculatePeriodDates from utils but we need to import it or implement simple check
-                        // Let's implement simple check leveraging the period string format
-                        let periodStart: Date, periodEnd: Date;
-
-                        if (taskPeriod.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                            // Daily
-                            periodStart = new Date(taskPeriod); // UTC Midnight
-                            periodEnd = new Date(taskPeriod);
-                            periodEnd.setUTCHours(23, 59, 59, 999); // UTC End of Day
-                        } else if (taskPeriod.match(/^\d{4}-\d{2}$/)) {
-                            // Monthly
-                            periodStart = new Date(taskPeriod + "-01");
-                            periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
-                            periodEnd.setUTCHours(23, 59, 59, 999);
-                        } else if (taskPeriod.includes(" to ")) {
-                            // Range
-                            const [start, end] = taskPeriod.split(" to ");
-                            periodStart = new Date(start);
-                            periodEnd = new Date(end);
-                            periodEnd.setUTCHours(23, 59, 59, 999);
-                        } else {
-                            // Fallback to full range
-                            periodStart = new Date(0);
-                            periodEnd = new Date(8640000000000000);
-                        }
-
-                        if (Array.isArray(employeeInOut) && employeeInOut.length > 0) {
-                            const originalCount = employeeInOut.length;
-                            const sample = employeeInOut[0];
-                            const isDate = sample instanceof Date;
-                            const isString = typeof sample === 'string';
-
-                            if (isDate || isString) {
-                                // RawInOut (Date[] or String[])
-                                employeeInOut = (employeeInOut as any[])
-                                    .map(d => (d instanceof Date ? d : new Date(d)))
-                                    .filter(d => {
-                                        if (isNaN(d.getTime())) return false;
-                                        return d >= periodStart && d <= periodEnd;
-                                    }) as RawInOut;
-                            } else if (typeof sample === 'object' && 'in' in sample) {
-                                // ProcessedInOut
-                                employeeInOut = (employeeInOut as ProcessedInOut).filter(io => {
-                                    const inDate = new Date(io.in);
-                                    if (isNaN(inDate.getTime())) return false;
-                                    return inDate >= periodStart && inDate <= periodEnd;
-                                });
-                            }
-                        }
-                    }
-
-                    if (!update) {
-                        // Generate new salary with enhanced logic for this specific period
-                        const generatedSalary = await this.generateEnhancedSalary(
-                            employee,
-                            taskPeriod, // Use the task-specific period
-                            employeeInOut as RawInOut,
-                            company,
-                            undefined, // existingSalary
-                            shouldSave, // Pass save flag
-                            currentAdvanceState // Pass running advance state
-                        );
-                        salaryResult = { salary: generatedSalary, exists: null, period: taskPeriod };
-                    } else {
-                        const existingSalaryForUpdate = existingSalaries?.find(
-                            (s: { employee: any; period: string }) =>
-                                s.employee.toString() === employee._id.toString() && s.period === taskPeriod
-                        );
-                        const generatedSalary = await this.generateEnhancedSalary(
-                            employee,
-                            taskPeriod, // Use the task-specific period
-                            employeeInOut as ProcessedInOut,
-                            company,
-                            existingSalaryForUpdate,
-                            shouldSave, // Pass save flag
-                            currentAdvanceState // Pass running advance state
-                        );
-                        salaryResult = { salary: generatedSalary, exists: null, period: taskPeriod };
-                    }
+                    const generatedSalary = await this.generateEnhancedSalary(
+                        employee,
+                        taskPeriod,
+                        employeeInOut,
+                        company,
+                        existingSalary,
+                        shouldSave,
+                        currentAdvanceState
+                    );
+                    salaryResult = { salary: generatedSalary, exists: null, period: taskPeriod };
                 }
 
                 employeeResults.push(salaryResult);
@@ -1223,7 +1077,7 @@ export class SalaryService {
     private static async generateEnhancedSalary(
         employee: any,
         period: string,
-        employeeInOut: RawInOut | ProcessedInOut,
+        employeeInOut: RawInOut | ProcessedInOut | undefined, // Optional now - not used for attendance employees
         company: any,
         existingSalary?: any,
         shouldSave: boolean = true,
@@ -1249,21 +1103,44 @@ export class SalaryService {
 
         const totalAdvanceDeduction = calculateTotalAdvanceDeduction(activeAdvances);
 
-        // Generate salary using existing logic (handles attendance-based calculation)
+        // Generate salary - always use new dailyRecords structure for attendance-based employees
         let generatedSalary;
-        if (existingSalary) {
-            generatedSalary = await generateSalaryForOneEmployee(
-                employee,
+
+        if (employee.calculationMethod === "attendance") {
+            // Use new dailyRecords structure
+            const newStructureSalary = await SalaryGenerationService.generateWithDailyRecords(
+                employee._id.toString(),
                 period,
-                employeeInOut as ProcessedInOut,
-                existingSalary
+                company._id.toString(),
+                company.timezone || "Asia/Colombo"
             );
+
+            // Add advance deductions and other fields
+            generatedSalary = {
+                ...newStructureSalary,
+                advanceAmount: totalAdvanceDeduction,
+                activeAdvances,
+            };
         } else {
-            generatedSalary = await generateSalaryForOneEmployee(
-                employee,
-                period,
-                employeeInOut as RawInOut
-            );
+            // Use legacy structure for non-attendance employees
+            // For these employees, employeeInOut should be properly typed
+            if (existingSalary) {
+                generatedSalary = await generateSalaryForOneEmployee(
+                    employee,
+                    period,
+                    employeeInOut,
+                    existingSalary,
+                    company.timezone
+                );
+            } else {
+                generatedSalary = await generateSalaryForOneEmployee(
+                    employee,
+                    period,
+                    employeeInOut,
+                    undefined,
+                    company.timezone
+                );
+            }
         }
 
         if (generatedSalary && "message" in generatedSalary) {
@@ -1274,9 +1151,14 @@ export class SalaryService {
 
         // Calculate work days (for display purposes)
         let workDays = periodDays;
-        if (employee.calculationMethod === "attendance" && generatedSalary.inOut) {
-            // Count actual work days from inOut records
-            workDays = generatedSalary.inOut.filter((io: any) => io.workingHours > 0).length;
+        const salaryWithRecords = generatedSalary as any; // Type assertion for flexibility
+
+        if (employee.calculationMethod === "attendance" && salaryWithRecords.dailyRecords) {
+            // Count actual work days from dailyRecords
+            workDays = salaryWithRecords.dailyRecords.filter((dr: any) => dr.workingHours > 0).length;
+        } else if (employee.calculationMethod === "attendance" && salaryWithRecords.inOut) {
+            // Count actual work days from inOut records (legacy)
+            workDays = salaryWithRecords.inOut.filter((io: any) => io.workingHours > 0).length;
         } else if (employee.calculationMethod === "fixed_days") {
             // Calculate expected working days from shift settings
             workDays = calculateExpectedWorkingDays(employee, startDate, endDate);

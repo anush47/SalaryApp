@@ -336,11 +336,22 @@ export const useAttendanceAggregation = (
                 status = 'Off';
             }
 
+            // F. Use actual shift from IN record if available (overrides expected)
+            let actualShiftName = shiftExpected.name;
+            let actualShiftId = shiftExpected.shiftId;
+            if (firstSession) {
+                const firstInLog = employeeLogs.find((l: any) => l._id === firstSession.inLogId);
+                if (firstInLog?.shift) {
+                    actualShiftName = firstInLog.shift.name || firstInLog.shift.shiftName || shiftExpected.name;
+                    actualShiftId = firstInLog.shift.shiftId || firstInLog.shift._id || shiftExpected.shiftId;
+                }
+            }
+
             records.push({
                 date: dateStr,
                 dayOfWeek: currentDate.format('dddd'),
-                shiftId: shiftExpected.shiftId || undefined,
-                shiftName: shiftExpected.name,
+                shiftId: actualShiftId || undefined,
+                shiftName: actualShiftName,
                 expectedStartTime: shiftExpected.off ? undefined : shiftExpected.start,
                 expectedEndTime: shiftExpected.off ? undefined : shiftExpected.end,
                 isOffDay: shiftExpected.off,

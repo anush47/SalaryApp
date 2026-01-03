@@ -39,6 +39,10 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
         enabled: !!companyId
     });
 
+    const shifts = companyData?.shiftSettings?.shifts || [];
+    console.log('UnifiedAttendancePanel - Company data:', companyData);
+    console.log('UnifiedAttendancePanel - Shifts:', shifts);
+
     // Employee Fetching for Autocomplete
     const { data: employeesData, isLoading: loadingEmployees } = useQuery({
         queryKey: ['employees', companyId],
@@ -141,13 +145,13 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
             )}
 
             {/* Edit Dialog */}
-            {/* Edit Dialog */}
             <AttendanceRecordDialog
                 open={!!selectedRecord}
                 onClose={() => setSelectedRecord(null)}
                 dailyRecord={selectedRecord}
                 employee={selectedEmployee}
                 companyConfig={companyData}
+                shifts={shifts}
                 onSaveSuccess={() => {
                     queryClient.invalidateQueries({ queryKey: ["attendanceLogs", companyId] });
                     // Also invalidate aggregation if needed, but invalidating logs usually triggers re-aggregation if keys match

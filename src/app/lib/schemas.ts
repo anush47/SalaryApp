@@ -353,6 +353,7 @@ export const companyCreateSchema = z.object({
   address: z.string().optional(),
   startedAt: z.string().optional(),
   paymentMethod: z.string().optional(),
+  timezone: z.string().optional().default("Asia/Colombo"),
   monthlyPrice: z.number(),
   monthlyPriceOverride: z.boolean(),
   requiredDocs: z.object({
@@ -398,6 +399,7 @@ export const companyUpdateSchema = z.object({
   employerNo: z.string().min(1, "Employer number is required"),
   address: z.string().optional(),
   paymentMethod: z.string().optional(),
+  timezone: z.string().optional(),
   startedAt: z.string().optional(),
   endedAt: z.string().optional(),
   monthlyPrice: z.number().optional(),
@@ -626,6 +628,27 @@ export const salaryCreateSchema = z.object({
   })).optional(),
 
   leaveDeductions: z.array(z.any()).optional(),
+
+  // New attendance-linked structure
+  dailyRecords: z.array(z.object({
+    date: z.union([z.string(), z.date()]).optional(),
+    attendanceRecords: z.array(z.string()).optional(), // Array of Attendance ObjectIds
+    shift: z.string().optional(), // Shift ObjectId
+    appliedLeaves: z.array(z.string()).optional(), // Array of LeaveRequest ObjectIds
+    workingHours: z.number().min(0).optional().default(0),
+    breakHours: z.number().min(0).optional().default(0),
+    normalOT: z.number().min(0).optional().default(0),
+    doubleOT: z.number().min(0).optional().default(0),
+    tripleOT: z.number().min(0).optional().default(0),
+    noPay: z.number().min(0).optional().default(0),
+    noPayReason: z.string().optional().default(""),
+    holiday: z.string().optional().default(""),
+    isMercantileHoliday: z.boolean().optional().default(false),
+    isPublicHoliday: z.boolean().optional().default(false),
+    day_status: z.enum(["full", "half", "off"]).optional().default("full"),
+    remark: z.string().optional().default(""),
+  })).optional(),
+  usesNewStructure: z.boolean().optional().default(false),
 });
 
 export const salaryUpdateSchema = salaryCreateSchema.extend({

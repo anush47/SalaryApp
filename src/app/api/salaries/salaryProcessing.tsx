@@ -1,13 +1,31 @@
 // Determine if inOut contains already processed records (objects) or unprocessed Dates
 import { getHolidays } from "../calendar/holidays/holidayHelper";
 import { ProcessedInOut, RawInOut } from "./generate/salaryGeneration";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import { DailyCalculationService } from "./services/dailyCalculationService";
+import {
+  getHolidaysFromHelper, // Renaming import to avoid conflict if I kept the name? No, I'll remove local def.
+  getShiftEnd,
+  getShiftStart,
+  getTimeDifferenceInMinutes,
+  getWorkingDayStatus,
+  getHoliday,
+  calculateOT,
+  calculateHolidayPay,
+} from "./salaryHelper";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const processSalaryWithInOut = async (
   employee: any,
   period: string,
   inOut: RawInOut | ProcessedInOut,
   existingSalary: any = undefined,
-  gen: boolean = false
+  gen: boolean = false,
+  timezone: string = "Asia/Colombo"
 ) => {
 
 
@@ -53,158 +71,17 @@ export const processSalaryWithInOut = async (
     remark = "",
     noPay = 0
   ) => {
-    const shift = shifts.reduce((prev: any, curr: any) => {
-      const prevDiff = Math.abs(getTimeDifferenceInMinutes(prev.startTime, inDate));
-      const currDiff = Math.abs(getTimeDifferenceInMinutes(curr.startTime, inDate));
-      return currDiff < prevDiff && currDiff <= 6 * 60 ? curr : prev;
-    });
-
-    // DEBUG LOGS
-    console.log(`[SalaryProcessing] Processing record for ${inDate.toISOString()}`);
-    console.log(`[SalaryProcessing] Available shifts:`, shifts.map((s: any) => ({ start: s.startTime, break: s.break })));
-    console.log(`[SalaryProcessing] Selected shift: ${shift.startTime}, Break: ${shift.break}`);
-    const shiftStartHours = Number(shift.startTime.split(":")[0]);
-    const shiftStartMinutes = Number(shift.startTime.split(":")[1]);
-    const actualInTime =
-      inDate.getUTCHours() > shiftStartHours ||
-        (inDate.getUTCHours() === shiftStartHours &&
-          inDate.getUTCMinutes() > shiftStartMinutes)
-        ? inDate
-        : new Date(inDate.getTime()).setUTCHours(
-          shiftStartHours,
-          shiftStartMinutes,
-          0,
-          0
-        );
-
-    let workingHours = Math.max(
-      (outDate.getTime() -
-        (typeof actualInTime === "number"
-          ? actualInTime
-          : actualInTime.getTime())) /
-      1000 /
-      60 /
-      60,
-      // if outdate is before indate, set to 0
-      0
-    );
-
-    //workingHoursTreshold
-    const workingHoursTreshold = 8;
-    const halfDayTreshold = 6;
-    // manage break
-    if (workingHours > halfDayTreshold) {
-      workingHours -= Number(shift.break) || 0; // subtract break time if working hours exceed half day threshold
-    }
-
-    const { ot, otHours } = calculateOT(
-      workingHours,
+    const result = DailyCalculationService.processDailyRecord(
+      inDate,
+      outDate,
+      shifts,
+      timezone,
       workingDayStatus,
       holiday,
-      source.basic,
-      source.divideBy,
-      workingHoursTreshold,
-      halfDayTreshold
+      employee,
+      { remark, noPay }
     );
-
-    const holidayTexts: String[] = [];
-    if (holiday.categories.public) holidayTexts.push("Public");
-    if (holiday.categories.mercantile) holidayTexts.push("Mercantile");
-    if (holiday.categories.bank) holidayTexts.push("Bank");
-    if (workingDayStatus === "off") holidayTexts.push("Off");
-    else if (workingDayStatus === "half") holidayTexts.push("Half");
-
-    const holidayText =
-      holidayTexts.length > 0 ? holidayTexts.join(", ").trim() : "";
-
-    const { holidayPay: recordHolidayPay } = calculateHolidayPay(
-      holidayText,
-      workingHours,
-      workingHoursTreshold,
-      source.basic,
-      source.divideBy
-    );
-    const workingText = (() => {
-      const texts = [];
-
-      if (
-        workingHours === 0 &&
-        (workingDayStatus === "full" || workingDayStatus === "half") &&
-        !holiday.categories.public &&
-        !holiday.categories.mercantile
-      ) {
-        texts.push("Absent");
-      }
-
-      if (workingHours > 0) {
-        if (
-          workingDayStatus === "off" &&
-          (holiday.categories.public || holiday.categories.mercantile)
-        ) {
-          texts.push(
-            `Worked on Off Day and Holiday (Holiday Pay: ${recordHolidayPay.toFixed(
-              2
-            )})`
-          );
-        } else if (workingDayStatus === "off") {
-          texts.push(
-            `Worked on Off Day (Holiday Pay: ${recordHolidayPay.toFixed(2)})`
-          );
-        } else if (holiday.categories.public || holiday.categories.mercantile) {
-          texts.push(
-            `Worked on Holiday (Holiday Pay: ${recordHolidayPay.toFixed(2)})`
-          );
-        } else if (
-          workingDayStatus === "full" &&
-          workingHours < workingHoursTreshold
-        ) {
-          texts.push(
-            `Left ${(workingHoursTreshold - workingHours).toFixed(
-              2
-            )} h early on a Full Day`
-          );
-        } else if (
-          workingDayStatus === "half" &&
-          workingHours < halfDayTreshold
-        ) {
-          texts.push(
-            `Left ${(halfDayTreshold - workingHours).toFixed(
-              2
-            )} h early on a Half Day`
-          );
-        }
-      }
-
-      const shiftStart = new Date(inDate);
-      shiftStart.setUTCHours(
-        Number(shift.startTime.split(":")[0]),
-        Number(shift.startTime.split(":")[1])
-      );
-      if (inDate > shiftStart) {
-        const lateHours =
-          (inDate.getTime() - shiftStart.getTime()) / 1000 / 60 / 60;
-        texts.push(`Came ${lateHours.toFixed(2)} h late`);
-      }
-
-      return texts.join(", ");
-    })();
-    const newDescription = [holiday.summary.trim(), workingText].join(" ");
-
-    records.push({
-      in: inDate.toISOString(),
-      out: outDate.toISOString(),
-      break: shift.break,
-      workingHoursTreshold,
-      halfDayTreshold,
-      workingHours,
-      otHours,
-      ot,
-      noPay,
-      holiday: holidayText,
-      description: newDescription,
-      remark,
-      day_status: workingDayStatus,
-    });
+    records.push(result);
   };
 
   let holidays: any[] = [];
@@ -445,7 +322,8 @@ export const generateSalaryWithInOut = async (
   employee: any,
   period: string,
   inOut: RawInOut | ProcessedInOut,
-  existingSalary: any = undefined
+  existingSalary: any = undefined,
+  timezone: string = "Asia/Colombo"
 ) => {
   const shifts = employee.shiftSettings?.shifts || [];
 
@@ -732,7 +610,10 @@ export const generateSalaryWithInOut = async (
   const reprocessed = await processSalaryWithInOut(
     employee,
     period,
-    inOutProcessed as ProcessedInOut
+    inOutProcessed as ProcessedInOut,
+    undefined,
+    false,
+    timezone
   );
   return reprocessed;
 };
@@ -809,168 +690,4 @@ const startEndDates = async (
   }
 };
 
-const getShiftEnd = (shift: string, inDate: Date): Date => {
-  const [hours, minutes] = shift.split(":").map(Number);
-  let shiftEndTime = new Date(inDate);
-  shiftEndTime.setUTCHours(hours);
-  shiftEndTime.setUTCMinutes(minutes);
-  // If shift end time is before start, move to the next day
-  if (shiftEndTime < inDate) {
-    shiftEndTime.setUTCDate(shiftEndTime.getUTCDate() + 1);
-  }
-  return shiftEndTime;
-};
-
-const getShiftStart = (shift: string, inDate: Date): Date => {
-  const [hours, minutes] = shift.split(":").map(Number);
-  const shiftStartTime = new Date(inDate);
-  shiftStartTime.setUTCHours(hours, minutes, 0, 0);
-  return shiftStartTime;
-};
-
-const getTimeDifferenceInMinutes = (shift: string, inOut: Date): number => {
-  const [hours, minutes] = shift.split(":").map(Number);
-  const timeDiff =
-    hours * 60 + minutes - (inOut.getUTCHours() * 60 + inOut.getUTCMinutes());
-  return timeDiff;
-};
-
-const getWorkingDayStatus = (
-  day: Date,
-  employee: any,
-  inOutRecord: { day_status?: "full" | "half" | "off" } | undefined
-): "full" | "half" | "off" => {
-  // Use UTC methods to avoid timezone issues
-  const dayOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getUTCDay()];
-
-  // Determine if dynamic holidays are enabled
-  // If employee has working days override, check employee's isDynamicHolidays
-  // Otherwise, check company's isDynamicHolidays
-  const isDynamicHolidays = employee.overrides?.workingDays
-    ? employee.workingDays?.isDynamicHolidays
-    : employee.company?.workingDays?.isDynamicHolidays;
-
-  // If day_status is undefined, populate it based on employee or company working days
-  if (inOutRecord?.day_status === undefined) {
-    // If employee has working days override, use employee's working days
-    if (employee.overrides?.workingDays && employee.workingDays) {
-      return employee.workingDays[dayOfWeek] || "full";
-    }
-    // Otherwise, use company's working days
-    else if (employee.company?.workingDays) {
-      return employee.company.workingDays[dayOfWeek] || "full";
-    }
-  }
-
-  // If dynamic holidays are enabled and a day_status is available in the record, use it
-  // Otherwise, fall back to the default behavior
-  if (isDynamicHolidays && inOutRecord?.day_status) {
-    return inOutRecord.day_status;
-  }
-
-  // Default behavior - use employee's working days if override is true, otherwise company's
-  const workingDayStatus = employee.overrides?.workingDays
-    ? employee.workingDays?.[dayOfWeek] || "full"
-    : employee.company?.workingDays?.[dayOfWeek] || "full";
-
-  return workingDayStatus;
-};
-
-const getHoliday = (
-  date: Date,
-  holidays: {
-    date: string;
-    categories: { public: boolean; bank: boolean; mercantile: boolean };
-    summary: string;
-  }[]
-) => {
-  const dateString = date.toISOString().split("T")[0];
-  const holiDay = holidays.find((h) => h.date === dateString) || {
-    date: dateString,
-    categories: { public: false, bank: false, mercantile: false },
-    summary: "",
-  };
-  return holiDay;
-};
-
-const calculateOT = (
-  workingHours: number,
-  workingDayStatus: string,
-  holiday: {
-    date: string;
-    categories: { public: boolean; bank: boolean; mercantile: boolean };
-    summary: string;
-  },
-  basic: number,
-  divideBy: number,
-  //workingHoursTreshold
-  workingHoursTreshold: number = 9,
-  halfDayTreshold: number = 6
-) => {
-  if (workingHours <= 0) {
-    return {
-      ot: 0,
-      otHours: 0,
-    };
-  }
-
-  let otHours = 0;
-  if (
-    workingDayStatus === "off" ||
-    holiday.categories.mercantile ||
-    holiday.categories.public
-  ) {
-    otHours = workingHours;
-  } else if (workingDayStatus === "half") {
-    otHours = Math.max(workingHours - halfDayTreshold, 0);
-  } else {
-    otHours = Math.max(workingHours - workingHoursTreshold, 0);
-  }
-  let multiplier = 1.5;
-  if (holiday.categories.mercantile) {
-    multiplier = 2;
-  }
-
-  let ot = 0;
-  if (otHours > 0) {
-    if (holiday.categories.mercantile && otHours > workingHoursTreshold) {
-      ot =
-        (workingHoursTreshold * basic * multiplier) / divideBy +
-        ((otHours - workingHoursTreshold) * basic * 3) / divideBy; // tripleot
-    } else {
-      ot = (otHours * basic * multiplier) / divideBy;
-    }
-  }
-  return {
-    ot,
-    otHours,
-  };
-};
-
-const calculateHolidayPay = (
-  holidayText: string,
-  workingHours: number,
-  workingHoursTreshold: number,
-  basic: number,
-  divideBy: number
-) => {
-  const recordHolidays = new Set(
-    holidayText.split(/[\s,]+/).map((h) => h.trim().toLowerCase())
-  );
-
-  let holidayPayMultiplier = 0;
-  if (recordHolidays.has("mercantile") || recordHolidays.has("off")) {
-    holidayPayMultiplier = 1; // Double pay for working, so bonus is 1x basic rate.
-  } else if (recordHolidays.has("public")) {
-    holidayPayMultiplier = 0.5; // 1.5x pay for working, so bonus is 0.5x basic rate.
-  }
-
-  let holidayPay = 0;
-  if (holidayPayMultiplier > 0) {
-    const basePayForHours =
-      (basic / divideBy) * Math.min(workingHoursTreshold, workingHours);
-    holidayPay = basePayForHours * holidayPayMultiplier;
-  }
-
-  return { holidayPay, holidayPayMultiplier };
-};
+// Helpers moved to salaryHelper.ts

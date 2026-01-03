@@ -12,6 +12,7 @@ export interface ICompany extends Document {
   active: boolean;
   monthlyPrice: number;
   monthlyPriceOverride: boolean;
+  timezone: string;
   employerName: string;
   employerAddress: string;
   openHours: {
@@ -157,6 +158,10 @@ const companySchema = new Schema<ICompany>(
     monthlyPriceOverride: {
       type: Boolean,
       default: false,
+    },
+    timezone: {
+      type: String,
+      default: "Asia/Colombo",
     },
     startedAt: {
       type: String,

@@ -20,6 +20,7 @@ import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 import { Salary } from './salariesDataGrid';
 import { PaymentStructure } from '../companyDetails/paymentStructure';
 import { InOutTable } from './inOutTable';
+import { DailyRecordsTable } from './DailyRecordsTable';
 
 interface SalaryEditDialogProps {
     open: boolean;
@@ -298,71 +299,89 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                         />
                     </Grid>
 
-                    {/* InOut Table */}
+
+                    {/* Attendance Records */}
                     <Grid item xs={12}>
                         <Divider sx={{ my: 1 }} />
-                        <InOutTable
-                            inOuts={formData.inOut.map((io: any, index: number) => ({
-                                id: index + 1, // temporary ID for frontend table
-                                employeeName: '', // Not needed for single employee context usually, or fetch from salary
-                                employeeNIC: '',
-                                basic: formData.basic,
-                                divideBy: 240, // Default or fetch if available
-                                ...io
-                            }))}
-                            setInOuts={(updatedInOuts: any[]) => {
-                                setFormData(prev => {
-                                    if (!prev) return null;
-                                    // Map back to Salary InOut structure
-                                    const newInOut = updatedInOuts.map(io => ({
-                                        _id: io._id || '', // Preserve _id if exists
-                                        in: io.in,
-                                        out: io.out,
-                                        workingHours: io.workingHours,
-                                        otHours: io.otHours,
-                                        holiday: io.holiday,
-                                        ot: io.ot,
-                                        noPay: io.noPay,
-                                        description: io.description,
-                                        remark: io.remark,
-                                        day_status: io.day_status
-                                    }));
-                                    return { ...prev, inOut: newInOut };
-                                });
-                            }}
-                            fetchSalary={async () => {
-                                try {
-                                    if (!formData || !formData.employee) return;
-
-                                    const data = await generateSalaries({
-                                        companyId,
-                                        employees: [formData.employee],
-                                        period: formData.period,
-                                        inOut: formData.inOut,
-                                        existingSalaries: [formData],
-                                        update: true,
+                        {formData.dailyRecords && formData.dailyRecords.length > 0 ? (
+                            <DailyRecordsTable
+                                dailyRecords={formData.dailyRecords}
+                                onBreakHoursChange={(index, newBreakHours) => {
+                                    setFormData(prev => {
+                                        if (!prev || !prev.dailyRecords) return prev;
+                                        const updatedRecords = [...prev.dailyRecords];
+                                        updatedRecords[index] = {
+                                            ...updatedRecords[index],
+                                            breakHours: newBreakHours
+                                        };
+                                        return { ...prev, dailyRecords: updatedRecords };
                                     });
+                                }}
+                                editable={true}
+                            />
+                        ) : formData.inOut && formData.inOut.length > 0 ? (
+                            <InOutTable
+                                inOuts={formData.inOut.map((io: any, index: number) => ({
+                                    id: index + 1,
+                                    employeeName: '',
+                                    employeeNIC: '',
+                                    basic: formData.basic,
+                                    divideBy: 240,
+                                    ...io
+                                }))}
+                                setInOuts={(updatedInOuts: any[]) => {
+                                    setFormData(prev => {
+                                        if (!prev) return null;
+                                        const newInOut = updatedInOuts.map(io => ({
+                                            _id: io._id || '',
+                                            in: io.in || '',
+                                            out: io.out || '',
+                                            workingHours: io.workingHours || 0,
+                                            otHours: io.otHours || 0,
+                                            holiday: io.holiday || false,
+                                            ot: io.ot || 0,
+                                            noPay: io.noPay || 0,
+                                            description: io.description || '',
+                                            remark: io.remark || '',
+                                            day_status: io.day_status || ''
+                                        }));
+                                        return { ...prev, inOut: newInOut };
+                                    });
+                                }}
+                                fetchSalary={async () => {
+                                    try {
+                                        if (!formData || !formData.employee) return;
 
-                                    if (data && data.salaries && data.salaries[0]) {
-                                        setFormData(prev => {
-                                            if (!prev) return null;
-                                            return {
-                                                ...prev,
-                                                ...data.salaries[0],
-                                                // Ensure we keep the local ID or structure if needed, 
-                                                // but usually API return is authoritative for calculation
-                                            };
+                                        const data = await generateSalaries({
+                                            companyId,
+                                            employees: [formData.employee],
+                                            period: formData.period,
+                                            inOut: formData.inOut,
+                                            existingSalaries: [formData],
+                                            update: true,
                                         });
-                                        showSnackbar({ message: "Salary recalculated successfully", severity: "success" });
+
+                                        if (data && data.salaries && data.salaries[0]) {
+                                            setFormData(prev => {
+                                                if (!prev) return null;
+                                                return {
+                                                    ...prev,
+                                                    ...data.salaries[0],
+                                                    // Ensure we keep the local ID or structure if needed, 
+                                                    // but usually API return is authoritative for calculation
+                                                };
+                                            });
+                                            showSnackbar({ message: "Salary recalculated successfully", severity: "success" });
+                                        }
+                                    } catch (error) {
+                                        console.error(error);
+                                        showSnackbar({ message: "Error recalculating salary", severity: "error" });
                                     }
-                                } catch (error) {
-                                    console.error(error);
-                                    showSnackbar({ message: "Error recalculating salary", severity: "error" });
-                                }
-                            }}
-                            editable={true}
-                            isDynamicHolidays={false} // Default for now
-                        />
+                                }}
+                                editable={true}
+                                isDynamicHolidays={false} // Default for now
+                            />
+                        ) : null}
                     </Grid>
 
                     {/* Additions & Deductions via PaymentStructure Component */}

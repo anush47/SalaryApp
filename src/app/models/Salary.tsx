@@ -37,6 +37,26 @@ export interface ISalary extends Document {
     description: string;
     remark: string;
   }[];
+  // New attendance-linked structure
+  dailyRecords: {
+    date: Date;
+    attendanceRecords: Schema.Types.ObjectId[]; // References to Attendance model
+    shift: Schema.Types.ObjectId; // Reference to shift worked
+    appliedLeaves: Schema.Types.ObjectId[]; // References to LeaveRequest model
+    workingHours: number;
+    breakHours: number; // Editable, defaults to shift break
+    normalOT: number; // 1.5x OT hours
+    doubleOT: number; // 2x OT hours (mercantile holidays)
+    tripleOT: number; // 3x OT hours (beyond threshold on mercantile)
+    noPay: number;
+    noPayReason: string;
+    holiday: string;
+    isMercantileHoliday: boolean; // For 2x/3x OT calculation
+    isPublicHoliday: boolean; // For 1.5x OT calculation
+    day_status: "full" | "half" | "off";
+    remark: string;
+  }[];
+  usesNewStructure: boolean; // Migration flag
   // Tax fields
   taxes: {
     apitAmount: number;
@@ -177,6 +197,80 @@ const salarySchema = new Schema<ISalary>(
         day_status: {
           type: String,
           enum: ["full", "half", "off"],
+        },
+      },
+    ],
+    // New attendance-linked structure
+    dailyRecords: [
+      {
+        date: {
+          type: Date,
+          required: false,
+        },
+        attendanceRecords: [
+          {
+            type: Schema.Types.ObjectId,
+            ref: "Attendance",
+          },
+        ],
+        shift: {
+          type: Schema.Types.ObjectId,
+          ref: "Shift",
+        },
+        appliedLeaves: [
+          {
+            type: Schema.Types.ObjectId,
+            ref: "LeaveRequest",
+          },
+        ],
+        workingHours: {
+          type: Number,
+          default: 0,
+        },
+        breakHours: {
+          type: Number,
+          default: 0,
+        },
+        normalOT: {
+          type: Number,
+          default: 0,
+        },
+        doubleOT: {
+          type: Number,
+          default: 0,
+        },
+        tripleOT: {
+          type: Number,
+          default: 0,
+        },
+        noPay: {
+          type: Number,
+          default: 0,
+        },
+        noPayReason: {
+          type: String,
+          default: "",
+        },
+        holiday: {
+          type: String,
+          default: "",
+        },
+        isMercantileHoliday: {
+          type: Boolean,
+          default: false,
+        },
+        isPublicHoliday: {
+          type: Boolean,
+          default: false,
+        },
+        day_status: {
+          type: String,
+          enum: ["full", "half", "off"],
+          default: "full",
+        },
+        remark: {
+          type: String,
+          default: "",
         },
       },
     ],

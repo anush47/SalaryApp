@@ -463,6 +463,34 @@ const CompanyDetails = ({
                 />
               </FormControl>
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel id="timezone-label">Timezone</InputLabel>
+                <Select
+                  labelId="timezone-label"
+                  label="Timezone"
+                  name="timezone"
+                  value={formFields.timezone || "Asia/Colombo"}
+                  onChange={handleChange}
+                  variant="filled"
+                  readOnly={!isEditing}
+                >
+                  <MenuItem value="Asia/Colombo">Asia/Colombo (Sri Lanka)</MenuItem>
+                  <MenuItem value="Asia/Kolkata">Asia/Kolkata (India)</MenuItem>
+                  <MenuItem value="Asia/Dubai">Asia/Dubai (UAE)</MenuItem>
+                  <MenuItem value="Asia/Singapore">Asia/Singapore</MenuItem>
+                  <MenuItem value="Asia/Tokyo">Asia/Tokyo (Japan)</MenuItem>
+                  <MenuItem value="Europe/London">Europe/London (UK)</MenuItem>
+                  <MenuItem value="America/New_York">America/New_York (US Eastern)</MenuItem>
+                  <MenuItem value="America/Los_Angeles">America/Los_Angeles (US Pacific)</MenuItem>
+                  <MenuItem value="Australia/Sydney">Australia/Sydney</MenuItem>
+                  <MenuItem value="UTC">UTC</MenuItem>
+                </Select>
+              </FormControl>
+              <FormHelperText>
+                Timezone used for attendance tracking and salary calculations
+              </FormHelperText>
+            </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <TextField

@@ -610,12 +610,18 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     date: viewLog.timestamp,
                     inLogId: viewLog.type === 'in' ? viewLog._id : undefined,
                     outLogId: viewLog.type === 'out' ? viewLog._id : undefined,
+                    shiftId: viewLog.shift?.shiftId || '',
+                    shiftName: viewLog.shift?.name || '',
+                    isOffDay: false,
+                    isHoliday: false,
                 } as any : null}
                 employee={viewLog?.employee}
                 companyConfig={companyData}
+                shifts={shifts}
+                disableShiftChange={true}
                 onSaveSuccess={() => {
-                    setOpenViewDialog(false);
                     refetch();
+                    setOpenViewDialog(false);
                 }}
                 disableTabSwitch={true}
                 readOnly={user?.role === 'employee'}
