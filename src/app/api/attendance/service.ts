@@ -524,7 +524,8 @@ export class AttendanceService {
     static async getAttendanceForSalaryPeriod(
         companyId: string,
         period: string,
-        employeeIds: string[]
+        employeeIds: string[],
+        timezone?: string
     ): Promise<{ [key: string]: Date[] }> {
         await dbConnect();
 

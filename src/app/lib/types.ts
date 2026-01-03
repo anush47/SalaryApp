@@ -22,6 +22,7 @@ export interface Company {
   address?: string;
   mode?: string;
   active: boolean;
+  timezone?: string;
   requiredDocs?: {
     epf: boolean;
     etf: boolean;

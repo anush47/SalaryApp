@@ -6,7 +6,6 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { DailyCalculationService } from "./services/dailyCalculationService";
 import {
-  getHolidaysFromHelper, // Renaming import to avoid conflict if I kept the name? No, I'll remove local def.
   getShiftEnd,
   getShiftStart,
   getTimeDifferenceInMinutes,
@@ -152,7 +151,7 @@ export const processSalaryWithInOut = async (
             currentShift: { startTime: string; endTime: string }
           ) => {
             const currentDiff = Math.abs(
-              getTimeDifferenceInMinutes(currentShift.startTime, inDate)
+              getTimeDifferenceInMinutes(currentShift.startTime, inDate, timezone)
             );
             if (currentDiff < acc.minDiff) {
               return { shift: currentShift, minDiff: currentDiff };

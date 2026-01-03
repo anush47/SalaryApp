@@ -59,6 +59,7 @@ export interface Salary {
     amount: number;
     reason: string;
   };
+  dailyRecords?: any[];
   paymentStructure: {
     additions: { name: string; amount: string; affectTotalEarnings: boolean }[];
     deductions: {
