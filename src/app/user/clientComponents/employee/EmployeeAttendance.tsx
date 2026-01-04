@@ -603,8 +603,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                             color="success"
                                             size="large"
                                             fullWidth
-                                            loading={loading}
-                                            disabled={lastLog?.type === 'in'}
+                                            loading={loading || loadingLogs || locationStatus.fetching}
+                                            disabled={lastLog?.type === 'in' || loadingLogs || locationStatus.fetching}
                                             onClick={() => handleAttendance("in")}
                                             startIcon={<Place sx={{ fontSize: { xs: 18, sm: 20 } }} />}
                                             sx={{
@@ -623,8 +623,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                             color="warning"
                                             size="large"
                                             fullWidth
-                                            loading={loading}
-                                            disabled={!lastLog || lastLog.type === 'out'}
+                                            loading={loading || loadingLogs || locationStatus.fetching}
+                                            disabled={(!lastLog && !loadingLogs) || lastLog?.type === 'out' || loadingLogs || locationStatus.fetching}
                                             onClick={() => handleAttendance("out")}
                                             startIcon={<Logout sx={{ fontSize: { xs: 18, sm: 20 } }} />}
                                             sx={{
