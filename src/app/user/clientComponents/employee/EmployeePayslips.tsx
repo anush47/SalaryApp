@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Card,
@@ -63,10 +64,32 @@ interface UserProps {
 
 
 const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab");
+
   const { showSnackbar } = useSnackbar();
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedSalary, setSelectedSalary] = useState<any>(null);
   const [activeTab, setActiveTab] = useState(0);
+
+  // Update URL on tab change
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+    const tabName = newValue === 0 ? "payslips" : "payments";
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`/user?${params.toString()}`);
+  };
+
+  // Set initial tab from URL and handle backward/forward navigation
+  useEffect(() => {
+    if (currentTab === "payments") {
+      setActiveTab(1);
+    } else {
+      setActiveTab(0);
+    }
+  }, [currentTab]);
 
   // 1. Fetch Employee Data
   const {
@@ -263,7 +286,7 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
       />
       <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
+          <Tabs value={activeTab} onChange={handleTabChange}>
             <Tab label="Payslips" />
             <Tab label="Payments" />
           </Tabs>

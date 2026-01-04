@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Card,
@@ -93,7 +94,29 @@ function TabPanel(props: TabPanelProps) {
 const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
   const { showSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab");
+
   const [tabValue, setTabValue] = useState(0);
+
+  // Update URL on tab change
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+    const tabName = newValue === 0 ? "apply" : "history";
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`/user?${params.toString()}`);
+  };
+
+  // Set initial tab from URL and handle backward/forward navigation
+  useEffect(() => {
+    if (currentTab === "history") {
+      setTabValue(1);
+    } else {
+      setTabValue(0);
+    }
+  }, [currentTab]);
 
   // Apply form state removed (handled in LeaveApplicationForm)
 
@@ -222,7 +245,7 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
       <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
         <Tabs
           value={tabValue}
-          onChange={(e, newValue) => setTabValue(newValue)}
+          onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"
         >

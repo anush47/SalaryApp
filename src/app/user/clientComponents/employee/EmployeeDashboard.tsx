@@ -57,6 +57,7 @@ import {
 } from "@/app/lib/api/employeeApi";
 import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
 import { fetchSalaries } from "@/app/lib/api/salaryApi";
+import { fetchSalaryPayments } from "@/app/lib/api/salaryPaymentApi";
 import { getNICDetails } from "@/app/lib/nicUtils";
 import { formatPeriodLabel } from "@/app/lib/formatUtils";
 
@@ -151,6 +152,24 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
       fullDate: date
     })).sort((a: any, b: any) => dayjs(a.fullDate).valueOf() - dayjs(b.fullDate).valueOf());
   }, [weeklyStats]);
+
+  // Payments
+  const { data: paymentsData = [], isLoading: loadingPayments } = useQuery({
+    queryKey: ["salary-payments", employeeId],
+    queryFn: () => fetchSalaryPayments({ employeeId }),
+    enabled: !!employeeId,
+  });
+
+  const recentPayments = useMemo(() => {
+    return (paymentsData || [])
+      .sort((a: any, b: any) => {
+        // Prioritize pending acknowledgement
+        if (a.status === "pending" && b.status !== "pending") return -1;
+        if (a.status !== "pending" && b.status === "pending") return 1;
+        return new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime();
+      })
+      .slice(0, 3);
+  }, [paymentsData]);
 
   const upcomingLeaves = useMemo(() => {
     if (!upcomingLeavesData?.data) return [];
@@ -362,7 +381,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 variant="outlined"
                 fullWidth
                 startIcon={<EventNote />}
-                onClick={() => router.push("/user?userPageSelect=leaves")}
+                onClick={() => router.push("/user?userPageSelect=leaves&tab=apply")}
                 sx={{ py: 1.2 }}
               >
                 Apply Leave
@@ -373,7 +392,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 variant="outlined"
                 fullWidth
                 startIcon={<Receipt />}
-                onClick={() => router.push("/user?userPageSelect=payslips")}
+                onClick={() => router.push("/user?userPageSelect=payslips&tab=payslips")}
                 sx={{ py: 1.2 }}
               >
                 Payslips
@@ -522,7 +541,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           )}
 
           {/* Upcoming Leaves */}
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card variant="outlined">
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Box
@@ -534,7 +553,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                   <Typography variant="subtitle1" fontWeight="bold">Upcoming Leaves</Typography>
                   <Button
                     size="small"
-                    onClick={() => router.push("/user?userPageSelect=leaves")}
+                    onClick={() => router.push("/user?userPageSelect=leaves&tab=history")}
                     sx={{ minWidth: 'auto', p: 0.5 }}
                   >
                     View All
@@ -576,7 +595,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           </Grid>
 
           {/* Recent Leaves */}
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card variant="outlined">
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Box
@@ -588,7 +607,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                   <Typography variant="subtitle1" fontWeight="bold">Recent Leaves</Typography>
                   <Button
                     size="small"
-                    onClick={() => router.push("/user?userPageSelect=leaves")}
+                    onClick={() => router.push("/user?userPageSelect=leaves&tab=history")}
                     sx={{ minWidth: 'auto', p: 0.5 }}
                   >
                     View All
@@ -630,7 +649,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           </Grid>
 
           {/* Recent Salaries */}
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card variant="outlined">
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Box
@@ -642,7 +661,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                   <Typography variant="subtitle1" fontWeight="bold">Recent Salaries</Typography>
                   <Button
                     size="small"
-                    onClick={() => router.push("/user?userPageSelect=payslips")}
+                    onClick={() => router.push("/user?userPageSelect=payslips&tab=payslips")}
                     sx={{ minWidth: 'auto', p: 0.5 }}
                   >
                     View All
@@ -674,6 +693,61 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                           color={salary.paymentStatus === "fully_paid" ? "success" : "warning"}
                           variant="outlined"
                           sx={{ height: 20, fontSize: '0.65rem', textTransform: 'capitalize' }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Recent Payments */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card variant="outlined">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={1}
+                >
+                  <Typography variant="subtitle1" fontWeight="bold">Recent Payments</Typography>
+                  <Button
+                    size="small"
+                    onClick={() => router.push("/user?userPageSelect=payslips&tab=payments")}
+                    sx={{ minWidth: 'auto', p: 0.5 }}
+                  >
+                    View All
+                  </Button>
+                </Box>
+                <Divider sx={{ mb: 1 }} />
+                {loadingPayments ? (
+                  <Box display="flex" justifyContent="center" p={1}>
+                    <CircularProgress size={20} />
+                  </Box>
+                ) : recentPayments.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No records found</Typography>
+                ) : (
+                  <List dense disablePadding>
+                    {recentPayments.map((payment: any) => (
+                      <ListItem key={payment._id} disableGutters sx={{ py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <Receipt color="secondary" sx={{ fontSize: 18 }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={`LKR ${payment.amount?.toLocaleString()}`}
+                          secondary={`${dayjs(payment.paymentDate).format("DD MMM")} (${payment.type})`}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'bold' }}
+                          secondaryTypographyProps={{ variant: 'caption' }}
+                        />
+                        <Chip
+                          label={payment.status === "acknowledged" ? "Received" : "Confirm"}
+                          size="small"
+                          color={payment.status === "acknowledged" ? "success" : "warning"}
+                          variant={payment.status === "acknowledged" ? "outlined" : "filled"}
+                          onClick={() => router.push("/user?userPageSelect=payslips&tab=payments")}
+                          sx={{ height: 20, fontSize: '0.65rem' }}
                         />
                       </ListItem>
                     ))}
