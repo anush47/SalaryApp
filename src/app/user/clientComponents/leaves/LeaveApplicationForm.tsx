@@ -23,7 +23,7 @@ import { Send, Add } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { FileUpload } from "@/app/components/FileUpload";
 import { FileViewer } from "@/app/components/FileViewer";
-import { fetchEmployees } from "@/app/lib/api/employeeApi";
+import { fetchLeaveBalance, fetchEmployees } from "@/app/lib/api/employeeApi";
 import { fetchLeaveTypes } from "@/app/lib/api/leaveTypeApi";
 import { createLeaveRequest } from "@/app/lib/api/leaveRequestApi";
 import { uploadFile } from "@/app/lib/uploadService";
@@ -63,6 +63,7 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
     const [reason, setReason] = useState("");
     const [attachments, setAttachments] = useState<string[]>([]);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isMultipleDays, setIsMultipleDays] = useState(false);
 
     const [errors, setErrors] = useState({
         employeeId: "",
@@ -73,6 +74,7 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
         startTime: "",
         endTime: "",
         halfDayPeriod: "",
+        attachments: "",
     });
 
     // Effect to update employeeId if prop changes
@@ -99,10 +101,20 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
         enabled: !!companyId,
     });
 
+    const { data: leaveBalanceData, isLoading: loadingLeaveBalance } = useQuery({
+        queryKey: ["leaveBalance", selectedEmployeeId],
+        queryFn: () => fetchLeaveBalance(selectedEmployeeId),
+        enabled: !!selectedEmployeeId,
+    });
+
+    const balanceSummary = (leaveBalanceData as any)?.summary || [];
+    const currentLeaveBalance = balanceSummary.find((b: any) => b.leaveType._id === selectedLeaveType);
+
     // Derived Data
     const selectedTypeData = leaveTypes.find((lt: any) => lt._id === selectedLeaveType);
     const isShortLeave = selectedTypeData?.isShortLeave;
     const allowPastDays = selectedTypeData?.allowPastDays ?? true;
+    const requiresDocument = selectedTypeData?.requiresDocument ?? false;
 
     const employeeNIC = !propEmployeeId && selectedEmployeeId
         ? employees.find((e: any) => e._id === selectedEmployeeId)?.nic
@@ -142,7 +154,9 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                 startTime: "",
                 endTime: "",
                 halfDayPeriod: "",
+                attachments: "",
             });
+            setIsMultipleDays(false);
 
             queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
             queryClient.invalidateQueries({ queryKey: ["leaveRequests", companyId] });
@@ -168,6 +182,7 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
             startTime: "",
             endTime: "",
             halfDayPeriod: "",
+            attachments: "",
         };
 
         let isValid = true;
@@ -215,6 +230,11 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
             }
         }
 
+        if (requiresDocument && !selectedFile) {
+            newErrors.attachments = "Document is required for this leave type";
+            isValid = false;
+        }
+
         setErrors(newErrors);
         return isValid;
     };
@@ -253,12 +273,27 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
             employeeId: selectedEmployeeId,
             leaveTypeId: selectedLeaveType,
             startDate: finalStartDate?.format('YYYY-MM-DD HH:mm') || "",
-            endDate: finalEndDate?.format('YYYY-MM-DD HH:mm') || "",
+            endDate: (isShortLeave || isMultipleDays) ? finalEndDate?.format('YYYY-MM-DD HH:mm') || "" : finalStartDate?.format('YYYY-MM-DD HH:mm') || "",
             halfDay: isShortLeave ? false : halfDay,
             halfDayPeriod: (halfDay && !isShortLeave) ? halfDayPeriod : undefined,
             reason: reason.trim(),
             documents: uploadedKey ? [uploadedKey] : [],
         });
+    };
+
+    const getLeaveDuration = () => {
+        if (!startDate) return 0;
+        if (isShortLeave) {
+            if (!startTime || !endTime) return 0;
+            const hours = endTime.diff(startTime, 'hour', true);
+            return `${hours.toFixed(1)} hours`;
+        }
+        if (!isMultipleDays) return halfDay ? "0.5 days" : "1 day";
+        if (!endDate) return 0;
+
+        const diff = endDate.diff(startDate, 'day') + 1;
+        const total = halfDay ? diff - 0.5 : diff;
+        return `${total} ${total === 1 ? 'day' : 'days'}`;
     };
 
     const getCleanFilename = (key: string) => {
@@ -320,9 +355,9 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={isMultipleDays && !isShortLeave ? 6 : 12}>
                     <DatePicker
-                        label={isShortLeave ? "Date *" : "Start Date *"}
+                        label={isShortLeave ? "Date *" : (isMultipleDays ? "Start Date *" : "Date *")}
                         value={startDate}
                         onChange={(val) => { setStartDate(val); setErrors(prev => ({ ...prev, startDate: "" })); }}
                         minDate={!allowPastDays ? dayjs() : undefined}
@@ -331,6 +366,24 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                 </Grid>
 
                 {!isShortLeave && (
+                    <Grid item xs={12}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={isMultipleDays}
+                                    onChange={(e) => {
+                                        setIsMultipleDays(e.target.checked);
+                                        if (!e.target.checked) setEndDate(null);
+                                    }}
+                                />
+                            }
+                            label={<Typography variant="body2">More than one day</Typography>}
+                        />
+                    </Grid>
+                )}
+
+                {isMultipleDays && !isShortLeave && (
                     <Grid item xs={12} sm={6}>
                         <DatePicker
                             label="End Date *"
@@ -385,11 +438,48 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                         folder="leaves"
                         entityId={selectedEmployeeId || "temp"}
                         companyId={companyId}
-                        label="Attachment (Optional)"
+                        label={`Attachment ${requiresDocument ? '(Required)' : '(Optional)'}`}
                         mode="manual"
-                        onFileSelect={(file) => setSelectedFile(file)}
+                        onFileSelect={(file) => {
+                            setSelectedFile(file);
+                            setErrors(prev => ({ ...prev, attachments: "" }));
+                        }}
                     />
+                    {errors.attachments && <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5, ml: 1 }}>{errors.attachments}</Typography>}
                 </Grid>
+
+                {selectedLeaveType && (
+                    <Grid item xs={12}>
+                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="subtitle2" gutterBottom fontWeight="bold">Leave Summary</Typography>
+                            <Grid container spacing={1}>
+                                <Grid item xs={6}>
+                                    <Typography variant="body2" color="text.secondary">Remaining Balance:</Typography>
+                                    <Typography variant="body1" fontWeight="medium">
+                                        {loadingLeaveBalance ? <CircularProgress size={14} /> : (currentLeaveBalance?.available ?? 0)} days
+                                    </Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="body2" color="text.secondary">Requested Duration:</Typography>
+                                    <Typography variant="body1" fontWeight="medium">
+                                        {getLeaveDuration()}
+                                    </Typography>
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Box display="flex" alignItems="center" gap={1} mt={1}>
+                                        <Typography variant="body2" color="text.secondary">Status:</Typography>
+                                        <Chip
+                                            label={selectedTypeData?.requiresApproval ? "Requires Approval" : "Auto-Approved"}
+                                            size="small"
+                                            color={selectedTypeData?.requiresApproval ? "warning" : "success"}
+                                            variant="outlined"
+                                        />
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    </Grid>
+                )}
 
                 <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
                     {onCancel && <Button onClick={onCancel}>Cancel</Button>}

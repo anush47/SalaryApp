@@ -85,7 +85,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`leave-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ p: 2 }}>{children}</Box>}
     </div>
   );
 }
@@ -228,7 +228,6 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         >
           <Tab label="Apply for Leave" />
           <Tab label="My Leaves" />
-          <Tab label="Pending Approvals" />
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
@@ -327,12 +326,6 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
         {/* Tab 2: My Leaves */}
         <TabPanel value={tabValue} index={1}>
           <LeaveRequestsManagement user={user} companyId={companyId} mode="my-requests" />
-        </TabPanel>
-
-        {/* Tab 3: Pending Approvals */}
-        {/* Tab 3: Pending Approvals */}
-        <TabPanel value={tabValue} index={2}>
-          <LeaveRequestsManagement user={user} companyId={companyId} mode="pending-approvals" />
         </TabPanel>
       </CardContent>
 

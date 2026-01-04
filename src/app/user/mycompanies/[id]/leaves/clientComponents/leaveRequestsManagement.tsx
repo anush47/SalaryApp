@@ -62,7 +62,7 @@ const LeaveRequestsManagement: React.FC<{
 }> = ({ user, companyId, mode = "all" }) => {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>(mode === "pending-approvals" ? "pending" : "");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(
     null
@@ -364,17 +364,19 @@ const LeaveRequestsManagement: React.FC<{
           <MenuItem value="rejected">Rejected</MenuItem>
           <MenuItem value="cancelled">Cancelled</MenuItem>
         </TextField>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setCreateDialogOpen(true)}
-          sx={{ ml: 'auto' }}
-        >
-          Create Request
-        </Button>
+        {mode === "all" && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setCreateDialogOpen(true)}
+            sx={{ ml: 'auto' }}
+          >
+            Create Request
+          </Button>
+        )}
       </Box>
 
-      <Box sx={{ height: "calc(100vh - 230px)", width: "100%" }}>
+      <Box sx={{ height: "calc(100vh - 350px)", width: "100%" }}>
         <DataGrid
           rows={leaveRequests || []}
           columns={columns}
