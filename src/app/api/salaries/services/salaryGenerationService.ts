@@ -112,7 +112,7 @@ export class SalaryGenerationService {
                             console.log(`[SalaryGeneration] ${dateStr}: Resolved full shift for missing breakDuration: ${fullShift.name}`);
                             attendanceShift = {
                                 ...attendanceShift,
-                                breakDuration: fullShift.breakDuration ?? fullShift.break ?? 0
+                                breakDuration: fullShift.breakDuration ?? (fullShift as any).break ?? 0
                             };
                         }
                     }

@@ -650,3 +650,11 @@ Implements a dual-view strategy for managing shifts within attendance:
 *   **Type Sharing**: Strictly use `src/app/lib/types.ts` for shared interfaces (`Company`, `Employee`, `Salary`) to prevent drift between Mongoose models, Service logic, and Frontend components (DataGrids).
 *   **Signature Consistency**: When Services call other Services (e.g., `SalaryService` calling `AttendanceService`), ensuring function signatures match exactly (including optional arguments like `timezone`) is critical to prevent build failures.
 
+### 11.4. Salary Data Robustness
+*   **Hybrid Storage**: `dailyRecords` stores enriched shift objects (for history) but services sanitize to IDs for valid updates.
+*   **Break Resolution**: Implements `Math.max(detected, default)` logic. Automatically looks up legacy shift definitions if `breakDuration` is missing from logs.
+
+## 12. Coding Standards
+*   **Imports**: Use absolute aliases (`@/app/...`) to prevent relative path drift (`ts(2307)`).
+*   **UI Patterns**: Design stateless tables (e.g., `DailyRecordsTable`) for reuse across Dialogs and Pages.
+
