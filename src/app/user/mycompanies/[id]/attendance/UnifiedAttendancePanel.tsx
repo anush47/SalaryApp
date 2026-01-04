@@ -19,6 +19,7 @@ import { useAttendanceAggregation, DailyAttendanceRecord } from '@/app/hooks/use
 import { DailyAttendanceTable } from '@/app/components/attendance/DailyAttendanceTable';
 import { Refresh } from '@mui/icons-material';
 import { AttendanceRecordDialog } from '@/app/components/attendance/AttendanceRecordDialog';
+import { LeaveDetailsDialog } from '@/app/components/leave/LeaveDetailsDialog';
 import { fetchCompany } from '@/app/lib/api/companyApi';
 
 interface UnifiedAttendancePanelProps {
@@ -31,6 +32,7 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
     const [startDate, setStartDate] = useState(dayjs().startOf('month'));
     const [endDate, setEndDate] = useState(dayjs().endOf('month'));
     const [selectedRecord, setSelectedRecord] = useState<DailyAttendanceRecord | null>(null);
+    const [selectedLeaveId, setSelectedLeaveId] = useState<string | undefined>();
 
     // Fetch Company Config for Map
     const { data: companyData } = useQuery({
@@ -62,6 +64,12 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
     const handleEditRecord = (record: DailyAttendanceRecord) => {
         // Prioritize In-Log for editing, as it's the primary record
         setSelectedRecord(record);
+    };
+
+    const handleLeaveClick = (record: DailyAttendanceRecord) => {
+        if (record.leaveId) {
+            setSelectedLeaveId(record.leaveId);
+        }
     };
 
     return (
@@ -131,6 +139,7 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
                         records={records}
                         loading={loadingAggregation}
                         onEdit={handleEditRecord}
+                        onLeaveClick={handleLeaveClick}
                         userRole="employer"
                     />
                 </>
@@ -151,9 +160,17 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
                 companyConfig={companyData}
                 shifts={shifts}
                 onSaveSuccess={() => {
-                    queryClient.invalidateQueries({ queryKey: ["attendanceLogs", companyId] });
-                    // Also invalidate aggregation if needed, but invalidating logs usually triggers re-aggregation if keys match
+                    queryClient.invalidateQueries({ queryKey: ['attendance'] });
+                    setSelectedRecord(null);
                 }}
+            />
+
+            {/* Leave Details Dialog */}
+            <LeaveDetailsDialog
+                open={!!selectedLeaveId}
+                onClose={() => setSelectedLeaveId(undefined)}
+                leaveRequestId={selectedLeaveId}
+                mode="view"
             />
         </Box>
     );

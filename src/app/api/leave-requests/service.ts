@@ -200,6 +200,48 @@ export class LeaveRequestService {
         return NextResponse.json(ApiResponseUtils.paginated(leaveRequests, page, limit, total));
     }
 
+    static async getLeaveRequestById(req: NextRequest, session: any, id: string) {
+        const leaveRequest = await LeaveRequest.findById(id)
+            .populate("employee", "name memberNo designation")
+            .populate("leaveType", "name code color isShortLeave")
+            .populate("approver", "name memberNo")
+            .populate("approvedBy", "name memberNo");
+
+        if (!leaveRequest) {
+            return ApiResponseUtils.sendNotFound("Leave request not found");
+        }
+
+        // Verify access
+        const company = await Company.findById(leaveRequest.company);
+        if (!company) {
+            return ApiResponseUtils.sendNotFound("Company not found");
+        }
+
+        if (session.user.role !== "admin") {
+            if (session.user.role === "employer") {
+                if (company.user.toString() !== session.user.id) {
+                    return ApiResponseUtils.sendForbidden("Forbidden");
+                }
+            } else if (session.user.role === "employee") {
+                const employee = await Employee.findOne({
+                    user: session.user.id,
+                    company: leaveRequest.company,
+                });
+                if (!employee) {
+                    return ApiResponseUtils.sendForbidden("Forbidden");
+                }
+                // Employee can only see their own requests or requests they need to approve
+                const isOwn = (leaveRequest.employee as any)._id.toString() === (employee._id as any).toString();
+                const isApprover = leaveRequest.approver && leaveRequest.approver.toString() === (employee._id as any).toString();
+                if (!isOwn && !isApprover) {
+                    return ApiResponseUtils.sendForbidden("Forbidden");
+                }
+            }
+        }
+
+        return ApiResponseUtils.sendSuccess(leaveRequest);
+    }
+
     static async createLeaveRequest(req: NextRequest, session: any) {
         const body = await req.json();
         const validation = leaveRequestCreateSchema.safeParse(body);

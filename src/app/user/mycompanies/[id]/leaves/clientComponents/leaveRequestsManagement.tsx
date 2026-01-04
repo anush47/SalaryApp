@@ -26,6 +26,7 @@ import { Check, Close, Visibility } from "@mui/icons-material";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { FileViewer } from "@/app/components/FileViewer";
+import { LeaveDetailsDialog } from "@/app/components/leave/LeaveDetailsDialog";
 
 import {
   fetchLeaveRequests,
@@ -62,15 +63,10 @@ const LeaveRequestsManagement: React.FC<{
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(
     null
   );
-  const [action, setAction] = useState<"approve" | "reject" | "cancel" | null>(
-    null
-  );
-  const [remarks, setRemarks] = useState("");
-  const [updatedDocuments, setUpdatedDocuments] = useState<string[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // Queries for Create Request: Removed (handled in component)
@@ -155,10 +151,6 @@ const LeaveRequestsManagement: React.FC<{
         message: `Leave request ${variables.action}d successfully!`,
         severity: "success",
       });
-      setActionDialogOpen(false);
-      setSelectedRequest(null);
-      setAction(null);
-      setRemarks("");
     },
     onError: (err: Error) => {
       showSnackbar({ message: err.message, severity: "error" });
@@ -314,32 +306,7 @@ const LeaveRequestsManagement: React.FC<{
 
   const handleViewDetails = (request: LeaveRequest) => {
     setSelectedRequest(request);
-    setUpdatedDocuments(request.documents || []);
-    setAction(null); // No specific action yet
-    // Populate remarks from the request so the employer sees what they saved
-    setRemarks(request.remarks || "");
-    setActionDialogOpen(true);
-  };
-
-  const handleActionClick = (
-    actionType: "approve" | "reject" | "cancel"
-  ) => {
-    setAction(actionType);
-    // Logic to handle confirmation within the dialog or separate
-    // Actually, we want to confirm immediately if clicked inside dialog? 
-    // Or set action state and show confirmation UI?
-    // Let's make the handleConfirmAction rely on the local state action.
-  };
-
-  const handleConfirmAction = () => {
-    if (selectedRequest && action) {
-      updateLeaveRequestMutation.mutate({
-        leaveRequestId: selectedRequest._id,
-        action,
-        remarks,
-        documents: updatedDocuments,
-      });
-    }
+    setLeaveDialogOpen(true);
   };
 
   const [columnVisibilityModel, setColumnVisibilityModel] =
@@ -444,261 +411,35 @@ const LeaveRequestsManagement: React.FC<{
         />
       </Box>
 
-      {/* Action Confirmation Dialog */}
-      <Dialog
-        open={actionDialogOpen}
+      {/* Leave Details Dialog */}
+      <LeaveDetailsDialog
+        open={leaveDialogOpen}
         onClose={() => {
-          setActionDialogOpen(false);
+          setLeaveDialogOpen(false);
           setSelectedRequest(null);
-          setAction(null);
-          setRemarks("");
         }}
+        leaveRequest={selectedRequest || undefined}
+        mode="manage"
+        onUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ["leaveRequests", companyId] });
+        }}
+      />
+
+      {/* Create Request Dialog (Admin/Employer) */}
+      < Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Leave Request Details</DialogTitle>
-        <DialogContent dividers>
-          {selectedRequest && (
-            <Box sx={{ mt: 1 }}>
-
-              {/* Header Info */}
-              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    {selectedRequest.employee?.name || "Deleted Employee"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Member No: {selectedRequest.employee?.memberNo || "N/A"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Designation: {selectedRequest.employee?.designation || 'N/A'}
-                  </Typography>
-                </Box>
-                <Chip
-                  label={selectedRequest.status.toUpperCase()}
-                  color={
-                    selectedRequest.status === 'approved' ? 'success' :
-                      selectedRequest.status === 'rejected' ? 'error' :
-                        selectedRequest.status === 'pending' ? 'warning' : 'default'
-                  }
-                  variant="outlined"
-                />
-              </Box>
-
-              {/* Leave Details Grid */}
-              <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Leave Type
-                  </Typography>
-                  <Chip
-                    label={selectedRequest.leaveType?.name || "Unknown"}
-                    size="small"
-                    sx={{ bgcolor: selectedRequest.leaveType?.color || 'primary.main', color: '#fff' }}
-                  />
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Duration
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {selectedRequest.leaveType?.isShortLeave ? (
-                      <>
-                        {dayjs(selectedRequest.startDate).format("DD MMM YYYY")}
-                        <Box component="span" sx={{ mx: 1, color: 'text.secondary' }}>|</Box>
-                        {dayjs(selectedRequest.startDate).format("HH:mm")} - {dayjs(selectedRequest.endDate).format("HH:mm")}
-                        <Typography component="span" variant="body2" color="primary" sx={{ ml: 1 }}>
-                          ({selectedRequest.totalMinutes} mins)
-                        </Typography>
-                      </>
-                    ) : (
-                      <>
-                        {dayjs(selectedRequest.startDate).format("DD MMM YYYY")}
-                        {selectedRequest.startDate !== selectedRequest.endDate && ` - ${dayjs(selectedRequest.endDate).format("DD MMM YYYY")}`}
-                        <br />
-                        <Typography component="span" variant="body2" color="text.secondary">
-                          {selectedRequest.totalDays} Days
-                          {selectedRequest.halfDay && ` (${selectedRequest.halfDayPeriod} Half)`}
-                        </Typography>
-                      </>
-                    )}
-                  </Typography>
-                </Box>
-
-                {selectedRequest.reason && (
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Reason for Leave
-                    </Typography>
-                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, mb: 2 }}>
-                      {selectedRequest.reason}
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* Status Specific Reasons */}
-                {selectedRequest.status === 'rejected' && selectedRequest.rejectionReason && (
-                  <Box>
-                    <Typography variant="subtitle2" color="error.main" gutterBottom>
-                      Rejection Reason
-                    </Typography>
-                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'error.lighter', color: 'error.dark', borderRadius: 1, mb: 2, border: '1px solid', borderColor: 'error.light' }}>
-                      {selectedRequest.rejectionReason}
-                    </Typography>
-                  </Box>
-                )}
-
-                {selectedRequest.status === 'cancelled' && selectedRequest.cancelReason && (
-                  <Box>
-                    <Typography variant="subtitle2" color="warning.main" gutterBottom>
-                      Cancellation Reason
-                    </Typography>
-                    <Typography variant="body2" sx={{ p: 1, bgcolor: 'warning.lighter', color: 'warning.dark', borderRadius: 1, mb: 2, border: '1px solid', borderColor: 'warning.light' }}>
-                      {selectedRequest.cancelReason}
-                    </Typography>
-                  </Box>
-                )}
-
-                {updatedDocuments && updatedDocuments.length > 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Attachments
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                      {updatedDocuments.map((docKey, index) => (
-                        <Box key={docKey} sx={{ position: 'relative', p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                          <FileViewer fileKey={docKey} filename={getCleanFilename(docKey)} showPreview={true} />
-                          {selectedRequest.status === 'pending' && (
-                            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-                              <Button
-                                size="small"
-                                color="error"
-                                onClick={() => setUpdatedDocuments(prev => prev.filter(d => d !== docKey))}
-                              >
-                                Remove
-                              </Button>
-                            </Box>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-
-              <TextField
-                label="Add Remarks / Rejection Reason"
-                multiline
-                rows={2}
-                fullWidth
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                sx={{ mt: 3 }}
-                placeholder="Enter remarks before approving or rejecting..."
-              />
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: 2 }}>
-            <Button
-              onClick={() => {
-                setActionDialogOpen(false);
-                setSelectedRequest(null);
-                setAction(null);
-                setRemarks("");
-              }}
-              color="inherit"
-              sx={{ width: { xs: '100%', sm: 'auto' } }}
-            >
-              Close
-            </Button>
-
-            <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, width: { xs: '100%', sm: 'auto' } }}>
-              {selectedRequest && selectedRequest.status === "pending" && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Close />}
-                  onClick={() => {
-                    if (selectedRequest) {
-                      updateLeaveRequestMutation.mutate({
-                        leaveRequestId: selectedRequest._id,
-                        action: "reject",
-                        remarks,
-                        documents: updatedDocuments,
-                      });
-                    }
-                  }}
-                  sx={{ width: { xs: '100%', sm: 'auto' } }}
-                >
-                  Reject
-                </Button>
-              )}
-
-              {selectedRequest &&
-                (selectedRequest.status === "pending" ||
-                  selectedRequest.status === "approved") && (
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    onClick={() => {
-                      if (selectedRequest) {
-                        updateLeaveRequestMutation.mutate({
-                          leaveRequestId: selectedRequest._id,
-                          action: "cancel",
-                          remarks,
-                          documents: updatedDocuments,
-                        });
-                      }
-                    }}
-                    sx={{ width: { xs: '100%', sm: 'auto' } }}
-                  >
-                    Cancel Leave
-                  </Button>
-                )}
-
-              {selectedRequest && selectedRequest.status === "pending" && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  endIcon={<Check />}
-                  onClick={() => {
-                    if (selectedRequest) {
-                      updateLeaveRequestMutation.mutate({
-                        leaveRequestId: selectedRequest._id,
-                        action: "approve",
-                        remarks,
-                        documents: updatedDocuments,
-                      });
-                    }
-                  }}
-                  sx={{ width: { xs: '100%', sm: 'auto' } }}
-                >
-                  Approve
-                </Button>
-              )}
-            </Box>
-          </Box>
-        </DialogActions>
-      </Dialog>
-
-  {/* Create Request Dialog (Admin/Employer) */ }
-  < Dialog
-open = { createDialogOpen }
-onClose = {() => setCreateDialogOpen(false)}
-maxWidth = "md"
-fullWidth
-  >
         <DialogTitle>Create Leave Request (Employer)</DialogTitle>
         <DialogContent dividers>
-            <LeaveApplicationForm
-              companyId={companyId}
-              onSuccess={() => setCreateDialogOpen(false)}
-              onCancel={() => setCreateDialogOpen(false)}
-              isDialog={true}
-            />
+          <LeaveApplicationForm
+            companyId={companyId}
+            onSuccess={() => setCreateDialogOpen(false)}
+            onCancel={() => setCreateDialogOpen(false)}
+            isDialog={true}
+          />
         </DialogContent>
       </Dialog >
     </Box >

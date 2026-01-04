@@ -11,6 +11,7 @@ interface DailyAttendanceTableProps {
     records: DailyAttendanceRecord[];
     loading: boolean;
     onEdit?: (record: DailyAttendanceRecord) => void;
+    onLeaveClick?: (record: DailyAttendanceRecord) => void;
     userRole: 'employee' | 'employer';
 }
 
@@ -18,6 +19,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
     records,
     loading,
     onEdit,
+    onLeaveClick,
     userRole
 }) => {
 
@@ -78,8 +80,10 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                 key={`${record.date}-${record.shiftId || index}`}
                                 sx={{
                                     bgcolor: record.status === 'Absent' ? 'error.lighter' :
-                                        record.status === 'Leave' ? 'info.lighter' :
-                                            isOff ? 'action.selected' : 'inherit'
+                                        record.status === 'Leave' ? 'primary.lighter' :
+                                            isOff ? 'action.selected' : 'inherit',
+                                    borderLeft: record.status === 'Leave' ? '4px solid' : 'none',
+                                    borderLeftColor: record.status === 'Leave' ? 'primary.main' : 'transparent',
                                 }}
                             >
                                 <TableCell>
@@ -106,23 +110,36 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                     </Box>
                                 </TableCell>
                                 <TableCell>
-                                    <Chip
-                                        size="small"
-                                        label={record.status === 'Leave' ? record.leaveStatus || 'Leave' : record.status}
-                                        color={getStatusColor(record.status) as any}
-                                        variant={record.status === 'Absent' ? 'filled' : 'outlined'}
-                                        icon={record.status === 'Holiday' ? <Hotel /> : undefined}
-                                    />
-                                    {record.leaveType && (
-                                        <Typography variant="caption" display="block" color="primary">
-                                            {record.leaveType}
-                                        </Typography>
-                                    )}
-                                    {record.holidayName && (
-                                        <Typography variant="caption" display="block" color="secondary">
-                                            {record.holidayName}
-                                        </Typography>
-                                    )}
+                                    <Box>
+                                        <Chip
+                                            size="small"
+                                            label={record.status === 'Leave' ? record.leaveStatus || 'Leave' : record.status}
+                                            color={getStatusColor(record.status) as any}
+                                            variant={record.status === 'Absent' ? 'filled' : 'outlined'}
+                                            icon={record.status === 'Holiday' ? <Hotel /> : undefined}
+                                        />
+                                        {record.leaveType && (
+                                            <Box display="flex" alignItems="center" gap={0.5} mt={0.5}>
+                                                <Typography variant="caption" color="primary" fontWeight="600">
+                                                    {record.leaveType}
+                                                </Typography>
+                                                {onLeaveClick && (
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onLeaveClick(record)}
+                                                        sx={{ p: 0.25 }}
+                                                    >
+                                                        <Visibility sx={{ fontSize: 14 }} />
+                                                    </IconButton>
+                                                )}
+                                            </Box>
+                                        )}
+                                        {record.holidayName && (
+                                            <Typography variant="caption" display="block" color="secondary">
+                                                {record.holidayName}
+                                            </Typography>
+                                        )}
+                                    </Box>
                                 </TableCell>
                                 <TableCell align="center" sx={{ fontWeight: 'medium' }}>
                                     <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>

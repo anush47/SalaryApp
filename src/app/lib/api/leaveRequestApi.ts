@@ -88,3 +88,7 @@ export async function updateLeaveRequest(data: {
         body: JSON.stringify(data),
     });
 }
+
+export async function fetchLeaveRequestById(id: string): Promise<LeaveRequest> {
+    return apiFetch<LeaveRequest>(`/api/leave-requests/${id}`);
+}
