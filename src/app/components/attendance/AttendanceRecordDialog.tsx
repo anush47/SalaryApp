@@ -22,7 +22,7 @@ import {
     useTheme,
     useMediaQuery
 } from "@mui/material";
-import { CheckCircle, Cancel, LocationOn, Delete, AddCircle, Warning } from "@mui/icons-material";
+import { CheckCircle, Cancel, LocationOn, Delete, AddCircle, Warning, Smartphone } from "@mui/icons-material";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -74,20 +74,42 @@ const PreviousDeviceCheck = ({ currentLog, employeeId, companyId }: { currentLog
 
     if (checking) return <Typography variant="caption" color="text.secondary">Checking device history...</Typography>;
 
-    if (!previousLog) return null; // No history to compare
+    if (!previousLog) {
+        return (
+            <Alert severity="warning" icon={<Smartphone />} sx={{ mt: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold">New Device / First Record</Typography>
+                <Typography variant="body2">No previous records found for comparison. This device identity is being established now.</Typography>
+            </Alert>
+        );
+    }
 
-    // Check if device ID changed
-    // If current has no ID (manual/web without ID?), and prev had one, it's a change.
-    // Normalized comparison
-    const currentId = currentLog.deviceId || "unknown";
-    const prevId = previousLog.deviceId || "unknown";
+    const currentId = currentLog.deviceId || "";
+    const prevId = previousLog.deviceId || "";
+
+    if (!currentId) {
+        return (
+            <Alert severity="warning" icon={<Smartphone />} sx={{ mt: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold">Device Identity Missing</Typography>
+                <Typography variant="body2">This record lacks a unique device ID. This can happen with manual entries or browser refreshes. This entry has been flagged.</Typography>
+            </Alert>
+        );
+    }
+
+    if (!prevId) {
+        return (
+            <Alert severity="warning" icon={<Smartphone />} sx={{ mt: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold">New Device Identity</Typography>
+                <Typography variant="body2">The previous record had no device ID. This record is establishing a new identity: <code>{currentId.substring(0, 8)}...</code></Typography>
+            </Alert>
+        );
+    }
 
     if (currentId !== prevId) {
         return (
-            <Alert severity="warning" icon={<Warning />} sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" fontWeight="bold">New Device Detected</Typography>
+            <Alert severity="warning" icon={<Smartphone />} sx={{ mt: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold" color="warning.dark">New device detected - This will be flagged</Typography>
                 <Typography variant="body2">
-                    This record was created using a different device than the previous record ({dayjs(previousLog.timestamp).format("MMM D HH:mm")}).
+                    Current device <code>{currentId.substring(0, 8)}...</code> differs from previous record <code>{prevId.substring(0, 8)}...</code>.
                 </Typography>
             </Alert>
         );

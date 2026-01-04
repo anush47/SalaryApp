@@ -25,7 +25,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LoadingButton } from "@mui/lab";
-import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel, Refresh, Warning } from "@mui/icons-material";
+import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel, Refresh, Warning, Smartphone } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { markAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import { getActiveShift } from "@/app/lib/api/shiftsApi";
@@ -323,7 +323,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         employee?._id,
         employee?.company?._id || employee?.company,
         viewStartDate.format("YYYY-MM-DD"),
-        viewEndDate.format("YYYY-MM-DD")
+        viewEndDate.format("YYYY-MM-DD"),
+        tabValue === 1
     );
 
     // Filter out days with no activity (neither in nor out)
@@ -344,7 +345,15 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         setCurrentDeviceId(deviceId);
     }, []);
 
-    const isDeviceChanged = lastLog && currentDeviceId && lastLog.deviceId && lastLog.deviceId !== currentDeviceId;
+    const deviceWarning = useMemo(() => {
+        if (!currentDeviceId) return null;
+        if (!lastLog) return "New Device: No history found";
+        if (!lastLog.deviceId) return "New device detected - Identiy establishing";
+        if (lastLog.deviceId !== currentDeviceId) return "New device detected - This will be flagged";
+        return null;
+    }, [currentDeviceId, lastLog]);
+
+    const isDeviceChanged = !!deviceWarning;
 
     const handleAttendance = async (type: "in" | "out") => {
         // Geolocation Check
@@ -643,57 +652,86 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                         rows={1}
                                     />
 
-                                    <Box display="flex" alignItems="center" gap={2} sx={{
-                                        p: 1.5,
+                                    <Box sx={{
                                         borderRadius: 2,
-                                        bgcolor: locationStatus.fetching ? 'info.lighter' : (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching)) ? 'error.lighter' : locationStatus.isInside ? 'success.lighter' : 'warning.lighter',
                                         border: '1px solid',
-                                        borderColor: locationStatus.fetching ? 'info.light' : (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching)) ? 'error.light' : locationStatus.isInside ? 'success.light' : 'warning.light'
+                                        borderColor: locationStatus.fetching ? 'info.light' :
+                                            (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching)) ? 'error.light' :
+                                                (!locationStatus.isInside || deviceWarning) ? 'warning.light' : 'success.light',
+                                        overflow: 'hidden'
                                     }}>
-                                        {locationStatus.fetching ? (
-                                            <CircularProgress size={24} color="info" />
-                                        ) : (
-                                            <LocationOn color={locationStatus.isInside ? "success" : (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching) ? "error" : (strictEnforce ? "error" : "warning"))} />
-                                        )}
-                                        <Box sx={{ flex: 1 }}>
-                                            <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.85rem' }}>
-                                                {locationStatus.fetching ? "Detecting location..." :
-                                                    locationStatus.error ? "LOCATION PROBLEM" :
-                                                        !locationStatus.coords ? "LOCATION NOT FOUND" :
-                                                            locationStatus.isInside ? "Within Allowed Zone" : "OUTSIDE ALLOWED ZONE"}
-                                            </Typography>
+                                        {/* Row 1: Location Status */}
+                                        <Box display="flex" alignItems="center" gap={2} sx={{
+                                            p: 1.5,
+                                            bgcolor: locationStatus.fetching ? 'info.lighter' :
+                                                (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching)) ? 'error.lighter' :
+                                                    !locationStatus.isInside ? 'warning.lighter' : 'success.lighter',
+                                            borderBottom: deviceWarning && !locationStatus.fetching ? '1px solid' : 'none',
+                                            borderColor: 'divider'
+                                        }}>
+                                            {locationStatus.fetching ? (
+                                                <CircularProgress size={24} color="info" />
+                                            ) : (
+                                                <LocationOn color={locationStatus.isInside ? "success" : (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching) ? "error" : (strictEnforce ? "error" : "warning"))} />
+                                            )}
+                                            <Box sx={{ flex: 1 }}>
+                                                <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.85rem' }}>
+                                                    {locationStatus.fetching ? "Detecting location..." :
+                                                        locationStatus.error ? "LOCATION PROBLEM" :
+                                                            !locationStatus.coords ? "LOCATION NOT FOUND" :
+                                                                locationStatus.isInside ? "Within Allowed Zone" : "OUTSIDE ALLOWED ZONE"}
+                                                </Typography>
 
-                                            {locationStatus.error ? (
-                                                <Typography variant="caption" color="error.dark" sx={{ display: 'block', fontWeight: 'bold' }}>
-                                                    {locationStatus.error}
-                                                </Typography>
-                                            ) : (locationStatus.distance !== null && !locationStatus.isInside) ? (
-                                                <Typography variant="body2" color="error.main" fontWeight="bold">
-                                                    {locationStatus.distance.toFixed(0)}m away
-                                                </Typography>
-                                            ) : !locationStatus.coords && !locationStatus.fetching && (
-                                                <Typography variant="caption" color="error.dark" sx={{ display: 'block' }}>
-                                                    Please enable GPS or grant permission.
-                                                </Typography>
+                                                {locationStatus.error ? (
+                                                    <Typography variant="caption" color="error.dark" sx={{ display: 'block', fontWeight: 'bold' }}>
+                                                        {locationStatus.error}
+                                                    </Typography>
+                                                ) : (locationStatus.distance !== null && !locationStatus.isInside) ? (
+                                                    <Typography variant="body2" color="error.main" fontWeight="bold">
+                                                        {locationStatus.distance.toFixed(0)}m away
+                                                    </Typography>
+                                                ) : !locationStatus.coords && !locationStatus.fetching ? (
+                                                    <Typography variant="caption" color="error.dark" sx={{ display: 'block' }}>
+                                                        Please enable GPS or grant permission.
+                                                    </Typography>
+                                                ) : null}
+                                            </Box>
+                                            {!locationStatus.fetching && (
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color={locationStatus.isInside ? "success" : "inherit"}
+                                                    onClick={refreshLocation}
+                                                    sx={{
+                                                        minWidth: 0,
+                                                        px: 1.5,
+                                                        fontSize: '0.65rem',
+                                                        height: 32,
+                                                        borderRadius: 1.5
+                                                    }}
+                                                    startIcon={<Refresh sx={{ fontSize: '0.85rem !important' }} />}
+                                                >
+                                                    RETRY
+                                                </Button>
                                             )}
                                         </Box>
-                                        {!locationStatus.fetching && (
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                color={locationStatus.isInside ? "success" : "inherit"}
-                                                onClick={refreshLocation}
-                                                sx={{
-                                                    minWidth: 0,
-                                                    px: 1.5,
-                                                    fontSize: '0.65rem',
-                                                    height: 32,
-                                                    borderRadius: 1.5
-                                                }}
-                                                startIcon={<Refresh sx={{ fontSize: '0.85rem !important' }} />}
-                                            >
-                                                RETRY
-                                            </Button>
+
+                                        {/* Row 2: Device Warning */}
+                                        {deviceWarning && !locationStatus.fetching && (
+                                            <Box display="flex" alignItems="center" gap={2} sx={{
+                                                p: 1.5,
+                                                bgcolor: 'warning.lighter'
+                                            }}>
+                                                <Smartphone sx={{ color: 'warning.dark', fontSize: '1.2rem' }} />
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.85rem', color: 'warning.dark' }}>
+                                                        IDENTITY NOT VERIFIED
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'warning.dark', fontWeight: 'bold', display: 'block' }}>
+                                                        {deviceWarning}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
                                         )}
                                     </Box>
 

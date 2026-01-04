@@ -65,13 +65,14 @@ export const useAttendanceAggregation = (
     employeeId: string,
     companyId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
+    enabled: boolean = true
 ) => {
     // 1. Fetch All Required Data in Parallel
     const { data: logsData, isLoading: loadingLogs } = useQuery({
         queryKey: ["attendanceLogs", companyId, startDate, endDate],
         queryFn: () => getAttendanceLogs(companyId, undefined, startDate, endDate),
-        enabled: !!companyId && !!startDate && !!endDate
+        enabled: enabled && !!companyId && !!startDate && !!endDate
     });
 
     const { data: leavesData, isLoading: loadingLeaves } = useQuery({
@@ -82,31 +83,31 @@ export const useAttendanceAggregation = (
             endDate,
             status: "approved"
         }),
-        enabled: !!companyId && !!employeeId
+        enabled: enabled && !!companyId && !!employeeId
     });
 
     const { data: shiftsData, isLoading: loadingShifts } = useQuery({
         queryKey: ["shiftAssignmentsAggregation", employeeId, startDate, endDate],
         queryFn: () => getShiftAssignments(employeeId, startDate, endDate),
-        enabled: !!employeeId
+        enabled: enabled && !!employeeId
     });
 
     const { data: holidaysData, isLoading: loadingHolidays } = useQuery({
         queryKey: ["holidaysAggregation", startDate, endDate],
         queryFn: () => getHolidays(startDate, endDate),
-        enabled: !!startDate
+        enabled: enabled && !!startDate
     });
 
     const { data: employeeData, isLoading: loadingEmployee } = useQuery({
         queryKey: ["employee", employeeId],
         queryFn: () => fetchEmployee(employeeId),
-        enabled: !!employeeId
+        enabled: enabled && !!employeeId
     });
 
     const { data: companyData, isLoading: loadingCompany } = useQuery({
         queryKey: ["company", companyId],
         queryFn: () => fetchCompany(companyId),
-        enabled: !!companyId
+        enabled: enabled && !!companyId
     });
 
 
