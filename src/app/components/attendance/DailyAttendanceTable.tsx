@@ -13,6 +13,7 @@ interface DailyAttendanceTableProps {
     onEdit?: (record: DailyAttendanceRecord) => void;
     onLeaveClick?: (record: DailyAttendanceRecord) => void;
     userRole: 'employee' | 'employer';
+    maxHeight?: string | number;
 }
 
 export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
@@ -20,7 +21,8 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
     loading,
     onEdit,
     onLeaveClick,
-    userRole
+    userRole,
+    maxHeight = 500
 }) => {
 
     const getStatusColor = (status: DailyAttendanceRecord['status']) => {
@@ -56,10 +58,10 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
     }
 
     return (
-        <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
+        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: maxHeight, overflowY: 'auto' }}>
+            <Table size="small" stickyHeader>
                 <TableHead>
-                    <TableRow sx={{ bgcolor: 'action.hover' }}>
+                    <TableRow sx={{ bgcolor: 'action.hover', '& th': { bgcolor: 'action.hover' } }}>
                         <TableCell>Date</TableCell>
                         <TableCell>Shift</TableCell>
                         <TableCell>Status</TableCell>

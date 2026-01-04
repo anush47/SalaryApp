@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Box, Typography, Paper } from '@mui/material';
-import { CheckCircle, Cancel } from '@mui/icons-material';
+import { CheckCircle, Cancel, Warning } from '@mui/icons-material';
 import { getEffectiveAllowedZones, CompanyConfig, AttendanceOverrides } from '@/app/lib/utils/attendanceUtils';
 
 // Dynamic import for the base map component
@@ -47,51 +47,54 @@ export const AttendanceZonesMap: React.FC<AttendanceZonesMapProps> = ({
     const centerLng = userLocation?.lng || markerLocation?.lng || primaryZone?.lng || 0;
 
     return (
-        <Box>
-            <LocationMap
-                // Center Preference: User -> Marker -> Primary Zone
-                lat={centerLat}
-                lng={centerLng}
+        <Box sx={{ height: height, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                <LocationMap
+                    // Center Preference: User -> Marker -> Primary Zone
+                    lat={centerLat}
+                    lng={centerLng}
 
-                // Primary Zone Circle (Blue) - Pass explicit coords if primary zone exists
-                radius={primaryZone?.radius || 0}
-                circlePosition={primaryZone ? { lat: primaryZone.lat, lng: primaryZone.lng } : undefined}
+                    // Primary Zone Circle (Blue) - Pass explicit coords if primary zone exists
+                    radius={primaryZone?.radius || 0}
+                    circlePosition={primaryZone ? { lat: primaryZone.lat, lng: primaryZone.lng } : undefined}
 
-                // Additional Zones (Green Circles)
-                additionalZones={otherZones.map(z => ({
-                    lat: z.lat,
-                    lng: z.lng,
-                    radius: z.radius,
-                    name: z.name
-                }))}
+                    // Additional Zones (Green Circles)
+                    additionalZones={otherZones.map(z => ({
+                        lat: z.lat,
+                        lng: z.lng,
+                        radius: z.radius,
+                        name: z.name
+                    }))}
 
-                // Markers
-                userLocation={userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : undefined}
-                markerPosition={markerLocation ? { lat: markerLocation.lat, lng: markerLocation.lng } : undefined}
+                    // Markers
+                    userLocation={userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : undefined}
+                    markerPosition={markerLocation ? { lat: markerLocation.lat, lng: markerLocation.lng } : undefined}
 
-                // Settings
-                height={height}
-                zoom={16}
-                interactive={interactive}
-                fitBounds={fitBounds}
-            />
+                    // Settings
+                    height="100%"
+                    interactive={interactive}
+                    fitBounds={fitBounds}
+                />
+            </Box>
 
             {showLegend && (
-                <Box mt={1} display="flex" justifyContent="space-between" flexWrap="wrap" gap={2}>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'blue', opacity: 0.5 }} />
-                        <Typography variant="caption" color="text.secondary">Primary Zone</Typography>
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'green', opacity: 0.5 }} />
-                        <Typography variant="caption" color="text.secondary">Additional Zones</Typography>
-                    </Box>
-                    {userLocation && (
+                <Box sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+                    <Box display="flex" justifyContent="space-between" flexWrap="wrap" gap={2}>
                         <Box display="flex" alignItems="center" gap={0.5}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3b82f6', border: '2px solid white', boxShadow: '0 0 4px rgba(0,0,0,0.3)' }} />
-                            <Typography variant="caption" color="text.secondary">Your Location</Typography>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'blue', opacity: 0.5 }} />
+                            <Typography variant="caption" color="text.secondary">Primary Zone</Typography>
                         </Box>
-                    )}
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'green', opacity: 0.5 }} />
+                            <Typography variant="caption" color="text.secondary">Additional Zones</Typography>
+                        </Box>
+                        {userLocation && (
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3b82f6', border: '2px solid white', boxShadow: '0 0 4px rgba(0,0,0,0.3)' }} />
+                                <Typography variant="caption" color="text.secondary">Your Location</Typography>
+                            </Box>
+                        )}
+                    </Box>
                 </Box>
             )}
         </Box>

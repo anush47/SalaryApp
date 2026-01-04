@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Box, Typography } from '@mui/material';
@@ -19,6 +19,29 @@ const fixLeafletIcon = () => {
 // Call fixing function immediately
 fixLeafletIcon();
 
+// Custom user location icon (Blue Dot)
+const userLocationIcon = typeof window !== 'undefined' ? L.divIcon({
+    className: 'user-location-marker',
+    html: `<div style="
+        width: 16px; 
+        height: 16px; 
+        background-color: #3b82f6; 
+        border: 3px solid white; 
+        border-radius: 50%; 
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
+        animation: pulse 2s infinite;
+    "></div>
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+    </style>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+}) : undefined;
+
 interface LocationMapProps {
     lat: number;
     lng: number;
@@ -31,7 +54,7 @@ interface LocationMapProps {
     // Optional overrides for specific elements
     markerPosition?: { lat: number; lng: number } | null; // If null, no marker
     circlePosition?: { lat: number; lng: number }; // Defaults to center
-    userLocation?: { lat: number; lng: number }; // Shows a special "You are here" marker if provided
+    userLocation?: { lat: number; lng: number; accuracy?: number }; // Shows a special "You are here" marker if provided
     additionalZones?: { lat: number; lng: number; radius: number; name?: string }[]; // Extra allowed circles
     fitBounds?: boolean; // Whether to auto-fit bounds to include all markers/circles
 }
@@ -60,18 +83,28 @@ const RecenterMap = ({ lat, lng, zoom }: { lat: number; lng: number, zoom: numbe
 const FitMapBounds = ({ markers, circles }: { markers: { lat: number, lng: number }[], circles: { lat: number, lng: number, radius: number }[] }) => {
     const map = useMap();
     const hasFitted = React.useRef(false);
-    const prevCirclesRef = React.useRef<string>("");
+    const prevItemsRef = React.useRef<string>("");
 
     useEffect(() => {
         if (markers.length === 0 && circles.length === 0) return;
 
-        // Create a signature for circles to detect zone changes
-        const circlesSignature = JSON.stringify(circles.map(c => ({ lat: c.lat, lng: c.lng, r: c.radius })));
-        const circlesChanged = prevCirclesRef.current !== circlesSignature;
+        // Create a signature to detect changes in zones or user location
+        const signature = JSON.stringify({
+            c: circles.map(c => ({ lat: c.lat, lng: c.lng, r: c.radius })),
+            m: markers.map(m => ({ lat: m.lat, lng: m.lng }))
+        });
 
-        if (circlesChanged) {
-            hasFitted.current = false;
-            prevCirclesRef.current = circlesSignature;
+        const itemsChanged = prevItemsRef.current !== signature;
+
+        if (itemsChanged) {
+            // If it's the first time we got a user marker, or zones changed, allow re-fitting
+            const hadUserMarker = prevItemsRef.current.includes('"m":[{');
+            const hasUserMarker = signature.includes('"m":[{');
+
+            if (itemsChanged || (!hadUserMarker && hasUserMarker)) {
+                hasFitted.current = false;
+            }
+            prevItemsRef.current = signature;
         }
 
         if (!hasFitted.current) {
@@ -80,16 +113,15 @@ const FitMapBounds = ({ markers, circles }: { markers: { lat: number, lng: numbe
             markers.forEach(m => bounds.extend([m.lat, m.lng]));
             circles.forEach(c => {
                 bounds.extend([c.lat, c.lng]);
-                // Extend slightly more for radius roughly
-                const rLat = c.radius / 111320; // rough deg
-                bounds.extend([c.lat + rLat, c.lng]);
-                bounds.extend([c.lat - rLat, c.lng]);
-                bounds.extend([c.lat, c.lng + rLat]);
-                bounds.extend([c.lat, c.lng - rLat]);
+                // Extend for radius (rough degree calculation)
+                const rLat = c.radius / 111320;
+                const rLng = c.radius / (111320 * Math.cos(c.lat * Math.PI / 180));
+                bounds.extend([c.lat + rLat, c.lng + rLng]);
+                bounds.extend([c.lat - rLat, c.lng - rLng]);
             });
 
             if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [50, 50] });
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
                 hasFitted.current = true;
             }
         }
@@ -142,14 +174,30 @@ const LocationMap: React.FC<LocationMapProps> = ({
                 )}
 
                 {/* User Location Marker (Blue Dot representation usually, but standard marker for now with distinct popup) */}
+                {/* User Location Marker (Blue Pulsing Dot) */}
                 {userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' && (
-                    <Marker
-                        key={`user-${userLocation.lat}-${userLocation.lng}`}
-                        position={[userLocation.lat, userLocation.lng]}
-                        opacity={0.7}
-                    >
-                        <Popup>You are here</Popup>
-                    </Marker>
+                    <>
+                        <Marker
+                            key={`user-${userLocation.lat}-${userLocation.lng}`}
+                            position={[userLocation.lat, userLocation.lng]}
+                            icon={userLocationIcon}
+                            zIndexOffset={1000}
+                        >
+                            <Popup>You are here</Popup>
+                        </Marker>
+                        {/* Outer accuracy circle */}
+                        <Circle
+                            center={[userLocation.lat, userLocation.lng]}
+                            radius={userLocation.accuracy || 20}
+                            pathOptions={{
+                                fillColor: '#3b82f6',
+                                color: '#3b82f6',
+                                weight: 1,
+                                opacity: 0.15,
+                                fillOpacity: 0.05
+                            }}
+                        />
+                    </>
                 )}
 
                 {/* Radius Circle (Primary) */}
