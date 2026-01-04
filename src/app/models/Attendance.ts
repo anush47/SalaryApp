@@ -33,6 +33,7 @@ export interface IAttendance extends Document {
         name: string;
         startTime: string;
         endTime: string;
+        breakDuration?: number;
         type: string;
     };
     resolutionMode?: string; // "fixed", "roster", "dynamic", "manual", "auto_select"
@@ -45,6 +46,7 @@ const resolvedShiftSchema = new Schema({
     name: String,
     startTime: String,
     endTime: String,
+    breakDuration: Number,
     type: String
 }, { _id: false });
 

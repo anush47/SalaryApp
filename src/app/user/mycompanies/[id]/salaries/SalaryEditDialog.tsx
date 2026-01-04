@@ -44,8 +44,11 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
             console.log("SalaryEditDialog received salary:", salary);
             console.log("Salary dailyRecords:", salary.dailyRecords);
             console.log("Salary dailyRecords length:", salary.dailyRecords?.length);
-            // Deep copy to separate from source until saved
-            setFormData(JSON.parse(JSON.stringify(salary)));
+            // Initialize paymentStructure if missing and create a shallow copy
+            setFormData({
+                ...salary,
+                paymentStructure: salary.paymentStructure || { additions: [], deductions: [] }
+            });
         }
     }, [salary]);
 
@@ -191,21 +194,21 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
         }
 
         // Calculate Final Salary
-        const totalAdditions = formData.paymentStructure.additions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-        const totalDeductions = formData.paymentStructure.deductions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        const totalAdditions = (formData.paymentStructure?.additions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        const totalDeductions = (formData.paymentStructure?.deductions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-        const finalSalary = (Number(basic) || 0) + (Number(holidayPay) || 0) + (Number(otAmount) || 0) + (Number(totalAdditions) || 0) - (Number(totalDeductions) || 0) - (Number(noPayAmount) || 0) - (Number(advanceAmount) || 0);
+        const finalSalary = (Number(basic) || 0) + (Number(holidayPay) || 0) + (Number(otAmount) || 0) + totalAdditions - totalDeductions - (Number(noPayAmount) || 0) - (Number(advanceAmount) || 0);
 
         // Only update if different
-        if (formData.finalSalary !== finalSalary) {
+        if (Math.abs((formData.finalSalary || 0) - finalSalary) > 0.01) {
             setFormData(prev => prev ? { ...prev, finalSalary } : null);
         }
 
     }, [
         formData?.basic,
         formData?.holidayPay,
-        formData?.noPay.amount,
-        formData?.ot.amount,
+        formData?.noPay?.amount,
+        formData?.ot?.amount,
         formData?.advanceAmount,
         JSON.stringify(formData?.paymentStructure)
     ]);

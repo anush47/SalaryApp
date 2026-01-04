@@ -23,7 +23,7 @@ import { Salary } from "./salariesDataGrid";
 import { ArrowBack, Edit, ExpandMore, Save } from "@mui/icons-material";
 import { PaymentStructure } from "../companyDetails/paymentStructure";
 import { LoadingButton } from "@mui/lab";
-import { InOutTable } from "./inOutTable";
+import { DailyRecordsTable } from "./DailyRecordsTable";
 import { useSnackbar } from "@/app/context/SnackbarContext"; // Import useSnackbar
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
@@ -60,6 +60,7 @@ const EditSalaryForm: React.FC<{
       deductions: [],
     },
     advanceAmount: 0,
+    dailyRecords: [],
     finalSalary: 0,
     remark: "",
   });
@@ -133,6 +134,7 @@ const EditSalaryForm: React.FC<{
         paymentStructure: salaryData.paymentStructure,
         advanceAmount: salaryData.advanceAmount,
         finalSalary: salaryData.finalSalary,
+        dailyRecords: salaryData.dailyRecords || [],
         remark: salaryData.remark,
       });
       setEmployeeData({
@@ -196,9 +198,10 @@ const EditSalaryForm: React.FC<{
         holidayPay: data.salaries[0].holidayPay,
         noPay: data.salaries[0].noPay,
         ot: data.salaries[0].ot,
-        paymentStructure: data.salaries[0].paymentStructure,
+        paymentStructure: data.salaries[0].paymentStructure || { additions: [], deductions: [] },
         advanceAmount: data.salaries[0].advanceAmount,
         finalSalary: data.salaries[0].finalSalary,
+        dailyRecords: data.salaries[0].dailyRecords || [],
       }));
     } catch (error) {
       showSnackbar({
@@ -213,51 +216,51 @@ const EditSalaryForm: React.FC<{
     const basic = Number(formFields.basic);
     const otAmount = Number(formFields.ot.amount);
 
-    const additionsForEarnings = formFields.paymentStructure.additions.reduce(
+    const additionsForEarnings = (formFields.paymentStructure?.additions || []).reduce(
       (acc, addition) => {
         if (addition.affectTotalEarnings) {
-          return acc + Number(addition.amount);
+          return acc + (Number(addition.amount) || 0);
         }
         return acc;
       },
       0
     );
 
-    const deductionsForEarnings = formFields.paymentStructure.deductions.reduce(
+    const deductionsForEarnings = (formFields.paymentStructure?.deductions || []).reduce(
       (acc, deduction) => {
         if (deduction.affectTotalEarnings) {
-          return acc + Number(deduction.amount);
+          return acc + (Number(deduction.amount) || 0);
         }
         return acc;
       },
       0
     );
 
-    const noPayAmount = Number(formFields.noPay.amount) || 0;
+    const noPayAmount = Number(formFields.noPay?.amount) || 0;
     const holidayPay = Number(formFields.holidayPay) || 0;
 
-    //set epf
+    // Calculate EPF (8% of Basic + Holiday Pay)
     const epfAmount =
       ((isNaN(basic) ? 0 : basic) +
         (isNaN(holidayPay) ? 0 : holidayPay) +
-        (isNaN(additionsForEarnings) ? 0 : additionsForEarnings) -
-        (isNaN(deductionsForEarnings) ? 0 : deductionsForEarnings) -
+        (isNaN(additionsForEarnings || 0) ? 0 : additionsForEarnings) -
+        (isNaN(deductionsForEarnings || 0) ? 0 : deductionsForEarnings) -
         (isNaN(noPayAmount) ? 0 : noPayAmount)) *
       0.08;
 
-    const epfDeduction = formFields.paymentStructure.deductions.find(
+    const epfDeduction = (formFields.paymentStructure?.deductions || []).find(
       (deduction) => deduction.name === "EPF 8%"
     );
     if (epfDeduction) {
-      epfDeduction.amount = epfAmount.toString();
+      epfDeduction.amount = epfAmount.toFixed(2);
     }
 
-    const additions = formFields.paymentStructure.additions.reduce(
-      (acc, curr) => acc + Number(curr.amount),
+    const additions = (formFields.paymentStructure?.additions || []).reduce(
+      (acc, curr) => acc + (Number(curr.amount) || 0),
       0
     );
-    const deductions = formFields.paymentStructure.deductions.reduce(
-      (acc, curr) => acc + Number(curr.amount),
+    const deductions = (formFields.paymentStructure?.deductions || []).reduce(
+      (acc, curr) => acc + (Number(curr.amount) || 0),
       0
     );
 
@@ -536,29 +539,28 @@ const EditSalaryForm: React.FC<{
               )}
             </Grid>
             <Grid item xs={12}>
-              <InOutTable
-                inOuts={formFields.inOut.map((inOut, index) => ({
-                  id: inOut._id || index + 1,
-                  employeeName: employeeData?.name,
-                  employeeNIC: employeeData?.nic,
-                  basic: formFields.basic,
-                  divideBy: employeeData?.divideBy ?? 240,
-                  ...inOut,
-                }))}
-                setInOuts={(inOuts: any) => {
-                  setFormFields((prev) => ({
-                    ...prev,
-                    inOut: inOuts,
-                  }));
+              <DailyRecordsTable
+                dailyRecords={formFields.dailyRecords || []}
+                onBreakHoursChange={(index, newBreakHours) => {
+                  setFormFields(prev => {
+                    if (!prev || !prev.dailyRecords) return prev;
+                    const updatedRecords = [...prev.dailyRecords];
+                    updatedRecords[index] = {
+                      ...updatedRecords[index],
+                      breakHours: newBreakHours
+                    };
+                    return { ...prev, dailyRecords: updatedRecords };
+                  });
                 }}
                 editable={isEditing}
-                fetchSalary={fetchSalary}
-                isDynamicHolidays={
-                  employeeFullData?.overrides?.workingDays
-                    ? employeeFullData?.workingDays?.isDynamicHolidays
-                    : companyData?.workingDays?.isDynamicHolidays
-                }
               />
+              {(!formFields.dailyRecords || formFields.dailyRecords.length === 0) && (
+                <Box sx={{ p: 2, textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No daily records available. This salary record may need to be regenerated to support the new attendance view.
+                  </Typography>
+                </Box>
+              )}
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={!!errors.basic}>

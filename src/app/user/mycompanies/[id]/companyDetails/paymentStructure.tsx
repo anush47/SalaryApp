@@ -68,9 +68,10 @@ export const PaymentStructure = ({
   isSalary = false,
 }: PaymentStructureProps) => {
   useEffect(() => {
-    //do once only when company fetched
-    setAdditions(paymentStructure?.additions);
-    setDeductions(paymentStructure?.deductions);
+    if (paymentStructure) {
+      setAdditions(paymentStructure.additions || []);
+      setDeductions(paymentStructure.deductions || []);
+    }
   }, [paymentStructure]);
   const [additions, setAdditions] = React.useState(
     paymentStructure?.additions || [
@@ -141,8 +142,8 @@ export const PaymentStructure = ({
       newErrors.additions[index] =
         (field === "amount" &&
           validateAmountNumberString(value as string, isSalary)) ||
-        (field === "name" && value !== "") ||
-        field === "affectTotalEarnings"
+          (field === "name" && value !== "") ||
+          field === "affectTotalEarnings"
           ? ""
           : "Invalid format";
       setErrors(newErrors);
@@ -153,7 +154,7 @@ export const PaymentStructure = ({
       newErrors.deductions[index] =
         (field === "amount" &&
           validateAmountNumberString(value as string, isSalary)) ||
-        (field === "name" && value !== "")
+          (field === "name" && value !== "")
           ? ""
           : "Invalid format";
       setErrors(newErrors);

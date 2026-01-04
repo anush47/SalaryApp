@@ -18,6 +18,9 @@ interface DailyRecord {
     date: Date;
     attendanceRecords: string[];
     shift?: string;
+    shiftName?: string;
+    shiftStartTime?: string;
+    shiftEndTime?: string;
     appliedLeaves: string[];
     workingHours: number;
     breakHours: number;
@@ -106,6 +109,21 @@ export const DailyRecordsTable: React.FC<DailyRecordsTableProps> = ({
                 <Box>
                     <Typography variant="body2">{dayjs(params.row.date).format("MMM DD, YYYY")}</Typography>
                     <Typography variant="caption" color="text.secondary">{dayjs(params.row.date).format("ddd")}</Typography>
+                </Box>
+            )
+        },
+        {
+            field: "shiftName",
+            headerName: "Shift",
+            width: 150,
+            renderCell: (params) => (
+                <Box>
+                    <Typography variant="body2">{params.row.shiftName || "Standard"}</Typography>
+                    {params.row.shiftStartTime && (
+                        <Typography variant="caption" color="text.secondary">
+                            {params.row.shiftStartTime} - {params.row.shiftEndTime}
+                        </Typography>
+                    )}
                 </Box>
             )
         },

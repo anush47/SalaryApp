@@ -40,9 +40,12 @@ export interface ISalary extends Document {
   // New attendance-linked structure
   dailyRecords: {
     date: Date;
-    attendanceRecords: Schema.Types.ObjectId[]; // References to Attendance model
-    shift: Schema.Types.ObjectId; // Reference to shift worked
-    appliedLeaves: Schema.Types.ObjectId[]; // References to LeaveRequest model
+    attendanceRecords: (Schema.Types.ObjectId | any)[]; // References to Attendance model
+    shift: Schema.Types.ObjectId | any; // Reference to shift worked
+    shiftName?: string;
+    shiftStartTime?: string;
+    shiftEndTime?: string;
+    appliedLeaves: (Schema.Types.ObjectId | any)[]; // References to LeaveRequest model
     workingHours: number;
     breakHours: number; // Editable, defaults to shift break
     normalOT: number; // 1.5x OT hours
@@ -214,8 +217,16 @@ const salarySchema = new Schema<ISalary>(
           },
         ],
         shift: {
-          type: Schema.Types.ObjectId,
-          ref: "Shift",
+          type: Schema.Types.Mixed, // Can be ObjectId or object during processing
+        },
+        shiftName: {
+          type: String,
+        },
+        shiftStartTime: {
+          type: String,
+        },
+        shiftEndTime: {
+          type: String,
         },
         appliedLeaves: [
           {

@@ -573,7 +573,7 @@ export const salaryPaymentStructureSchema = z.object({
 
 export const salaryCreateSchema = z.object({
   id: z.string().optional(),
-  employee: z.string().min(1, "Employee ID is required"),
+  employee: z.union([z.string(), z.any()]),
   period: z.string().min(1, "Period is required"),
   basic: z.number().min(1, "Basic salary is required"),
   holidayPay: z.number().optional(),
@@ -634,9 +634,12 @@ export const salaryCreateSchema = z.object({
   // New attendance-linked structure
   dailyRecords: z.array(z.object({
     date: z.union([z.string(), z.date()]).optional(),
-    attendanceRecords: z.array(z.string()).optional(), // Array of Attendance ObjectIds
-    shift: z.string().optional(), // Shift ObjectId
-    appliedLeaves: z.array(z.string()).optional(), // Array of LeaveRequest ObjectIds
+    attendanceRecords: z.array(z.union([z.string(), z.any()])).optional(), // Array of Attendance ObjectIds or Objects
+    shift: z.union([z.string(), z.any()]).optional(), // Shift ObjectId or Enriched Object
+    shiftName: z.string().optional(),
+    shiftStartTime: z.string().optional(),
+    shiftEndTime: z.string().optional(),
+    appliedLeaves: z.array(z.union([z.string(), z.any()])).optional(), // Array of LeaveRequest ObjectIds or Objects
     workingHours: z.number().min(0).optional().default(0),
     breakHours: z.number().min(0).optional().default(0),
     normalOT: z.number().min(0).optional().default(0),

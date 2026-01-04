@@ -510,7 +510,19 @@ export class SalaryService {
             deduction.amount = Number(deduction.amount);
         });
 
-        const parsedBody = salaryUpdateSchema.parse(body);
+        let parsedBody;
+        try {
+            parsedBody = salaryUpdateSchema.parse(body);
+        } catch (error: any) {
+            if (error.name === "ZodError") {
+                console.error("[SalaryUpdate] Zod Validation Error:", JSON.stringify(error.errors, null, 2));
+                // Log the first few daily records to see what's being sent
+                if (body.dailyRecords && body.dailyRecords.length > 0) {
+                    console.error("[SalaryUpdate] Sample DailyRecord (0):", JSON.stringify(body.dailyRecords[0], null, 2));
+                }
+            }
+            throw error;
+        }
 
         // Calculate total additions
         const totalAdditions = parsedBody.paymentStructure.additions.reduce(
@@ -536,8 +548,11 @@ export class SalaryService {
         // Update the parsedBody with the calculated final salary
         parsedBody.finalSalary = finalSalary;
 
+        // Ensure IDs are strings if objects were passed
+        const employeeId = (parsedBody.employee?._id || parsedBody.employee || "").toString();
+
         //get employee.company from employee
-        const employee = await Employee.findById(parsedBody.employee).select(
+        const employee = await Employee.findById(employeeId).select(
             "company"
         );
         if (!employee) {
@@ -624,6 +639,17 @@ export class SalaryService {
                 _id: r._id
             }));
 
+        }
+
+        // Sanitize dailyRecords if they exist
+        if (parsedBody.dailyRecords) {
+            parsedBody.dailyRecords = parsedBody.dailyRecords.map((record: any) => ({
+                ...record,
+                attendanceRecords: record.attendanceRecords?.map((r: any) => (r._id || r).toString()),
+                appliedLeaves: record.appliedLeaves?.map((l: any) => (l._id || l).toString()),
+                // Keep shift as is (could be ID or object as per schema)
+                shift: record.shift?._id || record.shift
+            }));
         }
 
         const updatedSalary = await Salary.findByIdAndUpdate(

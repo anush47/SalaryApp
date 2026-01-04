@@ -1,14 +1,16 @@
 import { AttendanceAggregator } from "./attendanceAggregator";
 import { DailyCalculationService } from "./dailyCalculationService";
-import { getWorkingDayStatus } from "../salaryHelper";
+import { getWorkingDayStatus } from "@/app/api/salaries/salaryHelper";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import isBetween from "dayjs/plugin/isBetween";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(isBetween);
 
 export class SalaryGenerationService {
     /**
@@ -97,10 +99,30 @@ export class SalaryGenerationService {
                     );
                     const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
 
+                    // Use shift directly from attendance log as requested
+                    let attendanceShift = group.shift;
+
+                    // Fallback: If shift exists but breaks are missing (legacy data), try to resolve full shift details
+                    if (attendanceShift && (attendanceShift.breakDuration === undefined || attendanceShift.breakDuration === null)) {
+                        const shiftId = attendanceShift.shiftId || attendanceShift._id;
+                        const fullShift = employee.shiftSettings?.shifts?.find((s: any) => s._id?.toString() === shiftId || s.shiftId === shiftId) ||
+                            company.shiftSettings?.shifts?.find((s: any) => s._id?.toString() === shiftId || s.shiftId === shiftId);
+
+                        if (fullShift) {
+                            console.log(`[SalaryGeneration] ${dateStr}: Resolved full shift for missing breakDuration: ${fullShift.name}`);
+                            attendanceShift = {
+                                ...attendanceShift,
+                                breakDuration: fullShift.breakDuration ?? fullShift.break ?? 0
+                            };
+                        }
+                    }
+
+                    console.log(`[SalaryGeneration] ${dateStr}: Using shift from attendance log: ${attendanceShift?.name || 'Unknown'} (ID: ${attendanceShift?.shiftId || attendanceShift?._id}), BreakDuration: ${attendanceShift?.breakDuration}h`);
+
                     const dailyRecord = DailyCalculationService.processDailyRecordNew({
                         date: dateObj,
                         attendanceRecords: group.records,
-                        shift: group.shift,
+                        shift: attendanceShift,
                         workingDayStatus,
                         isMercantileHoliday: holidayInfo.isMercantileHoliday,
                         isPublicHoliday: holidayInfo.isPublicHoliday,
@@ -109,6 +131,7 @@ export class SalaryGenerationService {
                         detectedBreakHours: group.detectedBreakHours,
                         appliedLeaves: dayLeaves, // Pass applicable leaves
                     });
+                    console.log(`[SalaryGeneration] ${dateStr}: DailyRecord result -> Working: ${dailyRecord.workingHours}h, Break: ${dailyRecord.breakHours}h, OT: ${dailyRecord.normalOT + dailyRecord.doubleOT + dailyRecord.tripleOT}h`);
 
                     dailyRecords.push(dailyRecord);
                     totalNormalOT += dailyRecord.normalOT;
@@ -125,8 +148,9 @@ export class SalaryGenerationService {
                 );
                 const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
 
-                // Use a default shift or null
+                // For leave days with no attendance, we can use a default shift if needed for calculations
                 const defaultShift = employee.shiftSettings?.shifts?.[0] || company.shiftSettings?.shifts?.[0];
+                console.log(`[SalaryGeneration] ${dateStr}: No attendance, using default shift for leave: ${defaultShift?.name || 'Standard'}`);
 
                 const dailyRecord = DailyCalculationService.processDailyRecordNew({
                     date: dateObj,
@@ -195,6 +219,16 @@ export class SalaryGenerationService {
             }, 0);
 
 
+        // Resolve payment structure (check overrides)
+        const useEmployeeOverride = employee.overrides?.paymentStructure;
+        let paymentStructure: any = { additions: [], deductions: [] };
+
+        if (useEmployeeOverride) {
+            paymentStructure = employee.paymentStructure || { additions: [], deductions: [] };
+        } else {
+            paymentStructure = company.paymentStructure || { additions: [], deductions: [] };
+        }
+
         return {
             employee: employeeId,
             period,
@@ -213,7 +247,7 @@ export class SalaryGenerationService {
                     .map((r) => r.noPayReason)
                     .join(", "),
             },
-            paymentStructure: employee.paymentStructure || { additions: [], deductions: [] },
+            paymentStructure,
             advanceAmount: 0, // Will be set by main service
             finalSalary: 0, // Will be calculated by main service
             remark: "",

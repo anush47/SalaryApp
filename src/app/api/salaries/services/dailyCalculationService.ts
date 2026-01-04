@@ -4,7 +4,7 @@ import timezone from "dayjs/plugin/timezone";
 import {
     calculateHolidayPay,
     getTimeDifferenceInMinutes,
-} from "../salaryHelper";
+} from "@/app/api/salaries/salaryHelper";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -117,10 +117,17 @@ export class DailyCalculationService {
             remark = "",
         } = params;
 
-        // Use manual break if provided, otherwise use detected
-        const breakHours = manualBreakHours ?? detectedBreakHours ?? shift?.break ?? 0;
+        // Use manual break if provided
+        // If not manual, use detected break (from multiple punches)
+        // If detected is 0, fallback to shift default (breakDuration or break)
+        let breakHours = manualBreakHours;
 
-        // Calculate working hours from attendance records
+        if (breakHours === undefined || breakHours === null) {
+            const shiftDefault = Number(shift?.breakDuration || shift?.break || 0);
+            // Use the greater of detected break or shift default
+            breakHours = Math.max(detectedBreakHours, shiftDefault);
+        }
+
         let totalWorkingMinutes = 0;
         const sortedRecords = [...attendanceRecords].sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -143,7 +150,10 @@ export class DailyCalculationService {
         const workingHoursTreshold = 8;
         const halfDayTreshold = 6;
         if (workingHours > halfDayTreshold) {
+            console.log(`[DailyCalculation] WorkingHours ${workingHours.toFixed(2)}h > threshold, subtracting breakHours: ${breakHours}h`);
             workingHours -= breakHours;
+        } else {
+            console.log(`[DailyCalculation] WorkingHours ${workingHours.toFixed(2)}h <= threshold, NOT subtracting break`);
         }
         workingHours = Math.max(workingHours, 0);
 
@@ -246,7 +256,10 @@ export class DailyCalculationService {
             date,
             attendanceRecords: attendanceRecords.map((r) => r._id.toString()),
             shift: (shift?.shiftId || shift?._id)?.toString(),
-            appliedLeaves,
+            shiftName: shift?.name || "Standard",
+            shiftStartTime: shift?.startTime,
+            shiftEndTime: shift?.endTime,
+            appliedLeaves: (appliedLeaves || []).map((l: any) => (l._id || l).toString()),
             workingHours: Math.round(workingHours * 100) / 100,
             breakHours: Math.round(breakHours * 100) / 100,
             normalOT: Math.round(otBreakdown.normalOT * 100) / 100,
@@ -328,7 +341,7 @@ export class DailyCalculationService {
         const halfDayTreshold = 6;
 
         if (workingHours > halfDayTreshold) {
-            workingHours -= Number(shift.break) || 0;
+            workingHours -= Number(shift.breakDuration || shift.break) || 0;
         }
 
         // Use new OT breakdown calculation
