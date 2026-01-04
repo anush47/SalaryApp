@@ -266,7 +266,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
 
                     if (initialLog) {
-                        const shiftId = initialLog.shift?.shiftId || '';
+                        const shiftId = initialLog.shift?.shiftId || initialLog.shift?._id || (typeof initialLog.shift === 'string' ? initialLog.shift : '');
                         const dayStatus = initialLog.dayStatus || (dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full');
 
 

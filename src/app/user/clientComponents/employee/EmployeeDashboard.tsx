@@ -29,8 +29,27 @@ import {
   CalendarToday,
   Groups,
   Work,
+  AccessTime,
+  TrendingUp,
+  TrendingDown,
+  WorkOff,
+  Fingerprint,
+  EventBusy,
 } from "@mui/icons-material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
+import { useAttendanceAggregation } from "@/app/hooks/useAttendanceAggregation";
+import { getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import {
   fetchEmployees,
   fetchLeaveBalance,
@@ -93,13 +112,63 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
     enabled: !!companyId && !!employeeId,
   });
 
+  // Recent Leaves (Approved/Past)
+  const { data: pastLeavesData, isLoading: loadingPastLeaves } = useQuery({
+    queryKey: ["pastLeaves", companyId, employeeId],
+    queryFn: () =>
+      fetchLeaveRequests(companyId, {
+        employeeId: employeeId,
+        status: "approved",
+      }), // We'll filter for past dates in useMemo
+    enabled: !!companyId && !!employeeId,
+  });
+
+  // Today's Attendance logs to determine clock status
+  const { data: todayLogsData } = useQuery({
+    queryKey: ["todayAttendance", employeeId],
+    queryFn: () => getAttendanceLogs(companyId, employeeId, dayjs().format("YYYY-MM-DD"), dayjs().format("YYYY-MM-DD")),
+    enabled: !!companyId && !!employeeId,
+    refetchInterval: 30000, // Refetch every 30s to keep status fresh
+  });
+
+  const todayLogs = todayLogsData?.data || [];
+  const lastLog = todayLogs.length > 0 ? todayLogs.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[todayLogs.length - 1] : null;
+  const isClockedIn = lastLog?.type === 'in';
+
+  // Last 7 days data for graph
+  const { statistics: weeklyStats, loading: loadingWeekly } = useAttendanceAggregation(
+    employeeId,
+    companyId,
+    dayjs().subtract(6, 'days').format("YYYY-MM-DD"),
+    dayjs().format("YYYY-MM-DD")
+  );
+
+  const chartData = useMemo(() => {
+    if (!weeklyStats?.dailyStats) return [];
+    return Object.entries(weeklyStats.dailyStats).map(([date, data]: [string, any]) => ({
+      date: dayjs(date).format("ddd"),
+      hours: data.hours || 0,
+      fullDate: date
+    })).sort((a: any, b: any) => dayjs(a.fullDate).valueOf() - dayjs(b.fullDate).valueOf());
+  }, [weeklyStats]);
+
   const upcomingLeaves = useMemo(() => {
     if (!upcomingLeavesData?.data) return [];
-    const today = new Date();
-    return upcomingLeavesData.data
-      .filter((req: any) => new Date(req.startDate) >= today)
-      .slice(0, 5);
+    const today = dayjs().startOf('day');
+    return (upcomingLeavesData.data || [])
+      .filter((l: any) => !!l.employee && (dayjs(l.startDate).isAfter(today) || dayjs(l.startDate).isSame(today)))
+      .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+      .slice(0, 3);
   }, [upcomingLeavesData]);
+
+  const recentLeaves = useMemo(() => {
+    if (!pastLeavesData?.data) return [];
+    const today = dayjs().startOf('day');
+    return (pastLeavesData.data || [])
+      .filter((l: any) => !!l.employee && dayjs(l.endDate).isBefore(today))
+      .sort((a: any, b: any) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
+      .slice(0, 3);
+  }, [pastLeavesData]);
 
   // Pending Approvals (for managers)
   const { data: pendingApprovalsData, isLoading: loadingPendingApprovals } = useQuery({
@@ -111,7 +180,9 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
     enabled: !!companyId,
   });
 
-  const pendingApprovals = pendingApprovalsData?.data || [];
+  const pendingApprovals = useMemo(() => {
+    return (pendingApprovalsData?.data || []).filter((l: any) => !!l.employee);
+  }, [pendingApprovalsData]);
   const isManager = pendingApprovals.length > 0;
 
   // Manager Dashboard (if manager)
@@ -133,6 +204,14 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   });
 
   const recentSalaries = recentSalariesResponse?.salaries || [];
+
+  // 3. Fetch Attendance Statistics for current month
+  const { stats: attendanceStats, loading: loadingAttendance } = useAttendanceAggregation(
+    employeeId,
+    companyId,
+    dayjs().startOf('month').format("YYYY-MM-DD"),
+    dayjs().endOf('month').format("YYYY-MM-DD")
+  );
 
   // Helper for leave balance summary logic
   // If fetchLeaveBalance returns { summary: [] }, accessing it:
@@ -184,97 +263,431 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
         overflowY: "auto",
       }}
     >
-      <CardHeader
-        title={
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            flexDirection={{ xs: "column", sm: "row" }}
-            gap={2}
-          >
-            <Typography variant="h4" component="h1">
-              Dashboard
-            </Typography>
-          </Box>
-        }
-      />
       <CardContent
         sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}
       >
         {/* Welcome Card */}
         <Card
           variant="outlined"
-          sx={{ mb: 3, borderLeft: '6px solid', borderLeftColor: 'primary.main', boxShadow: 'none' }}
+          sx={{ mb: 2, borderLeft: '4px solid', borderLeftColor: 'primary.main', boxShadow: 'none' }}
         >
-          <CardContent>
+          <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <Box
               display="flex"
-              alignItems={{ xs: "center", sm: "flex-start" }}
+              alignItems="center"
               justifyContent="space-between"
-              flexDirection={{ xs: "column", sm: "row" }}
+              flexDirection={{ xs: "row", sm: "row" }}
               gap={2}
             >
               <Box
                 display="flex"
                 alignItems="center"
                 gap={2}
-                flexDirection={{ xs: "column", sm: "row" }}
-                textAlign={{ xs: "center", sm: "left" }}
+                textAlign="left"
               >
                 <Avatar
                   src={user.image}
                   alt={user.name}
-                  sx={{ width: 80, height: 80, border: "2px solid", borderColor: 'divider' }}
+                  sx={{ width: 56, height: 56, border: "2px solid", borderColor: 'divider' }}
                 />
                 <Box>
                   <Typography
-                    variant="h4"
-                    component="h1" // Semantic HTML
+                    variant="h5"
+                    component="h1"
                     fontWeight="bold"
-                    gutterBottom
                   >
-                    Welcome back, {employee.name}!
+                    Hi, {employee.name}!
                   </Typography>
-                  <Typography
-                    variant="body1"
-                    color="text.secondary"
-                  >
-                    {employee.designation || "Employee"} • Member #
-                    {employee.memberNo}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    {employee.company?.name || ""}
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      {employee.designation || "Employee"} • #{employee.memberNo}
+                    </Typography>
+                    <Chip
+                      label={isClockedIn ? "Clocked In" : "Clocked Out"}
+                      size="small"
+                      color={isClockedIn ? "success" : "default"}
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        fontWeight: 'bold',
+                        '& .MuiChip-label': { px: 1 }
+                      }}
+                    />
+                    {lastLog && (
+                      <Typography variant="caption" color="text.secondary">
+                        at {dayjs(lastLog.timestamp).format("h:mm A")}
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
               </Box>
-              <Box textAlign={{ xs: "center", sm: "right" }} mt={{ xs: 1, sm: 0 }}>
+              <Box textAlign="right" display={{ xs: 'none', md: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
+                  {dayjs().format("dddd")}
+                </Typography>
                 <Typography
                   variant="body2"
-                  color="text.secondary"
+                  fontWeight="medium"
                 >
-                  {new Date().toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {dayjs().format("MMM D, YYYY")}
                 </Typography>
               </Box>
             </Box>
           </CardContent>
         </Card>
 
-        <Grid container spacing={3}>
-          {/* Leave Balance Cards */}
+        {/* Quick Actions at the top */}
+        <Box sx={{ mb: 2 }}>
+          <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<Fingerprint />}
+                onClick={() => router.push("/user?userPageSelect=attendance")}
+                sx={{ py: 1.2, fontWeight: 'bold' }}
+              >
+                {isClockedIn ? "Clock Out / Attendance" : "Clock In / Attendance"}
+              </Button>
+            </Grid>
+            <Grid item xs={6} sm={6} md={3}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<EventNote />}
+                onClick={() => router.push("/user?userPageSelect=leaves")}
+                sx={{ py: 1.2 }}
+              >
+                Apply Leave
+              </Button>
+            </Grid>
+            <Grid item xs={6} sm={6} md={3}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Receipt />}
+                onClick={() => router.push("/user?userPageSelect=payslips")}
+                sx={{ py: 1.2 }}
+              >
+                Payslips
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Person />}
+                onClick={() => router.push("/user?userPageSelect=profile")}
+                sx={{ py: 1.2 }}
+              >
+                My Profile
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Grid container spacing={1.5} sx={{ mb: 2 }}>
+          {loadingAttendance ? (
+            <Grid item xs={12} display="flex" justifyContent="center" p={2}>
+              <CircularProgress size={30} />
+            </Grid>
+          ) : (
+            <>
+              <Grid item xs={6} sm={4} md={2.4}>
+                <Card variant="outlined" sx={{ borderLeft: '3px solid', borderLeftColor: 'success.main' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Present</Typography>
+                        <Typography variant="h5" fontWeight="bold">{attendanceStats?.workedDays || 0}</Typography>
+                      </Box>
+                      <CheckCircle sx={{ color: 'success.main', opacity: 0.8, fontSize: 24 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} sm={4} md={2.4}>
+                <Card variant="outlined" sx={{ borderLeft: '3px solid', borderLeftColor: 'error.main' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Absent</Typography>
+                        <Typography variant="h5" fontWeight="bold">{attendanceStats?.absent || 0}</Typography>
+                      </Box>
+                      <WorkOff sx={{ color: 'error.main', opacity: 0.8, fontSize: 24 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} sm={4} md={2.4}>
+                <Card variant="outlined" sx={{ borderLeft: '3px solid', borderLeftColor: 'warning.main' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Leaves</Typography>
+                        <Typography variant="h5" fontWeight="bold">{attendanceStats?.leaves || 0}</Typography>
+                      </Box>
+                      <EventBusy sx={{ color: 'warning.main', opacity: 0.8, fontSize: 24 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} sm={6} md={2.4}>
+                <Card variant="outlined" sx={{ borderLeft: '3px solid', borderLeftColor: 'primary.main' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Hours</Typography>
+                        <Typography variant="h5" fontWeight="bold">{attendanceStats?.totalHours || 0}h</Typography>
+                      </Box>
+                      <AccessTime sx={{ color: 'primary.main', opacity: 0.8, fontSize: 24 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={2.4}>
+                <Card variant="outlined" sx={{ borderLeft: '3px solid', borderLeftColor: 'secondary.main' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>OT</Typography>
+                        <Typography variant="h5" fontWeight="bold">{attendanceStats?.totalOT || 0}h</Typography>
+                      </Box>
+                      <TrendingUp sx={{ color: 'secondary.main', opacity: 0.8, fontSize: 24 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </>
+          )}
+        </Grid>
+
+        <Grid container spacing={2}>
+          {/* Work Hours Graph - Show only if data exists */}
+          {chartData.some(d => d.hours > 0) && (
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    Work Hours (Last 7 Days)
+                  </Typography>
+                  <Box sx={{ width: '100%', height: 200 }}>
+                    {loadingWeekly ? (
+                      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                        <CircularProgress size={30} />
+                      </Box>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                          <XAxis
+                            dataKey="date"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12, fill: '#666' }}
+                          />
+                          <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12, fill: '#666' }}
+                          />
+                          <Tooltip
+                            cursor={{ fill: '#f5f5f5' }}
+                            contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                          />
+                          <Bar
+                            dataKey="hours"
+                            fill="#1976d2"
+                            radius={[4, 4, 0, 0]}
+                            barSize={30}
+                          >
+                            {chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.hours > 8 ? '#2e7d32' : '#1976d2'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
+          {/* Upcoming Leaves */}
+          <Grid item xs={12} md={4}>
+            <Card variant="outlined">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={1}
+                >
+                  <Typography variant="subtitle1" fontWeight="bold">Upcoming Leaves</Typography>
+                  <Button
+                    size="small"
+                    onClick={() => router.push("/user?userPageSelect=leaves")}
+                    sx={{ minWidth: 'auto', p: 0.5 }}
+                  >
+                    View All
+                  </Button>
+                </Box>
+                <Divider sx={{ mb: 1 }} />
+                {loadingUpcomingLeaves ? (
+                  <Box display="flex" justifyContent="center" p={1}>
+                    <CircularProgress size={20} />
+                  </Box>
+                ) : upcomingLeaves.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No upcoming leaves</Typography>
+                ) : (
+                  <List dense disablePadding>
+                    {upcomingLeaves.map((leave: any) => (
+                      <ListItem key={leave._id} disableGutters sx={{ py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <CalendarToday color="primary" sx={{ fontSize: 18 }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={leave.leaveType.name}
+                          secondary={`${dayjs(leave.startDate).format("DD MMM")} - ${dayjs(leave.endDate).format("DD MMM")}`}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
+                          secondaryTypographyProps={{ variant: 'caption' }}
+                        />
+                        <Chip
+                          label={leave.status}
+                          size="small"
+                          color="success"
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: '0.65rem' }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Recent Leaves */}
+          <Grid item xs={12} md={4}>
+            <Card variant="outlined">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={1}
+                >
+                  <Typography variant="subtitle1" fontWeight="bold">Recent Leaves</Typography>
+                  <Button
+                    size="small"
+                    onClick={() => router.push("/user?userPageSelect=leaves")}
+                    sx={{ minWidth: 'auto', p: 0.5 }}
+                  >
+                    View All
+                  </Button>
+                </Box>
+                <Divider sx={{ mb: 1 }} />
+                {loadingPastLeaves ? (
+                  <Box display="flex" justifyContent="center" p={1}>
+                    <CircularProgress size={20} />
+                  </Box>
+                ) : recentLeaves.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No recent leaves</Typography>
+                ) : (
+                  <List dense disablePadding>
+                    {recentLeaves.map((leave: any) => (
+                      <ListItem key={leave._id} disableGutters sx={{ py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <EventBusy color="warning" sx={{ fontSize: 18 }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={leave.leaveType.name}
+                          secondary={`${dayjs(leave.startDate).format("DD MMM")} - ${dayjs(leave.endDate).format("DD MMM")}`}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
+                          secondaryTypographyProps={{ variant: 'caption' }}
+                        />
+                        <Chip
+                          label="Taken"
+                          size="small"
+                          color="default"
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: '0.65rem' }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Recent Salaries */}
+          <Grid item xs={12} md={4}>
+            <Card variant="outlined">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={1}
+                >
+                  <Typography variant="subtitle1" fontWeight="bold">Recent Salaries</Typography>
+                  <Button
+                    size="small"
+                    onClick={() => router.push("/user?userPageSelect=payslips")}
+                    sx={{ minWidth: 'auto', p: 0.5 }}
+                  >
+                    View All
+                  </Button>
+                </Box>
+                <Divider sx={{ mb: 1 }} />
+                {loadingSalaries ? (
+                  <Box display="flex" justifyContent="center" p={1}>
+                    <CircularProgress size={20} />
+                  </Box>
+                ) : recentSalaries.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No records found</Typography>
+                ) : (
+                  <List dense disablePadding>
+                    {recentSalaries.map((salary: any) => (
+                      <ListItem key={salary._id} disableGutters sx={{ py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <Receipt color="primary" sx={{ fontSize: 18 }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={formatPeriodLabel(salary.period)}
+                          secondary={`LKR ${salary.finalSalary?.toLocaleString()}`}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
+                          secondaryTypographyProps={{ variant: 'caption' }}
+                        />
+                        <Chip
+                          label={(salary.paymentStatus || "unpaid").replace("_", " ")}
+                          size="small"
+                          color={salary.paymentStatus === "fully_paid" ? "success" : "warning"}
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: '0.65rem', textTransform: 'capitalize' }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
-              Leave Balance
+              Leave Balances
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={1.5}>
               {loadingLeaveBalance ? (
                 <Grid item xs={12} display="flex" justifyContent="center" p={2}>
                   <CircularProgress size={30} />
@@ -285,114 +698,49 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 </Grid>
               ) : (
                 filteredLeaveBalance.map((leave: any, index: number) => (
-                  <Grid item xs={12} sm={6} md={3} key={index}>
-                    <Card variant="outlined">
-                      <CardContent>
+                  <Grid item xs={6} sm={4} md={3} key={index}>
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        borderLeft: '3px solid',
+                        borderLeftColor: leave.leaveType.color || 'primary.main',
+                      }}
+                    >
+                      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                         <Box
                           display="flex"
                           justifyContent="space-between"
-                          alignItems="center"
-                          mb={1}
+                          alignItems="flex-start"
                         >
-                          <Chip
-                            label={leave.leaveType.code}
-                            size="small"
-                            sx={{
-                              backgroundColor: leave.leaveType.color,
-                              color: "white",
-                            }}
-                          />
-                          <EventNote color="action" />
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block" noWrap sx={{ maxWidth: '80px', fontSize: '0.65rem' }}>
+                              {leave.leaveType.name}
+                            </Typography>
+                            <Typography variant="h5" fontWeight="bold">
+                              {leave.available}
+                            </Typography>
+                          </Box>
+                          <Box textAlign="right">
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block' }}>
+                              Used: {leave.used}
+                            </Typography>
+                            {leave.carriedForwardBalance > 0 && (
+                              <Typography
+                                variant="caption"
+                                color="success.main"
+                                sx={{ fontSize: '0.6rem' }}
+                              >
+                                +{leave.carriedForwardBalance}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          gutterBottom
-                        >
-                          {leave.leaveType.name}
-                        </Typography>
-                        <Typography variant="h4" gutterBottom>
-                          {leave.available}
-                        </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={(leave.available / leave.maxDaysPerPeriod) * 100}
-                          sx={{ mb: 1, height: 8, borderRadius: 4 }}
-                        />
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          {leave.used} used of {leave.maxDaysPerPeriod} days
-                        </Typography>
-                        {leave.currentPeriod && (
-                          <Typography variant="caption" color="primary" display="block" sx={{ mt: 0.5 }}>
-                            {leave.currentPeriod.label}
-                          </Typography>
-                        )}
-                        {leave.carriedForwardBalance > 0 && (
-                          <Typography variant="caption" color="success.main" display="block">
-                            +{leave.carriedForwardBalance} carried
-                          </Typography>
-                        )}
                       </CardContent>
                     </Card>
                   </Grid>
                 ))
               )}
             </Grid>
-          </Grid>
-
-          {/* Upcoming Leaves */}
-          <Grid item xs={12} md={6}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={2}
-                >
-                  <Typography variant="h6">Upcoming Leaves</Typography>
-                  <Button
-                    size="small"
-                    onClick={() => router.push("/user?userPageSelect=leaves")}
-                  >
-                    View All
-                  </Button>
-                </Box>
-                <Divider sx={{ mb: 2 }} />
-                {loadingUpcomingLeaves ? (
-                  <Box display="flex" justifyContent="center" p={2}>
-                    <CircularProgress size={30} />
-                  </Box>
-                ) : upcomingLeaves.length === 0 ? (
-                  <Alert severity="info">No upcoming leaves</Alert>
-                ) : (
-                  <List dense>
-                    {upcomingLeaves.map((leave: any) => (
-                      <ListItem key={leave._id}>
-                        <ListItemIcon>
-                          <CalendarToday color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={leave.leaveType.name}
-                          secondary={`${new Date(
-                            leave.startDate
-                          ).toLocaleDateString()} - ${new Date(
-                            leave.endDate
-                          ).toLocaleDateString()} (${leave.totalDays} day${leave.totalDays > 1 ? "s" : ""
-                            })`}
-                        />
-                        <Chip
-                          label={leave.status}
-                          size="small"
-                          color="success"
-                          icon={<CheckCircle />}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
           </Grid>
 
           {/* Pending Approvals (if manager) */}
@@ -441,113 +789,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
             </Grid>
           )}
 
-          {/* Recent Payslips */}
-          <Grid item xs={12} md={pendingApprovals.length > 0 ? 12 : 6}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={2}
-                >
-                  <Typography variant="h6">Recent Payslips</Typography>
-                  <Button
-                    size="small"
-                    onClick={() => router.push("/user?userPageSelect=payslips")}
-                  >
-                    View All
-                  </Button>
-                </Box>
-                <Divider sx={{ mb: 2 }} />
-                {loadingSalaries ? (
-                  <Box display="flex" justifyContent="center" p={2}>
-                    <CircularProgress size={30} />
-                  </Box>
-                ) : recentSalaries.length === 0 ? (
-                  <Alert severity="info">No payslips available</Alert>
-                ) : (
-                  <List dense>
-                    {recentSalaries.map((salary: any) => (
-                      <ListItem key={salary._id}>
-                        <ListItemIcon>
-                          <Receipt color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={formatPeriodLabel(salary.period)}
-                          secondary={`Final Salary: LKR ${salary.finalSalary?.toLocaleString()}`}
-                        />
-                        <Button
-                          size="small"
-                          onClick={() =>
-                            router.push("/user?userPageSelect=payslips")
-                          }
-                        >
-                          View
-                        </Button>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
 
-          {/* Quick Actions */}
-          <Grid item xs={12}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Quick Actions
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<EventNote />}
-                      onClick={() => router.push("/user?userPageSelect=leaves")}
-                    >
-                      Apply for Leave
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<Receipt />}
-                      onClick={() => router.push("/user?userPageSelect=payslips")}
-                    >
-                      View Payslips
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<Person />}
-                      onClick={() => router.push("/user?userPageSelect=profile")}
-                    >
-                      My Profile
-                    </Button>
-                  </Grid>
-                  {pendingApprovals.length > 0 && (
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        startIcon={<CheckCircle />}
-                        onClick={() => router.push("/user?userPageSelect=leaves")}
-                      >
-                        Approve Leaves ({pendingApprovals.length})
-                      </Button>
-                    </Grid>
-                  )}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
 
           {/* Manager Dashboard Section */}
           {isManager && managerData && (
@@ -796,7 +1038,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           )}
         </Grid>
       </CardContent>
-    </Card>
+    </Card >
   );
 };
 

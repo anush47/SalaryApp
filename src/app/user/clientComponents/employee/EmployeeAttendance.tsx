@@ -142,6 +142,13 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         };
     }, [employee]);
 
+    const allShifts = useMemo(() => {
+        if (!employee) return [];
+        const companyShifts = employee.company?.shiftSettings?.shifts || [];
+        const employeeShifts = employee.shiftSettings?.shifts || [];
+        return [...companyShifts, ...employeeShifts];
+    }, [employee]);
+
 
     const shouldShowMap = true; // User requested to show map in all cases
     // Actually, we should use the resolved enforceValidation from the memo
@@ -705,6 +712,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 dailyRecord={viewRecord}
                 employee={employee} // Pass employee for context if needed, though view only
                 companyConfig={employee?.company} // For map
+                shifts={allShifts}
                 readOnly={true}
                 disableTabSwitch={true}
             />
