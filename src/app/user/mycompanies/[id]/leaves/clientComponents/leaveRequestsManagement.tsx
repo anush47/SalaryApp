@@ -31,7 +31,28 @@ import {
   fetchLeaveRequests,
   updateLeaveRequest,
   LeaveRequest,
+  createLeaveRequest,
 } from "@/app/lib/api/leaveRequestApi";
+import { LeaveApplicationForm } from "@/app/user/clientComponents/leaves/LeaveApplicationForm"; // Imported
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { Add, Send } from "@mui/icons-material";
+import {
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  Switch,
+  FormControlLabel,
+  RadioGroup,
+  Radio,
+  FormLabel,
+  Divider
+} from "@mui/material";
+import { uploadFile } from "@/app/lib/uploadService";
+import { FileUpload } from "@/app/components/FileUpload";
 
 const LeaveRequestsManagement: React.FC<{
   user: { id: string; name: string; email: string; role: string };
@@ -50,6 +71,9 @@ const LeaveRequestsManagement: React.FC<{
   );
   const [remarks, setRemarks] = useState("");
   const [updatedDocuments, setUpdatedDocuments] = useState<string[]>([]);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  // Queries for Create Request: Removed (handled in component)
 
   const getCleanFilename = (key: string) => {
     try {
@@ -373,6 +397,14 @@ const LeaveRequestsManagement: React.FC<{
           <MenuItem value="rejected">Rejected</MenuItem>
           <MenuItem value="cancelled">Cancelled</MenuItem>
         </TextField>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setCreateDialogOpen(true)}
+          sx={{ ml: 'auto' }}
+        >
+          Create Request
+        </Button>
       </Box>
 
       <Box sx={{ height: "calc(100vh - 230px)", width: "100%" }}>
@@ -651,7 +683,25 @@ const LeaveRequestsManagement: React.FC<{
           </Box>
         </DialogActions>
       </Dialog>
-    </Box>
+
+  {/* Create Request Dialog (Admin/Employer) */ }
+  < Dialog
+open = { createDialogOpen }
+onClose = {() => setCreateDialogOpen(false)}
+maxWidth = "md"
+fullWidth
+  >
+        <DialogTitle>Create Leave Request (Employer)</DialogTitle>
+        <DialogContent dividers>
+            <LeaveApplicationForm
+              companyId={companyId}
+              onSuccess={() => setCreateDialogOpen(false)}
+              onCancel={() => setCreateDialogOpen(false)}
+              isDialog={true}
+            />
+        </DialogContent>
+      </Dialog >
+    </Box >
   );
 };
 

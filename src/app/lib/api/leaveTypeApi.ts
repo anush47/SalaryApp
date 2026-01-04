@@ -22,7 +22,9 @@ export interface LeaveType {
     description?: string;
     isActive: boolean;
     isShortLeave: boolean;
+    allowPastDays: boolean;
     maxDurationMinutes?: number;
+
     createdAt: string;
     updatedAt: string;
 }

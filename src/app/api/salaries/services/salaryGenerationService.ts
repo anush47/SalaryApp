@@ -3,6 +3,12 @@ import { DailyCalculationService } from "./dailyCalculationService";
 import { getWorkingDayStatus } from "../salaryHelper";
 import Employee from "@/app/models/Employee";
 import Company from "@/app/models/Company";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export class SalaryGenerationService {
     /**
@@ -26,7 +32,9 @@ export class SalaryGenerationService {
         }
 
         // Parse period to get date range
-        const { startDate, endDate } = this.parsePeriod(period);
+        // Default to Asia/Colombo if timezone is not provided or invalid
+        const tz = timezone || "Asia/Colombo";
+        const { startDate, endDate } = this.parsePeriod(period, tz);
 
         // Aggregate attendance by day
         const dailyGroups = await AttendanceAggregator.aggregateByDay(
@@ -106,6 +114,7 @@ export class SalaryGenerationService {
                 return sum + (dailyRate * r.workingHours / 8);
             }, 0);
 
+        console.log(`[SalaryGenerationService] Generated dailyRecords for ${employeeId}: ${dailyRecords.length} records.`);
         return {
             employee: employeeId,
             period,
@@ -157,28 +166,30 @@ export class SalaryGenerationService {
     /**
      * Parse period string to date range
      */
-    private static parsePeriod(period: string): { startDate: Date; endDate: Date } {
+    private static parsePeriod(period: string, timezone: string): { startDate: Date; endDate: Date } {
         // Handle different period formats
         if (period.includes(" to ")) {
             // Range format: "2024-01-01 to 2024-01-31"
-            const [start, end] = period.split(" to ");
-            return {
-                startDate: new Date(start),
-                endDate: new Date(end),
-            };
+            const [startStr, endStr] = period.split(" to ");
+            // Parse as start of day in given timezone
+            const startDate = dayjs.tz(startStr, timezone).startOf('day').toDate();
+            const endDate = dayjs.tz(endStr, timezone).endOf('day').toDate();
+            return { startDate, endDate };
         } else if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
             // Daily format: "2024-01-15"
-            const date = new Date(period);
+            const date = dayjs.tz(period, timezone);
             return {
-                startDate: date,
-                endDate: date,
+                startDate: date.startOf('day').toDate(),
+                endDate: date.endOf('day').toDate(),
             };
         } else {
             // Monthly format: "2024-01"
-            const [year, month] = period.split("-").map(Number);
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 0); // Last day of month
-            return { startDate, endDate };
+            const start = dayjs.tz(`${period}-01`, timezone).startOf('month');
+            const end = dayjs.tz(`${period}-01`, timezone).endOf('month');
+            return {
+                startDate: start.toDate(),
+                endDate: end.toDate()
+            };
         }
     }
 }

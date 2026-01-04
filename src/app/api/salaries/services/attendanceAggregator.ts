@@ -43,6 +43,9 @@ export class AttendanceAggregator {
             .sort({ timestamp: 1 })
             .lean();
 
+        console.log(`[AttendanceAggregator] Employee: ${employeeId}, Period: ${startDate.toISOString()} - ${endDate.toISOString()}`);
+        console.log(`[AttendanceAggregator] Found ${attendanceRecords.length} raw attendance records.`);
+
         // Group by date
         const dailyGroups = new Map<string, AttendanceRecord[]>();
 

@@ -19,7 +19,7 @@ import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 
 import { Salary } from './salariesDataGrid';
 import { PaymentStructure } from '../companyDetails/paymentStructure';
-import { InOutTable } from './inOutTable';
+
 import { DailyRecordsTable } from './DailyRecordsTable';
 
 interface SalaryEditDialogProps {
@@ -37,6 +37,9 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
 
     useEffect(() => {
         if (salary) {
+            console.log("SalaryEditDialog received salary:", salary);
+            console.log("Salary dailyRecords:", salary.dailyRecords);
+            console.log("Salary dailyRecords length:", salary.dailyRecords?.length);
             // Deep copy to separate from source until saved
             setFormData(JSON.parse(JSON.stringify(salary)));
         }
@@ -303,85 +306,28 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                     {/* Attendance Records */}
                     <Grid item xs={12}>
                         <Divider sx={{ my: 1 }} />
-                        {formData.dailyRecords && formData.dailyRecords.length > 0 ? (
-                            <DailyRecordsTable
-                                dailyRecords={formData.dailyRecords}
-                                onBreakHoursChange={(index, newBreakHours) => {
-                                    setFormData(prev => {
-                                        if (!prev || !prev.dailyRecords) return prev;
-                                        const updatedRecords = [...prev.dailyRecords];
-                                        updatedRecords[index] = {
-                                            ...updatedRecords[index],
-                                            breakHours: newBreakHours
-                                        };
-                                        return { ...prev, dailyRecords: updatedRecords };
-                                    });
-                                }}
-                                editable={true}
-                            />
-                        ) : formData.inOut && formData.inOut.length > 0 ? (
-                            <InOutTable
-                                inOuts={formData.inOut.map((io: any, index: number) => ({
-                                    id: index + 1,
-                                    employeeName: '',
-                                    employeeNIC: '',
-                                    basic: formData.basic,
-                                    divideBy: 240,
-                                    ...io
-                                }))}
-                                setInOuts={(updatedInOuts: any[]) => {
-                                    setFormData(prev => {
-                                        if (!prev) return null;
-                                        const newInOut = updatedInOuts.map(io => ({
-                                            _id: io._id || '',
-                                            in: io.in || '',
-                                            out: io.out || '',
-                                            workingHours: io.workingHours || 0,
-                                            otHours: io.otHours || 0,
-                                            holiday: io.holiday || false,
-                                            ot: io.ot || 0,
-                                            noPay: io.noPay || 0,
-                                            description: io.description || '',
-                                            remark: io.remark || '',
-                                            day_status: io.day_status || ''
-                                        }));
-                                        return { ...prev, inOut: newInOut };
-                                    });
-                                }}
-                                fetchSalary={async () => {
-                                    try {
-                                        if (!formData || !formData.employee) return;
-
-                                        const data = await generateSalaries({
-                                            companyId,
-                                            employees: [formData.employee],
-                                            period: formData.period,
-                                            inOut: formData.inOut,
-                                            existingSalaries: [formData],
-                                            update: true,
-                                        });
-
-                                        if (data && data.salaries && data.salaries[0]) {
-                                            setFormData(prev => {
-                                                if (!prev) return null;
-                                                return {
-                                                    ...prev,
-                                                    ...data.salaries[0],
-                                                    // Ensure we keep the local ID or structure if needed, 
-                                                    // but usually API return is authoritative for calculation
-                                                };
-                                            });
-                                            showSnackbar({ message: "Salary recalculated successfully", severity: "success" });
-                                        }
-                                    } catch (error) {
-                                        console.error(error);
-                                        showSnackbar({ message: "Error recalculating salary", severity: "error" });
-                                    }
-                                }}
-                                editable={true}
-                                isDynamicHolidays={false} // Default for now
-                            />
-                        ) : null}
+                        <DailyRecordsTable
+                            dailyRecords={formData.dailyRecords || []}
+                            onBreakHoursChange={(index, newBreakHours) => {
+                                setFormData(prev => {
+                                    if (!prev || !prev.dailyRecords) return prev;
+                                    const updatedRecords = [...prev.dailyRecords];
+                                    updatedRecords[index] = {
+                                        ...updatedRecords[index],
+                                        breakHours: newBreakHours
+                                    };
+                                    return { ...prev, dailyRecords: updatedRecords };
+                                });
+                            }}
+                            editable={true}
+                        />
+                        {(!formData.dailyRecords || formData.dailyRecords.length === 0) && (
+                            <Box sx={{ p: 2, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    No daily records available. This salary record may need to be regenerated to support the new attendance view.
+                                </Typography>
+                            </Box>
+                        )}
                     </Grid>
 
                     {/* Additions & Deductions via PaymentStructure Component */}

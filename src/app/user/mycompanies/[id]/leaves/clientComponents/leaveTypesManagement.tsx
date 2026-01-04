@@ -61,6 +61,7 @@ const LeaveTypesManagement: React.FC<{
     maxConsecutiveDays: 0,
     requiresApproval: true,
     requiresDocument: false,
+    allowPastDays: true,
     isPaid: true,
     applicableFor: ["all"] as string[],
     gender: "all" as "all" | "male" | "female",
@@ -111,6 +112,7 @@ const LeaveTypesManagement: React.FC<{
         maxConsecutiveDays: 0,
         requiresApproval: true,
         requiresDocument: false,
+        allowPastDays: true,
         isPaid: true,
         applicableFor: ["all"],
         gender: "all",
@@ -283,7 +285,10 @@ const LeaveTypesManagement: React.FC<{
 
   const handleUpdateLeaveType = () => {
     if (editingLeaveType) {
-      updateLeaveTypeMutation.mutate(editingLeaveType);
+      updateLeaveTypeMutation.mutate({
+        ...editingLeaveType,
+        allowPastDays: editingLeaveType.allowPastDays ?? true,
+      });
     }
   };
 
@@ -685,6 +690,20 @@ const LeaveTypesManagement: React.FC<{
               <FormControlLabel
                 control={
                   <Checkbox
+                    checked={newLeaveType.allowPastDays}
+                    onChange={(e) =>
+                      setNewLeaveType({
+                        ...newLeaveType,
+                        allowPastDays: e.target.checked,
+                      })
+                    }
+                  />
+                }
+                label="Allow Past Dates"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
                     checked={newLeaveType.carryForward}
                     onChange={(e) =>
                       setNewLeaveType({
@@ -1029,6 +1048,20 @@ const LeaveTypesManagement: React.FC<{
                     />
                   }
                   label="Requires Document"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={editingLeaveType.allowPastDays ?? true}
+                      onChange={(e) =>
+                        setEditingLeaveType({
+                          ...editingLeaveType,
+                          allowPastDays: e.target.checked,
+                        })
+                      }
+                    />
+                  }
+                  label="Allow Past Dates"
                 />
                 <FormControlLabel
                   control={

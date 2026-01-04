@@ -515,6 +515,7 @@ export const leaveTypeCreateSchema = z.object({
   description: z.string().optional(),
   isShortLeave: z.boolean().optional().default(false),
   maxDurationMinutes: z.number().optional(),
+  allowPastDays: z.boolean().optional().default(true),
 });
 
 export const leaveTypeUpdateSchema = z.object({
@@ -538,6 +539,7 @@ export const leaveTypeUpdateSchema = z.object({
   isActive: z.boolean().optional(),
   isShortLeave: z.boolean().optional(),
   maxDurationMinutes: z.number().optional(),
+  allowPastDays: z.boolean().optional(),
   maxRequestsPerMonth: z.number().optional(),
 });
 

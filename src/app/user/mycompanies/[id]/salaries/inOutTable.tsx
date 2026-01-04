@@ -103,39 +103,39 @@ export const InOutTable = ({
   const [newInOut, setNewInOut] = useState<InOut>(
     inOuts.length > 0
       ? {
-          id: inOuts[inOuts.length - 1].id + 1,
-          employeeName: inOuts[inOuts.length - 1].employeeName,
-          employeeNIC: inOuts[inOuts.length - 1].employeeNIC,
-          basic: inOuts[inOuts.length - 1].basic,
-          divideBy: inOuts[inOuts.length - 1].divideBy,
-          in: dayjs().toISOString(),
-          out: dayjs().toISOString(),
-          workingHours: 0,
-          otHours: 0,
-          ot: 0,
-          noPay: 0,
-          holiday: "",
-          description: "",
-          remark: "",
-          day_status: "",
-        }
+        id: inOuts[inOuts.length - 1].id + 1,
+        employeeName: inOuts[inOuts.length - 1].employeeName,
+        employeeNIC: inOuts[inOuts.length - 1].employeeNIC,
+        basic: inOuts[inOuts.length - 1].basic,
+        divideBy: inOuts[inOuts.length - 1].divideBy,
+        in: dayjs().toISOString(),
+        out: dayjs().toISOString(),
+        workingHours: 0,
+        otHours: 0,
+        ot: 0,
+        noPay: 0,
+        holiday: "",
+        description: "",
+        remark: "",
+        day_status: "",
+      }
       : {
-          id: 0,
-          employeeName: "",
-          employeeNIC: "",
-          basic: 0,
-          divideBy: 0,
-          in: dayjs().toISOString(),
-          out: dayjs().toISOString(),
-          workingHours: 0,
-          otHours: 0,
-          ot: 0,
-          noPay: 0,
-          holiday: "",
-          description: "",
-          remark: "",
-          day_status: "",
-        }
+        id: 0,
+        employeeName: "",
+        employeeNIC: "",
+        basic: 0,
+        divideBy: 0,
+        in: dayjs().toISOString(),
+        out: dayjs().toISOString(),
+        workingHours: 0,
+        otHours: 0,
+        ot: 0,
+        noPay: 0,
+        holiday: "",
+        description: "",
+        remark: "",
+        day_status: "",
+      }
   );
   const [loading, setLoading] = useState(false);
 
@@ -423,46 +423,52 @@ export const InOutTable = ({
           }}
         >
           <Tooltip title="Delete Selected In-Out records" arrow>
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={
-                rowSelectionModel.length === 1
-                  ? () => handleDeleteClick(rowSelectionModel[0] as string)
-                  : () => handleMultipleDeleteClick(rowSelectionModel)
-              }
-              disabled={!editable || rowSelectionModel.length === 0}
-              startIcon={<DeleteOutline />}
-            >
-              Delete Selected
-            </Button>
+            <span>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={
+                  rowSelectionModel.length === 1
+                    ? () => handleDeleteClick(rowSelectionModel[0] as string)
+                    : () => handleMultipleDeleteClick(rowSelectionModel)
+                }
+                disabled={!editable || rowSelectionModel.length === 0}
+                startIcon={<DeleteOutline />}
+              >
+                Delete Selected
+              </Button>
+            </span>
           </Tooltip>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {edited && (
               <Tooltip title="Calculate Salary based on In-Outs" arrow>
-                <LoadingButton
-                  variant="contained"
-                  onClick={async () => {
-                    await handleCalculate();
-                  }}
-                  disabled={!editable}
-                  startIcon={<Autorenew />}
-                  loading={loading}
-                  loadingPosition="start"
-                >
-                  Calculate
-                </LoadingButton>
+                <span>
+                  <LoadingButton
+                    variant="contained"
+                    onClick={async () => {
+                      await handleCalculate();
+                    }}
+                    disabled={!editable}
+                    startIcon={<Autorenew />}
+                    loading={loading}
+                    loadingPosition="start"
+                  >
+                    Calculate
+                  </LoadingButton>
+                </span>
               </Tooltip>
             )}
             <Tooltip title="Add new In-Out record" arrow>
-              <Button
-                variant="outlined"
-                startIcon={<Add />}
-                onClick={() => setOpenAdd(true)}
-                disabled={!editable}
-              >
-                Add Record
-              </Button>
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={<Add />}
+                  onClick={() => setOpenAdd(true)}
+                  disabled={!editable}
+                >
+                  Add Record
+                </Button>
+              </span>
             </Tooltip>
           </Box>
         </Box>

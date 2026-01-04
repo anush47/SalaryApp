@@ -112,6 +112,8 @@ export class SalaryService {
                 ...(period ? { period } : {}),
             }).select("+inOut").lean();
 
+            console.log(`[SalaryService.getSalaries] (EmployeeID path) Fetched ${salaries.length} records. Has dailyRecords? ${salaries.length > 0 ? !!(salaries[0] as any).dailyRecords : false}`);
+
             return {
                 data: salaries,
                 page: 1,
@@ -251,6 +253,13 @@ export class SalaryService {
             .limit(limit)
             .lean();
 
+        console.log(`[SalaryService.getSalaries] Fetched ${salaries.length} records. Filter:`, JSON.stringify(salaryFilter));
+        if (salaries.length > 0) {
+            console.log(`[SalaryService.getSalaries] First record ID: ${(salaries[0] as any)._id}`);
+            console.log(`[SalaryService.getSalaries] First record has dailyRecords?`, !!(salaries[0] as any).dailyRecords);
+            console.log(`[SalaryService.getSalaries] First record dailyRecords length:`, (salaries[0] as any).dailyRecords?.length);
+        }
+
         // Get total count for pagination
         const total = await getTotalCount(Salary, salaryFilter);
 
@@ -338,6 +347,7 @@ export class SalaryService {
         const salaryDocs = [];
 
         for (const salary of body.salaries) {
+            console.log(`[SalaryService.createSalaries] Processing salary for employee ${salary.employee?._id || salary.employee}. Has dailyRecords? ${!!salary.dailyRecords}`);
             // Cleanup payload for saving
             if (typeof salary.employee === 'object' && salary.employee?._id) {
                 salary.employee = salary.employee._id.toString();
@@ -488,6 +498,8 @@ export class SalaryService {
 
     static async updateSalary(body: any, context: RequestContext) {
         await dbConnect();
+
+        console.log(`[SalaryService.updateSalary] Updating salary ${body.id}. Has dailyRecords in body? ${!!(body as any).dailyRecords}`);
 
         //convert to numbers
         body.basic = Number(body.basic);
@@ -797,7 +809,7 @@ export class SalaryService {
         await dbConnect();
 
         const parsedBody = salaryGenerateSchema.parse(body);
-        let { employees: employeeIds, companyId, period, inOut, update, existingSalaries, save } = parsedBody;
+        let { employees: employeeIds, companyId, period, inOut, update, existingSalaries, save, useLiveAttendance } = parsedBody;
 
         // Default save to true if not specified to maintain backward compatibility (or user preference?)
         // User requested: "saved only when i save" -> default to false for new requests if we want strict adherence
@@ -857,6 +869,13 @@ export class SalaryService {
         // If no employees
         if (!employees || employees.length === 0) {
             throw new NotFoundError("No active employees found for the company");
+        }
+
+        if (useLiveAttendance) {
+            console.log(`[SalaryService] Forcing attendance calculation for ${employees.length} employees due to useLiveAttendance=true`);
+            employees.forEach((emp: any) => {
+                emp.calculationMethod = "attendance";
+            });
         }
 
         // Retrieve company timezone
