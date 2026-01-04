@@ -399,7 +399,7 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
                                 width: { xs: "100%", sm: "auto" },
                             }}
                         >
-                            {leaveRequest.status === "pending" && (
+                            {isEmployer && leaveRequest.status === "pending" && (
                                 <Button
                                     variant="outlined"
                                     color="error"
@@ -433,7 +433,7 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
                                 </Button>
                             )}
 
-                            {leaveRequest.status === "pending" && (
+                            {isEmployer && leaveRequest.status === "pending" && (
                                 <Button
                                     variant="contained"
                                     color="success"
