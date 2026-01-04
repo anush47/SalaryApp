@@ -217,10 +217,10 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
             }
             // Max duration check could be added here
         } else {
-            if (!endDate) {
+            if (isMultipleDays && !endDate) {
                 newErrors.endDate = "End date is required";
                 isValid = false;
-            } else if (startDate && endDate && endDate.isBefore(startDate)) {
+            } else if (isMultipleDays && startDate && endDate && endDate.isBefore(startDate)) {
                 newErrors.endDate = "End date must be on or after start date";
                 isValid = false;
             }
@@ -433,24 +433,9 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                     />
                 </Grid>
 
-                <Grid item xs={12}>
-                    <FileUpload
-                        folder="leaves"
-                        entityId={selectedEmployeeId || "temp"}
-                        companyId={companyId}
-                        label={`Attachment ${requiresDocument ? '(Required)' : '(Optional)'}`}
-                        mode="manual"
-                        onFileSelect={(file) => {
-                            setSelectedFile(file);
-                            setErrors(prev => ({ ...prev, attachments: "" }));
-                        }}
-                    />
-                    {errors.attachments && <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5, ml: 1 }}>{errors.attachments}</Typography>}
-                </Grid>
-
                 {selectedLeaveType && (
                     <Grid item xs={12}>
-                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                             <Typography variant="subtitle2" gutterBottom fontWeight="bold">Leave Summary</Typography>
                             <Grid container spacing={1}>
                                 <Grid item xs={6}>
@@ -481,16 +466,50 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                     </Grid>
                 )}
 
-                <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
-                    {onCancel && <Button onClick={onCancel}>Cancel</Button>}
-                    <Button
-                        variant="contained"
-                        startIcon={createLeaveMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <Send />}
-                        onClick={handleSubmit}
-                        disabled={createLeaveMutation.isPending}
-                    >
-                        Submit Request
-                    </Button>
+                <Grid item xs={12}>
+                    <Box sx={{
+                        mt: 1,
+                        p: 2,
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: { xs: 'stretch', sm: 'center' },
+                        justifyContent: 'space-between',
+                        gap: 2,
+                        bgcolor: 'background.paper',
+                        borderRadius: 2,
+                        border: '1px dashed',
+                        borderColor: errors.attachments ? 'error.main' : 'divider',
+                    }}>
+                        <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>
+                            <FileUpload
+                                folder="leaves"
+                                entityId={selectedEmployeeId || "temp"}
+                                companyId={companyId}
+                                label={`Attachment ${requiresDocument ? '(Required)' : '(Optional)'}`}
+                                mode="manual"
+                                onFileSelect={(file) => {
+                                    setSelectedFile(file);
+                                    setErrors(prev => ({ ...prev, attachments: "" }));
+                                }}
+                            />
+                            {errors.attachments && <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>{errors.attachments}</Typography>}
+                        </Box>
+
+                        <Box display="flex" gap={2} sx={{ flexDirection: { xs: 'column', sm: 'row' }, width: { xs: '100%', sm: 'auto' } }}>
+                            {onCancel && <Button onClick={onCancel} variant="text" color="inherit" fullWidth={true}>Cancel</Button>}
+                            <Button
+                                variant="contained"
+                                size="large"
+                                startIcon={createLeaveMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <Send />}
+                                onClick={handleSubmit}
+                                disabled={createLeaveMutation.isPending}
+                                sx={{ px: 4, fontWeight: 'bold' }}
+                                fullWidth={true}
+                            >
+                                Submit Request
+                            </Button>
+                        </Box>
+                    </Box>
                 </Grid>
             </Grid>
         </LocalizationProvider>
