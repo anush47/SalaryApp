@@ -70,6 +70,31 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     const [viewStartDate, setViewStartDate] = useState(dayjs().startOf('month'));
     const [viewEndDate, setViewEndDate] = useState(dayjs().endOf('month'));
 
+    const setQuickRange = (range: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth') => {
+        switch (range) {
+            case 'today':
+                setViewStartDate(dayjs().startOf('day'));
+                setViewEndDate(dayjs().endOf('day'));
+                break;
+            case 'yesterday':
+                setViewStartDate(dayjs().subtract(1, 'day').startOf('day'));
+                setViewEndDate(dayjs().subtract(1, 'day').endOf('day'));
+                break;
+            case 'last7':
+                setViewStartDate(dayjs().subtract(7, 'day').startOf('day'));
+                setViewEndDate(dayjs());
+                break;
+            case 'thisMonth':
+                setViewStartDate(dayjs().startOf('month'));
+                setViewEndDate(dayjs().endOf('month'));
+                break;
+            case 'lastMonth':
+                setViewStartDate(dayjs().subtract(1, 'month').startOf('month'));
+                setViewEndDate(dayjs().subtract(1, 'month').endOf('month'));
+                break;
+        }
+    };
+
     // Update time every second
     useEffect(() => {
         const timer = setInterval(() => {
@@ -408,26 +433,28 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 <Grid container spacing={4}>
                     <Grid item xs={12} lg={5}>
                         <Stack spacing={4}>
-                            <Paper elevation={0} sx={{
-                                background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-                                color: "white",
+                            <Paper variant="outlined" sx={{
                                 textAlign: "center",
-                                py: 2,
+                                py: 3,
+                                px: 2,
                                 borderRadius: 3,
-                                boxShadow: '0 4px 16px rgba(25, 118, 210, 0.2)'
+                                borderLeft: '6px solid',
+                                borderLeftColor: isClockedIn ? 'success.main' : 'primary.main',
+                                bgcolor: 'background.paper',
+                                boxShadow: 'none'
                             }}>
-                                <AccessTime sx={{ fontSize: 32, mb: 0.5, opacity: 0.9 }} />
-                                <Typography variant="h3" fontWeight="bold" sx={{ letterSpacing: -1 }}>
+                                <AccessTime sx={{ fontSize: 32, mb: 1, color: isClockedIn ? 'success.main' : 'primary.main' }} />
+                                <Typography variant="h3" fontWeight="bold" sx={{ letterSpacing: -1, color: 'text.primary' }}>
                                     {currentTime.format("HH:mm:ss")}
                                 </Typography>
-                                <Typography variant="subtitle1" sx={{ opacity: 0.9, fontWeight: 500, mb: 1 }}>
+                                <Typography variant="subtitle1" sx={{ color: 'text.secondary', fontWeight: 500, mb: 1 }}>
                                     {currentTime.format("dddd, D MMM YYYY")}
                                 </Typography>
 
                                 {activeShift && (
-                                    <Box mt={1} bgcolor="rgba(255,255,255,0.15)" borderRadius={2} p={0.5} mx={2}>
-                                        <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontSize: '0.7rem' }}>
-                                            ACTIVE SHIFT
+                                    <Box mt={2} bgcolor="action.hover" borderRadius={2} p={1}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontWeight: 'bold' }}>
+                                            SCHEDULED SHIFT
                                         </Typography>
                                         <Typography variant="body2" fontWeight="bold">
                                             {activeShift.shift ? `${activeShift.shift.name} (${activeShift.shift.startTime} - ${activeShift.shift.endTime})` : (activeShift.isOffDay ? "Off Day" : "No Shift Assigned")}
@@ -436,21 +463,21 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                 )}
 
                                 {isClockedIn && lastLog && (
-                                    <Box mt={1} bgcolor="rgba(255,255,255,0.15)" borderRadius={2} p={0.5} mx={2}>
-                                        <Stack direction="row" justifyContent="space-around" divider={<Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />}>
+                                    <Box mt={2} bgcolor="success.lighter" borderRadius={2} p={1.5} border="1px solid" borderColor="success.light">
+                                        <Stack direction="row" justifyContent="space-around" divider={<Divider orientation="vertical" flexItem />}>
                                             <Box>
-                                                <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontSize: '0.7rem' }}>
-                                                    IN AT
+                                                <Typography variant="caption" sx={{ color: 'success.dark', display: 'block', fontWeight: 'bold' }}>
+                                                    CLOCKED IN
                                                 </Typography>
-                                                <Typography variant="body2" fontWeight="bold">
+                                                <Typography variant="body2" fontWeight="bold" color="success.dark">
                                                     {dayjs(lastLog.timestamp).format("hh:mm A")}
                                                 </Typography>
                                             </Box>
                                             <Box>
-                                                <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontSize: '0.7rem' }}>
-                                                    DURATION
+                                                <Typography variant="caption" sx={{ color: 'success.dark', display: 'block', fontWeight: 'bold' }}>
+                                                    TOTAL DURATION
                                                 </Typography>
-                                                <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                                                <Typography variant="body2" fontFamily="monospace" fontWeight="bold" color="success.dark">
                                                     {(() => {
                                                         const diff = currentTime.diff(dayjs(lastLog.timestamp));
                                                         if (diff < 0) return "00:00:00";
@@ -613,26 +640,50 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                     <History color="primary" />
                                     <Typography variant="h6" fontWeight="bold">My Attendance</Typography>
                                 </Box>
-                                <Box ml={{ xs: 0, md: 'auto' }} display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="center" width={{ xs: '100%', sm: 'auto' }}>
-                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <Box display="flex" gap={1} alignItems="center" width={{ xs: '100%', sm: 'auto' }}>
-                                            <DatePicker
-                                                value={viewStartDate}
-                                                onChange={(v) => v && setViewStartDate(v)}
-                                                slotProps={{ textField: { size: 'small', fullWidth: true, sx: { minWidth: 130 } } }}
+                                <Box ml={{ xs: 0, md: 'auto' }} display="flex" flexDirection="column" gap={1} alignItems={{ xs: 'stretch', md: 'flex-end' }} width={{ xs: '100%', md: 'auto' }}>
+                                    <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+                                        {[
+                                            { label: 'Today', value: 'today' },
+                                            { label: 'Yesterday', value: 'yesterday' },
+                                            { label: 'Last 7 Days', value: 'last7' },
+                                            { label: 'This Month', value: 'thisMonth' },
+                                            { label: 'Last Month', value: 'lastMonth' }
+                                        ].map((r) => (
+                                            <Chip
+                                                key={r.value}
+                                                label={r.label}
+                                                size="small"
+                                                onClick={() => setQuickRange(r.value as any)}
+                                                color={viewStartDate.isSame(dayjs().startOf(r.value === 'today' ? 'day' : (r.value === 'thisMonth' ? 'month' : 'day' as any))) ? 'primary' : 'default'}
+                                                variant={viewStartDate.isSame(dayjs().startOf(r.value === 'today' ? 'day' : (r.value === 'thisMonth' ? 'month' : 'day' as any))) ? 'filled' : 'outlined'}
+                                                clickable
+                                                sx={{ borderRadius: 1 }}
                                             />
-                                            <Typography>-</Typography>
-                                            <DatePicker
-                                                value={viewEndDate}
-                                                onChange={(v) => v && setViewEndDate(v)}
-                                                slotProps={{ textField: { size: 'small', fullWidth: true, sx: { minWidth: 130 } } }}
-                                            />
-                                        </Box>
-                                    </LocalizationProvider>
-                                    <Stack direction="row" spacing={1} divider={<Divider orientation="vertical" flexItem />}>
-                                        <Chip label={`Worked: ${dailyStats.totalHours}h`} size="small" color="primary" variant="outlined" />
-                                        <Chip label={`OT: ${dailyStats.totalOT}h`} size="small" color="success" variant="outlined" />
+                                        ))}
                                     </Stack>
+                                    <Box display="flex" gap={2} alignItems="center" flexDirection={{ xs: 'column', sm: 'row' }}>
+                                        <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                            <Box display="flex" gap={1} alignItems="center" width={{ xs: '100%', sm: 'auto' }}>
+                                                <DatePicker
+                                                    label="From"
+                                                    value={viewStartDate}
+                                                    onChange={(v) => v && setViewStartDate(v)}
+                                                    slotProps={{ textField: { size: 'small', fullWidth: true, sx: { minWidth: 130 } } }}
+                                                />
+                                                <Typography>-</Typography>
+                                                <DatePicker
+                                                    label="To"
+                                                    value={viewEndDate}
+                                                    onChange={(v) => v && setViewEndDate(v)}
+                                                    slotProps={{ textField: { size: 'small', fullWidth: true, sx: { minWidth: 130 } } }}
+                                                />
+                                            </Box>
+                                        </LocalizationProvider>
+                                        <Stack direction="row" spacing={1} divider={<Divider orientation="vertical" flexItem />}>
+                                            <Chip label={`Worked: ${dailyStats.totalHours}h`} size="small" color="primary" variant="outlined" />
+                                            <Chip label={`OT: ${dailyStats.totalOT}h`} size="small" color="success" variant="outlined" />
+                                        </Stack>
+                                    </Box>
                                 </Box>
                             </Box>
                             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>

@@ -305,10 +305,25 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                   {/* Monthly Totals Card */}
                   {monthlyTotals && (
                     <Grid item xs={12}>
-                      <Card sx={{ mb: 3, bgcolor: "secondary.main", color: "secondary.contrastText" }}>
+                      <Card
+                        variant="outlined"
+                        sx={{
+                          mb: 3,
+                          borderLeft: "6px solid",
+                          borderLeftColor: "secondary.main",
+                          boxShadow: "none",
+                        }}
+                      >
                         <CardContent>
-                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                            <Typography variant="h6">Monthly Summary: {dayjs(selectedMonth).format("MMMM YYYY")}</Typography>
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            mb={2}
+                          >
+                            <Typography variant="h6">
+                              Monthly Summary: {dayjs(selectedMonth).format("MMMM YYYY")}
+                            </Typography>
                             <Button
                               variant="outlined"
                               color="inherit"
@@ -319,23 +334,59 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                               Download All
                             </Button>
                           </Box>
-                          <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
+                          <Divider sx={{ mb: 2 }} />
                           <Grid container spacing={2}>
                             <Grid item xs={6} md={3}>
-                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Basic</Typography>
-                              <Typography variant="h6">LKR {monthlyTotals.basic.toLocaleString()}</Typography>
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                color="text.secondary"
+                              >
+                                Net Pay
+                              </Typography>
+                              <Typography variant="h4" fontWeight="bold">
+                                LKR {monthlyTotals.finalSalary.toLocaleString()}
+                              </Typography>
                             </Grid>
                             <Grid item xs={6} md={3}>
-                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Earnings</Typography>
-                              <Typography variant="h6">LKR {(monthlyTotals.basic + monthlyTotals.otAmount + monthlyTotals.totalAdditions).toLocaleString()}</Typography>
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                color="text.secondary"
+                              >
+                                Total Earnings
+                              </Typography>
+                              <Typography variant="h6">
+                                LKR {(
+                                  monthlyTotals.basic +
+                                  monthlyTotals.otAmount +
+                                  monthlyTotals.totalAdditions
+                                ).toLocaleString()}
+                              </Typography>
                             </Grid>
                             <Grid item xs={6} md={3}>
-                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Total Deductions</Typography>
-                              <Typography variant="h6">LKR {monthlyTotals.totalDeductions.toLocaleString()}</Typography>
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                color="text.secondary"
+                              >
+                                Total Deductions
+                              </Typography>
+                              <Typography variant="h6">
+                                LKR {monthlyTotals.totalDeductions.toLocaleString()}
+                              </Typography>
                             </Grid>
                             <Grid item xs={6} md={3}>
-                              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>Net Pay</Typography>
-                              <Typography variant="h4" fontWeight="bold">LKR {monthlyTotals.finalSalary.toLocaleString()}</Typography>
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                color="text.secondary"
+                              >
+                                Total Basic
+                              </Typography>
+                              <Typography variant="h6">
+                                LKR {monthlyTotals.basic.toLocaleString()}
+                              </Typography>
                             </Grid>
                           </Grid>
                         </CardContent>
@@ -364,10 +415,12 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                         <CardContent>
                           <Box sx={{ overflowX: "auto" }}>
                             <InOutTable
-                              inOuts={monthlyAttendance.map((record: any, index: number) => ({
-                                ...record,
-                                id: index, // Frontend ID for table
-                              }))}
+                              inOuts={monthlyAttendance.map(
+                                (record: any, index: number) => ({
+                                  ...record,
+                                  id: index, // Frontend ID for table
+                                })
+                              )}
                               setInOuts={() => { }}
                               fetchSalary={() => { }}
                               editable={false}
@@ -396,49 +449,65 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
                           {groupedSalaries[selectedMonth]?.map((salary: any) => (
                             <TableRow key={salary._id} hover>
                               <TableCell>{formatPeriodLabel(salary.period)}</TableCell>
-                              <TableCell align="right">LKR {salary.basic?.toLocaleString()}</TableCell>
+                              <TableCell align="right">
+                                LKR {salary.basic?.toLocaleString()}
+                              </TableCell>
                               <TableCell align="center">
                                 <Chip
-                                  label={(salary.paymentStatus || "unpaid").replace("_", " ")}
+                                  label={(salary.paymentStatus || "unpaid").replace(
+                                    "_",
+                                    " "
+                                  )}
                                   color={
-                                    salary.paymentStatus === "fully_paid" ? "success" :
-                                      salary.paymentStatus === "partially_paid" ? "warning" :
-                                        salary.paymentStatus === "overpaid" ? "info" : "error"
+                                    salary.paymentStatus === "fully_paid"
+                                      ? "success"
+                                      : salary.paymentStatus === "partially_paid"
+                                        ? "warning"
+                                        : salary.paymentStatus === "overpaid"
+                                          ? "info"
+                                          : "error"
                                   }
                                   size="small"
                                   sx={{ textTransform: "capitalize" }}
                                 />
                               </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>LKR {salary.finalSalary?.toLocaleString()}</TableCell>
+                              <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                LKR {salary.finalSalary?.toLocaleString()}
+                              </TableCell>
                               <TableCell align="right">
-                                <Button size="small" variant="contained" onClick={() => setSelectedSalary(salary)}>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={() => setSelectedSalary(salary)}
+                                >
                                   View
                                 </Button>
                               </TableCell>
                             </TableRow>
                           ))}
-                          {(!groupedSalaries[selectedMonth] || groupedSalaries[selectedMonth].length === 0) && (
-                            <TableRow>
-                              <TableCell colSpan={5} align="center">No records found for this month.</TableCell>
-                            </TableRow>
-                          )}
+                          {(!groupedSalaries[selectedMonth] ||
+                            groupedSalaries[selectedMonth].length === 0) && (
+                              <TableRow>
+                                <TableCell colSpan={5} align="center">
+                                  No records found for this month.
+                                </TableCell>
+                              </TableRow>
+                            )}
                         </TableBody>
                       </Table>
                     </TableContainer>
                   </Grid>
                 </>
               )}
-
             </>
           )}
 
           {/* Tab 2: Payments */}
           {activeTab === 1 && (
-            <>
+            <Grid item xs={12}>
               <EmployeePaymentsTab employeeId={employeeId} />
-            </>
+            </Grid>
           )}
-
         </Grid>
       </CardContent>
     </Card>
@@ -446,4 +515,3 @@ const EmployeePayslips: React.FC<UserProps> = ({ user }) => {
 };
 
 export default EmployeePayslips;
-

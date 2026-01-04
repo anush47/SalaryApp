@@ -204,7 +204,8 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
       >
         {/* Welcome Card */}
         <Card
-          sx={{ mb: 3, bgcolor: "primary.main", color: "primary.contrastText" }}
+          variant="outlined"
+          sx={{ mb: 3, borderLeft: '6px solid', borderLeftColor: 'primary.main', boxShadow: 'none' }}
         >
           <CardContent>
             <Box
@@ -224,29 +225,27 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                 <Avatar
                   src={user.image}
                   alt={user.name}
-                  sx={{ width: 80, height: 80, border: "3px solid white" }}
+                  sx={{ width: 80, height: 80, border: "2px solid", borderColor: 'divider' }}
                 />
                 <Box>
                   <Typography
                     variant="h4"
                     component="h1" // Semantic HTML
-                    color="primary.contrastText"
+                    fontWeight="bold"
                     gutterBottom
                   >
                     Welcome back, {employee.name}!
                   </Typography>
                   <Typography
                     variant="body1"
-                    color="primary.contrastText"
-                    sx={{ opacity: 0.9 }}
+                    color="text.secondary"
                   >
                     {employee.designation || "Employee"} • Member #
                     {employee.memberNo}
                   </Typography>
                   <Typography
                     variant="body2"
-                    color="primary.contrastText"
-                    sx={{ opacity: 0.8 }}
+                    color="text.secondary"
                   >
                     {employee.company?.name || ""}
                   </Typography>
@@ -255,8 +254,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
               <Box textAlign={{ xs: "center", sm: "right" }} mt={{ xs: 1, sm: 0 }}>
                 <Typography
                   variant="body2"
-                  color="primary.contrastText"
-                  sx={{ opacity: 0.9 }}
+                  color="text.secondary"
                 >
                   {new Date().toLocaleDateString("en-US", {
                     weekday: "long",
@@ -288,7 +286,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
               ) : (
                 filteredLeaveBalance.map((leave: any, index: number) => (
                   <Grid item xs={12} sm={6} md={3} key={index}>
-                    <Card>
+                    <Card variant="outlined">
                       <CardContent>
                         <Box
                           display="flex"
@@ -344,7 +342,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
           {/* Upcoming Leaves */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card variant="outlined">
               <CardContent>
                 <Box
                   display="flex"
@@ -400,7 +398,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           {/* Pending Approvals (if manager) */}
           {pendingApprovals.length > 0 && (
             <Grid item xs={12} md={6}>
-              <Card>
+              <Card variant="outlined">
                 <CardContent>
                   <Box
                     display="flex"
@@ -445,7 +443,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
           {/* Recent Payslips */}
           <Grid item xs={12} md={pendingApprovals.length > 0 ? 12 : 6}>
-            <Card>
+            <Card variant="outlined">
               <CardContent>
                 <Box
                   display="flex"
@@ -497,7 +495,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
           {/* Quick Actions */}
           <Grid item xs={12}>
-            <Card>
+            <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   Quick Actions
@@ -564,9 +562,10 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
               {/* Team Statistics */}
               <Grid item xs={12} md={3}>
                 <Card
+                  variant="outlined"
                   sx={{
-                    bgcolor: "primary.light",
-                    color: "primary.contrastText",
+                    borderLeft: '4px solid',
+                    borderLeftColor: 'primary.main',
                   }}
                 >
                   <CardContent>
@@ -576,18 +575,18 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       justifyContent="space-between"
                     >
                       <Box>
-                        <Typography variant="body2" color="primary.contrastText">
+                        <Typography variant="body2" color="text.secondary">
                           Team Members
                         </Typography>
-                        <Typography variant="h3" color="primary.contrastText">
+                        <Typography variant="h3" fontWeight="bold">
                           {managerData.team.total}
                         </Typography>
                       </Box>
                       <Groups
                         sx={{
-                          fontSize: 60,
-                          color: "primary.contrastText",
-                          opacity: 0.3,
+                          fontSize: 48,
+                          color: "primary.main",
+                          opacity: 0.2,
                         }}
                       />
                     </Box>
@@ -597,9 +596,10 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
               <Grid item xs={12} md={3}>
                 <Card
+                  variant="outlined"
                   sx={{
-                    bgcolor: "warning.light",
-                    color: "primary.contrastText",
+                    borderLeft: '4px solid',
+                    borderLeftColor: 'warning.main',
                   }}
                 >
                   <CardContent>
@@ -611,20 +611,19 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       <Box>
                         <Typography
                           variant="body2"
-                          color="primary.contrastText"
-                          sx={{ opacity: 0.9 }}
+                          color="text.secondary"
                         >
                           Pending Approvals
                         </Typography>
-                        <Typography variant="h3" color="primary.contrastText">
+                        <Typography variant="h3" fontWeight="bold">
                           {managerData.leaves.totalPending}
                         </Typography>
                       </Box>
                       <Pending
                         sx={{
-                          fontSize: 60,
-                          color: "primary.contrastText",
-                          opacity: 0.3,
+                          fontSize: 48,
+                          color: "warning.main",
+                          opacity: 0.2,
                         }}
                       />
                     </Box>
@@ -634,9 +633,10 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
               <Grid item xs={12} md={3}>
                 <Card
+                  variant="outlined"
                   sx={{
-                    bgcolor: "success.light",
-                    color: "primary.contrastText",
+                    borderLeft: '4px solid',
+                    borderLeftColor: 'success.main',
                   }}
                 >
                   <CardContent>
@@ -648,20 +648,19 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       <Box>
                         <Typography
                           variant="body2"
-                          color="primary.contrastText"
-                          sx={{ opacity: 0.9 }}
+                          color="text.secondary"
                         >
                           Employee Types
                         </Typography>
-                        <Typography variant="h3" color="primary.contrastText">
+                        <Typography variant="h3" fontWeight="bold">
                           {Object.keys(managerData.team.byType).length}
                         </Typography>
                       </Box>
                       <Work
                         sx={{
-                          fontSize: 60,
-                          color: "primary.contrastText",
-                          opacity: 0.3,
+                          fontSize: 48,
+                          color: "success.main",
+                          opacity: 0.2,
                         }}
                       />
                     </Box>
@@ -671,9 +670,10 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
               <Grid item xs={12} md={3}>
                 <Card
+                  variant="outlined"
                   sx={{
-                    bgcolor: "secondary.light",
-                    color: "primary.contrastText",
+                    borderLeft: '4px solid',
+                    borderLeftColor: 'secondary.main',
                   }}
                 >
                   <CardContent>
@@ -685,20 +685,19 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       <Box>
                         <Typography
                           variant="body2"
-                          color="primary.contrastText"
-                          sx={{ opacity: 0.9 }}
+                          color="text.secondary"
                         >
                           Departments
                         </Typography>
-                        <Typography variant="h3" color="primary.contrastText">
+                        <Typography variant="h3" fontWeight="bold">
                           {Object.keys(managerData.team.byDepartment).length}
                         </Typography>
                       </Box>
                       <Work
                         sx={{
-                          fontSize: 60,
-                          color: "primary.contrastText",
-                          opacity: 0.3,
+                          fontSize: 48,
+                          color: "secondary.main",
+                          opacity: 0.2,
                         }}
                       />
                     </Box>
@@ -708,7 +707,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
               {/* Team Members with Leave Balance */}
               <Grid item xs={12}>
-                <Card>
+                <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
                       Team Leave Overview

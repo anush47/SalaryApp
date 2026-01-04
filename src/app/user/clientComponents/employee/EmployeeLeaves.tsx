@@ -266,51 +266,51 @@ const EmployeeLeaves: React.FC<UserProps> = ({ user }) => {
                 ) : (
                   leaveBalance.map((leave: any, index: number) => (
                     <Grid item xs={12} key={index}>
-                      <Card variant="outlined">
-                        <CardContent>
+                      <Card
+                        variant="outlined"
+                        sx={{
+                          borderLeft: '4px solid',
+                          borderLeftColor: leave.leaveType.color || 'primary.main',
+                        }}
+                      >
+                        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
                           <Box
                             display="flex"
                             justifyContent="space-between"
                             alignItems="center"
                             mb={1}
                           >
-                            <Chip
-                              label={leave.leaveType.code}
-                              size="small"
-                              sx={{
-                                backgroundColor: leave.leaveType.color,
-                                color: "white",
-                              }}
-                            />
-                            <Typography variant="h6">
+                            <Typography variant="subtitle2" color="text.secondary" fontWeight="bold">
+                              {leave.leaveType.name}
+                            </Typography>
+                            <Typography variant="h5" fontWeight="bold">
                               {leave.available}
                             </Typography>
                           </Box>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {leave.leaveType.name}
-                          </Typography>
 
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Used: {leave.used} / {leave.maxDaysPerPeriod}
-                          </Typography>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" color="text.secondary">
+                              Used: {leave.used} / {leave.maxDaysPerPeriod}
+                            </Typography>
+                            {leave.carriedForwardBalance > 0 && (
+                              <Typography
+                                variant="caption"
+                                color="success.main"
+                                fontWeight="medium"
+                              >
+                                +{leave.carriedForwardBalance} carried
+                              </Typography>
+                            )}
+                          </Box>
 
                           {leave.currentPeriod && (
                             <Typography
                               variant="caption"
                               color="primary"
                               display="block"
-                              sx={{ mt: 0.5 }}
+                              sx={{ mt: 0.5, fontSize: '0.65rem', opacity: 0.8 }}
                             >
                               Period: {leave.currentPeriod.label}
-                            </Typography>
-                          )}
-                          {leave.carriedForwardBalance > 0 && (
-                            <Typography
-                              variant="caption"
-                              color="success.main"
-                              display="block"
-                            >
-                              +{leave.carriedForwardBalance} carried
                             </Typography>
                           )}
                         </CardContent>

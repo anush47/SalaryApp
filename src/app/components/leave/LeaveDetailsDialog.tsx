@@ -13,6 +13,9 @@ import {
     Typography,
     TextField,
     CircularProgress,
+    IconButton,
+    useTheme,
+    useMediaQuery,
 } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
 import dayjs from "dayjs";
@@ -31,6 +34,7 @@ interface LeaveDetailsDialogProps {
     leaveRequest?: LeaveRequest;
     mode?: "view" | "manage"; // view = read-only, manage = show approve/reject/cancel
     onUpdate?: () => void;
+    isEmployer?: boolean;
 }
 
 export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
@@ -40,7 +44,10 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
     leaveRequest: propLeaveRequest,
     mode = "view",
     onUpdate,
+    isEmployer = false,
 }) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const queryClient = useQueryClient();
     const { showSnackbar } = useSnackbar();
     const [remarks, setRemarks] = useState("");
@@ -105,6 +112,13 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
 
     const handleAction = (action: "approve" | "reject" | "cancel") => {
         if (leaveRequest) {
+            if (action === "cancel" && leaveRequest.status !== "pending") {
+                showSnackbar({
+                    message: "Only pending requests can be cancelled",
+                    severity: "error",
+                });
+                return;
+            }
             updateLeaveRequestMutation.mutate({
                 leaveRequestId: leaveRequest._id,
                 action,
@@ -116,7 +130,7 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
 
     if (isLoading) {
         return (
-            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
                 <DialogContent>
                     <Box display="flex" justifyContent="center" p={4}>
                         <CircularProgress />
@@ -131,8 +145,17 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
     }
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>Leave Request Details</DialogTitle>
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+            <DialogTitle>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    Leave Request Details
+                    {isMobile && (
+                        <IconButton onClick={onClose} edge="end" size="small">
+                            <Close />
+                        </IconButton>
+                    )}
+                </Box>
+            </DialogTitle>
             <DialogContent dividers>
                 <Box sx={{ mt: 1 }}>
                     {/* Header Info */}
@@ -335,7 +358,7 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
                         )}
                     </Box>
 
-                    {mode === "manage" && (
+                    {mode === "manage" && isEmployer && (
                         <TextField
                             label="Add Remarks / Rejection Reason"
                             multiline
@@ -388,17 +411,27 @@ export const LeaveDetailsDialog: React.FC<LeaveDetailsDialogProps> = ({
                                 </Button>
                             )}
 
-                            {(leaveRequest.status === "pending" ||
-                                leaveRequest.status === "approved") && (
-                                    <Button
-                                        variant="outlined"
-                                        color="warning"
-                                        onClick={() => handleAction("cancel")}
-                                        sx={{ width: { xs: "100%", sm: "auto" } }}
-                                    >
-                                        Cancel Leave
-                                    </Button>
-                                )}
+                            {leaveRequest.status === "pending" && (
+                                <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    onClick={() => handleAction("cancel")}
+                                    sx={{ width: { xs: "100%", sm: "auto" } }}
+                                >
+                                    Cancel Leave
+                                </Button>
+                            )}
+
+                            {isEmployer && leaveRequest.status === "approved" && (
+                                <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    onClick={() => handleAction("cancel")}
+                                    sx={{ width: { xs: "100%", sm: "auto" } }}
+                                >
+                                    Cancel Leave
+                                </Button>
+                            )}
 
                             {leaveRequest.status === "pending" && (
                                 <Button

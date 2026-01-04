@@ -422,6 +422,7 @@ const LeaveRequestsManagement: React.FC<{
         }}
         leaveRequest={selectedRequest || undefined}
         mode="manage"
+        isEmployer={mode !== "my-requests"}
         onUpdate={() => {
           queryClient.invalidateQueries({ queryKey: ["leaveRequests", companyId] });
         }}
