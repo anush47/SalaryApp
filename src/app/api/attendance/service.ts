@@ -417,13 +417,15 @@ export class AttendanceService {
         // Date Range Logic
         if (startDateParam || endDateParam) {
             filter.timestamp = {};
-            // If fetching "previous" records, we might want < timestamp
-            // But standard API usually does range. 
-            // Let's support standard range. 
-            // For "Previous" logic, we might need strict inequality if passed special params?
-            // Or just rely on standard <= endDate.
             if (startDateParam) filter.timestamp.$gte = new Date(startDateParam);
-            if (endDateParam) filter.timestamp.$lte = new Date(endDateParam);
+            if (endDateParam) {
+                const end = new Date(endDateParam);
+                // If the end date is just a date (no time), set it to the end of that day
+                if (endDateParam.length <= 10) {
+                    end.setHours(23, 59, 59, 999);
+                }
+                filter.timestamp.$lte = end;
+            }
         } else if (date) {
             const startOfDay = new Date(date);
             startOfDay.setHours(0, 0, 0, 0);
@@ -448,7 +450,7 @@ export class AttendanceService {
     }
 
     static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string, shiftId?: string, remarks?: string, dayStatus?: string) {
-        console.log(`[AttendanceService] recordApproval called for ID: ${attendanceId}, Status: ${status}, Timestamp: ${timestamp}`);
+
         await dbConnect();
 
         if (!context.user) throw new ForbiddenError("Auth required");
@@ -481,7 +483,7 @@ export class AttendanceService {
             if (prevRecord && newDate < prevRecord.timestamp) {
                 throw new BadRequestError(`Cannot set time earlier than previous record (${prevRecord.timestamp.toLocaleString()})`);
             }
-            console.log(`[AttendanceService] Updating timestamp to: ${timestamp}`);
+
             attendance.timestamp = newDate;
         }
 
@@ -499,7 +501,7 @@ export class AttendanceService {
                         type: newShift.type || ""
                     };
                     attendance.resolutionMode = "manual_override";
-                    console.log(`[AttendanceService] Shift manually overridden to: ${newShift.name}`);
+
                 }
             }
         }
@@ -515,7 +517,7 @@ export class AttendanceService {
             attendance.dayStatus = dayStatus;
         }
         await attendance.save();
-        console.log(`[AttendanceService] Successfully saved attendance record: ${attendanceId}`);
+
 
         return attendance;
     }

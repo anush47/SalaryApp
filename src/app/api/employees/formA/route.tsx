@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     //convert to number
     body.memberNo = Number(body.memberNo);
-    //console.log(body);
+
     const formDetails = employeeFormSchema.parse(body);
 
     // Connect to the database

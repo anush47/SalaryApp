@@ -436,7 +436,7 @@ export class EmployeeService {
         try {
           const { StorageService } = await import("@/app/lib/services/storageService"); // Dynamic import to avoid cycles if any
           await Promise.all(keysToDelete.map((key) => StorageService.deleteFile(key)));
-          console.log(`Deleted ${keysToDelete.length} files from R2`);
+
         } catch (error) {
           console.error("Failed to delete files from R2:", error);
           // We don't block the profile update if file deletion fails, 

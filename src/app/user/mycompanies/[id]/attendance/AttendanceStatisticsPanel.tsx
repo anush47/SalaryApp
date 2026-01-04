@@ -29,9 +29,10 @@ import dayjs from 'dayjs';
 
 interface AttendanceStatisticsPanelProps {
     logs: any[];
+    selectedEmployee?: any | null;
 }
 
-export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps> = ({ logs }) => {
+export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps> = ({ logs, selectedEmployee }) => {
     const theme = useTheme();
 
     const stats = useMemo(() => {

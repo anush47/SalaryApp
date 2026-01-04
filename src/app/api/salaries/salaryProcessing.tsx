@@ -165,7 +165,6 @@ export const processSalaryWithInOut = async (
           closestShiftData.minDiff <= 6 * 60 ? closestShiftData.shift : null;
 
         if (!shift) {
-          //console.log("No shift found for the given time:", inDate);
           inOutIndex++;
           continue; // Move to the next inOut record
         }

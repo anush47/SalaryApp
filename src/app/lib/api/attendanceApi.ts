@@ -11,8 +11,9 @@ export const markAttendance = async (data: any): Promise<ApiResponse> => {
 
 export const createAttendance = markAttendance;
 
-export const getAttendanceLogs = async (companyId: string, date?: string, startDate?: string, endDate?: string): Promise<ApiResponse> => {
+export const getAttendanceLogs = async (companyId: string, employeeId?: string, startDate?: string, endDate?: string, date?: string): Promise<ApiResponse> => {
     let url = `/api/attendance?companyId=${companyId}`;
+    if (employeeId) url += `&employeeId=${employeeId}`;
     if (date) url += `&date=${date}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;

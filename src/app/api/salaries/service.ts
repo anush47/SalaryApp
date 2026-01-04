@@ -112,7 +112,7 @@ export class SalaryService {
                 ...(period ? { period } : {}),
             }).select("+inOut").lean();
 
-            console.log(`[SalaryService.getSalaries] (EmployeeID path) Fetched ${salaries.length} records. Has dailyRecords? ${salaries.length > 0 ? !!(salaries[0] as any).dailyRecords : false}`);
+
 
             return {
                 data: salaries,
@@ -253,12 +253,7 @@ export class SalaryService {
             .limit(limit)
             .lean();
 
-        console.log(`[SalaryService.getSalaries] Fetched ${salaries.length} records. Filter:`, JSON.stringify(salaryFilter));
-        if (salaries.length > 0) {
-            console.log(`[SalaryService.getSalaries] First record ID: ${(salaries[0] as any)._id}`);
-            console.log(`[SalaryService.getSalaries] First record has dailyRecords?`, !!(salaries[0] as any).dailyRecords);
-            console.log(`[SalaryService.getSalaries] First record dailyRecords length:`, (salaries[0] as any).dailyRecords?.length);
-        }
+
 
         // Get total count for pagination
         const total = await getTotalCount(Salary, salaryFilter);
@@ -347,7 +342,7 @@ export class SalaryService {
         const salaryDocs = [];
 
         for (const salary of body.salaries) {
-            console.log(`[SalaryService.createSalaries] Processing salary for employee ${salary.employee?._id || salary.employee}. Has dailyRecords? ${!!salary.dailyRecords}`);
+
             // Cleanup payload for saving
             if (typeof salary.employee === 'object' && salary.employee?._id) {
                 salary.employee = salary.employee._id.toString();
@@ -499,7 +494,7 @@ export class SalaryService {
     static async updateSalary(body: any, context: RequestContext) {
         await dbConnect();
 
-        console.log(`[SalaryService.updateSalary] Updating salary ${body.id}. Has dailyRecords in body? ${!!(body as any).dailyRecords}`);
+
 
         //convert to numbers
         body.basic = Number(body.basic);
@@ -593,7 +588,7 @@ export class SalaryService {
         // Check if we need to fetch NEW advances (if none currently linked but amount > 0)
         let baseAdvances = existingSalary.activeAdvances || [];
         if (baseAdvances.length === 0 && Number(parsedBody.advanceAmount) > 0) {
-            console.log(`[SalaryService] No active advances linked, but advanceAmount > 0. Fetching potential advances.`);
+
             try {
                 // Ensure correct types
                 const potentialAdvances = await getActiveAdvances(parsedBody.employee, parsedBody.period);
@@ -872,7 +867,7 @@ export class SalaryService {
         }
 
         if (useLiveAttendance) {
-            console.log(`[SalaryService] Forcing attendance calculation for ${employees.length} employees due to useLiveAttendance=true`);
+
             employees.forEach((emp: any) => {
                 emp.calculationMethod = "attendance";
             });
@@ -909,7 +904,7 @@ export class SalaryService {
                 salaryPeriod as 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'custom'
             );
 
-            console.log(`[SalaryService] Employee: ${employee.name}, Salary Period: ${salaryPeriod}, Expanded ${period} to ${expandedPeriods.length} periods`);
+
 
             // Create a generation task for each expanded period
             for (const expandedPeriod of expandedPeriods) {
@@ -921,7 +916,7 @@ export class SalaryService {
             }
         }
 
-        console.log(`[SalaryService] Total salary generation tasks: ${salaryGenerationTasks.length}`);
+
 
         // Fetch existing salaries for all expanded periods
         const allExpandedPeriods = [...new Set(salaryGenerationTasks.map(t => t.period))];
@@ -938,7 +933,7 @@ export class SalaryService {
             ])
         );
 
-        console.log(`[SalaryService] Found ${existingSalariesFromDB.length} existing salaries across ${allExpandedPeriods.length} periods`);
+
 
         // Group tasks by employee ID for sequential processing
         const tasksByEmployee = new Map<string, typeof salaryGenerationTasks>();

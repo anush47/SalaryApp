@@ -415,10 +415,7 @@ export async function generateSalaryForOneEmployee(
   timezone: string = "Asia/Colombo"
 ) {
   try {
-    console.log("generateSalaryForOneEmployee called for:", employee.name);
-    console.log("Period:", period);
-    console.log("InOut Data Type:", Array.isArray(inOut) ? "Array" : typeof inOut);
-    console.log("InOut Length:", Array.isArray(inOut) ? inOut.length : "N/A");
+
 
     const source = salary || employee;
 

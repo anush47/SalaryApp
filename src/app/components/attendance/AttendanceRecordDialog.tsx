@@ -126,15 +126,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [activeTab, setActiveTab] = useState(0);
 
-    // Debug: Log shifts
-    useEffect(() => {
-        console.log('AttendanceRecordDialog - Shifts received:', shifts);
-        console.log('AttendanceRecordDialog - Shifts count:', shifts?.length);
-        if (shifts && shifts.length > 0) {
-            console.log('First shift FULL object:', JSON.stringify(shifts[0], null, 2));
-            console.log('First shift keys:', Object.keys(shifts[0]));
-        }
-    }, [shifts]);
+
 
     // State for separate logs
     const [inLog, setInLog] = useState<any>(null);
@@ -185,11 +177,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     const [originalShiftId, setOriginalShiftId] = useState<string>('');
     const [originalDayStatus, setOriginalDayStatus] = useState<string>('full');
 
-    // Debug: Log form data changes (AFTER formData is declared)
-    useEffect(() => {
-        console.log('AttendanceRecordDialog - FormData shiftId:', formData.shiftId);
-        console.log('AttendanceRecordDialog - Full formData:', formData);
-    }, [formData]);
+
 
     // Day Status (Simulated for now by modifying shift/logs?)
     // This is now supported by backing field on IN log
@@ -216,8 +204,6 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     results.forEach(res => {
                         if (res.success) {
                             const rec = res.data;
-                            console.log('Fetched attendance record:', rec);
-                            console.log('Record shift data:', rec.shift);
                             if (rec._id === dailyRecord.inLogId) fetchedIn = rec;
                             if (rec._id === dailyRecord.outLogId) fetchedOut = rec;
                         }
@@ -233,8 +219,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         const companyId = singleLog.company;
                         const logDate = dayjs(singleLog.timestamp).format('YYYY-MM-DD');
 
-                        console.log('Only one record found, searching for paired record...');
-                        console.log('Employee:', employeeId, 'Date:', logDate);
+
 
                         try {
                             // Fetch all records for this employee on this day
@@ -242,7 +227,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                             const dayRecordsData = await dayRecordsRes.json();
 
                             if (dayRecordsData.success && dayRecordsData.data) {
-                                console.log('Found day records:', dayRecordsData.data);
+
 
                                 // Find the paired record
                                 const records = dayRecordsData.data;
@@ -253,7 +238,6 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         dayjs(r.timestamp).isAfter(dayjs(fetchedIn.timestamp))
                                     );
                                     if (pairedOut) {
-                                        console.log('Found paired OUT record:', pairedOut._id);
                                         setOutLog(pairedOut);
                                         fetchedOut = pairedOut;
                                     }
@@ -267,7 +251,6 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         .sort((a: any, b: any) => dayjs(b.timestamp).diff(dayjs(a.timestamp)))[0]; // Get the closest IN before OUT
 
                                     if (pairedIn) {
-                                        console.log('Found paired IN record:', pairedIn._id);
                                         setInLog(pairedIn);
                                         fetchedIn = pairedIn;
                                     }
@@ -280,15 +263,13 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
                     // Initialize Form with IN log by default or OUT if IN missing
                     const initialLog = fetchedIn || fetchedOut;
-                    console.log('Initial log for form:', initialLog);
+
 
                     if (initialLog) {
                         const shiftId = initialLog.shift?.shiftId || '';
                         const dayStatus = initialLog.dayStatus || (dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full');
 
-                        console.log('Extracted shiftId:', shiftId);
-                        console.log('Extracted dayStatus:', dayStatus);
-                        console.log('Available shifts:', shifts);
+
 
                         setFormData({
                             timestamp: initialLog.resolutionMode === 'status_only' ? null : dayjs(initialLog.timestamp),
@@ -428,7 +409,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     const otherLog = type === 'out' ? inLog : outLog;
 
                     if (shiftChanged && otherLog) {
-                        console.log(`Shift changed on ${type.toUpperCase()} - updating paired ${type === 'out' ? 'IN' : 'OUT'} record:`, otherLog._id);
+
                         try {
                             await updateAttendanceStatus(
                                 otherLog._id,
@@ -473,7 +454,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     shift: shiftForAPI // Pass formatted shift object
                 });
 
-                if (!employee?._id) console.warn("Missing Employee ID for creation!");
+
 
                 if (res.success) {
                     showSnackbar({ message: "Record created successfully", severity: "success" });
@@ -675,7 +656,6 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         label="Shift"
                                         value={formData.shiftId}
                                         onChange={(e) => {
-                                            console.log('Shift changed to:', e.target.value);
                                             setFormData({ ...formData, shiftId: e.target.value });
                                         }}
                                         SelectProps={{ native: true }}
@@ -688,7 +668,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                 // Shifts use _id and name, not shiftId and shiftName
                                                 const id = shift._id || shift.shiftId;
                                                 const name = shift.name || shift.shiftName;
-                                                console.log(`Rendering shift option ${index}:`, id, name);
+
                                                 return (
                                                     <option key={`shift-${index}`} value={id}>
                                                         {name} ({shift.startTime} - {shift.endTime})

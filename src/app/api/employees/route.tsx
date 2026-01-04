@@ -84,7 +84,7 @@ export async function PUT(req: NextRequest) {
       const result = await EmployeeService.updateEmployee(body, context);
       return ApiResponseUtils.sendSuccess(result, result.message);
     } catch (error) {
-      console.log(error);
+
       if (error instanceof z.ZodError) {
         return ApiResponseUtils.sendBadRequest(error.errors[0].message);
       }

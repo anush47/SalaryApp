@@ -24,13 +24,19 @@ import { fetchCompany } from '@/app/lib/api/companyApi';
 
 interface UnifiedAttendancePanelProps {
     companyId: string;
+    startDate: dayjs.Dayjs;
+    endDate: dayjs.Dayjs;
+    selectedEmployee: any | null;
+    setSelectedEmployee: (emp: any | null) => void;
 }
 
-export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ companyId }) => {
-    const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
-    const [currentDate, setCurrentDate] = useState(dayjs());
-    const [startDate, setStartDate] = useState(dayjs().startOf('month'));
-    const [endDate, setEndDate] = useState(dayjs().endOf('month'));
+export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
+    companyId,
+    startDate,
+    endDate,
+    selectedEmployee,
+    setSelectedEmployee
+}) => {
     const [selectedRecord, setSelectedRecord] = useState<DailyAttendanceRecord | null>(null);
     const [selectedLeaveId, setSelectedLeaveId] = useState<string | undefined>();
 
@@ -74,44 +80,7 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
 
     return (
         <Box sx={{ p: 2 }}>
-            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="center">
-                    <Autocomplete
-                        options={employees}
-                        getOptionLabel={(option) => `${option.name} (${option.memberNo})`}
-                        value={selectedEmployee}
-                        onChange={(_, newValue) => setSelectedEmployee(newValue)}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Select Employee"
-                                size="small"
-                                helperText="View unified history for..."
-                            />
-                        )}
-                        sx={{ width: 300 }}
-                        loading={loadingEmployees}
-                    />
 
-                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                        <Stack direction="row" spacing={2}>
-                            <DatePicker
-                                label="From"
-                                value={startDate}
-                                onChange={(newValue) => newValue && setStartDate(newValue)}
-                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
-                            />
-                            <DatePicker
-                                label="To"
-                                value={endDate}
-                                onChange={(newValue) => newValue && setEndDate(newValue)}
-                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
-                            />
-                        </Stack>
-                    </LocalizationProvider>
-                    {loadingAggregation && <CircularProgress size={24} />}
-                </Stack>
-            </Paper>
 
             {selectedEmployee ? (
                 <>

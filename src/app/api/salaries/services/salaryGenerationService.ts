@@ -194,7 +194,7 @@ export class SalaryGenerationService {
                 return sum + (dailyRate * r.workingHours / 8);
             }, 0);
 
-        console.log(`[SalaryGenerationService] Generated dailyRecords for ${employeeId}: ${dailyRecords.length} records.`);
+
         return {
             employee: employeeId,
             period,

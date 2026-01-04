@@ -9,7 +9,6 @@ export async function POST(req: NextRequest) {
   return ApiMiddleware.authenticated(req, async (req, context) => {
     try {
       const body = await req.json();
-      console.log("Salary Generation Request Body:", JSON.stringify(body, null, 2));
       const result = await SalaryService.generateSalaries(body, context);
       return ApiResponseUtils.sendSuccess(result, "Salaries generated successfully");
     } catch (error) {

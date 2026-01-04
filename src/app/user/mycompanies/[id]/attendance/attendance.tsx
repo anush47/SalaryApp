@@ -28,7 +28,8 @@ import {
     Divider,
     DialogActions,
     Tabs,
-    Tab
+    Tab,
+    Autocomplete
 } from "@mui/material";
 import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import {
@@ -42,11 +43,13 @@ import {
     ThumbDown,
     HourglassEmpty,
     Visibility,
-    PhoneIphone
+    PhoneIphone,
+    Person
 } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAttendanceLogs, updateAttendanceStatus, deleteAttendance } from "@/app/lib/api/attendanceApi";
 import { fetchCompany } from "@/app/lib/api/companyApi";
+import { fetchEmployees } from '@/app/lib/api/employeeApi';
 import dynamic from 'next/dynamic';
 import { Delete } from "@mui/icons-material";
 
@@ -71,8 +74,9 @@ interface CompanyAttendanceProps {
 }
 
 const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }) => {
-    const [startDate, setStartDate] = useState(dayjs().subtract(7, 'day'));
-    const [endDate, setEndDate] = useState(dayjs().add(1, 'day'));
+    const [startDate, setStartDate] = useState(dayjs().startOf('month'));
+    const [endDate, setEndDate] = useState(dayjs().endOf('month'));
+    const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
     const [openPresentDialog, setOpenPresentDialog] = useState(false);
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
@@ -81,6 +85,31 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
+    };
+
+    const setQuickRange = (range: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth') => {
+        switch (range) {
+            case 'today':
+                setStartDate(dayjs().startOf('day'));
+                setEndDate(dayjs().endOf('day'));
+                break;
+            case 'yesterday':
+                setStartDate(dayjs().subtract(1, 'day').startOf('day'));
+                setEndDate(dayjs().subtract(1, 'day').endOf('day'));
+                break;
+            case 'last7':
+                setStartDate(dayjs().subtract(7, 'day').startOf('day'));
+                setEndDate(dayjs());
+                break;
+            case 'thisMonth':
+                setStartDate(dayjs().startOf('month'));
+                setEndDate(dayjs().endOf('month'));
+                break;
+            case 'lastMonth':
+                setStartDate(dayjs().subtract(1, 'month').startOf('month'));
+                setEndDate(dayjs().subtract(1, 'month').endOf('month'));
+                break;
+        }
     };
 
 
@@ -105,9 +134,16 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
 
+    const { data: employeesData, isLoading: loadingEmployees } = useQuery({
+        queryKey: ['employees', companyId],
+        queryFn: () => fetchEmployees({ companyId, limit: 1000 })
+    });
+
+    const employees = employeesData?.employees || [];
+
     const { data: logsResponse, isLoading, refetch } = useQuery({
-        queryKey: ["companyAttendanceLogs", companyId, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")],
-        queryFn: () => getAttendanceLogs(companyId, undefined, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")),
+        queryKey: ["companyAttendanceLogs", companyId, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD"), selectedEmployee?._id],
+        queryFn: () => getAttendanceLogs(companyId, selectedEmployee?._id, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")),
     });
 
     const logs = logsResponse?.success ? logsResponse.data : [];
@@ -394,8 +430,55 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                     <Tab label="Statistics" />
                                 </Tabs>
                             </Box>
-                            {(tabValue === 0 || tabValue === 2) && (
-                                <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ width: { xs: '100%', lg: 'auto' } }}>
+                            <Box sx={{ width: { xs: '100%', lg: 'auto' } }}>
+                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+                                    <Autocomplete
+                                        options={[{ name: 'All Employees', _id: 'all', memberNo: 'ALL' }, ...employees]}
+                                        getOptionLabel={(option) => `${option.name}${option.memberNo ? ` (${option.memberNo})` : ''}`}
+                                        value={selectedEmployee || { name: 'All Employees', _id: 'all', memberNo: 'ALL' }}
+                                        onChange={(_, newValue) => {
+                                            if (newValue?._id === 'all') setSelectedEmployee(null);
+                                            else setSelectedEmployee(newValue);
+                                        }}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label="Filter by Employee"
+                                                size="small"
+                                                InputProps={{
+                                                    ...params.InputProps,
+                                                    startAdornment: (
+                                                        <Person sx={{ color: 'action.active', mr: 1, fontSize: 20 }} />
+                                                    ),
+                                                }}
+                                            />
+                                        )}
+                                        sx={{ minWidth: 250, flexGrow: 1 }}
+                                        loading={loadingEmployees}
+                                        isOptionEqualToValue={(option, value) => option._id === value._id}
+                                        clearOnEscape
+                                    />
+                                </Stack>
+                                <Stack direction="row" spacing={1} sx={{ mb: 1, overflowX: 'auto', pb: 0.5 }}>
+                                    {[
+                                        { label: 'Today', value: 'today' },
+                                        { label: 'Yesterday', value: 'yesterday' },
+                                        { label: 'Last 7 Days', value: 'last7' },
+                                        { label: 'This Month', value: 'thisMonth' },
+                                        { label: 'Last Month', value: 'lastMonth' }
+                                    ].map((r) => (
+                                        <Chip
+                                            key={r.value}
+                                            label={r.label}
+                                            size="small"
+                                            onClick={() => setQuickRange(r.value as any)}
+                                            variant="outlined"
+                                            clickable
+                                            sx={{ borderRadius: 1 }}
+                                        />
+                                    ))}
+                                </Stack>
+                                <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap">
                                     <LocalizationProvider dateAdapter={AdapterDayjs}>
                                         <MUIDatePicker
                                             label="From"
@@ -429,7 +512,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                         Export
                                     </Button>
                                 </Stack>
-                            )}
+                            </Box>
                         </Box>
                     }
                 />
@@ -534,9 +617,18 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                 />
                             </Box>
                         ) : tabValue === 1 ? (
-                            <UnifiedAttendancePanel companyId={companyId} />
+                            <UnifiedAttendancePanel
+                                companyId={companyId}
+                                startDate={startDate}
+                                endDate={endDate}
+                                selectedEmployee={selectedEmployee}
+                                setSelectedEmployee={setSelectedEmployee}
+                            />
                         ) : (
-                            <AttendanceStatisticsPanel logs={logs} />
+                            <AttendanceStatisticsPanel
+                                logs={logs}
+                                selectedEmployee={selectedEmployee}
+                            />
                         )}
                     </Box>
                 </CardContent>

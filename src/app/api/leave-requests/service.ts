@@ -748,7 +748,7 @@ export class LeaveRequestService {
                         try {
                             const { StorageService } = await import("@/app/lib/services/storageService");
                             await Promise.all(filesToDelete.map((key: string) => StorageService.deleteFile(key)));
-                            console.log(`Deleted ${filesToDelete.length} files from R2`);
+
                         } catch (error) {
                             console.error("Failed to delete files from R2:", error);
                         }
