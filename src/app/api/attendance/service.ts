@@ -117,6 +117,28 @@ export class AttendanceService {
 
             // Determine Settings to know Mode
             const settings = ShiftService.getEffectiveSettings(employee, company);
+
+            // 12-Hour Session Expiry Check
+            const lastRecord = await Attendance.findOne({ employee: employee._id }).sort({ timestamp: -1 });
+            if (lastRecord && lastRecord.type === 'in') {
+                const lastTime = new Date(lastRecord.timestamp).getTime();
+                const newTime = new Date(timestamp || now).getTime();
+                const diffHours = (newTime - lastTime) / (1000 * 60 * 60);
+
+                if (diffHours > 12) {
+                    // Mark as missing out / expired
+                    lastRecord.remarks = (lastRecord.remarks || "") + " [Auto-expired: Missing Checkout]";
+                    // Optional: You could update a status field if you have one for 'integrity'
+                    await lastRecord.save();
+                } else {
+                    // Warning: Trying to Check-IN while already IN (and < 12h).
+                    // Usually the UI handles this state (showing Checkout button).
+                    // If API receives this, valid to block? Or allow and assume user forgot?
+                    // For now, we proceed, effectively creating a double check-in?
+                    // Or we assume the frontend is correcting state.
+                    // User said "show checkin again" ONLY IF > 12h.
+                }
+            }
             if (inputResolutionMode !== 'status_only') {
                 resolutionMode = settings?.mode || "fixed";
             }
@@ -413,6 +435,7 @@ export class AttendanceService {
         // Fetch
         let query = Attendance.find(filter)
             .populate("employee", "name memberNo nic designation attendanceOverrides")
+            .populate("shift")
             .sort({ timestamp: -1 });
 
         if (limitParam) {

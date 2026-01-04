@@ -46,32 +46,40 @@ export class AttendanceAggregator {
         console.log(`[AttendanceAggregator] Employee: ${employeeId}, Period: ${startDate.toISOString()} - ${endDate.toISOString()}`);
         console.log(`[AttendanceAggregator] Found ${attendanceRecords.length} raw attendance records.`);
 
-        // Group by date
+        // Group by Date + Shift
         const dailyGroups = new Map<string, AttendanceRecord[]>();
 
         attendanceRecords.forEach((record: any) => {
-            const dateKey = new Date(record.timestamp).toISOString().split("T")[0];
-            if (!dailyGroups.has(dateKey)) {
-                dailyGroups.set(dateKey, []);
+            const dateStr = new Date(record.timestamp).toISOString().split("T")[0];
+            // Use shiftId if available, otherwise 'default'
+            // Ensure we handle cases where shift might be missing (legacy/error)
+            const shiftId = record.shift?.shiftId || record.shift?._id || "default";
+            const key = `${dateStr}|${shiftId}`;
+
+            if (!dailyGroups.has(key)) {
+                dailyGroups.set(key, []);
             }
-            dailyGroups.get(dateKey)!.push({
+            dailyGroups.get(key)!.push({
                 _id: record._id.toString(),
                 employee: record.employee.toString(),
                 type: record.type,
                 timestamp: new Date(record.timestamp),
                 shift: record.shift,
-                date: dateKey,
+                date: dateStr,
             });
         });
 
         // Convert to array and detect breaks
         const result: DailyAttendanceGroup[] = [];
-        for (const [date, records] of dailyGroups.entries()) {
+        for (const [key, records] of dailyGroups.entries()) {
+            const [dateStr] = key.split("|");
+
             const detectedBreakHours = this.detectBreaks(records);
+            // Use the shift from the first record (all in group share shiftId)
             const shift = records.find((r) => r.shift)?.shift;
 
             result.push({
-                date,
+                date: dateStr,
                 attendanceRecords: records.map((r) => r._id),
                 records,
                 shift,
@@ -79,7 +87,15 @@ export class AttendanceAggregator {
             });
         }
 
-        return result.sort((a, b) => a.date.localeCompare(b.date));
+        // Sort by Date, then Shift Start Time (if available)
+        return result.sort((a, b) => {
+            const dateComp = a.date.localeCompare(b.date);
+            if (dateComp !== 0) return dateComp;
+            // Secondary sort: startTime
+            const startA = a.shift?.startTime || "00:00";
+            const startB = b.shift?.startTime || "00:00";
+            return startA.localeCompare(startB);
+        });
     }
 
     /**
@@ -123,7 +139,7 @@ export class AttendanceAggregator {
         employeeId: string,
         startDate: Date,
         endDate: Date
-    ): Promise<string[]> {
+    ): Promise<any[]> {
         const leaveRequests = await LeaveRequest.find({
             employee: employeeId,
             status: "approved",
@@ -142,9 +158,11 @@ export class AttendanceAggregator {
                     endDate: { $gte: endDate },
                 },
             ],
-        }).lean();
+        })
+            .populate("leaveType")
+            .lean();
 
-        return leaveRequests.map((lr: any) => lr._id.toString());
+        return leaveRequests;
     }
 
     /**
@@ -152,7 +170,7 @@ export class AttendanceAggregator {
      */
     static detectMultipleShifts(records: AttendanceRecord[]): boolean {
         const shifts = new Set(
-            records.map((r) => r.shift?._id?.toString()).filter(Boolean)
+            records.map((r) => (r.shift?.shiftId || r.shift?._id)?.toString()).filter(Boolean)
         );
         return shifts.size > 1;
     }

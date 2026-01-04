@@ -33,7 +33,7 @@ export interface DailyAttendanceRecord {
     otMinutes: number;
 
     // Leave Data
-    leaveStatus?: 'Full' | 'Half-Morning' | 'Half-Afternoon' | 'Short';
+    leaveStatus?: 'Full' | 'Half-First' | 'Half-Final' | 'Short';
     leaveType?: string;
     leaveReason?: string;
     leaveColor?: string;
@@ -156,225 +156,246 @@ export const useAttendanceAggregation = (
             const dateStr = currentDate.format("YYYY-MM-DD");
             const dayOfWeek = currentDate.format("ddd").toLowerCase();
 
-            // A. Resolve Schedule
-            let shiftExpected = {
-                shiftId: null as string | null,
-                name: "Standard",
-                start: company.openHours?.start || "08:00",
-                end: company.openHours?.end || "17:00",
-                off: false
-            };
+            // 1. Identify "Active Shifts" for this day
+            // Sources:
+            // a. Shift Assignments
+            // b. Shift IDs found in logs
+            // c. Default Shift (if no assignments)
 
-            // 1. Shift Assignment (Highest Priority)
-            const assignment = shiftAssignments.find((s: any) => s.date === dateStr);
-            if (assignment) {
-                if (assignment.isOffDay) {
-                    shiftExpected.off = true;
-                    shiftExpected.name = "Off Day (Assigned)";
-                } else if (assignment.shiftId) {
-                    const shiftDef = allShifts.find((s: any) => s._id === assignment.shiftId || s.id === assignment.shiftId);
+            const activeShiftIds = new Set<string>();
+            const dailyAssignments = shiftAssignments.filter((s: any) => s.date === dateStr);
+
+            // Collect from Assignments
+            if (dailyAssignments.length > 0) {
+                dailyAssignments.forEach((a: any) => {
+                    if (a.shiftId) activeShiftIds.add(a.shiftId);
+                });
+            }
+
+            // Collect from Logs (if log has shift populated)
+            const dayLogsGeneric = employeeLogs.filter((l: any) => dayjs(l.timestamp).isSame(currentDate, 'day'));
+
+            dayLogsGeneric.forEach((l: any) => {
+                const sId = l.shift?.shiftId || l.shift?._id || l.shift; // Support embedded shiftId, _id or raw ID string
+                if (sId && typeof sId === 'string') {
+                    activeShiftIds.add(sId);
+                }
+            });
+
+            // Fallback to Default if Empty
+            if (activeShiftIds.size === 0 && dailyAssignments.length === 0) {
+                // Check if Off Day by default
+                const workDayConfig = employee.workingDays?.[dayOfWeek] || company.workingDays?.[dayOfWeek] || "full";
+                if (workDayConfig !== "off") {
+                    const defaultShiftId = employee.shiftSettings?.defaultShiftId || company.shiftSettings?.defaultShiftId;
+                    if (defaultShiftId) activeShiftIds.add(defaultShiftId);
+                }
+            }
+
+            // If still empty (Off day with no logs), we might want one "Off" record?
+            // Or if assignments explicitly say "Off".
+            const isExplicitOff = dailyAssignments.some((a: any) => a.isOffDay);
+            const workDayConfig = employee.workingDays?.[dayOfWeek] || company.workingDays?.[dayOfWeek] || "full";
+            const isDefaultOff = workDayConfig === "off";
+
+            let shiftsToProcess = Array.from(activeShiftIds);
+
+            // Verify if we have shifts to process. If 0, and it's an Off Day, process a dummy "Off" shift?
+            if (shiftsToProcess.length === 0) {
+                // Create one record for "Off" or "Standard" (missing shift)
+                shiftsToProcess.push("default");
+            }
+
+            // Sort shifts chronologically by expected start time
+            shiftsToProcess.sort((a, b) => {
+                const getStartTime = (id: string) => {
+                    if (id === "default") return company.openHours?.start || "08:00";
+                    const def = allShifts.find((s: any) => s._id === id || s.shiftId === id || s.id === id);
+                    return def?.startTime || "08:00";
+                };
+                return getStartTime(a).localeCompare(getStartTime(b));
+            });
+
+            for (const shiftId of shiftsToProcess) {
+                // A. Resolve Shift Definition
+                let shiftExpected = {
+                    shiftId: shiftId === "default" ? null : shiftId,
+                    name: "Standard",
+                    start: company.openHours?.start || "08:00",
+                    end: company.openHours?.end || "17:00",
+                    off: false
+                };
+
+                if (shiftId && shiftId !== "default") {
+                    const shiftDef = allShifts.find((s: any) => s._id === shiftId || s.id === shiftId || s.shiftId === shiftId);
                     if (shiftDef) {
-                        shiftExpected.shiftId = shiftDef._id;
                         shiftExpected.name = shiftDef.name;
                         shiftExpected.start = shiftDef.startTime;
                         shiftExpected.end = shiftDef.endTime;
                     }
                 }
-            } else {
-                // 2. Employee Default
-                const workDayConfig = employee.workingDays?.[dayOfWeek] || company.workingDays?.[dayOfWeek] || "full";
-                if (workDayConfig === "off") {
+
+                // Overnight Detection
+                let isOvernight = false;
+                const [sh, sm] = shiftExpected.start.split(':').map(Number);
+                const [eh, em] = shiftExpected.end.split(':').map(Number);
+                if (eh < sh || (eh === sh && em < sm)) {
+                    isOvernight = true;
+                }
+
+                // Check Off Status specific to this scope
+                if (isExplicitOff || (shiftsToProcess.length === 1 && shiftsToProcess[0] === "default" && isDefaultOff)) {
                     shiftExpected.off = true;
-                    shiftExpected.name = "Off Day";
+                    shiftExpected.name = isExplicitOff ? "Off Day (Assigned)" : "Off Day";
+                }
+
+                // B. Resolve Holiday
+                const safeHolidays = holidays || [];
+                const holiday = safeHolidays.find((h: any) => h.date === dateStr);
+                const isHoliday = !!holiday;
+                if (isHoliday) {
+                    shiftExpected.off = true; // Holiday works like Off
+                }
+
+                // C. Match Attendance
+                const shiftInLogs = dayLogsGeneric.filter((l: any) => {
+                    const logShiftId = l.shift?.shiftId || l.shift?._id || l.shift;
+                    const isUnassigned = !l.shift;
+                    const matchesShift = typeof logShiftId === 'string' && logShiftId === shiftId;
+                    const matchesDefault = isUnassigned && (shiftsToProcess.length === 1 || shiftId === shiftsToProcess[0]);
+
+                    const isMatch = l.type === 'in' && (matchesShift || matchesDefault);
+
+                    return isMatch;
+                });
+
+                // Form Sessions
+                const sessions: {
+                    inLogId: string;
+                    outLogId?: string;
+                    checkInTime: string;
+                    checkOutTime?: string;
+                    inDeviceChange?: boolean;
+                    outDeviceChange?: boolean;
+                    durationMinutes: number;
+                }[] = [];
+
+                shiftInLogs.forEach((inLog: any) => {
+                    // Find next OUT log
+                    // Constraint: Must be after IN, and presumably same shift?
+                    // If OUT log has shiftId, it must match.
+                    const nextOut = employeeLogs.find((l: any) => {
+                        const logShiftId = l.shift?.shiftId || l.shift?._id || l.shift;
+                        return l.type === 'out' &&
+                            dayjs(l.timestamp).isAfter(dayjs(inLog.timestamp)) &&
+                            (
+                                (!l.shift && (shiftsToProcess.length === 1 || shiftId === shiftsToProcess[0])) ||
+                                (logShiftId === shiftId)
+                            ) &&
+                            dayjs(l.timestamp).diff(dayjs(inLog.timestamp), 'hour') < 20 // Sanity
+                    });
+
+                    let duration = 0;
+                    if (nextOut) {
+                        duration = dayjs(nextOut.timestamp).diff(dayjs(inLog.timestamp), 'minute');
+                    }
+
+                    sessions.push({
+                        inLogId: inLog._id,
+                        outLogId: nextOut?._id,
+                        checkInTime: inLog.timestamp,
+                        checkOutTime: nextOut?.timestamp,
+                        inDeviceChange: deviceChangeMap[inLog._id],
+                        outDeviceChange: nextOut ? deviceChangeMap[nextOut._id] : false,
+                        durationMinutes: duration
+                    });
+                });
+
+                // D. Resolve Leaves
+                // Linking leaves to shifts is complex if granular. 
+                // For now, check if ANY leave covers this day.
+
+                const relevantLeave = leaves.find((l: any) => {
+                    const start = dayjs(l.startDate).startOf('day');
+                    const end = dayjs(l.endDate).endOf('day');
+                    // Overlap check
+                    return currentDate.isBetween(start, end, 'day', '[]');
+                });
+
+                // Status Calculation
+                let status: DailyAttendanceRecord['status'] = 'Absent';
+                let requiresAttention = false;
+
+                if (sessions.length > 0) {
+                    status = 'Present';
+                    // Check for missing outs
+                    const hasMissingOut = sessions.some(s => !s.checkOutTime && dayjs().diff(dayjs(s.checkInTime), 'hour') > 12);
+                    if (hasMissingOut) requiresAttention = true;
                 } else {
-                    const defaultShiftId = employee.shiftSettings?.defaultShiftId || company.shiftSettings?.defaultShiftId;
-                    if (defaultShiftId) {
-                        const shiftDef = allShifts.find((s: any) => s._id === defaultShiftId);
-                        if (shiftDef) {
-                            shiftExpected.shiftId = shiftDef._id;
-                            shiftExpected.name = shiftDef.name;
-                            shiftExpected.start = shiftDef.startTime;
-                            shiftExpected.end = shiftDef.endTime;
-                        }
+                    if (shiftExpected.off) status = 'Off';
+                    if (isHoliday) status = 'Holiday';
+                    if (relevantLeave) status = 'Leave';
+                    if (dayjs().isBefore(dayjs(dateStr + "T" + shiftExpected.end))) status = 'Future';
+                    if (dayjs().isSame(dayjs(dateStr), 'day') && status === 'Absent') status = 'Future'; // Today pending
+
+                    // Past absence requires attention
+                    if (status === 'Absent') {
+                        const shiftEnd = dayjs(`${dateStr} ${shiftExpected.end}`);
+                        const finalEnd = isOvernight ? shiftEnd.add(1, 'day') : shiftEnd;
+                        if (dayjs().isAfter(finalEnd)) requiresAttention = true;
                     }
                 }
-            }
 
-            // B. Resolve Holiday
-            const safeHolidays = holidays || [];
-            const holiday = safeHolidays.find((h: any) => h.date === dateStr);
-            const isHoliday = !!holiday;
-            if (isHoliday) {
-                shiftExpected.off = true;
-            }
+                // If multiple shifts, maybe only mark "Absent" if ALL missed? 
+                // No, missed shift is absent.
 
-            // C. Match Attendance (Multiple Sessions)
-            let isOvernight = false;
-            const [sh, sm] = shiftExpected.start.split(':').map(Number);
-            const [eh, em] = shiftExpected.end.split(':').map(Number);
-            if (eh < sh || (eh === sh && em < sm)) {
-                isOvernight = true;
-            }
+                // Metrics
+                const totalDuration = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
 
-            // Find all logs for this 'shift day'
-            // For standard days: all logs on this date.
-            // For overnight: all logs on this date (start) until... next day end?
-            // Simplifying assumption: Shift is mainly identified by Start Day.
-            // Only consider IN punches started on this day.
-            // And any OUT punches that follow them.
+                // OT (Simple)
+                // Need standard hours.
+                const startH = Number(shiftExpected.start.split(":")[0]);
+                const endH = Number(shiftExpected.end.split(":")[0]);
+                // Approx standard duration
+                let standardMins = (endH - startH) * 60;
+                if (standardMins < 0) standardMins += 24 * 60; // Overnight
+                standardMins -= 60; // Break?
+                if (standardMins < 0) standardMins = 0;
 
-            // 1. Get all IN logs for this day
-            const dayInLogs = employeeLogs.filter((l: any) =>
-                l.type === 'in' && dayjs(l.timestamp).isSame(currentDate, 'day')
-            );
+                const otMinutes = Math.max(0, totalDuration - standardMins);
 
-            // 2. Form Sessions
-            const sessions: {
-                inLogId: string;
-                outLogId?: string;
-                checkInTime: string;
-                checkOutTime?: string;
-                inDeviceChange?: boolean;
-                outDeviceChange?: boolean;
-                durationMinutes: number;
-            }[] = [];
+                const firstSession = sessions[0];
+                const lastCheckOutTime = sessions.map(s => s.checkOutTime).filter(t => t).sort().pop();
+                const lastOutSession = sessions.find(s => s.checkOutTime === lastCheckOutTime);
 
-            dayInLogs.forEach((inLog: any) => {
-                // Find next OUT log
-                const nextOut = employeeLogs.find((l: any) =>
-                    l.type === 'out' &&
-                    dayjs(l.timestamp).isAfter(dayjs(inLog.timestamp)) &&
-                    // Ensure it's not grabbed by another IN log?
-                    // We need strict sorting. Since logs are sorted ASC, find will get the *first* OUT after this IN.
-                    // But we must ensure this OUT isn't belonging to a previous unclosed IN?
-                    // Simple approach: Pair nearest OUT.
-                    // Optimization: Remove used logs?
-                    // Given `find` scans efficiently, let's assume valid pairs don't overlap strangely.
-                    dayjs(l.timestamp).diff(dayjs(inLog.timestamp), 'hour') < 20 // Sanity limit
-                );
-
-                // Calculate duration
-                let duration = 0;
-                if (nextOut) {
-                    duration = dayjs(nextOut.timestamp).diff(dayjs(inLog.timestamp), 'minute');
-                }
-
-                sessions.push({
-                    inLogId: inLog._id,
-                    outLogId: nextOut?._id,
-                    checkInTime: inLog.timestamp,
-                    checkOutTime: nextOut?.timestamp,
-                    inDeviceChange: deviceChangeMap[inLog._id],
-                    outDeviceChange: nextOut ? deviceChangeMap[nextOut._id] : false,
-                    durationMinutes: duration
+                records.push({
+                    date: dateStr,
+                    dayOfWeek: currentDate.format('dddd'),
+                    shiftId: shiftExpected.shiftId || undefined,
+                    shiftName: shiftExpected.name,
+                    expectedStartTime: shiftExpected.start,
+                    expectedEndTime: shiftExpected.end,
+                    isOffDay: shiftExpected.off,
+                    isHoliday,
+                    holidayName: holiday?.summary,
+                    status,
+                    inLogId: firstSession?.inLogId,
+                    outLogId: lastOutSession?.outLogId,
+                    inDeviceChange: firstSession?.inDeviceChange,
+                    outDeviceChange: lastOutSession?.outDeviceChange,
+                    checkInTime: firstSession?.checkInTime,
+                    checkOutTime: lastCheckOutTime,
+                    durationMinutes: totalDuration,
+                    otMinutes,
+                    leaveStatus: relevantLeave ? (relevantLeave.halfDay ? (relevantLeave.halfDayPeriod === 'first_half' ? 'Half-First' : 'Half-Final') : (relevantLeave.totalMinutes ? 'Short' : 'Full')) : undefined,
+                    leaveType: (relevantLeave?.leaveType as any)?.name,
+                    leaveReason: relevantLeave?.reason,
+                    leaveId: relevantLeave?._id,
+                    isOvernightShift: false, // simplified
+                    requiresAttention,
+                    sessions
                 });
-            });
-
-            // 3. Prevent Duplicate Usage of OUT logs?
-            // If user did In -> In -> Out, both Ins might claim the same Out.
-            // Better Logic: Iterate through sorted logs and statefully pair them.
-            // Re-doing logic:
-            const dayLogs = employeeLogs.filter((l: any) => {
-                const t = dayjs(l.timestamp);
-                // Broad Catch: Start Day 00:00 to Next Day 12:00 (for overnight)
-                // Filter strictly by start day for IN, and subsequent for OUT.
-                return t.isSame(currentDate, 'day') || (isOvernight && t.isSame(currentDate.add(1, 'day'), 'day') && t.hour() < 12);
-            });
-
-            // Allow override of filtering above - we use the full `employeeLogs` sorted list but search efficiently.
-
-            // Correct Pairing Logic:
-            // Filter all INs for this day.
-            // For each IN, search for the *immediate next* OUT in the global sorted list `employeeLogs`.
-            // Ensure that OUT hasn't been used? Or just strictly pairs (In -> Out).
-            // Complication: In (8am) -> In (9am) -> Out (10am). Is 10am for 8am or 9am? Usually LIFO or FIFO?
-            // Usually FIFO implies 8am is open, 9am is anomalous/interlaced.
-            // Let's stick to: Each IN looks for the next OUT. If that OUT is closer to another IN, potential issue.
-            // Robust pairing: Stack based.
-            // But for this requirement, let's keep it simple: Find nearest OUT.
-            // If multiple INs claim same OUT, we have overlapping sessions.
-            // Let's stick to the `sessions` array generated above but filter duplicates/overlaps if needed.
-            // Actually, if we just show ALL pairs found, it matches "show all pairs".
-
-            // D. Resolve Leaves
-            const relevantLeave = leaves.find((l: any) => {
-                const lStart = dayjs(l.startDate).startOf('day');
-                const lEnd = dayjs(l.endDate).endOf('day');
-                return currentDate.isBetween(lStart, lEnd, 'day', '[]') && l.status === 'approved';
-            });
-
-            // E. Determine Final Status
-            let status: DailyAttendanceRecord['status'] = 'Absent';
-            let finalDuration = sessions.reduce((sum, s) => sum + s.durationMinutes, 0);
-            let finalOT = 0;
-
-            const firstSession = sessions[0]; // Earliest Int
-            const lastSession = sessions[sessions.length - 1]; // Latest Out usage?
-            // Actually we want the latest CHECK OUT time from any session.
-            const lastCheckOutTime = sessions.map(s => s.checkOutTime).filter(t => t).sort().pop();
-            const lastOutSession = sessions.find(s => s.checkOutTime === lastCheckOutTime);
-
-            if (dayjs().isBefore(currentDate, 'day')) {
-                status = 'Future';
-            } else if (sessions.length > 0) {
-                status = 'Present';
-                // OT
-                const expStart = dayjs(`${dateStr} ${shiftExpected.start}`);
-                const expEnd = isOvernight
-                    ? dayjs(`${dateStr} ${shiftExpected.end}`).add(1, 'day')
-                    : dayjs(`${dateStr} ${shiftExpected.end}`);
-                const expDuration = expEnd.diff(expStart, 'minute');
-
-                if (finalDuration > expDuration) {
-                    finalOT = finalDuration - expDuration;
-                }
-            } else if (relevantLeave) {
-                status = 'Leave';
-            } else if (isHoliday) {
-                status = 'Holiday';
-            } else if (shiftExpected.off) {
-                status = 'Off';
             }
-
-            // F. Use actual shift from IN record if available (overrides expected)
-            let actualShiftName = shiftExpected.name;
-            let actualShiftId = shiftExpected.shiftId;
-            if (firstSession) {
-                const firstInLog = employeeLogs.find((l: any) => l._id === firstSession.inLogId);
-                if (firstInLog?.shift) {
-                    actualShiftName = firstInLog.shift.name || firstInLog.shift.shiftName || shiftExpected.name;
-                    actualShiftId = firstInLog.shift.shiftId || firstInLog.shift._id || shiftExpected.shiftId;
-                }
-            }
-
-            records.push({
-                date: dateStr,
-                dayOfWeek: currentDate.format('dddd'),
-                shiftId: actualShiftId || undefined,
-                shiftName: actualShiftName,
-                expectedStartTime: shiftExpected.off ? undefined : shiftExpected.start,
-                expectedEndTime: shiftExpected.off ? undefined : shiftExpected.end,
-                isOffDay: shiftExpected.off,
-                isHoliday,
-                holidayName: holiday?.summary,
-                status,
-                inLogId: firstSession?.inLogId,
-                outLogId: lastOutSession?.outLogId,
-                inDeviceChange: firstSession?.inDeviceChange,
-                outDeviceChange: lastOutSession?.outDeviceChange,
-                checkInTime: firstSession?.checkInTime, // Earliest IN
-                checkOutTime: lastCheckOutTime, // Latest OUT
-                durationMinutes: finalDuration,
-                otMinutes: finalOT,
-                leaveStatus: relevantLeave ? (relevantLeave.halfDay ? (relevantLeave.halfDayPeriod === 'morning' ? 'Half-Morning' : 'Half-Afternoon') : (relevantLeave.totalMinutes ? 'Short' : 'Full')) : undefined,
-                leaveType: (relevantLeave?.leaveType as any)?.name,
-                leaveReason: relevantLeave?.reason,
-                leaveId: relevantLeave?._id,
-                isOvernightShift: isOvernight,
-                requiresAttention: status === 'Absent' || (status === 'Present' && sessions.some(s => !s.checkOutTime && dayjs().diff(dayjs(s.checkInTime), 'hour') > 12)),
-                sessions: sessions // Pass sessions to UI
-            });
-
 
             currentDate = currentDate.add(1, 'day');
         }

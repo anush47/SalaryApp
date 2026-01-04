@@ -66,7 +66,7 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
     },
     halfDayPeriod: {
       type: String,
-      enum: ["morning", "afternoon"],
+      enum: ["first_half", "final_half"],
     },
     reason: {
       type: String,

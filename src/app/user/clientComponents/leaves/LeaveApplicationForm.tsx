@@ -57,7 +57,7 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
     const [startDate, setStartDate] = useState<Dayjs | null>(null);
     const [endDate, setEndDate] = useState<Dayjs | null>(null);
     const [halfDay, setHalfDay] = useState(false);
-    const [halfDayPeriod, setHalfDayPeriod] = useState<"morning" | "afternoon">("morning");
+    const [halfDayPeriod, setHalfDayPeriod] = useState<"first_half" | "final_half">("first_half");
     const [startTime, setStartTime] = useState<Dayjs | null>(null);
     const [endTime, setEndTime] = useState<Dayjs | null>(null);
     const [reason, setReason] = useState("");
@@ -129,7 +129,7 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
             setStartTime(null);
             setEndTime(null);
             setHalfDay(false);
-            setHalfDayPeriod("morning");
+            setHalfDayPeriod("first_half");
             setReason("");
             setAttachments([]);
             setSelectedFile(null);
@@ -362,8 +362,8 @@ export const LeaveApplicationForm: React.FC<LeaveApplicationFormProps> = ({
                             />
                             {halfDay && (
                                 <RadioGroup row value={halfDayPeriod} onChange={(e) => setHalfDayPeriod(e.target.value as any)}>
-                                    <FormControlLabel value="morning" control={<Radio size="small" />} label="Morning" />
-                                    <FormControlLabel value="afternoon" control={<Radio size="small" />} label="Afternoon" />
+                                    <FormControlLabel value="first_half" control={<Radio size="small" />} label="First Half" />
+                                    <FormControlLabel value="final_half" control={<Radio size="small" />} label="Final Half" />
                                 </RadioGroup>
                             )}
                         </Box>

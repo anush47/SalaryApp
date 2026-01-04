@@ -141,6 +141,37 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     const [outLog, setOutLog] = useState<any>(null);
     const [loadingLogs, setLoadingLogs] = useState(false);
 
+    // Header Metadata (Holidays/Leaves) - especially for All view where dailyRecord is partial
+    const [headerMetadata, setHeaderMetadata] = useState<{
+        isHoliday: boolean;
+        holidayName?: string;
+        isOffDay: boolean;
+        isLeave: boolean;
+        leaveType?: string;
+        leaveStatus?: string;
+    }>({
+        isHoliday: dailyRecord?.isHoliday || false,
+        holidayName: dailyRecord?.holidayName,
+        isOffDay: dailyRecord?.isOffDay || false,
+        isLeave: dailyRecord?.status === 'Leave' || !!dailyRecord?.leaveType,
+        leaveType: dailyRecord?.leaveType,
+        leaveStatus: dailyRecord?.leaveStatus
+    });
+
+    // Reset metadata when dailyRecord changes
+    useEffect(() => {
+        if (dailyRecord) {
+            setHeaderMetadata({
+                isHoliday: dailyRecord.isHoliday || false,
+                holidayName: dailyRecord.holidayName,
+                isOffDay: dailyRecord.isOffDay || false,
+                isLeave: dailyRecord.status === 'Leave' || !!dailyRecord.leaveType,
+                leaveType: dailyRecord.leaveType,
+                leaveStatus: dailyRecord.leaveStatus
+            });
+        }
+    }, [dailyRecord]);
+
     // Edit Forms State
     const [formData, setFormData] = useState({
         timestamp: null as dayjs.Dayjs | null,
@@ -171,6 +202,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
             setLoadingLogs(true);
             const fetchLogs = async () => {
                 try {
+                    // 1. Fetch Logs
                     const promises = [];
                     if (dailyRecord.inLogId) promises.push(fetch(`/api/attendance/${dailyRecord.inLogId}`).then(r => r.json()));
                     if (dailyRecord.outLogId) promises.push(fetch(`/api/attendance/${dailyRecord.outLogId}`).then(r => r.json()));
@@ -278,6 +310,42 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                             dayStatus: dailyRecord.isOffDay || dailyRecord.isHoliday ? 'off' : 'full'
                         });
                         setActiveTab(0);
+                    }
+
+                    // 2. Fetch Metadata (Holidays/Leaves) if missing (common in "All" view)
+                    if (dailyRecord && (!dailyRecord.isHoliday && !dailyRecord.leaveType)) {
+                        const dateStr = dayjs(dailyRecord.date).format('YYYY-MM-DD');
+                        const cId = companyConfig?._id || (employee?.company?._id || employee?.company);
+                        const eId = employee?._id || (dailyRecord as any).employeeId;
+
+                        if (cId && eId) {
+                            try {
+                                const [hRes, lRes] = await Promise.all([
+                                    fetch(`/api/holidays?companyId=${cId}&startDate=${dateStr}&endDate=${dateStr}`).then(r => r.json()),
+                                    fetch(`/api/leave-requests?companyId=${cId}&employeeId=${eId}&startDate=${dateStr}&endDate=${dateStr}&status=approved`).then(r => r.json())
+                                ]);
+
+                                if (hRes.success && hRes.data?.length > 0) {
+                                    setHeaderMetadata(prev => ({
+                                        ...prev,
+                                        isHoliday: true,
+                                        holidayName: hRes.data[0].name
+                                    }));
+                                }
+
+                                if (lRes.success && lRes.data?.length > 0) {
+                                    const leave = lRes.data[0];
+                                    setHeaderMetadata(prev => ({
+                                        ...prev,
+                                        isLeave: true,
+                                        leaveType: leave.leaveType?.name,
+                                        leaveStatus: leave.halfDay ? (leave.halfDayPeriod === 'first_half' ? 'Half-First' : 'Half-Final') : 'Full'
+                                    }));
+                                }
+                            } catch (metaErr) {
+                                console.error('Failed to fetch dialog metadata:', metaErr);
+                            }
+                        }
                     }
 
                 } catch (e) {
@@ -461,14 +529,29 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         <Typography variant="body2" color="text.secondary">
                             {dayjs(dailyRecord.date).format("dddd, MMMM D, YYYY")} | {employee?.name || (dailyRecord as any).shiftName || "Employee"}
                         </Typography>
-                        {(dailyRecord.isHoliday || dailyRecord.isOffDay) && (
-                            <Chip
-                                label={dailyRecord.isHoliday ? `Holiday: ${dailyRecord.holidayName || 'Public Holiday'}` : "Scheduled Off Day"}
-                                color={dailyRecord.isHoliday ? "secondary" : "default"}
-                                size="small"
-                                sx={{ mt: 0.5 }}
-                            />
-                        )}
+                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                            {headerMetadata.isHoliday && (
+                                <Chip
+                                    label={`Holiday: ${headerMetadata.holidayName || 'Public Holiday'}`}
+                                    color="secondary"
+                                    size="small"
+                                />
+                            )}
+                            {headerMetadata.isOffDay && !headerMetadata.isHoliday && (
+                                <Chip
+                                    label="Scheduled Off Day"
+                                    color="default"
+                                    size="small"
+                                />
+                            )}
+                            {headerMetadata.isLeave && (
+                                <Chip
+                                    label={`Leave: ${headerMetadata.leaveType}${headerMetadata.leaveStatus ? ` (${headerMetadata.leaveStatus})` : ''}`}
+                                    color="primary"
+                                    size="small"
+                                />
+                            )}
+                        </Stack>
                     </Box>
                     <IconButton onClick={onClose} size="small"><Cancel /></IconButton>
                 </Box>
@@ -536,7 +619,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         size="small"
                                     />
                                 )}
-                                {isNew && !dailyRecord.isOffDay && !dailyRecord.isHoliday && <Chip label="MISSING Record" color="error" size="small" />}
+                                {isNew && !headerMetadata.isOffDay && !headerMetadata.isHoliday && !headerMetadata.isLeave && <Chip label="MISSING Record" color="error" size="small" />}
                             </Box>
 
                             {/* Form */}

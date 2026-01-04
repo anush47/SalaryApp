@@ -255,7 +255,17 @@ export const InOutTable = ({
       editable,
       type: "number",
       renderCell(params) {
-        return (params.value ?? 0).toFixed(2);
+        const val = params.value ?? 0;
+        return (
+          <Typography
+            sx={{
+              color: val > 0 ? "error.main" : "text.primary",
+              fontWeight: val > 0 ? "bold" : "regular",
+            }}
+          >
+            {val.toFixed(2)}
+          </Typography>
+        );
       },
     },
     {

@@ -40,8 +40,6 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({ 
     });
 
     const shifts = companyData?.shiftSettings?.shifts || [];
-    console.log('UnifiedAttendancePanel - Company data:', companyData);
-    console.log('UnifiedAttendancePanel - Shifts:', shifts);
 
     // Employee Fetching for Autocomplete
     const { data: employeesData, isLoading: loadingEmployees } = useQuery({

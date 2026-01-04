@@ -17,6 +17,57 @@ import LeaveType from "@/app/models/LeaveType";
  * @param divideBy - Divisor for hourly rate calculation (240 or 200)
  * @returns Object with totalLeaveDeduction, leaveDeductions array, and reason string
  */
+/**
+ * Calculate single leave deduction for one day context
+ */
+export function calculateSingleLeaveDeduction(
+  leaveRequest: any,
+  leaveType: any,
+  basic: number,
+  divideBy: number = 240
+) {
+  if (leaveType.isPaid) {
+    return { amount: 0, days: 0, description: "" };
+  }
+
+  let deductionAmount = 0;
+  let daysForDeduction = 0;
+  let description = "";
+
+  // Short Leave Logic
+  if (leaveType.isShortLeave || leaveRequest.totalMinutes) {
+    const mins = leaveRequest.totalMinutes || 0;
+    const dailyRate = basic / divideBy;
+    const hourlyRate = dailyRate / 8;
+    deductionAmount = hourlyRate * (mins / 60);
+    // daysForDeduction = 0; // Not a day count
+
+    const start = new Date(leaveRequest.startDate);
+    const end = new Date(leaveRequest.endDate);
+    const timeStr = !isNaN(start.getTime()) && !isNaN(end.getTime())
+      ? `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      : `${mins} mins`;
+    description = `${leaveType.name} (${timeStr})`;
+  }
+  // Half Day Logic
+  else if (leaveRequest.halfDay) {
+    const dailyRate = basic / divideBy;
+    deductionAmount = dailyRate * 0.5;
+    daysForDeduction = 0.5;
+    const periodLabel = leaveRequest.halfDayPeriod === "first_half" ? "First Half" : "Final Half";
+    description = `${leaveType.name} (${periodLabel})`;
+  }
+  // Full Day Logic (Single Day context)
+  else {
+    const dailyRate = basic / divideBy;
+    deductionAmount = dailyRate * 1;
+    daysForDeduction = 1;
+    description = `${leaveType.name}`;
+  }
+
+  return { amount: deductionAmount, days: daysForDeduction, description };
+}
+
 export async function calculateLeaveDeductions(
   employeeId: string,
   period: string,
@@ -57,36 +108,69 @@ export async function calculateLeaveDeductions(
 
       // Only process no-pay leaves
       if (!leaveType.isPaid) {
-        // Calculate how many days of this leave fall within the salary period
-        const leaveStart = new Date(leaveRequest.startDate);
-        const leaveEnd = new Date(leaveRequest.endDate);
+        let deductionAmount = 0;
+        let daysForDeduction = 0;
+        let description = "";
 
-        // Get the overlap between leave period and salary period
-        const overlapStart = leaveStart > startDate ? leaveStart : startDate;
-        const overlapEnd = leaveEnd < endDate ? leaveEnd : endDate;
-
-        // Calculate days in this period
-        const daysInPeriod = calculateDaysBetween(overlapStart, overlapEnd);
-
-        if (daysInPeriod > 0) {
-          // Calculate deduction amount
-          // Daily rate = basic / divideBy
-          // Deduction = daily rate × days
+        // Short Leave Logic
+        if (leaveType.isShortLeave || leaveRequest.totalMinutes) {
+          const mins = leaveRequest.totalMinutes || 0;
+          // Assume Basic / DivideBy = Daily Rate
+          // Hourly Rate = Daily Rate / 8 (Assuming 8 hour workday standard for conversion)
+          // Deduction = Hourly Rate * Hours 
           const dailyRate = basic / divideBy;
-          const deductionAmount = dailyRate * daysInPeriod;
+          const hourlyRate = dailyRate / 8;
+          deductionAmount = hourlyRate * (mins / 60);
+          daysForDeduction = 0; // It's not a "day" deduction in terms of count, but amount.
 
+          // Format time range if valid dates
+          const start = new Date(leaveRequest.startDate);
+          const end = new Date(leaveRequest.endDate);
+          const timeStr = !isNaN(start.getTime()) && !isNaN(end.getTime())
+            ? `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            : `${mins} mins`;
+          description = `${leaveType.name} (${timeStr})`;
+
+        } else if (leaveRequest.halfDay) {
+          // Half Day Logic
+          const daysInPeriod = 1; // Half day is 1 instance
+          // Check overlap? Usually half day is single day.
+          // If it spans?? Half day usually single day.
+          // We assume start==end for half day.
+
+          const dailyRate = basic / divideBy;
+          deductionAmount = dailyRate * 0.5;
+          daysForDeduction = 0.5;
+          const periodLabel = leaveRequest.halfDayPeriod === "first_half" ? "First Half" : "Final Half";
+          description = `${leaveType.name} (${periodLabel})`;
+
+        } else {
+          // Full Day Logic (Original)
+          const leaveStart = new Date(leaveRequest.startDate);
+          const leaveEnd = new Date(leaveRequest.endDate);
+          const overlapStart = leaveStart > startDate ? leaveStart : startDate;
+          const overlapEnd = leaveEnd < endDate ? leaveEnd : endDate;
+          const daysInPeriod = calculateDaysBetween(overlapStart, overlapEnd);
+
+          if (daysInPeriod > 0) {
+            const dailyRate = basic / divideBy;
+            deductionAmount = dailyRate * daysInPeriod;
+            daysForDeduction = daysInPeriod;
+            description = `${daysInPeriod} day${daysInPeriod > 1 ? "s" : ""} ${leaveType.name}`;
+          }
+        }
+
+        if (deductionAmount > 0) {
           totalLeaveDeduction += deductionAmount;
 
           leaveDeductions.push({
             leaveRequestId: leaveRequest._id,
             leaveType: leaveType.name,
-            days: daysInPeriod,
+            days: daysForDeduction,
             amount: deductionAmount,
           });
 
-          leaveReasons.push(
-            `${daysInPeriod} day${daysInPeriod > 1 ? "s" : ""} ${leaveType.name}`
-          );
+          leaveReasons.push(description);
         }
       }
     }

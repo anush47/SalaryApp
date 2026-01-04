@@ -481,7 +481,7 @@ export const leaveRequestCreateSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   halfDay: z.boolean().optional().default(false),
-  halfDayPeriod: z.enum(["morning", "afternoon"]).optional(),
+  halfDayPeriod: z.enum(["first_half", "final_half"]).optional(),
   totalMinutes: z.number().optional(),
   reason: z.string().optional(),
   documents: z.array(z.string()).optional(),

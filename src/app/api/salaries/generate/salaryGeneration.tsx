@@ -505,17 +505,22 @@ export async function generateSalaryForOneEmployee(
       totalDeductions,
     } = calculateSalaryDetails({ ...source, basic: effectiveBasic }, salary, ot, holidayPay);
 
-    // Calculate leave deductions for no-pay leaves
-    const {
-      totalLeaveDeduction,
-      leaveDeductions,
-      leaveDeductionReason,
-    } = await calculateLeaveDeductions(
-      employee._id,
-      period,
-      effectiveBasic, // Use effectiveBasic
-      source.divideBy
-    );
+    // Calculate leave deductions for no-pay leaves (only for non-attendance method to avoid double counting)
+    let totalLeaveDeduction = 0;
+    let leaveDeductions: any[] = [];
+    let leaveDeductionReason = "";
+
+    if (employee.calculationMethod !== "attendance") {
+      const result = await calculateLeaveDeductions(
+        employee._id,
+        period,
+        effectiveBasic, // Use effectiveBasic
+        source.divideBy
+      );
+      totalLeaveDeduction = result.totalLeaveDeduction;
+      leaveDeductions = result.leaveDeductions;
+      leaveDeductionReason = result.leaveDeductionReason;
+    }
 
     // Combine attendance-based noPay with leave deductions
     const totalNoPay = noPay + totalLeaveDeduction;

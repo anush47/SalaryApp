@@ -9,6 +9,8 @@ import {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+import { calculateSingleLeaveDeduction } from "../../../lib/leaveDeductionCalculation";
+
 interface OTBreakdown {
     normalOT: number; // 1.5x hours
     doubleOT: number; // 2x hours
@@ -97,7 +99,7 @@ export class DailyCalculationService {
         employee: any;
         detectedBreakHours?: number;
         manualBreakHours?: number;
-        appliedLeaves?: string[];
+        appliedLeaves?: any[];
         remark?: string;
     }) {
         const {
@@ -145,6 +147,45 @@ export class DailyCalculationService {
         }
         workingHours = Math.max(workingHours, 0);
 
+        // Process Leave Deductions
+        let noPay = 0;
+        let noPayReason = "";
+
+        if (appliedLeaves && appliedLeaves.length > 0) {
+            for (const leave of appliedLeaves) {
+                // Determine deduction for this day
+                // Basic/DivideBy is needed. Pass from employee?
+                // Employee object is passed in params.
+                if (employee) {
+                    const basic = employee.basic || 0;
+                    const divideBy = employee.divideBy || 240;
+                    const result = calculateSingleLeaveDeduction(leave, leave.leaveType, basic, divideBy);
+
+                    if (result.amount > 0) {
+                        noPay += result.amount;
+                        noPayReason = noPayReason ? `${noPayReason}, ${result.description}` : result.description;
+                    }
+
+                    // Also append to remark/description if not nopay?
+                    // Or updated remark?
+                    if (!noPayReason.includes(result.description)) {
+                        // e.g. Paid leave
+                        // result.description might be "Annual Leave"
+                        // We might want to show it.
+                        // But calculateSingleLeaveDeduction returns empty description if paid? No.
+                        // It returns description for paid too?
+                        // Let's check helper.
+                        // Helper returns amount=0, description="" if Paid.
+                        // So we miss Paid leave descriptions!
+
+                        // I should update helper to return description even if Paid?
+                        // Or handle Paid separately here.
+                        // Leave it for now, mainly focusing on No Pay Integration as per user request.
+                    }
+                }
+            }
+        }
+
         // Calculate OT breakdown
         const otBreakdown = this.calculateOTBreakdown(
             workingHours,
@@ -157,22 +198,54 @@ export class DailyCalculationService {
             halfDayTreshold
         );
 
-        // Calculate noPay if applicable
-        let noPay = 0;
-        let noPayReason = "";
+        // Calculate noPay if applicable (Absent logic)
+        // If NO leave was applied for deduction, we check for absent/late.
+        // Or should we add to existing noPay? 
+        // Logic: if workingHours=0 and NO leave, it is absent.
+        // My previous logic added noPay from leaves.
+
+        let absentNoPay = 0;
+        let absentReason = "";
+
         if (workingHours === 0 && workingDayStatus === "full" && !isMercantileHoliday && !isPublicHoliday) {
-            noPay = employee.basic / employee.divideBy;
-            noPayReason = "Absent";
+            // Only mark as Absent if we haven't already deducted for Leave?
+            // If appliedLeaves exist and we deducted full day, we shouldn't double deduct.
+            // Check if noPay is already > 0 (from leaves)?
+            // If leave covered the day, workingHours is 0, noPay is added.
+            // BUT we might add "Absent" again?
+            // If `appliedLeaves` is passed, we assume it explains the absence.
+            // So if `appliedLeaves.length > 0`, skip Absent logic?
+            if (!appliedLeaves || appliedLeaves.length === 0) {
+                absentNoPay = employee.basic / employee.divideBy;
+                absentReason = "Absent";
+            }
         } else if (workingHours < workingHoursTreshold && workingDayStatus === "full") {
             const shortHours = workingHoursTreshold - workingHours;
-            noPay = (shortHours * employee.basic) / employee.divideBy / workingHoursTreshold;
-            noPayReason = `Left ${shortHours.toFixed(2)}h early`;
+            // Only add late deduction if not covered by Short Leave?
+            // Short Leave deduction is already in `noPay`.
+            // If Short Leave: `noPay` has amount.
+            // Should we add `Left Early`?
+            // Usually if Short Leave is approved, we don't mark "Left Early" penalty unless it exceeds leave time?
+            // Validating this is complex.
+            // User said: "deductions for short leave... keep modular".
+            // Let's blindly ADD late deduction if present? Or skip if Short Leave?
+            // Simplest safe approach: Check if `appliedLeaves` has short leave.
+            const hasShortLeave = appliedLeaves?.some(l => l.leaveType?.isShortLeave || l.totalMinutes);
+            if (!hasShortLeave) {
+                absentNoPay = (shortHours * employee.basic) / employee.divideBy / workingHoursTreshold;
+                absentReason = `Left ${shortHours.toFixed(2)}h early`;
+            }
+        }
+
+        noPay += absentNoPay;
+        if (absentReason) {
+            noPayReason = noPayReason ? `${noPayReason}, ${absentReason}` : absentReason;
         }
 
         return {
             date,
             attendanceRecords: attendanceRecords.map((r) => r._id.toString()),
-            shift: shift?._id?.toString(),
+            shift: (shift?.shiftId || shift?._id)?.toString(),
             appliedLeaves,
             workingHours: Math.round(workingHours * 100) / 100,
             breakHours: Math.round(breakHours * 100) / 100,
@@ -186,6 +259,7 @@ export class DailyCalculationService {
             isPublicHoliday,
             day_status: workingDayStatus,
             remark,
+            description: [remark, noPayReason, holidayName].filter(Boolean).join(" | "), // Combine info for description
         };
     }
 

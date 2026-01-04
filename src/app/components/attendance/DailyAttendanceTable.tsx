@@ -69,13 +69,13 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {records.map((record) => {
+                    {records.map((record, index) => {
                         const isWeekend = record.dayOfWeek === 'Saturday' || record.dayOfWeek === 'Sunday';
                         const isOff = record.isOffDay || record.isHoliday;
 
                         return (
                             <TableRow
-                                key={record.date}
+                                key={`${record.date}-${record.shiftId || index}`}
                                 sx={{
                                     bgcolor: record.status === 'Absent' ? 'error.lighter' :
                                         record.status === 'Leave' ? 'info.lighter' :

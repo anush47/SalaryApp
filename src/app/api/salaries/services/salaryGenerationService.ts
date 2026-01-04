@@ -52,52 +52,132 @@ export class SalaryGenerationService {
             endDate
         );
 
-        // Process each day
+        // Create a Map for easy lookup of attendance groups by date
+        const attendanceMap = new Map<string, any[]>();
+        for (const group of dailyGroups) {
+            if (!attendanceMap.has(group.date)) {
+                attendanceMap.set(group.date, []);
+            }
+            attendanceMap.get(group.date)!.push(group);
+        }
+
         const dailyRecords = [];
         let totalNormalOT = 0;
         let totalDoubleOT = 0;
         let totalTripleOT = 0;
         let totalNoPay = 0;
 
-        for (const dayGroup of dailyGroups) {
-            const date = new Date(dayGroup.date);
+        let currentDate = dayjs(startDate);
+        const endDt = dayjs(endDate);
 
-            // Get holiday info
-            const holidayInfo = await AttendanceAggregator.getHolidayInfo(
-                date,
-                employee.calendar || company.calendar || "default"
-            );
+        while (currentDate.isBefore(endDt) || currentDate.isSame(endDt, 'day')) {
+            const dateStr = currentDate.format('YYYY-MM-DD');
+            const dateObj = currentDate.toDate();
 
-            // Get working day status
-            const workingDayStatus = getWorkingDayStatus(date, employee, undefined);
+            // Get attendance groups for this day (could be multiple if multiple shifts)
+            const dayGroups = attendanceMap.get(dateStr) || [];
 
-            // Find leaves for this day
-            const dayLeaves = leaveRecords.filter((leaveId) => {
-                // TODO: Check if leave covers this date
-                return false; // Placeholder
+            // Find LINKED leaves for this day
+            // Check if any leave in `leaveRecords` covers this `dateStr`
+            // leaveRecords is array of LeaveRequest objects now
+            const dayLeaves = leaveRecords.filter((leave: any) => {
+                const start = dayjs(leave.startDate).startOf('day');
+                const end = dayjs(leave.endDate).endOf('day');
+                return currentDate.isBetween(start, end, 'day', '[]');
             });
 
-            // Process daily record
-            const dailyRecord = DailyCalculationService.processDailyRecordNew({
-                date,
-                attendanceRecords: dayGroup.records,
-                shift: dayGroup.shift,
-                workingDayStatus,
-                isMercantileHoliday: holidayInfo.isMercantileHoliday,
-                isPublicHoliday: holidayInfo.isPublicHoliday,
-                holidayName: holidayInfo.holidayName,
-                employee,
-                detectedBreakHours: dayGroup.detectedBreakHours,
-                appliedLeaves: dayLeaves,
-            });
+            // Determine if we need to generate records
+            // Case 1: Attendance exists (Shifts worked)
+            if (dayGroups.length > 0) {
+                for (const group of dayGroups) {
+                    // Holiday Info
+                    const holidayInfo = await AttendanceAggregator.getHolidayInfo(
+                        dateObj,
+                        employee.calendar || company.calendar || "default"
+                    );
+                    const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
 
-            dailyRecords.push(dailyRecord);
+                    const dailyRecord = DailyCalculationService.processDailyRecordNew({
+                        date: dateObj,
+                        attendanceRecords: group.records,
+                        shift: group.shift,
+                        workingDayStatus,
+                        isMercantileHoliday: holidayInfo.isMercantileHoliday,
+                        isPublicHoliday: holidayInfo.isPublicHoliday,
+                        holidayName: holidayInfo.holidayName,
+                        employee,
+                        detectedBreakHours: group.detectedBreakHours,
+                        appliedLeaves: dayLeaves, // Pass applicable leaves
+                    });
 
-            // Accumulate totals
-            totalNormalOT += dailyRecord.normalOT;
-            totalDoubleOT += dailyRecord.doubleOT;
-            totalTripleOT += dailyRecord.tripleOT;
-            totalNoPay += dailyRecord.noPay;
+                    dailyRecords.push(dailyRecord);
+                    totalNormalOT += dailyRecord.normalOT;
+                    totalDoubleOT += dailyRecord.doubleOT;
+                    totalTripleOT += dailyRecord.tripleOT;
+                    totalNoPay += dailyRecord.noPay;
+                }
+            }
+            // Case 2: No Attendance but HAS Leave
+            else if (dayLeaves.length > 0) {
+                const holidayInfo = await AttendanceAggregator.getHolidayInfo(
+                    dateObj,
+                    employee.calendar || company.calendar || "default"
+                );
+                const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
+
+                // Use a default shift or null
+                const defaultShift = employee.shiftSettings?.shifts?.[0] || company.shiftSettings?.shifts?.[0];
+
+                const dailyRecord = DailyCalculationService.processDailyRecordNew({
+                    date: dateObj,
+                    attendanceRecords: [],
+                    shift: defaultShift, // Needed for potential hours calc if paid leave?
+                    workingDayStatus,
+                    isMercantileHoliday: holidayInfo.isMercantileHoliday,
+                    isPublicHoliday: holidayInfo.isPublicHoliday,
+                    holidayName: holidayInfo.holidayName,
+                    employee,
+                    detectedBreakHours: 0,
+                    appliedLeaves: dayLeaves,
+                    remark: "Leave (No Attendance)",
+                });
+
+                dailyRecords.push(dailyRecord);
+                totalNoPay += dailyRecord.noPay;
+
+            }
+            // Case 3: No Attendance, No Leave (Absent or Off Day)
+            else {
+                // Determine if it should be an Absent record
+                const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
+                // If it's a working day and no record/leave, mark absent?
+                // logic typically handled in processDailyRecordNew if empty attendance passed?
+                // processDailyRecordNew handles empty records -> 0 working hours.
+
+                const holidayInfo = await AttendanceAggregator.getHolidayInfo(
+                    dateObj,
+                    employee.calendar || company.calendar || "default"
+                );
+
+                const dailyRecord = DailyCalculationService.processDailyRecordNew({
+                    date: dateObj,
+                    attendanceRecords: [],
+                    shift: null,
+                    workingDayStatus,
+                    isMercantileHoliday: holidayInfo.isMercantileHoliday,
+                    isPublicHoliday: holidayInfo.isPublicHoliday,
+                    holidayName: holidayInfo.holidayName,
+                    employee,
+                    detectedBreakHours: 0,
+                    appliedLeaves: [],
+                    remark: "Absent/No Record",
+                });
+                // Only add if we want to show Absent days explicitly in the table?
+                // Usually yes for salary report clarity.
+                dailyRecords.push(dailyRecord);
+            }
+
+            currentDate = currentDate.add(1, 'day');
         }
 
         // Calculate total OT amount

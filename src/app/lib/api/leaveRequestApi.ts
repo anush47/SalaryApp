@@ -20,7 +20,7 @@ export interface LeaveRequest {
     totalDays: number;
     totalMinutes?: number;
     halfDay: boolean;
-    halfDayPeriod?: "morning" | "afternoon";
+    halfDayPeriod?: "first_half" | "final_half";
     reason: string;
     status: "pending" | "approved" | "rejected" | "cancelled";
     approver?: {
