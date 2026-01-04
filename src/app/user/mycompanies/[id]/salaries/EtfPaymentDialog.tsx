@@ -16,11 +16,14 @@ import {
     Typography,
     Box,
     CircularProgress,
-    InputAdornment
+    InputAdornment,
+    useTheme,
+    useMediaQuery,
+    IconButton
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LoadingButton } from '@mui/lab';
-import { Save, CloudUpload } from '@mui/icons-material';
+import { Save, CloudUpload, Cancel as CancelIcon } from '@mui/icons-material';
 import dayjs, { Dayjs } from 'dayjs';
 import { createEtfPayment } from '@/app/lib/api';
 import { useSnackbar } from '@/app/context/SnackbarContext';
@@ -67,6 +70,8 @@ export default function EtfPaymentDialog({
     const [remark, setRemark] = useState('');
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // Auto-calculate total
     useEffect(() => {
@@ -139,8 +144,13 @@ export default function EtfPaymentDialog({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Record ETF Payment</DialogTitle>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
+            <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="h6">Record ETF Payment</Typography>
+                    <IconButton onClick={onClose} size="small"><CancelIcon /></IconButton>
+                </Box>
+            </DialogTitle>
             <DialogContent>
                 <Box sx={{ mt: 2 }}>
                     <Grid container spacing={2}>

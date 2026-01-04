@@ -24,6 +24,7 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
+import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
 import { Employee } from "../employees/clientComponents/employeesDataGrid";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
@@ -282,35 +283,34 @@ export const ViewUploadedInOutDialog = (props: {
         {employeesLoading ? (
           <CircularProgress />
         ) : viewMode === "all" ? (
-          <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 650 }} aria-label="simple table">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Member No</TableCell>
-                  <TableCell>Name</TableCell>
-                  <TableCell>NIC</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Time</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {mappedInOutData.map((row, index) => (
-                  <TableRow
-                    key={index}
-                    sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                  >
-                    <TableCell component="th" scope="row">
-                      {row.memberNo}
-                    </TableCell>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.nic}</TableCell>
-                    <TableCell>{row.date}</TableCell>
-                    <TableCell>{row.time}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <div style={{ height: 600, width: "100%" }}>
+            <DataGrid
+              rows={mappedInOutData.map((row, index) => ({ ...row, id: index }))}
+              columns={[
+                { field: "memberNo", headerName: "Member No", width: 120 },
+                { field: "name", headerName: "Name", flex: 1, minWidth: 200 },
+                { field: "nic", headerName: "NIC", width: 150 },
+                { field: "date", headerName: "Date", width: 120 },
+                { field: "time", headerName: "Time", width: 120 },
+              ]}
+              slots={{
+                toolbar: (props) => (
+                  <GridToolbar
+                    {...props}
+                    csvOptions={{ disableToolbarButton: true }}
+                    printOptions={{ disableToolbarButton: true }}
+                  />
+                ),
+              }}
+              slotProps={{ toolbar: { showQuickFilter: true } }}
+              disableRowSelectionOnClick
+              disableDensitySelector
+              pageSizeOptions={[10, 25, 50, 100]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 25 } },
+              }}
+            />
+          </div>
         ) : (
           <Stack spacing={2}>
             {Object.keys(groupedInOutData).map((employeeId) => {
@@ -322,27 +322,18 @@ export const ViewUploadedInOutDialog = (props: {
                     <Typography>{`${firstEntry.name} (${firstEntry.memberNo}) - ${firstEntry.nic}`}</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
-                    <TableContainer component={Paper}>
-                      <Table
-                        sx={{ minWidth: 400 }}
-                        aria-label="employee in-out table"
-                      >
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Time</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {employeeData.map((row, index) => (
-                            <TableRow key={index}>
-                              <TableCell>{row.date}</TableCell>
-                              <TableCell>{row.time}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                    <div style={{ height: 400, width: "100%" }}>
+                      <DataGrid
+                        rows={employeeData.map((row, index) => ({ ...row, id: index }))}
+                        columns={[
+                          { field: "date", headerName: "Date", flex: 1 },
+                          { field: "time", headerName: "Time", flex: 1 },
+                        ]}
+                        disableRowSelectionOnClick
+                        disableDensitySelector
+                        hideFooter
+                      />
+                    </div>
                   </AccordionDetails>
                 </Accordion>
               );

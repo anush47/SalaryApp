@@ -264,7 +264,7 @@ const EditSalaryForm: React.FC<{
     const advanceAmount = Number(formFields.advanceAmount) || 0;
 
     const finalSalary =
-      basic + holidayPay + otAmount + additions - deductions - noPayAmount;
+      basic + holidayPay + otAmount + additions - deductions - noPayAmount - advanceAmount;
     setFormFields((prevFields) => ({
       ...prevFields,
       finalSalary,
@@ -276,9 +276,11 @@ const EditSalaryForm: React.FC<{
     calculateFinalSalary();
   }, [
     formFields.basic,
+    formFields.holidayPay,
     formFields.ot,
     formFields.paymentStructure,
     formFields.noPay,
+    formFields.advanceAmount,
   ]);
 
   const handleChange = (
@@ -574,18 +576,53 @@ const EditSalaryForm: React.FC<{
                 {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <TextField
+                  label="Gross Earnings"
+                  type="number"
+                  value={((Number(formFields.basic) || 0) + (Number(formFields.holidayPay) || 0) - (Number(formFields.noPay.amount) || 0)).toFixed(2)}
+                  variant="filled"
+                  InputProps={{
+                    readOnly: true,
+                    style: { fontWeight: 'bold' }
+                  }}
+                  helperText="Basic + Holiday Pay - No Pay"
+                />
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth error={!!errors.advanceAmount}>
+                <TextField
+                  label="Advance Deduction"
+                  name="advanceAmount"
+                  type="number"
+                  value={formFields.advanceAmount}
+                  onChange={handleChange}
+                  variant="filled"
+                  InputProps={{
+                    readOnly: loading || !isEditing,
+                  }}
+                />
+                {errors.advanceAmount && (
+                  <FormHelperText>{errors.advanceAmount}</FormHelperText>
+                )}
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
               <FormControl fullWidth error={!!errors.finalSalary}>
                 <TextField
-                  label="Final Salary"
+                  label="Final Net Salary"
                   name="finalSalary"
                   type="number"
-                  value={formFields.finalSalary}
+                  value={formFields.finalSalary?.toFixed(2) || 0}
                   onChange={handleChange}
                   variant="filled"
                   InputProps={{
                     readOnly: true,
+                    style: { fontWeight: 'bold', color: '#2e7d32', fontSize: '1.2rem' }
                   }}
+                  helperText="Final payout"
                 />
                 {errors.finalSalary && (
                   <FormHelperText>{errors.finalSalary}</FormHelperText>
@@ -690,24 +727,7 @@ const EditSalaryForm: React.FC<{
                 )}
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!errors.advanceAmount}>
-                <TextField
-                  label="Advance Amount"
-                  name="advanceAmount"
-                  type="number"
-                  value={formFields.advanceAmount}
-                  onChange={handleChange}
-                  variant="filled"
-                  InputProps={{
-                    readOnly: loading || !isEditing,
-                  }}
-                />
-                {errors.advanceAmount && (
-                  <FormHelperText>{errors.advanceAmount}</FormHelperText>
-                )}
-              </FormControl>
-            </Grid>
+            {/* Advance Amount already shown in the 3-column final row above */}
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={!!errors.remark}>
                 <TextField

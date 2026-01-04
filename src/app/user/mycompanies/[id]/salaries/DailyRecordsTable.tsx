@@ -1,13 +1,6 @@
 import React, { useState } from "react";
 import {
     Box,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
     TextField,
     IconButton,
     Chip,
@@ -18,6 +11,7 @@ import {
     Tooltip,
 } from "@mui/material";
 import { Edit, Save, Cancel, ExpandMore, CheckCircle } from "@mui/icons-material";
+import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 
 interface DailyRecord {
@@ -102,208 +96,185 @@ export const DailyRecordsTable: React.FC<DailyRecordsTableProps> = ({
         { workingHours: 0, breakHours: 0, normalOT: 0, doubleOT: 0, tripleOT: 0, noPay: 0 }
     );
 
+    const columns: GridColDef[] = [
+        {
+            field: "date",
+            headerName: "Date",
+            width: 120,
+            valueGetter: (params, row) => dayjs(row.date).format("MMM DD, YYYY"),
+            renderCell: (params) => (
+                <Box>
+                    <Typography variant="body2">{dayjs(params.row.date).format("MMM DD, YYYY")}</Typography>
+                    <Typography variant="caption" color="text.secondary">{dayjs(params.row.date).format("ddd")}</Typography>
+                </Box>
+            )
+        },
+        {
+            field: "day_status",
+            headerName: "Day Type",
+            width: 130,
+            renderCell: (params) => getHolidayChip(params.row)
+        },
+        {
+            field: "workingHours",
+            headerName: "Working Hrs",
+            type: "number",
+            width: 110,
+            valueGetter: (params, row) => row.workingHours.toFixed(2) + "h"
+        },
+        {
+            field: "breakHours",
+            headerName: "Break Hrs",
+            type: "number",
+            width: 110,
+            renderCell: (params) => (
+                editingIndex === dailyRecords.indexOf(params.row) ? (
+                    <TextField
+                        type="number"
+                        value={editedBreakHours}
+                        onChange={(e) => setEditedBreakHours(parseFloat(e.target.value))}
+                        size="small"
+                        sx={{ width: 80 }}
+                        inputProps={{ step: 0.25, min: 0 }}
+                    />
+                ) : (
+                    <>{params.row.breakHours.toFixed(2)}h</>
+                )
+            )
+        },
+        {
+            field: "ot",
+            headerName: "OT (1.5 / 2 / 3)",
+            width: 200,
+            renderCell: (params) => (
+                <Box sx={{ display: "flex", gap: 0.5 }}>
+                    {params.row.normalOT > 0 && <Chip label={params.row.normalOT.toFixed(2)} color="success" size="small" variant="outlined" />}
+                    {params.row.doubleOT > 0 && <Chip label={params.row.doubleOT.toFixed(2)} color="warning" size="small" variant="outlined" />}
+                    {params.row.tripleOT > 0 && <Chip label={params.row.tripleOT.toFixed(2)} color="error" size="small" variant="outlined" />}
+                </Box>
+            )
+        },
+        {
+            field: "totalOT",
+            headerName: "Total OT",
+            width: 100,
+            valueGetter: (params, row) => calculateTotalOT(row).toFixed(2) + "h",
+            cellClassName: "font-bold"
+        },
+        {
+            field: "noPay",
+            headerName: "No Pay",
+            width: 100,
+            renderCell: (params) => (
+                params.row.noPay > 0 ? (
+                    <Tooltip title={params.row.noPayReason}>
+                        <Chip label={params.row.noPay.toFixed(2)} color="error" size="small" />
+                    </Tooltip>
+                ) : "-"
+            )
+        },
+        {
+            field: "attendance",
+            headerName: "Attendance",
+            width: 180,
+            renderCell: (params) => (
+                <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Chip
+                        icon={<CheckCircle fontSize="small" />}
+                        label={`${params.row.attendanceRecords.length} records`}
+                        size="small"
+                        color={params.row.attendanceRecords.length > 0 ? "primary" : "default"}
+                    />
+                    {params.row.appliedLeaves.length > 0 && (
+                        <Chip label={`${params.row.appliedLeaves.length} leave`} size="small" color="info" />
+                    )}
+                </Box>
+            )
+        },
+        {
+            field: "remark",
+            headerName: "Remark",
+            flex: 1,
+            minWidth: 150
+        }
+    ];
+
+    if (editable) {
+        columns.push({
+            field: "actions",
+            headerName: "Actions",
+            width: 100,
+            align: "center",
+            renderCell: (params) => {
+                const index = dailyRecords.indexOf(params.row);
+                return editingIndex === index ? (
+                    <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <IconButton size="small" color="success" onClick={() => handleSaveClick(index)}>
+                            <Save fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={handleCancelClick}>
+                            <Cancel fontSize="small" />
+                        </IconButton>
+                    </Box>
+                ) : (
+                    <IconButton size="small" onClick={() => handleEditClick(index, params.row.breakHours)}>
+                        <Edit fontSize="small" />
+                    </IconButton>
+                );
+            }
+        });
+    }
+
     return (
         <Accordion defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMore />}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
                     <Typography variant="h6">Daily Attendance Records</Typography>
-                    <Chip
-                        label={`${dailyRecords.length} days`}
-                        color="primary"
-                        size="small"
-                    />
-                    <Chip
-                        label={`Total OT: ${(totals.normalOT + totals.doubleOT + totals.tripleOT).toFixed(2)}h`}
-                        color="success"
-                        size="small"
-                    />
+                    <Chip label={`${dailyRecords.length} days`} color="primary" size="small" />
+                    <Chip label={`Total OT: ${(totals.normalOT + totals.doubleOT + totals.tripleOT).toFixed(2)}h`} color="success" size="small" />
                 </Box>
             </AccordionSummary>
             <AccordionDetails>
-                <TableContainer component={Paper} variant="outlined">
-                    <Table size="small" sx={{ minWidth: 1200 }}>
-                        <TableHead>
-                            <TableRow sx={{ backgroundColor: "action.hover" }}>
-                                <TableCell><strong>Date</strong></TableCell>
-                                <TableCell><strong>Day Type</strong></TableCell>
-                                <TableCell align="right"><strong>Working Hours</strong></TableCell>
-                                <TableCell align="right"><strong>Break Hours</strong></TableCell>
-                                <TableCell align="right"><strong>Normal OT (1.5x)</strong></TableCell>
-                                <TableCell align="right"><strong>Double OT (2x)</strong></TableCell>
-                                <TableCell align="right"><strong>Triple OT (3x)</strong></TableCell>
-                                <TableCell align="right"><strong>Total OT</strong></TableCell>
-                                <TableCell align="right"><strong>No Pay</strong></TableCell>
-                                <TableCell><strong>Attendance</strong></TableCell>
-                                <TableCell><strong>Remark</strong></TableCell>
-                                {editable && <TableCell align="center"><strong>Actions</strong></TableCell>}
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {dailyRecords.map((record, index) => (
-                                <TableRow
-                                    key={index}
-                                    sx={{
-                                        "&:hover": { backgroundColor: "action.hover" },
-                                        backgroundColor:
-                                            record.isMercantileHoliday || record.isPublicHoliday
-                                                ? "warning.light"
-                                                : "inherit",
-                                    }}
-                                >
-                                    <TableCell>
-                                        <Typography variant="body2">
-                                            {dayjs(record.date).format("MMM DD, YYYY")}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {dayjs(record.date).format("ddd")}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                                            {getHolidayChip(record)}
-                                            {record.holiday && (
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {record.holiday}
-                                                </Typography>
-                                            )}
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {record.workingHours.toFixed(2)}h
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {editingIndex === index ? (
-                                            <TextField
-                                                type="number"
-                                                value={editedBreakHours}
-                                                onChange={(e) => setEditedBreakHours(parseFloat(e.target.value))}
-                                                size="small"
-                                                sx={{ width: 80 }}
-                                                inputProps={{ step: 0.25, min: 0 }}
-                                            />
-                                        ) : (
-                                            <>{record.breakHours.toFixed(2)}h</>
-                                        )}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {record.normalOT > 0 ? (
-                                            <Chip
-                                                label={`${record.normalOT.toFixed(2)}h`}
-                                                color="success"
-                                                size="small"
-                                                variant="outlined"
-                                            />
-                                        ) : (
-                                            "-"
-                                        )}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {record.doubleOT > 0 ? (
-                                            <Chip
-                                                label={`${record.doubleOT.toFixed(2)}h`}
-                                                color="warning"
-                                                size="small"
-                                                variant="outlined"
-                                            />
-                                        ) : (
-                                            "-"
-                                        )}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {record.tripleOT > 0 ? (
-                                            <Chip
-                                                label={`${record.tripleOT.toFixed(2)}h`}
-                                                color="error"
-                                                size="small"
-                                                variant="outlined"
-                                            />
-                                        ) : (
-                                            "-"
-                                        )}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <strong>{calculateTotalOT(record).toFixed(2)}h</strong>
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {record.noPay > 0 ? (
-                                            <Tooltip title={record.noPayReason}>
-                                                <Chip
-                                                    label={record.noPay.toFixed(2)}
-                                                    color="error"
-                                                    size="small"
-                                                />
-                                            </Tooltip>
-                                        ) : (
-                                            "-"
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            icon={<CheckCircle />}
-                                            label={`${record.attendanceRecords.length} records`}
-                                            size="small"
-                                            color={record.attendanceRecords.length > 0 ? "primary" : "default"}
-                                        />
-                                        {record.appliedLeaves.length > 0 && (
-                                            <Chip
-                                                label={`${record.appliedLeaves.length} leave(s)`}
-                                                size="small"
-                                                color="info"
-                                                sx={{ ml: 0.5 }}
-                                            />
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Typography variant="caption">{record.remark}</Typography>
-                                    </TableCell>
-                                    {editable && (
-                                        <TableCell align="center">
-                                            {editingIndex === index ? (
-                                                <Box sx={{ display: "flex", gap: 0.5 }}>
-                                                    <IconButton
-                                                        size="small"
-                                                        color="success"
-                                                        onClick={() => handleSaveClick(index)}
-                                                    >
-                                                        <Save fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        color="error"
-                                                        onClick={handleCancelClick}
-                                                    >
-                                                        <Cancel fontSize="small" />
-                                                    </IconButton>
-                                                </Box>
-                                            ) : (
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => handleEditClick(index, record.breakHours)}
-                                                >
-                                                    <Edit fontSize="small" />
-                                                </IconButton>
-                                            )}
-                                        </TableCell>
-                                    )}
-                                </TableRow>
-                            ))}
-                            {/* Totals Row */}
-                            <TableRow sx={{ backgroundColor: "primary.light", fontWeight: "bold" }}>
-                                <TableCell colSpan={2}><strong>TOTALS</strong></TableCell>
-                                <TableCell align="right"><strong>{totals.workingHours.toFixed(2)}h</strong></TableCell>
-                                <TableCell align="right"><strong>{totals.breakHours.toFixed(2)}h</strong></TableCell>
-                                <TableCell align="right"><strong>{totals.normalOT.toFixed(2)}h</strong></TableCell>
-                                <TableCell align="right"><strong>{totals.doubleOT.toFixed(2)}h</strong></TableCell>
-                                <TableCell align="right"><strong>{totals.tripleOT.toFixed(2)}h</strong></TableCell>
-                                <TableCell align="right">
-                                    <strong>{(totals.normalOT + totals.doubleOT + totals.tripleOT).toFixed(2)}h</strong>
-                                </TableCell>
-                                <TableCell align="right"><strong>{totals.noPay.toFixed(2)}</strong></TableCell>
-                                <TableCell colSpan={editable ? 3 : 2}></TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                <div style={{ height: 500, width: "100%" }}>
+                    <DataGrid
+                        rows={dailyRecords.map((r, i) => ({ ...r, id: i }))}
+                        columns={columns}
+                        disableRowSelectionOnClick
+                        slots={{
+                            toolbar: (props) => (
+                                <GridToolbar
+                                    {...props}
+                                    csvOptions={{ disableToolbarButton: true }}
+                                    printOptions={{ disableToolbarButton: true }}
+                                />
+                            ),
+                        }}
+                        slotProps={{
+                            toolbar: {
+                                showQuickFilter: true,
+                            },
+                        }}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        initialState={{
+                            pagination: {
+                                paginationModel: { pageSize: 31 },
+                            },
+                        }}
+                        disableDensitySelector
+                        sx={{
+                            '& .font-bold': { fontWeight: 'bold' },
+                            '& .MuiDataGrid-cell:focus': { outline: 'none' },
+                            '& .MuiDataGrid-columnHeaders': {
+                                backgroundColor: 'action.hover',
+                            }
+                        }}
+                    />
+                </div>
+                <Box sx={{ mt: 1, p: 1, bgcolor: "action.hover", borderRadius: 1, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+                    <Typography variant="caption"><strong>Total Working:</strong> {totals.workingHours.toFixed(2)}h</Typography>
+                    <Typography variant="caption"><strong>Total OT:</strong> {(totals.normalOT + totals.doubleOT + totals.tripleOT).toFixed(2)}h</Typography>
+                    <Typography variant="caption"><strong>Total No Pay:</strong> {totals.noPay.toFixed(2)}</Typography>
+                </Box>
             </AccordionDetails>
         </Accordion>
     );

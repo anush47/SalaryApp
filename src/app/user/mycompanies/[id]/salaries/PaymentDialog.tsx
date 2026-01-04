@@ -15,11 +15,15 @@ import {
     Box,
     InputAdornment,
     Alert,
+    useTheme,
+    useMediaQuery,
+    IconButton
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { Cancel as CancelIcon } from "@mui/icons-material";
 import dayjs, { Dayjs } from "dayjs";
 import { createSalaryPayment, fetchSalaryAdvances } from "@/app/lib/api";
 import { useSnackbar } from "@/app/context/SnackbarContext";
@@ -39,9 +43,12 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
     salary,
     companyId,
 }) => {
+    const [formData, setFormData] = useState<any>(null); // To store salary data if needed
     const { showSnackbar } = useSnackbar();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [date, setDate] = useState<Dayjs | null>(dayjs());
     const [amount, setAmount] = useState<string>("");
@@ -127,9 +134,19 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const outstanding = salary.outstandingBalance !== undefined ? salary.outstandingBalance : 0;
 
     return (
-        <Dialog open={open} onClose={() => onClose(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>Record Salary Payment</DialogTitle>
-            <DialogContent>
+        <Dialog open={open} onClose={() => onClose(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
+            <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Box>
+                        <Typography variant="h6">Record Salary Payment</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {salary.name || salary.memberNo} | {salary.period}
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={() => onClose(false)} size="small"><CancelIcon /></IconButton>
+                </Box>
+            </DialogTitle>
+            <DialogContent sx={{ mt: 2 }}>
                 {error && (
                     <Alert severity="error" sx={{ mb: 2 }}>
                         {error}
@@ -147,9 +164,9 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     <Grid container spacing={2}>
                         <Grid item xs={6}>
                             <Typography variant="subtitle2" color="text.secondary">
-                                Total Salary
+                                Final Net Salary
                             </Typography>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" fontWeight="bold" color="success.main">
                                 LKR {salary.finalSalary?.toLocaleString()}
                             </Typography>
                         </Grid>

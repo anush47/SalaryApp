@@ -10,12 +10,14 @@ import {
     Typography,
     Box,
     Divider,
-    IconButton
+    IconButton,
+    useTheme,
+    useMediaQuery
 } from '@mui/material';
 import { useQueryClient } from "@tanstack/react-query";
 import { generateSalaries } from "@/app/lib/api";
 import { useSnackbar } from "@/app/context/SnackbarContext";
-import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
+import { Add as AddIcon, Remove as RemoveIcon, Cancel as CancelIcon } from '@mui/icons-material';
 
 import { Salary } from './salariesDataGrid';
 import { PaymentStructure } from '../companyDetails/paymentStructure';
@@ -34,6 +36,8 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
     const [formData, setFormData] = useState<Salary | null>(null);
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
         if (salary) {
@@ -164,11 +168,11 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
         );
 
         const epfAmount =
-            (basic +
-                holidayPay +
-                additionsForEarnings -
-                deductionsForEarnings -
-                noPayAmount) *
+            ((Number(basic) || 0) +
+                (Number(holidayPay) || 0) +
+                (Number(additionsForEarnings) || 0) -
+                (Number(deductionsForEarnings) || 0) -
+                (Number(noPayAmount) || 0)) *
             0.08;
 
         // Check if we need to update EPF
@@ -190,7 +194,7 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
         const totalAdditions = formData.paymentStructure.additions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
         const totalDeductions = formData.paymentStructure.deductions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-        const finalSalary = basic + holidayPay + otAmount + totalAdditions - totalDeductions - noPayAmount - advanceAmount;
+        const finalSalary = (Number(basic) || 0) + (Number(holidayPay) || 0) + (Number(otAmount) || 0) + (Number(totalAdditions) || 0) - (Number(totalDeductions) || 0) - (Number(noPayAmount) || 0) - (Number(advanceAmount) || 0);
 
         // Only update if different
         if (formData.finalSalary !== finalSalary) {
@@ -203,13 +207,7 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
         formData?.noPay.amount,
         formData?.ot.amount,
         formData?.advanceAmount,
-        // We need to be careful with paymentStructure dependencies to avoid loops 
-        // if we are updating it inside the effect. 
-        // Using JSON stringify for deep comparison or specific fields is safer.
-        JSON.stringify(formData?.paymentStructure.additions),
-        JSON.stringify(formData?.paymentStructure.deductions.map(d => d.affectTotalEarnings)) // Only re-calc EPF if affectTotalEarnings items change? 
-        // Actually, if we update deductions (EPF), this effect will fire again. 
-        // We must ensure the EPF update condition above prevents loops.
+        JSON.stringify(formData?.paymentStructure)
     ]);
 
     const handleSave = () => {
@@ -229,9 +227,19 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
     if (!formData) return null;
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>Edit Salary Details - {formData.salaryPeriod} ({formData.period})</DialogTitle>
-            <DialogContent dividers>
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+            <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Box>
+                        <Typography variant="h6">Edit Salary Details</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {formData.salaryPeriod} ({formData.period})
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={onClose} size="small"><CancelIcon /></IconButton>
+                </Box>
+            </DialogTitle>
+            <DialogContent sx={{ p: isMobile ? 2 : 3 }}>
                 <Grid container spacing={2}>
                     {/* Basic & Rates */}
                     <Grid item xs={12}>
@@ -346,12 +354,24 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                         />
                     </Grid>
 
-                    {/* Advance & Final */}
                     <Grid item xs={12}>
                         <Divider sx={{ my: 1 }} />
                         <Typography variant="subtitle2" color="primary">Final Calculation</Typography>
                     </Grid>
-                    <Grid item xs={6}>
+
+                    <Grid item xs={12} sm={4}>
+                        <TextField
+                            label="Gross Earnings"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            disabled
+                            value={((Number(formData.basic) || 0) + (Number(formData.holidayPay) || 0) - (Number(formData.noPay.amount) || 0)).toFixed(2)}
+                            helperText="Basic + Holiday Pay - No Pay"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={4}>
                         <TextField
                             label="Advance Deduction"
                             type="number"
@@ -361,14 +381,23 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                             onChange={(e) => handleChange('advanceAmount', Number(e.target.value))}
                         />
                     </Grid>
-                    <Grid item xs={6}>
+
+                    <Grid item xs={12} sm={4}>
                         <TextField
-                            label="Estimated Final Salary"
+                            label="Final Net Salary"
                             type="number"
                             fullWidth
                             size="small"
                             disabled
-                            value={formData.finalSalary || 0}
+                            value={formData.finalSalary?.toFixed(2) || "0.00"}
+                            sx={{
+                                '& .MuiInputBase-input': {
+                                    fontWeight: 'bold',
+                                    color: 'success.main',
+                                    fontSize: '1.2rem'
+                                }
+                            }}
+                            helperText="Final payout"
                         />
                     </Grid>
 
