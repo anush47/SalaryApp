@@ -92,6 +92,7 @@ const EditEmployeeForm: React.FC<{
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leaveOverrideWarningOpen, setLeaveOverrideWarningOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
+  const [documentsStatus, setDocumentsStatus] = useState({ isBusy: false, hasUnaddedFiles: false });
 
   const fetchEmployeeData = async (): Promise<Employee> => {
     return fetchEmployee(employeeId!);
@@ -468,6 +469,16 @@ const EditEmployeeForm: React.FC<{
   });
 
   const onSaveClick = async () => {
+    if (documentsStatus.isBusy || documentsStatus.hasUnaddedFiles) {
+      showSnackbar({
+        message: documentsStatus.isBusy
+          ? "Please wait for document uploads to complete."
+          : "Please click 'Add' for all selected documents before saving.",
+        severity: "warning",
+      });
+      return;
+    }
+
     if (Object.keys(errors).length > 0) {
       showSnackbar({
         message: `Please fix the errors in ${Object.keys(
@@ -684,9 +695,9 @@ const EditEmployeeForm: React.FC<{
                       color="success"
                       startIcon={<Save />}
                       onClick={onSaveClick}
-                      disabled={loading} // Disable button while loading
+                      disabled={loading || documentsStatus.isBusy || documentsStatus.hasUnaddedFiles} // Disable button while loading or uploads pending
                     >
-                      {loading ? <CircularProgress size={24} /> : "Save"}
+                      {loading || documentsStatus.isBusy ? <CircularProgress size={24} /> : "Save"}
                     </Button>
                   </span>
                 </Tooltip>
@@ -1228,6 +1239,7 @@ const EditEmployeeForm: React.FC<{
                 pendingFiles: pendingFiles,
                 setPendingFiles: setPendingFiles
               }}
+              onStatusChange={setDocumentsStatus}
             />
           </Grid>
 

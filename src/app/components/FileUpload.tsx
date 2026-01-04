@@ -26,6 +26,7 @@ interface FileUploadProps {
     label?: string;
     accept?: string;
     maxSizeMB?: number;
+    onUploadingChange?: (uploading: boolean) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -34,6 +35,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     companyId,
     onUploadComplete,
     onFileSelect,
+    onUploadingChange,
     mode = 'immediate',
     label = "Upload File",
     accept = "*/*", // e.g. "image/*,application/pdf"
@@ -42,6 +44,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     const [uploading, setUploading] = useState(false);
     const { showSnackbar } = useSnackbar();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const setInternalUploading = (val: boolean) => {
+        setUploading(val);
+        if (onUploadingChange) onUploadingChange(val);
+    };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files || event.target.files.length === 0) return;
@@ -62,7 +69,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
         // Immediate Mode
         try {
-            setUploading(true);
+            setInternalUploading(true);
 
             // 1. Request Presigned URL
             const response = await fetch('/api/storage/upload', {
@@ -108,7 +115,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             console.error(error);
             showSnackbar({ message: error.message || "Upload failed", severity: "error" });
         } finally {
-            setUploading(false);
+            setInternalUploading(false);
             // Reset input ?
             event.target.value = '';
         }

@@ -9,7 +9,7 @@ import {
   IconButton,
   Box,
 } from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Delete, PriorityHigh } from "@mui/icons-material";
 import { FileUpload } from "@/app/components/FileUpload";
 import { FileViewer } from "@/app/components/FileViewer";
 
@@ -24,6 +24,7 @@ interface DocumentsProps {
     pendingFiles: Record<string, File>;
     setPendingFiles: (files: Record<string, File>) => void;
   };
+  onStatusChange?: (status: { isBusy: boolean; hasUnaddedFiles: boolean }) => void;
 }
 
 const Documents: React.FC<DocumentsProps> = ({
@@ -33,12 +34,25 @@ const Documents: React.FC<DocumentsProps> = ({
   companyId,
   employeeId,
   isAdmin = false,
-  manualUpload
+  manualUpload,
+  onStatusChange
 }) => {
   const [newDocName, setNewDocName] = useState("");
   const [newDocKey, setNewDocKey] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
   // Local state for file selected in "Add" section (for manual mode)
   const [selectedAddFile, setSelectedAddFile] = useState<File | null>(null);
+
+  const hasUnaddedFiles = !!selectedAddFile || (!!newDocKey && isAdmin);
+
+  React.useEffect(() => {
+    if (onStatusChange) {
+      onStatusChange({
+        isBusy: isUploading,
+        hasUnaddedFiles
+      });
+    }
+  }, [isUploading, hasUnaddedFiles, onStatusChange]);
 
   const handleAddDocument = (overrideName?: string, overrideFile?: File) => {
     const name = (overrideName || newDocName).trim();
@@ -254,6 +268,7 @@ const Documents: React.FC<DocumentsProps> = ({
                 entityId={employeeId}
                 companyId={companyId}
                 mode={manualUpload ? 'manual' : 'immediate'}
+                onUploadingChange={setIsUploading}
                 onUploadComplete={(key, filename) => {
                   if (!isAdmin) {
                     handleAddDocument(newDocName || filename, undefined);
@@ -274,6 +289,14 @@ const Documents: React.FC<DocumentsProps> = ({
                 maxSizeMB={10}
                 accept="image/*,application/pdf"
               />
+            )}
+            {hasUnaddedFiles && (
+              <Box display="flex" alignItems="center" gap={0.5} mt={0.5}>
+                <PriorityHigh color="warning" sx={{ fontSize: 16 }} />
+                <Typography variant="caption" color="warning.main" fontWeight="medium">
+                  Click &quot;Add&quot; to include this file
+                </Typography>
+              </Box>
             )}
           </Grid>
           <Grid item xs={2}>

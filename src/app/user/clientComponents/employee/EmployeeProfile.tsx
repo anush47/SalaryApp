@@ -92,6 +92,8 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
   });
 
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [documentsStatus, setDocumentsStatus] = useState({ isBusy: false, hasUnaddedFiles: false });
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = event.target;
@@ -108,6 +110,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
 
     // Upload pending files
     if (Object.keys(pendingFiles).length > 0) {
+      setIsSaving(true);
       try {
         const uploadedDocs = { ...currentData.documents }; // Start with existing docs
 
@@ -136,11 +139,14 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
 
       } catch (error: any) {
         showSnackbar({ message: "Failed to upload documents: " + error.message, severity: "error" });
+        setIsSaving(false);
         return;
       }
     }
 
-    updateProfileMutation.mutate(currentData);
+    updateProfileMutation.mutate(currentData, {
+      onSettled: () => setIsSaving(false)
+    });
   };
 
   if (loadingEmployee) {
@@ -534,6 +540,7 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                           pendingFiles: pendingFiles,
                           setPendingFiles: setPendingFiles
                         }}
+                        onStatusChange={setDocumentsStatus}
                       />
                     </Grid>
 
@@ -542,9 +549,9 @@ const EmployeeProfile: React.FC<UserProps> = ({ user }) => {
                         <Button
                           variant="contained"
                           onClick={handleSave}
-                          disabled={updateProfileMutation.isPending}
+                          disabled={isSaving || updateProfileMutation.isPending || documentsStatus.isBusy || documentsStatus.hasUnaddedFiles}
                         >
-                          {updateProfileMutation.isPending ? (
+                          {(isSaving || updateProfileMutation.isPending || documentsStatus.isBusy) ? (
                             <CircularProgress size={24} />
                           ) : (
                             "Save Changes"
