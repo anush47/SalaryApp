@@ -29,6 +29,7 @@ import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel, Re
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { markAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import { getActiveShift } from "@/app/lib/api/shiftsApi";
+import { fetchCompany } from "@/app/lib/api/companyApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -130,16 +131,26 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         }
     });
 
+    const companyId = employee?.company?._id || employee?.company;
+
+    // 1.1 Fetch Company Details (needed for full configuration and shifts)
+    const { data: companyProfile } = useQuery({
+        queryKey: ["company", companyId],
+        queryFn: () => fetchCompany(companyId),
+        enabled: !!companyId
+    });
+
 
 
     // 2. Compute Effective Zones using Shared Logic
     const zonesData = useMemo(() => {
-        if (!employee) return { zones: [], isGeofencingEnabled: false, isRemoteAllowed: false };
+        if (!employee || !companyProfile) return { zones: [], isGeofencingEnabled: false, isRemoteAllowed: false };
 
-        const companyConfig = employee.company?.attendanceConfig || {};
+        const company = companyProfile;
+        const companyConfig = company.attendanceConfig || {};
         const employeeOverrides = employee.attendanceOverrides;
 
-        const effectiveData = getEffectiveAllowedZones(employee.company, employeeOverrides);
+        const effectiveData = getEffectiveAllowedZones(company, employeeOverrides);
         const { zones, isGeofencingEnabled, enforceValidation } = effectiveData;
 
         // Check for remote check-in flag
@@ -158,11 +169,11 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     }, [employee]);
 
     const allShifts = useMemo(() => {
-        if (!employee) return [];
-        const companyShifts = employee.company?.shiftSettings?.shifts || [];
+        if (!employee || !companyProfile) return [];
+        const companyShifts = companyProfile.shiftSettings?.shifts || [];
         const employeeShifts = employee.shiftSettings?.shifts || [];
         return [...companyShifts, ...employeeShifts];
-    }, [employee]);
+    }, [employee, companyProfile]);
 
 
     const shouldShowMap = true; // User requested to show map in all cases
@@ -288,7 +299,6 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
 
 
     // 2. Fetch Recent Logs
-    const companyId = employee?.company?._id || employee?.company;
     const todayStr = dayjs().format("YYYY-MM-DD");
     const startDate = useMemo(() => dayjs().subtract(1, 'day').startOf('day').toISOString(), []);
     const endDate = useMemo(() => dayjs().endOf('day').toISOString(), []);
@@ -941,8 +951,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 open={!!viewRecord}
                 onClose={() => setViewRecord(null)}
                 dailyRecord={viewRecord}
-                employee={employee} // Pass employee for context if needed, though view only
-                companyConfig={employee?.company} // For map
+                employee={employee}
+                companyConfig={companyProfile}
                 shifts={allShifts}
                 readOnly={true}
                 disableTabSwitch={true}
