@@ -129,7 +129,10 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
                 companyConfig={companyData}
                 shifts={shifts}
                 onSaveSuccess={() => {
-                    queryClient.invalidateQueries({ queryKey: ['attendance'] });
+                    // Invalidate keys used by useAttendanceAggregation and other panels
+                    queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
+                    queryClient.invalidateQueries({ queryKey: ['companyAttendanceLatest'] });
+                    queryClient.invalidateQueries({ queryKey: ['companyAttendanceLogs'] });
                     setSelectedRecord(null);
                 }}
             />

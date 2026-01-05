@@ -205,7 +205,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                     {(userRole === 'employer' || (userRole === 'employee' && (!isOff || record.checkInTime || record.checkOutTime))) && (
                                         <Tooltip title={userRole === 'employee' ? "View Details" : "Edit Details"}>
                                             <IconButton size="small" onClick={() => onEdit && onEdit(record)}>
-                                                {userRole === 'employee' ? <Visibility fontSize="small" /> : <Edit fontSize="small" />}
+                                                <Visibility fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
                                     )}
