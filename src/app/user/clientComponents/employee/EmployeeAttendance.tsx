@@ -25,7 +25,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LoadingButton } from "@mui/lab";
-import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel, Refresh, Warning, Smartphone } from "@mui/icons-material";
+import { Place, AccessTime, History, CheckCircle, Logout, LocationOn, Cancel, Refresh, Warning, Smartphone, Info } from "@mui/icons-material";
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import { markAttendance, getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import { getActiveShift } from "@/app/lib/api/shiftsApi";

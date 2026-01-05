@@ -37,8 +37,6 @@ export interface DailyAttendanceRecord {
     leaveType?: string;
     leaveReason?: string;
     leaveColor?: string;
-    leaveReason?: string;
-    leaveColor?: string;
     leaveId?: string;
 
     // Flags
