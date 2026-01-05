@@ -176,7 +176,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     }, [employee, companyProfile]);
 
 
-    const shouldShowMap = true; // User requested to show map in all cases
+    const shouldShowMap = zonesData.zones.length > 0;
     // Actually, we should use the resolved enforceValidation from the memo
     const { zones: effectiveZones, isGeofencingEnabled: geoEnabled, enforceValidation: strictEnforce, isRemoteAllowed: remoteOk } = zonesData;
     const isStrictGeofencing = geoEnabled && !remoteOk && strictEnforce;
@@ -584,17 +584,9 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                     shiftEnd = shiftEnd.add(1, 'day');
                                                 }
 
-                                                // 1. Outside Shift (After End)
-                                                if (currentTime.isAfter(shiftEnd)) {
-                                                    return (
-                                                        <Typography variant="caption" color="warning.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
-                                                            <Warning sx={{ fontSize: 12 }} /> Note: Shift has ended
-                                                        </Typography>
-                                                    )
-                                                }
-
                                                 // 2. Early (Before Start)
-                                                if (currentTime.isBefore(shiftStart)) {
+                                                // Only show if within 6 hours of shift start
+                                                if (currentTime.isBefore(shiftStart) && currentTime.isAfter(shiftStart.subtract(6, 'hour'))) {
                                                     return (
                                                         <Typography variant="caption" color="info.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
                                                             <Info sx={{ fontSize: 12 }} /> Note: You are early
@@ -602,8 +594,17 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                     )
                                                 }
 
-                                                // 3. Late (After Start + 5m)
-                                                if (currentTime.isAfter(shiftStart.add(5, 'minute'))) {
+                                                // 2.1 Not in Shift (More than 6 hours before start)
+                                                if (currentTime.isBefore(shiftStart.subtract(6, 'hour'))) {
+                                                    return (
+                                                        <Typography variant="caption" color="warning.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Warning sx={{ fontSize: 12 }} /> Note: Not in a shift
+                                                        </Typography>
+                                                    )
+                                                }
+
+                                                // 3. Late (After Start + 1m)
+                                                if (currentTime.isAfter(shiftStart.add(1, 'minute'))) {
                                                     return (
                                                         <Typography variant="caption" color="error.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
                                                             <Warning sx={{ fontSize: 12 }} /> Note: You are marking in Late

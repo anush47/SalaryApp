@@ -380,13 +380,9 @@ export const useAttendanceAggregation = (
                     const checkIn = dayjs(firstSession.checkInTime);
                     const expectedStart = dayjs(`${dateStr} ${shiftExpected.start}`);
 
-                    // Consider Late if check-in is AFTER expected start + 5 mins grace (for example)
-                    // If overnight and checkin is next day? 
-                    // Assuming checkin is near start time. Logically checkin > start.
-                    // If expected start is 22:00, checkin is 22:15 -> Late.
-                    // If expected start is 08:00, checkin is 08:06 -> Late.
-                    if (checkIn.isAfter(expectedStart.add(5, 'minute'))) {
-                        isLate = true;
+                    // Consider Late if check-in is AFTER expected start + 1 min grace
+                    // If expected start is 08:00, checkin is 08:02 -> Late.
+                    if (checkIn.isAfter(expectedStart.add(1, 'minute'))) {
                         isLate = true;
                     }
                 }
