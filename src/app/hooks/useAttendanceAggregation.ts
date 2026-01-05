@@ -224,7 +224,8 @@ export const useAttendanceAggregation = (
                     name: "Standard",
                     start: company.openHours?.start || "08:00",
                     end: company.openHours?.end || "17:00",
-                    off: false
+                    off: false,
+                    breakDuration: 60 // Default break
                 };
 
                 if (shiftId && shiftId !== "default") {
@@ -233,6 +234,7 @@ export const useAttendanceAggregation = (
                         shiftExpected.name = shiftDef.name;
                         shiftExpected.start = shiftDef.startTime;
                         shiftExpected.end = shiftDef.endTime;
+                        shiftExpected.breakDuration = shiftDef.breakDuration || 60; // Use defined break or default
                     }
                 }
 
@@ -358,9 +360,11 @@ export const useAttendanceAggregation = (
                 const startH = Number(shiftExpected.start.split(":")[0]);
                 const endH = Number(shiftExpected.end.split(":")[0]);
                 // Approx standard duration
-                let standardMins = (endH - startH) * 60;
+                let standardMins = (endH * 60 + Number(shiftExpected.end.split(":")[1] || 0)) - (startH * 60 + Number(shiftExpected.start.split(":")[1] || 0));
+
                 if (standardMins < 0) standardMins += 24 * 60; // Overnight
-                standardMins -= 60; // Break?
+                standardMins -= (shiftExpected.breakDuration || 60); // Subtract Shift Break
+
                 if (standardMins < 0) standardMins = 0;
 
                 const otMinutes = Math.max(0, totalDuration - standardMins);
