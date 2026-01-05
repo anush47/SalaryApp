@@ -955,7 +955,6 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 companyConfig={companyProfile}
                 shifts={allShifts}
                 readOnly={true}
-                disableTabSwitch={true}
             />
         </Card>
     );
