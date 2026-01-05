@@ -581,19 +581,19 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     {/* DataGrid Section / Unified Panel */}
                     <Box sx={{ width: '100%', minHeight: 400 }}>
                         {tabValue === 0 ? (
-                            <Box sx={{ height: 'calc(100vh - 430px)' }}>
+                            <Box sx={{ height: 'calc(100vh - 280px)' }}>
                                 <DataGrid
                                     rows={logs}
                                     columns={columns}
                                     getRowId={(row) => row._id}
                                     loading={isLoading}
-                                    pageSizeOptions={[10, 25, 50]}
+                                    pageSizeOptions={[10, 25, 50, 100]}
                                     initialState={{
-                                        pagination: { paginationModel: { pageSize: 15 } },
+                                        pagination: { paginationModel: { pageSize: 25 } },
                                     }}
                                     disableRowSelectionOnClick
                                     disableDensitySelector
-                                    rowHeight={64}
+                                    rowHeight={45}
                                     slots={{
                                         toolbar: GridToolbar,
                                     }}
@@ -608,10 +608,11 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                         border: 1,
                                         borderColor: 'divider',
                                         '& .MuiDataGrid-cell': {
-                                            py: 1,
+                                            py: 0.5,
                                         },
                                         '& .MuiDataGrid-columnHeaders': {
                                             bgcolor: 'action.hover',
+                                            py: 0.5,
                                         },
                                     }}
                                 />

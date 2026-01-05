@@ -243,7 +243,12 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         setActiveSubTab(0);
                     } else {
                         setSelectedSessionIdx(0);
-                        setActiveSubTab(0);
+                        // Auto-select tab based on provided Log IDs (e.g., for All Logs view where we target specific punch)
+                        if (dailyRecord.outLogId && !dailyRecord.inLogId) {
+                            setActiveSubTab(1);
+                        } else {
+                            setActiveSubTab(0);
+                        }
                     }
 
                     // 2. Fetch Metadata (Holidays/Leaves) if missing (common in "All" view)
@@ -567,8 +572,9 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         {/* Content Area */}
                         <Grid item xs={12} sm={9} sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
                             <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-                                <Tabs value={activeSubTab} onChange={(_, v) => setActiveSubTab(v)} variant="fullWidth">
+                                <Tabs value={activeSubTab} onChange={(_, v) => !disableTabSwitch && setActiveSubTab(v)} variant="fullWidth">
                                     <Tab
+                                        disabled={disableTabSwitch && activeSubTab !== 0}
                                         label={
                                             <Box display="flex" alignItems="center" gap={1}>
                                                 <Typography variant="subtitle2">IN PUNCH</Typography>
@@ -577,6 +583,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         }
                                     />
                                     <Tab
+                                        disabled={disableTabSwitch && activeSubTab !== 1}
                                         label={
                                             <Box display="flex" alignItems="center" gap={1}>
                                                 <Typography variant="subtitle2">OUT PUNCH</Typography>
