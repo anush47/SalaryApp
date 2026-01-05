@@ -568,6 +568,50 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                             <Typography variant="body2" fontWeight="bold">
                                                 {activeShift.shift ? `${activeShift.shift.name} (${activeShift.shift.startTime} - ${activeShift.shift.endTime})` : (activeShift.isOffDay ? "Off Day" : "No Shift Assigned")}
                                             </Typography>
+
+                                            {/* Late Warning Logic */}
+                                            {(() => {
+                                                if (!activeShift.shift || isClockedIn) return null;
+
+                                                const [sh, sm] = activeShift.shift.startTime.split(':').map(Number);
+                                                const [eh, em] = activeShift.shift.endTime.split(':').map(Number);
+
+                                                const shiftStart = dayjs().hour(sh).minute(sm).second(0);
+                                                let shiftEnd = dayjs().hour(eh).minute(em).second(0);
+
+                                                // Handle Overnight
+                                                if (shiftEnd.isBefore(shiftStart)) {
+                                                    shiftEnd = shiftEnd.add(1, 'day');
+                                                }
+
+                                                // 1. Outside Shift (After End)
+                                                if (currentTime.isAfter(shiftEnd)) {
+                                                    return (
+                                                        <Typography variant="caption" color="warning.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Warning sx={{ fontSize: 12 }} /> Note: Shift has ended
+                                                        </Typography>
+                                                    )
+                                                }
+
+                                                // 2. Early (Before Start)
+                                                if (currentTime.isBefore(shiftStart)) {
+                                                    return (
+                                                        <Typography variant="caption" color="info.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Info sx={{ fontSize: 12 }} /> Note: You are early
+                                                        </Typography>
+                                                    )
+                                                }
+
+                                                // 3. Late (After Start + 5m)
+                                                if (currentTime.isAfter(shiftStart.add(5, 'minute'))) {
+                                                    return (
+                                                        <Typography variant="caption" color="error.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Warning sx={{ fontSize: 12 }} /> Note: You are marking in Late
+                                                        </Typography>
+                                                    )
+                                                }
+                                                return null;
+                                            })()}
                                         </Box>
                                     )}
 

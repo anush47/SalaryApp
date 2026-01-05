@@ -149,6 +149,9 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                             record.sessions.map((session, idx) => (
                                                 <Box key={idx} display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                     {formatTime(session.checkInTime)}
+                                                    {idx === 0 && record.isLate && (
+                                                        <Chip label="LATE" color="error" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                    )}
                                                     {session.inDeviceChange && (
                                                         <Tooltip title="Device Changed">
                                                             <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
@@ -159,6 +162,9 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                         ) : (
                                             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                 {formatTime(record.checkInTime)}
+                                                {record.isLate && (
+                                                    <Chip label="LATE" color="error" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                )}
                                                 {record.inDeviceChange && (
                                                     <Tooltip title="Device Changed">
                                                         <PhoneIphone color="warning" sx={{ fontSize: 16 }} />

@@ -37,7 +37,12 @@ export interface DailyAttendanceRecord {
     leaveType?: string;
     leaveReason?: string;
     leaveColor?: string;
+    leaveReason?: string;
+    leaveColor?: string;
     leaveId?: string;
+
+    // Flags
+    isLate?: boolean;
 
     // Metadata
     inLogId?: string;
@@ -370,6 +375,21 @@ export const useAttendanceAggregation = (
                 const otMinutes = Math.max(0, totalDuration - standardMins);
 
                 const firstSession = sessions[0];
+                let isLate = false;
+                if (firstSession && firstSession.checkInTime && shiftExpected.start) {
+                    const checkIn = dayjs(firstSession.checkInTime);
+                    const expectedStart = dayjs(`${dateStr} ${shiftExpected.start}`);
+
+                    // Consider Late if check-in is AFTER expected start + 5 mins grace (for example)
+                    // If overnight and checkin is next day? 
+                    // Assuming checkin is near start time. Logically checkin > start.
+                    // If expected start is 22:00, checkin is 22:15 -> Late.
+                    // If expected start is 08:00, checkin is 08:06 -> Late.
+                    if (checkIn.isAfter(expectedStart.add(5, 'minute'))) {
+                        isLate = true;
+                    }
+                }
+
                 const lastCheckOutTime = sessions.map(s => s.checkOutTime).filter(t => t).sort().pop();
                 const lastOutSession = sessions.find(s => s.checkOutTime === lastCheckOutTime);
 
@@ -398,6 +418,7 @@ export const useAttendanceAggregation = (
                     leaveId: relevantLeave?._id,
                     isOvernightShift: false, // simplified
                     requiresAttention,
+                    isLate,
                     sessions
                 });
             }
