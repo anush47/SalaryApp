@@ -122,21 +122,25 @@ export class AttendanceService {
             const lastRecord = await Attendance.findOne({ employee: employee._id }).sort({ timestamp: -1 });
             if (lastRecord && lastRecord.type === 'in') {
                 const lastTime = new Date(lastRecord.timestamp).getTime();
-                const newTime = new Date(timestamp || now).getTime();
+
+                // Security Fix: Use server time for employees. Only trust timestamp if Employer/Admin.
+                const effectiveTime = (isEmployer && timestamp) ? new Date(timestamp) : now;
+                const newTime = effectiveTime.getTime();
+
                 const diffHours = (newTime - lastTime) / (1000 * 60 * 60);
 
-                if (diffHours > 12) {
+                if (diffHours > 24) {
                     // Mark as missing out / expired
                     lastRecord.remarks = (lastRecord.remarks || "") + " [Auto-expired: Missing Checkout]";
                     // Optional: You could update a status field if you have one for 'integrity'
                     await lastRecord.save();
                 } else {
-                    // Warning: Trying to Check-IN while already IN (and < 12h).
+                    // Warning: Trying to Check-IN while already IN (and < 24h).
                     // Usually the UI handles this state (showing Checkout button).
                     // If API receives this, valid to block? Or allow and assume user forgot?
                     // For now, we proceed, effectively creating a double check-in?
                     // Or we assume the frontend is correcting state.
-                    // User said "show checkin again" ONLY IF > 12h.
+                    // User said "show checkin again" ONLY IF > 24h.
                 }
             }
             if (inputResolutionMode !== 'status_only') {
