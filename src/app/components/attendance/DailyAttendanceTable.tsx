@@ -180,6 +180,9 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                             record.sessions.map((session, idx) => (
                                                 <Box key={idx} display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                     {formatTime(session.checkOutTime)}
+                                                    {idx === record.sessions!.length - 1 && record.isLeftEarly && (
+                                                        <Chip label="EARLY" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                    )}
                                                     {session.outDeviceChange && (
                                                         <Tooltip title="Device Changed">
                                                             <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
@@ -190,6 +193,9 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                         ) : (
                                             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                 {formatTime(record.checkOutTime)}
+                                                {record.isLeftEarly && (
+                                                    <Chip label="EARLY" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                )}
                                                 {record.outDeviceChange && (
                                                     <Tooltip title="Device Changed">
                                                         <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
@@ -201,6 +207,9 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                 </TableCell>
                                 <TableCell align="right">
                                     {formatDuration(record.durationMinutes)}
+                                    {record.isLessHours && (
+                                        <Chip label="SHORT" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem', ml: 0.5 }} />
+                                    )}
                                 </TableCell>
                                 {userRole === 'employer' && (
                                     <TableCell align="right" sx={{ color: record.otMinutes > 0 ? 'success.main' : 'inherit', fontWeight: record.otMinutes > 0 ? 'bold' : 'normal' }}>

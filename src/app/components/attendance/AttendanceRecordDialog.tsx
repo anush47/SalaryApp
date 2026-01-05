@@ -164,13 +164,18 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         isLeave: boolean;
         leaveType?: string;
         leaveStatus?: string;
+        isLate?: boolean;
+        isLeftEarly?: boolean;
+        isLessHours?: boolean;
     }>({
         isHoliday: dailyRecord?.isHoliday || false,
         holidayName: dailyRecord?.holidayName,
         isOffDay: dailyRecord?.isOffDay || false,
         isLeave: dailyRecord?.status === 'Leave' || !!dailyRecord?.leaveType,
         leaveType: dailyRecord?.leaveType,
-        leaveStatus: dailyRecord?.leaveStatus
+        leaveStatus: dailyRecord?.leaveStatus,
+        isLate: dailyRecord?.isLate || false,
+        isLeftEarly: dailyRecord?.isLeftEarly || false
     });
 
     // Reset metadata when dailyRecord changes
@@ -182,7 +187,10 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 isOffDay: dailyRecord.isOffDay || false,
                 isLeave: dailyRecord.status === 'Leave' || !!dailyRecord.leaveType,
                 leaveType: dailyRecord.leaveType,
-                leaveStatus: dailyRecord.leaveStatus
+                leaveStatus: dailyRecord.leaveStatus,
+                isLate: dailyRecord.isLate || false,
+                isLeftEarly: dailyRecord.isLeftEarly || false,
+                isLessHours: dailyRecord.isLessHours || false
             });
         }
     }, [dailyRecord]);
@@ -503,6 +511,27 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                 <Chip
                                     label={`Leave: ${headerMetadata.leaveType}${headerMetadata.leaveStatus ? ` (${headerMetadata.leaveStatus})` : ''}`}
                                     color="primary"
+                                    size="small"
+                                />
+                            )}
+                            {headerMetadata.isLate && (
+                                <Chip
+                                    label="LATE"
+                                    color="error"
+                                    size="small"
+                                />
+                            )}
+                            {headerMetadata.isLeftEarly && (
+                                <Chip
+                                    label="EARLY"
+                                    color="warning"
+                                    size="small"
+                                />
+                            )}
+                            {headerMetadata.isLessHours && (
+                                <Chip
+                                    label="SHORT"
+                                    color="warning"
                                     size="small"
                                 />
                             )}

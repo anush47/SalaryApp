@@ -43,6 +43,8 @@ export interface DailyAttendanceRecord {
 
     // Flags
     isLate?: boolean;
+    isLeftEarly?: boolean;
+    isLessHours?: boolean;
 
     // Metadata
     inLogId?: string;
@@ -387,11 +389,44 @@ export const useAttendanceAggregation = (
                     // If expected start is 08:00, checkin is 08:06 -> Late.
                     if (checkIn.isAfter(expectedStart.add(5, 'minute'))) {
                         isLate = true;
+                        isLate = true;
                     }
                 }
 
                 const lastCheckOutTime = sessions.map(s => s.checkOutTime).filter(t => t).sort().pop();
                 const lastOutSession = sessions.find(s => s.checkOutTime === lastCheckOutTime);
+
+                let isLeftEarly = false;
+                if (lastCheckOutTime && shiftExpected.end && !relevantLeave) {
+                    // Calculate Shift End Date Time
+                    const [eh, em] = shiftExpected.end.split(':').map(Number);
+                    let expectedEnd = dayjs(dateStr).hour(eh).minute(em).second(0);
+
+                    if (isOvernight) {
+                        expectedEnd = expectedEnd.add(1, 'day');
+                    }
+
+                    const checkOut = dayjs(lastCheckOutTime);
+
+                    // Consider Left Early if check-out is BEFORE expected end - 5 mins buffer
+                    if (checkOut.isBefore(expectedEnd.subtract(5, 'minute'))) {
+                        isLeftEarly = true;
+                    }
+                }
+
+                // Less Hours Calculation
+                let isLessHours = false;
+                if (status === 'Present') {
+                    const isHalfDay = relevantLeave && (relevantLeave.halfDay || (relevantLeave.leaveType as any)?.name?.toLowerCase().includes('half'));
+
+                    // Thresholds: Full = 8h (480m), Half = 5h (300m)
+                    if (isHalfDay) {
+                        if (totalDuration < 300) isLessHours = true;
+                    } else {
+                        // Full Day
+                        if (totalDuration < 480) isLessHours = true;
+                    }
+                }
 
                 records.push({
                     date: dateStr,
@@ -419,6 +454,8 @@ export const useAttendanceAggregation = (
                     isOvernightShift: false, // simplified
                     requiresAttention,
                     isLate,
+                    isLeftEarly,
+                    isLessHours,
                     sessions
                 });
             }
