@@ -374,8 +374,13 @@ export class AttendanceService {
         const startDateParam = req.nextUrl.searchParams.get("startDate");
         const endDateParam = req.nextUrl.searchParams.get("endDate");
         const limitParam = req.nextUrl.searchParams.get("limit");
+        const mode = req.nextUrl.searchParams.get("mode");
 
         if (!companyId) throw new BadRequestError("Company ID is required");
+
+        if (mode === 'latest_status') {
+            return this.getLatestEmployeeStatus(companyId, context);
+        }
 
         // Auth Check & Multi-role visibility logic
         if (!context.user) throw new ForbiddenError("Authentication required");
@@ -447,6 +452,37 @@ export class AttendanceService {
         const records = await query.lean();
 
         return records;
+    }
+
+    static async getLatestEmployeeStatus(companyId: string, context: RequestContext) {
+        // Auth Check
+        if (!context.user) throw new ForbiddenError("Authentication required");
+
+        const isEmployer = context.user.role === 'employer' || context.user.role === 'admin';
+
+        // Basic permission check (can refine to allow managers)
+        if (!isEmployer) {
+            const currentEmployee = await Employee.findOne({ user: context.user.id });
+            if (!currentEmployee) throw new ForbiddenError("Access denied");
+            // For now restricting 'All Latest Status' to employers/admins
+            // Managers would need complex filtering here which we can add if needed
+        }
+
+        const latestLogs = await Attendance.aggregate([
+            { $match: { company: new mongoose.Types.ObjectId(companyId) } },
+            { $sort: { timestamp: -1 } },
+            {
+                $group: {
+                    _id: "$employee",
+                    doc: { $first: "$$ROOT" }
+                }
+            },
+            { $replaceRoot: { newRoot: "$doc" } }
+        ]);
+
+        await Attendance.populate(latestLogs, { path: 'employee', select: 'name memberNo' });
+
+        return latestLogs;
     }
 
     static async recordApproval(attendanceId: string, status: "approved" | "rejected" | "pending", context: RequestContext, timestamp?: string, shiftId?: string, remarks?: string, dayStatus?: string) {

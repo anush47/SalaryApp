@@ -148,6 +148,14 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
 
     const logs = logsResponse?.success ? logsResponse.data : [];
 
+    // Fetch Latest Status for "Present Now" Panel (Independent of Date Filters)
+    const { data: latestStatusResponse, refetch: refetchLatest } = useQuery({
+        queryKey: ["companyAttendanceLatest", companyId],
+        queryFn: () => getAttendanceLogs(companyId, undefined, undefined, undefined, undefined, 'latest_status'),
+        refetchInterval: 60000 // Refresh every minute
+    });
+    const latestLogs = latestStatusResponse?.success ? latestStatusResponse.data : [];
+
 
 
 
@@ -162,6 +170,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
             if (data.success) {
                 showSnackbar({ message: `Record ${status} successfully`, severity: 'success' });
                 queryClient.invalidateQueries({ queryKey: ["companyAttendanceLogs"] });
+                queryClient.invalidateQueries({ queryKey: ["companyAttendanceLatest"] });
             } else {
                 showSnackbar({ message: data.error?.message || "Action failed", severity: 'error' });
             }
@@ -397,20 +406,21 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     };
 
     const presentEmployees = React.useMemo(() => {
-        const latestLogs: Record<string, any> = {};
-        logs.forEach((log: any) => {
-            const empId = log.employee?._id || log.employee;
-            if (!empId) return;
+        if (!latestLogs || latestLogs.length === 0) return [];
 
-            // Find latest log for each employee
-            if (!latestLogs[empId] || new Date(log.timestamp) > new Date(latestLogs[empId].timestamp)) {
-                latestLogs[empId] = log;
-            }
+        const now = dayjs();
+        // Return list of logs that are currently 'in', not rejected, and within 24 hours
+        return latestLogs.filter((log: any) => {
+            if (log.type !== 'in') return false;
+            if (log.status === 'rejected') return false;
+
+            // 24 Hour Timeout Check
+            const logTime = dayjs(log.timestamp);
+            if (now.diff(logTime, 'hour') >= 24) return false;
+
+            return true;
         });
-
-        // Return list of logs that are currently 'in' and not rejected
-        return Object.values(latestLogs).filter((log: any) => log.type === 'in' && log.status !== 'rejected');
-    }, [logs]);
+    }, [latestLogs]);
 
     return (
         <Box>
@@ -714,6 +724,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                 disableShiftChange={true}
                 onSaveSuccess={() => {
                     refetch();
+                    queryClient.invalidateQueries({ queryKey: ["companyAttendanceLatest"] });
                     setOpenViewDialog(false);
                 }}
                 disableTabSwitch={true}
