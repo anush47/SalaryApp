@@ -19,6 +19,7 @@ const EmployeeLeaves = lazy(() => import("./employee/EmployeeLeaves"));
 const EmployeePayslips = lazy(() => import("./employee/EmployeePayslips"));
 const EmployeeProfile = lazy(() => import("./employee/EmployeeProfile"));
 const EmployeeAttendance = lazy(() => import("./employee/EmployeeAttendance"));
+const TeamManagement = lazy(() => import("./employee/TeamManagement"));
 const ProfileForm = lazy(() => import("./employer/ProfileForm"));
 // Employer components
 const EmployerDashboard = lazy(() => import("./employer/EmployerDashboard"));
@@ -173,6 +174,12 @@ const UserMainBox = ({
               return (
                 <Suspense fallback={fallback}>
                   <EmployeeAttendance user={user} />
+                </Suspense>
+              );
+            case "teamManagement":
+              return (
+                <Suspense fallback={fallback}>
+                  <TeamManagement user={user} />
                 </Suspense>
               );
             default:

@@ -23,7 +23,9 @@ export type Selected =
   | "profile"
   | "attendance"
   // Employer-specific
-  | "employerDashboard";
+  | "employerDashboard"
+  // Manager-specific
+  | "teamManagement";
 
 const NavContainer = ({
   user,
@@ -61,6 +63,7 @@ const NavContainer = ({
         "profile",
         "attendance",
         "employerDashboard",
+        "teamManagement",
       ].includes(selectedParam)
     ) {
       setSelected(selectedParam as Selected);
@@ -80,8 +83,9 @@ const NavContainer = ({
               email: user.email ?? "",
               role: user.role ?? "",
               image: user.image ?? "",
+              id: user.id || "",
             }
-            : { name: "", email: "", role: "", image: "" }
+            : { name: "", email: "", role: "", image: "", id: "" }
         }
       />
       <UserMainBox

@@ -93,13 +93,30 @@ export class EmployeeService {
         companies = await Company.find(companyFilter)
           .select("_id name employerNo")
           .lean();
-        filter = { company: { $in: companies.map((c) => c._id) } };
+
+        if (companies.length === 0 && context.user?.role === "employee") {
+          // Check if employee has subordinates
+          const currentEmployee = await Employee.findOne({ user: context.user.id });
+          if (currentEmployee) {
+            filter = { manager: currentEmployee._id };
+            companyFilter = { _id: currentEmployee.company };
+          }
+        } else {
+          filter = { company: { $in: companies.map((c) => c._id) } };
+        }
       } else {
         filter = { company: companyId };
         companyFilter = { user: context.user?.id, _id: companyId };
-        companies = await Company.find(companyFilter)
-          .select("_id name employerNo")
-          .lean();
+
+        // If not company owner, check if is a manager in this company
+        const isOwner = await Company.exists(companyFilter);
+        if (!isOwner && context.user?.role === "employee") {
+          const currentEmployee = await Employee.findOne({ user: context.user.id, company: companyId });
+          if (currentEmployee) {
+            filter.manager = currentEmployee._id;
+            companyFilter = { _id: companyId }; // Adjust for exists check
+          }
+        }
       }
     }
 

@@ -190,14 +190,15 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
   const pendingApprovals = useMemo(() => {
     return (pendingApprovalsData?.data || []).filter((l: any) => !!l.employee);
   }, [pendingApprovalsData]);
-  const isManager = pendingApprovals.length > 0;
 
   // Manager Dashboard (if manager)
   const { data: managerData } = useQuery({
     queryKey: ["managerDashboard", employeeId],
     queryFn: () => fetchManagerDashboard(employeeId),
-    enabled: !!employeeId && isManager,
+    enabled: !!employeeId,
   });
+
+  const isManager = (managerData?.team?.total || 0) > 0 || pendingApprovals.length > 0;
 
   // Recent Salaries
   const { data: recentSalariesResponse, isLoading: loadingSalaries } = useQuery({
@@ -575,13 +576,50 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
             </Grid>
           </Grid>
 
-          {/* Manager & Approval Sections */}
+          {isManager && (
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid', borderColor: 'info.main' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">Team Oversight</Typography>
+                      <Typography variant="caption" color="text.secondary">Quick view of team status</Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => router.push("/user?userPageSelect=teamManagement")}
+                      sx={{ fontWeight: 'bold' }}
+                    >
+                      Manage Team
+                    </Button>
+                  </Box>
+                  <Divider sx={{ mb: 1 }} />
+                  <Stack spacing={1}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">Pending Leaves</Typography>
+                      <Chip label={managerData?.leaves?.totalPending || 0} size="small" color={managerData?.leaves?.totalPending > 0 ? "warning" : "default"} />
+                    </Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">Pending Attendance</Typography>
+                      <Chip label={managerData?.attendance?.totalPending || 0} size="small" color={managerData?.attendance?.totalPending > 0 ? "info" : "default"} />
+                    </Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">Team Members</Typography>
+                      <Typography variant="body2" fontWeight="bold">{managerData?.team?.total || 0}</Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
           {pendingApprovals.length > 0 && (
             <Grid item xs={12} md={6}>
               <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid', borderColor: 'warning.main' }}>
                 <CardContent sx={{ p: 2 }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                    <Typography variant="subtitle1" fontWeight="bold">Pending Approvals</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold">Immediate Actions</Typography>
                     <Chip label={pendingApprovals.length} color="warning" size="small" sx={{ fontWeight: 'bold' }} />
                   </Box>
                   <Divider sx={{ mb: 1 }} />
@@ -593,7 +631,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                           secondary={`${request.leaveType.name} • ${request.totalDays} day${request.totalDays > 1 ? "s" : ""}`}
                           primaryTypographyProps={{ variant: 'body2', fontWeight: 'bold' }}
                         />
-                        <Button size="small" variant="outlined" onClick={() => router.push("/user?userPageSelect=leaves")}>Review</Button>
+                        <Button size="small" variant="outlined" onClick={() => router.push("/user?userPageSelect=teamManagement")}>Review</Button>
                       </ListItem>
                     ))}
                   </List>

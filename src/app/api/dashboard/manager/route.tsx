@@ -1,9 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { options } from "../../auth/[...nextauth]/options";
 import dbConnect from "@/app/lib/db";
 import Employee from "@/app/models/Employee";
 import LeaveRequest from "@/app/models/LeaveRequest";
+import Attendance from "@/app/models/Attendance";
+import { getLeaveBalanceSummary } from "@/app/lib/leaveBalance";
+import { ApiResponseUtils } from "@/app/lib/apiResponseUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +16,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(options);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return ApiResponseUtils.sendUnauthorized("Unauthorized");
     }
 
     await dbConnect();
@@ -22,10 +25,7 @@ export async function GET(req: NextRequest) {
     const employeeId = searchParams.get("employeeId");
 
     if (!employeeId) {
-      return NextResponse.json(
-        { error: "employeeId is required" },
-        { status: 400 }
-      );
+      return ApiResponseUtils.sendBadRequest("employeeId is required");
     }
 
     // Verify the employee exists and belongs to the user
@@ -33,10 +33,7 @@ export async function GET(req: NextRequest) {
       .select("_id name company")
       .lean();
     if (!manager) {
-      return NextResponse.json(
-        { error: "Employee not found" },
-        { status: 404 }
-      );
+      return ApiResponseUtils.sendNotFound("Employee not found");
     }
 
     // Get all team members (employees who report to this manager)
@@ -49,9 +46,11 @@ export async function GET(req: NextRequest) {
       .lean();
 
     const teamMemberIds = teamMembers.map((m) => m._id);
+    console.log("Manager Dashboard API: employeeId:", employeeId, "Team Count:", teamMemberIds.length);
 
     if (teamMemberIds.length === 0) {
-      return NextResponse.json({
+      console.log("Manager Dashboard API: No team members found for:", employeeId);
+      return ApiResponseUtils.sendSuccess({
         manager: {
           _id: (manager as any)._id,
           name: (manager as any).name,
@@ -68,14 +67,14 @@ export async function GET(req: NextRequest) {
           totalPending: 0,
         },
         performance: {
-          avgSalary: 0, // Placeholder - salary data removed for privacy
-          trends: [], // Placeholder - salary data removed for privacy
+          avgSalary: 0,
+          trends: [],
         },
       });
     }
 
     // Parallel data fetching
-    const [leaveRequests, employeesByType, employeesByDept] = await Promise.all(
+    const [leaveRequests, employeesByType, employeesByDept, attendanceApprovalsData] = await Promise.all(
       [
         // Leave requests for team members
         LeaveRequest.find({
@@ -118,41 +117,38 @@ export async function GET(req: NextRequest) {
             },
           },
         ]),
+
+        // Attendance records for team members with pending status
+        Attendance.find({
+          employee: { $in: teamMemberIds },
+          status: "pending",
+        })
+          .populate("employee", "name memberNo")
+          .populate("shift", "name startTime endTime")
+          .sort({ timestamp: -1 })
+          .limit(50)
+          .lean(),
       ]
     );
+
+    // Format results
+    const attendanceApprovals = (attendanceApprovalsData as any[] || []).map((rec: any) => ({
+      ...rec,
+      type: (rec.type || "unknown").toUpperCase(),
+    }));
 
     // Get leave balance for each team member
     const teamWithLeaves = await Promise.all(
       teamMembers.map(async (member) => {
         try {
-          // Fetch leave balance using the existing helper
-          const balanceResponse = await fetch(
-            `${
-              process.env.NEXTAUTH_URL || "http://localhost:3000"
-            }/api/employees/leave-balance?employeeId=${member._id}`,
-            {
-              headers: {
-                cookie: req.headers.get("cookie") || "",
-              },
-            }
-          );
-
-          let leaveBalance = [];
-          if (balanceResponse.ok) {
-            const balanceData = await balanceResponse.json();
-            leaveBalance = balanceData.summary || [];
-          }
-
+          const leaveBalance = await getLeaveBalanceSummary(member._id.toString());
           return {
             ...member,
-            leaveBalance,
+            leaveBalance: leaveBalance || [],
           };
-        } catch (err) {
-          console.error(`Error fetching leave balance for ${member._id}:`, err);
-          return {
-            ...member,
-            leaveBalance: [],
-          };
+        } catch (e) {
+          console.error(`Error fetching balance for ${member._id}:`, e);
+          return { ...member, leaveBalance: [] };
         }
       })
     );
@@ -177,7 +173,7 @@ export async function GET(req: NextRequest) {
       return acc;
     }, {} as Record<string, number>);
 
-    return NextResponse.json({
+    return ApiResponseUtils.sendSuccess({
       manager: {
         _id: (manager as any)._id,
         name: (manager as any).name,
@@ -212,16 +208,20 @@ export async function GET(req: NextRequest) {
           })),
         totalPending: pendingLeaves.length,
       },
+      attendance: {
+        pending: attendanceApprovals,
+        totalPending: attendanceApprovals.length,
+      },
       performance: {
-        avgSalary: 0, // Removed for privacy - managers cannot see employee salaries
-        trends: [], // Removed for privacy - managers cannot see employee salaries
+        avgSalary: 0,
+        trends: [],
       },
     });
   } catch (error) {
     console.error("Error fetching manager dashboard:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch manager dashboard data" },
-      { status: 500 }
+    return ApiResponseUtils.sendInternalError(
+      "Failed to fetch manager dashboard data",
+      error instanceof Error ? error.message : undefined
     );
   }
 }

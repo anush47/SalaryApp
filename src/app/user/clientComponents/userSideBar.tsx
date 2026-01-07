@@ -38,9 +38,13 @@ import {
   AccountTree,
   Calculate,
   AccessTime,
+  Groups,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { Link as LinkM } from "@mui/material";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { fetchEmployees, fetchManagerDashboard } from "@/app/lib/api/employeeApi";
 import Image from "next/image";
 import { ThemeSwitch } from "@/app/theme-provider";
 import { Selected } from "./NavContainer";
@@ -48,7 +52,7 @@ import { Selected } from "./NavContainer";
 const drawerWidth = 300;
 
 interface Props {
-  user: { name: string; email: string; role: string; image: string };
+  user: { name: string; email: string; role: string; image: string; id: string };
   selected: Selected;
   setSelected: (selected: Selected) => void;
 }
@@ -58,6 +62,52 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme();
+  const router = useRouter();
+
+  const { data: employeeData, isLoading: loadingEmployee, isError: errorEmployee } = useQuery({
+    queryKey: ["employee_sidebar", user.id],
+    queryFn: async () => {
+      console.log("UserSideBar: Fetching employee for user.id:", user.id);
+      const res = await fetchEmployees({ user: user.id });
+      console.log("UserSideBar: fetchEmployees raw result:", res);
+      const employees = Array.isArray(res) ? res : (res as any).employees || [];
+      console.log("UserSideBar: Resolved employees:", employees);
+      return employees[0];
+    },
+    enabled: user.role === "employee",
+  });
+
+  const { data: managerData, isLoading: loadingManager, status: managerStatus, error: managerQueryError } = useQuery({
+    queryKey: ["managerDashboard", employeeData?._id],
+    queryFn: async () => {
+      console.log("UserSideBar: Fetching manager dashboard for:", employeeData?._id);
+      const res = await fetchManagerDashboard(employeeData?._id);
+      console.log("UserSideBar: fetchManagerDashboard raw result:", res);
+      return res;
+    },
+    enabled: !!employeeData?._id,
+  });
+
+  if (managerStatus === 'error') {
+    console.error("UserSideBar: Manager Query Error:", managerQueryError);
+  }
+
+  const isManager = React.useMemo(() => {
+    if (!managerData) return false;
+    const teamTotal = managerData?.team?.total ?? (managerData?.team?.members?.length) ?? 0;
+    console.log("UserSideBar: Calculating isManager:", { teamTotal, managerData });
+    return teamTotal > 0;
+  }, [managerData]);
+
+  console.log("UserSideBar Final State:", {
+    role: user.role,
+    employeeId: employeeData?._id,
+    managerStatus,
+    isManager,
+    loadingManager,
+    hasManagerData: !!managerData
+  });
+
 
   const handleDrawerToggle = () => {
     setMobileOpen((prevState) => !prevState);
@@ -100,6 +150,11 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
           key: "attendance",
           icon: <AccessTime />,
         },
+        ...(isManager ? [{
+          name: "Team Management",
+          key: "teamManagement",
+          icon: <Groups />,
+        }] : []),
         {
           name: "Settings",
           key: "settings",
@@ -204,6 +259,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
               return "Profile";
             case "attendance":
               return "Attendance";
+            case "teamManagement":
+              return "Team Management";
             default:
               return "";
           }
