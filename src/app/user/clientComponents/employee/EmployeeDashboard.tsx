@@ -14,7 +14,10 @@ import {
   Alert,
   Button,
   LinearProgress,
+  Tooltip,
+  Paper,
   Divider,
+  Stack,
   List,
   ListItem,
   ListItemText,
@@ -35,6 +38,7 @@ import {
   WorkOff,
   Fingerprint,
   EventBusy,
+  Info,
 } from "@mui/icons-material";
 import QuickActions from "./QuickActions";
 import AttendanceStatsChart from "@/app/components/attendance/AttendanceStatsChart";
@@ -351,7 +355,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           <QuickActions isClockedIn={isClockedIn} view="dashboard" />
         </Box>
 
-        <Grid container spacing={1.5} sx={{ mb: 2 }}>
+        <Grid container spacing={1.5} sx={{ mb: 3 }}>
           {loadingAttendance ? (
             <Grid item xs={12} display="flex" justifyContent="center" p={2}>
               <CircularProgress size={30} />
@@ -359,377 +363,237 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
           ) : (
             <>
               {[
-                { label: 'Present', val: attendanceStats?.workedDays || 0, icon: <CheckCircle sx={{ color: 'success.main', opacity: 0.8, fontSize: 24 }} />, color: 'success.main' },
-                { label: 'Absent', val: attendanceStats?.absent || 0, icon: <WorkOff sx={{ color: 'error.main', opacity: 0.8, fontSize: 24 }} />, color: 'error.main' },
-                { label: 'Leaves', val: attendanceStats?.leaves || 0, icon: <EventBusy sx={{ color: 'warning.main', opacity: 0.8, fontSize: 24 }} />, color: 'warning.main' },
-                { label: 'Hours', val: `${attendanceStats?.totalHours || 0}h`, icon: <AccessTime sx={{ color: 'primary.main', opacity: 0.8, fontSize: 24 }} />, color: 'primary.main' },
-                { label: 'OT', val: `${attendanceStats?.totalOT || 0}h`, icon: <TrendingUp sx={{ color: 'secondary.main', opacity: 0.8, fontSize: 24 }} />, color: 'secondary.main' },
-              ].map((stat, idx) => (
-                <Grid item xs={6} sm={4} md={2.4} key={idx}>
-                  <Card
-                    variant="outlined"
-                    sx={{
-                      borderLeft: '3px solid',
-                      borderLeftColor: stat.color,
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover' }
-                    }}
-                    onClick={() => router.push('/user?userPageSelect=attendance&tab=history')}
-                  >
-                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                {
+                  label: 'Attendance',
+                  val: attendanceStats?.workedDays || 0,
+                  unit: 'Days',
+                  icon: CheckCircle,
+                  color: 'primary'
+                },
+                {
+                  label: 'Avg Daily',
+                  val: attendanceStats?.workedDays ? Math.round((attendanceStats.totalHours / attendanceStats.workedDays) * 10) / 10 : 0,
+                  unit: 'Hours',
+                  icon: AccessTime,
+                  color: 'secondary'
+                },
+                {
+                  label: 'On-Time Score',
+                  val: (attendanceStats?.workedDays && attendanceStats?.workedDays > 0)
+                    ? Math.round(((attendanceStats.workedDays - (attendanceStats.lateCount || 0)) / attendanceStats.workedDays) * 100)
+                    : 0,
+                  unit: '%',
+                  icon: Fingerprint,
+                  color: 'success'
+                },
+                {
+                  label: 'Total OT',
+                  val: attendanceStats?.totalOT || 0,
+                  unit: 'Hours',
+                  icon: TrendingUp,
+                  color: 'info'
+                },
+              ].map((stat, idx) => {
+                const Icon = stat.icon;
+                return (
+                  <Grid item xs={6} sm={4} md={3} key={idx}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        borderLeft: `4px solid`,
+                        borderColor: `${stat.color}.main`,
+                        height: '100%',
+                        bgcolor: 'background.paper',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)'
+                        }
+                      }}
+                    >
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                         <Box>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{stat.label}</Typography>
-                          <Typography variant="h5" fontWeight="bold">{stat.val}</Typography>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Typography variant="overline" color="text.secondary" fontWeight="bold">
+                              {stat.label}
+                            </Typography>
+                            {stat.label === 'On-Time Score' && (
+                              <Tooltip title="Your arrival punctuality percentage." arrow>
+                                <Info sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
+                              </Tooltip>
+                            )}
+                          </Stack>
+                          <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
+                            {stat.val} <Typography variant="caption" color="text.secondary" fontWeight="bold">{stat.unit}</Typography>
+                          </Typography>
                         </Box>
-                        {stat.icon}
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+                        <Icon sx={{ color: `${stat.color}.light`, opacity: 0.5, fontSize: 32 }} />
+                      </Stack>
+                    </Paper>
+                  </Grid>
+                );
+              })}
             </>
           )}
         </Grid>
 
         <Grid container spacing={2}>
-          {/* Work Hours Graph - Show only if data exists */}
-          {weeklyRecords.some(r => r.durationMinutes > 0) && (
-            <Grid item xs={12}>
-              <Card variant="outlined">
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                    Work Hours (Last 7 Days)
-                  </Typography>
-                  <Box sx={{ width: '100%', mt: 2 }}>
-                    {loadingWeekly ? (
-                      <Box display="flex" justifyContent="center" alignItems="center" height={200}>
-                        <CircularProgress size={30} />
-                      </Box>
-                    ) : (
-                      <AttendanceStatsChart data={weeklyRecords} height={200} />
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-
-          {/* Upcoming Leaves */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={1}
-                >
-                  <Typography variant="subtitle1" fontWeight="bold">Upcoming Leaves</Typography>
-                  <Button
-                    size="small"
-                    onClick={() => router.push("/user?userPageSelect=leaves&tab=history")}
-                    sx={{ minWidth: 'auto', p: 0.5 }}
-                  >
-                    View All
-                  </Button>
+          {/* Work Hours Graph */}
+          <Grid item xs={12} lg={8}>
+            <Card variant="outlined" sx={{ borderRadius: 2 }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="subtitle1" fontWeight="bold">Weekly Performance</Typography>
+                  <Typography variant="caption" color="text.secondary">Last 7 Days</Typography>
                 </Box>
-                <Divider sx={{ mb: 1 }} />
-                {loadingUpcomingLeaves ? (
-                  <Box display="flex" justifyContent="center" p={1}>
-                    <CircularProgress size={20} />
-                  </Box>
-                ) : upcomingLeaves.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No upcoming leaves</Typography>
-                ) : (
-                  <List dense disablePadding>
-                    {upcomingLeaves.map((leave: any) => (
-                      <ListItem key={leave._id} disableGutters sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <CalendarToday color="primary" sx={{ fontSize: 18 }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={leave.leaveType.name}
-                          secondary={`${dayjs(leave.startDate).format("DD MMM")} - ${dayjs(leave.endDate).format("DD MMM")}`}
-                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
-                          secondaryTypographyProps={{ variant: 'caption' }}
-                        />
-                        <Chip
-                          label={leave.status}
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: '0.65rem' }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
+                <Box sx={{ width: '100%', height: 220 }}>
+                  {loadingWeekly ? (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                      <CircularProgress size={30} />
+                    </Box>
+                  ) : (
+                    <AttendanceStatsChart data={weeklyRecords} height={220} />
+                  )}
+                </Box>
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Recent Leaves */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={1}
-                >
-                  <Typography variant="subtitle1" fontWeight="bold">Recent Leaves</Typography>
-                  <Button
-                    size="small"
-                    onClick={() => router.push("/user?userPageSelect=leaves&tab=history")}
-                    sx={{ minWidth: 'auto', p: 0.5 }}
-                  >
-                    View All
-                  </Button>
-                </Box>
-                <Divider sx={{ mb: 1 }} />
-                {loadingPastLeaves ? (
-                  <Box display="flex" justifyContent="center" p={1}>
-                    <CircularProgress size={20} />
-                  </Box>
-                ) : recentLeaves.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No recent leaves</Typography>
+          {/* Leave Balances List (more compact) */}
+          <Grid item xs={12} lg={4}>
+            <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
+              <CardHeader
+                title={<Typography variant="subtitle1" fontWeight="bold">Leave Balances</Typography>}
+                sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}
+              />
+              <CardContent sx={{ p: 0 }}>
+                {loadingLeaveBalance ? (
+                  <Box p={2} textAlign="center"><CircularProgress size={20} /></Box>
+                ) : filteredLeaveBalance.length === 0 ? (
+                  <Box p={2}><Typography variant="body2" color="text.secondary">No balances</Typography></Box>
                 ) : (
-                  <List dense disablePadding>
-                    {recentLeaves.map((leave: any) => (
-                      <ListItem key={leave._id} disableGutters sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <EventBusy color="warning" sx={{ fontSize: 18 }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={leave.leaveType.name}
-                          secondary={`${dayjs(leave.startDate).format("DD MMM")} - ${dayjs(leave.endDate).format("DD MMM")}`}
-                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
-                          secondaryTypographyProps={{ variant: 'caption' }}
-                        />
-                        <Chip
-                          label="Taken"
-                          size="small"
-                          color="default"
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: '0.65rem' }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Recent Salaries */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={1}
-                >
-                  <Typography variant="subtitle1" fontWeight="bold">Recent Salaries</Typography>
-                  <Button
-                    size="small"
-                    onClick={() => router.push("/user?userPageSelect=payslips&tab=payslips")}
-                    sx={{ minWidth: 'auto', p: 0.5 }}
-                  >
-                    View All
-                  </Button>
-                </Box>
-                <Divider sx={{ mb: 1 }} />
-                {loadingSalaries ? (
-                  <Box display="flex" justifyContent="center" p={1}>
-                    <CircularProgress size={20} />
-                  </Box>
-                ) : recentSalaries.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No records found</Typography>
-                ) : (
-                  <List dense disablePadding>
-                    {recentSalaries.map((salary: any) => (
-                      <ListItem key={salary._id} disableGutters sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <Receipt color="primary" sx={{ fontSize: 18 }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={formatPeriodLabel(salary.period)}
-                          secondary={`LKR ${salary.finalSalary?.toLocaleString()}`}
-                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
-                          secondaryTypographyProps={{ variant: 'caption' }}
-                        />
-                        <Chip
-                          label={(salary.paymentStatus || "unpaid").replace("_", " ")}
-                          size="small"
-                          color={salary.paymentStatus === "fully_paid" ? "success" : "warning"}
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: '0.65rem', textTransform: 'capitalize' }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Recent Payments */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={1}
-                >
-                  <Typography variant="subtitle1" fontWeight="bold">Recent Payments</Typography>
-                  <Button
-                    size="small"
-                    onClick={() => router.push("/user?userPageSelect=payslips&tab=payments")}
-                    sx={{ minWidth: 'auto', p: 0.5 }}
-                  >
-                    View All
-                  </Button>
-                </Box>
-                <Divider sx={{ mb: 1 }} />
-                {loadingPayments ? (
-                  <Box display="flex" justifyContent="center" p={1}>
-                    <CircularProgress size={20} />
-                  </Box>
-                ) : recentPayments.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No records found</Typography>
-                ) : (
-                  <List dense disablePadding>
-                    {recentPayments.map((payment: any) => (
-                      <ListItem key={payment._id} disableGutters sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <Receipt color="secondary" sx={{ fontSize: 18 }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={`LKR ${payment.amount?.toLocaleString()}`}
-                          secondary={`${dayjs(payment.paymentDate).format("DD MMM")} (${payment.type})`}
-                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'bold' }}
-                          secondaryTypographyProps={{ variant: 'caption' }}
-                        />
-                        <Chip
-                          label={payment.status === "acknowledged" ? "Received" : "Confirm"}
-                          size="small"
-                          color={payment.status === "acknowledged" ? "success" : "warning"}
-                          variant={payment.status === "acknowledged" ? "outlined" : "filled"}
-                          onClick={() => router.push("/user?userPageSelect=payslips&tab=payments")}
-                          sx={{ height: 20, fontSize: '0.65rem' }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom>
-              Leave Balances
-            </Typography>
-            <Grid container spacing={1.5}>
-              {loadingLeaveBalance ? (
-                <Grid item xs={12} display="flex" justifyContent="center" p={2}>
-                  <CircularProgress size={30} />
-                </Grid>
-              ) : filteredLeaveBalance.length === 0 ? (
-                <Grid item xs={12}>
-                  <Alert severity="info">No leave types available</Alert>
-                </Grid>
-              ) : (
-                filteredLeaveBalance.map((leave: any, index: number) => (
-                  <Grid item xs={6} sm={4} md={3} key={index}>
-                    <Card
-                      variant="outlined"
-                      sx={{
-                        borderLeft: '3px solid',
-                        borderLeftColor: leave.leaveType.color || 'primary.main',
-                      }}
-                    >
-                      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="flex-start"
-                        >
-                          <Box>
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block" noWrap sx={{ maxWidth: '80px', fontSize: '0.65rem' }}>
-                              {leave.leaveType.name}
-                            </Typography>
-                            <Typography variant="h5" fontWeight="bold">
-                              {leave.available}
-                            </Typography>
-                          </Box>
+                  <List disablePadding>
+                    {filteredLeaveBalance.map((leave: any, index: number) => (
+                      <React.Fragment key={index}>
+                        <ListItem sx={{ py: 1 }}>
+                          <Box sx={{ width: 8, height: 32, borderRadius: 1, bgcolor: leave.leaveType.color || 'primary.main', mr: 2 }} />
+                          <ListItemText
+                            primary={leave.leaveType.name}
+                            primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
+                          />
                           <Box textAlign="right">
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block' }}>
-                              Used: {leave.used}
-                            </Typography>
-                            {leave.carriedForwardBalance > 0 && (
-                              <Typography
-                                variant="caption"
-                                color="success.main"
-                                sx={{ fontSize: '0.6rem' }}
-                              >
-                                +{leave.carriedForwardBalance}
-                              </Typography>
-                            )}
+                            <Typography variant="body2" fontWeight="bold">{leave.available}</Typography>
+                            <Typography variant="caption" color="text.secondary">days left</Typography>
                           </Box>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))
-              )}
-            </Grid>
+                        </ListItem>
+                        {index < filteredLeaveBalance.length - 1 && <Divider />}
+                      </React.Fragment>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
           </Grid>
 
-          {/* Pending Approvals (if manager) */}
-          {pendingApprovals.length > 0 && (
-            <Grid item xs={12} md={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={2}
-                  >
-                    <Typography variant="h6">Pending Approvals</Typography>
-                    <Chip
-                      label={pendingApprovals.length}
-                      color="warning"
-                      size="small"
-                    />
-                  </Box>
-                  <Divider sx={{ mb: 2 }} />
-                  <List dense>
-                    {pendingApprovals.slice(0, 5).map((request: any) => (
-                      <ListItem key={request._id}>
-                        <ListItemIcon>
-                          <Pending color="warning" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={request.employee.name}
-                          secondary={`${request.leaveType.name} - ${request.totalDays
-                            } day${request.totalDays > 1 ? "s" : ""}`}
-                        />
+          {/* Activity Sections */}
+          <Grid item xs={12}>
+            <Grid container spacing={2}>
+              {[
+                {
+                  title: 'Upcoming Leaves',
+                  data: upcomingLeaves,
+                  loading: loadingUpcomingLeaves,
+                  icon: <CalendarToday color="primary" sx={{ fontSize: 18 }} />,
+                  emptyMsg: 'No upcoming leaves',
+                  viewAllPath: '/user?userPageSelect=leaves&tab=history'
+                },
+                {
+                  title: 'Recent Leaves',
+                  data: recentLeaves,
+                  loading: loadingPastLeaves,
+                  icon: <EventBusy color="warning" sx={{ fontSize: 18 }} />,
+                  emptyMsg: 'No recent leaves',
+                  viewAllPath: '/user?userPageSelect=leaves&tab=history'
+                },
+                {
+                  title: 'Recent Salaries',
+                  data: recentSalaries,
+                  loading: loadingSalaries,
+                  icon: <Receipt color="primary" sx={{ fontSize: 18 }} />,
+                  emptyMsg: 'No records found',
+                  viewAllPath: '/user?userPageSelect=payslips&tab=payslips',
+                  isSalary: true
+                },
+                {
+                  title: 'Recent Payments',
+                  data: recentPayments,
+                  loading: loadingPayments,
+                  icon: <Receipt color="secondary" sx={{ fontSize: 18 }} />,
+                  emptyMsg: 'No records found',
+                  viewAllPath: '/user?userPageSelect=payslips&tab=payments',
+                  isPayment: true
+                },
+              ].map((section, sIdx) => (
+                <Grid item xs={12} sm={6} md={3} key={sIdx}>
+                  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
+                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Typography variant="subtitle2" fontWeight="bold">{section.title}</Typography>
                         <Button
                           size="small"
-                          onClick={() =>
-                            router.push("/user?userPageSelect=leaves")
-                          }
+                          onClick={() => router.push(section.viewAllPath)}
+                          sx={{ minWidth: 'auto', p: 0.5, fontSize: '0.7rem' }}
                         >
-                          Review
+                          View All
                         </Button>
+                      </Box>
+                      <Divider sx={{ mb: 1 }} />
+                      {section.loading ? (
+                        <Box display="flex" justifyContent="center" p={1}><CircularProgress size={20} /></Box>
+                      ) : section.data.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: 'center' }}>{section.emptyMsg}</Typography>
+                      ) : (
+                        <List dense disablePadding>
+                          {section.data.map((item: any, iIdx: number) => (
+                            <ListItem key={iIdx} disableGutters sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 28 }}>{section.icon}</ListItemIcon>
+                              <ListItemText
+                                primary={section.isSalary ? formatPeriodLabel(item.period) : section.isPayment ? `LKR ${item.amount?.toLocaleString()}` : item.leaveType.name}
+                                secondary={section.isSalary ? `LKR ${item.finalSalary?.toLocaleString()}` : section.isPayment ? dayjs(item.paymentDate).format("DD MMM") : `${dayjs(item.startDate).format("DD MMM")}`}
+                                primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium', noWrap: true }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Grid>
+
+          {/* Manager & Approval Sections */}
+          {pendingApprovals.length > 0 && (
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid', borderColor: 'warning.main' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                    <Typography variant="subtitle1" fontWeight="bold">Pending Approvals</Typography>
+                    <Chip label={pendingApprovals.length} color="warning" size="small" sx={{ fontWeight: 'bold' }} />
+                  </Box>
+                  <Divider sx={{ mb: 1 }} />
+                  <List dense disablePadding>
+                    {pendingApprovals.slice(0, 3).map((request: any) => (
+                      <ListItem key={request._id} sx={{ px: 0 }}>
+                        <ListItemText
+                          primary={request.employee.name}
+                          secondary={`${request.leaveType.name} • ${request.totalDays} day${request.totalDays > 1 ? "s" : ""}`}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 'bold' }}
+                        />
+                        <Button size="small" variant="outlined" onClick={() => router.push("/user?userPageSelect=leaves")}>Review</Button>
                       </ListItem>
                     ))}
                   </List>
@@ -738,256 +602,31 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
             </Grid>
           )}
 
-
-
-          {/* Manager Dashboard Section */}
           {isManager && managerData && (
-            <>
-              <Grid item xs={12}>
-                <Typography variant="h5" gutterBottom sx={{ mt: 2 }}>
-                  Team Management
-                </Typography>
-                <Divider />
+            <Grid item xs={12}>
+              <Box mt={2} mb={1}>
+                <Typography variant="h6" fontWeight="bold">Team Management</Typography>
+                <Typography variant="caption" color="text.secondary">Admin & Oversight Overview</Typography>
+              </Box>
+              <Grid container spacing={1.5}>
+                {[
+                  { label: 'Team Members', val: managerData.team.total, icon: <Groups />, color: 'primary.main' },
+                  { label: 'Pending Leaves', val: managerData.leaves.totalPending, icon: <Pending />, color: 'warning.main' },
+                  { label: 'Depts', val: Object.keys(managerData.team.byDepartment).length, icon: <Work />, color: 'success.main' },
+                ].map((mStat, msIdx) => (
+                  <Grid item xs={4} key={msIdx}>
+                    <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center', borderRadius: 2 }}>
+                      <Typography variant="h5" fontWeight="bold" color={mStat.color}>{mStat.val}</Typography>
+                      <Typography variant="caption" color="text.secondary" fontWeight="medium">{mStat.label}</Typography>
+                    </Paper>
+                  </Grid>
+                ))}
               </Grid>
-
-              {/* Team Statistics */}
-              <Grid item xs={12} md={3}>
-                <Card
-                  variant="outlined"
-                  sx={{
-                    borderLeft: '4px solid',
-                    borderLeftColor: 'primary.main',
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Team Members
-                        </Typography>
-                        <Typography variant="h3" fontWeight="bold">
-                          {managerData.team.total}
-                        </Typography>
-                      </Box>
-                      <Groups
-                        sx={{
-                          fontSize: 48,
-                          color: "primary.main",
-                          opacity: 0.2,
-                        }}
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <Card
-                  variant="outlined"
-                  sx={{
-                    borderLeft: '4px solid',
-                    borderLeftColor: 'warning.main',
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          Pending Approvals
-                        </Typography>
-                        <Typography variant="h3" fontWeight="bold">
-                          {managerData.leaves.totalPending}
-                        </Typography>
-                      </Box>
-                      <Pending
-                        sx={{
-                          fontSize: 48,
-                          color: "warning.main",
-                          opacity: 0.2,
-                        }}
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <Card
-                  variant="outlined"
-                  sx={{
-                    borderLeft: '4px solid',
-                    borderLeftColor: 'success.main',
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          Employee Types
-                        </Typography>
-                        <Typography variant="h3" fontWeight="bold">
-                          {Object.keys(managerData.team.byType).length}
-                        </Typography>
-                      </Box>
-                      <Work
-                        sx={{
-                          fontSize: 48,
-                          color: "success.main",
-                          opacity: 0.2,
-                        }}
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <Card
-                  variant="outlined"
-                  sx={{
-                    borderLeft: '4px solid',
-                    borderLeftColor: 'secondary.main',
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          Departments
-                        </Typography>
-                        <Typography variant="h3" fontWeight="bold">
-                          {Object.keys(managerData.team.byDepartment).length}
-                        </Typography>
-                      </Box>
-                      <Work
-                        sx={{
-                          fontSize: 48,
-                          color: "secondary.main",
-                          opacity: 0.2,
-                        }}
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Team Members with Leave Balance */}
-              <Grid item xs={12}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Team Leave Overview
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                      <Grid container spacing={2}>
-                        {managerData.team.members.map((member: any) => (
-                          <Grid item xs={12} md={6} key={member._id}>
-                            <Card variant="outlined">
-                              <CardContent>
-                                <Box
-                                  display="flex"
-                                  justifyContent="space-between"
-                                  alignItems="center"
-                                  mb={1}
-                                >
-                                  <Box>
-                                    <Typography
-                                      variant="subtitle1"
-                                      fontWeight="bold"
-                                    >
-                                      {member.name}
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      {member.designation || "Employee"} • #
-                                      {member.memberNo}
-                                    </Typography>
-                                  </Box>
-                                  <Chip
-                                    label={member.employeeType || "permanent"}
-                                    size="small"
-                                    color="primary"
-                                    variant="outlined"
-                                  />
-                                </Box>
-                                {member.leaveBalance &&
-                                  member.leaveBalance.length > 0 ? (
-                                  <Grid container spacing={1} mt={1}>
-                                    {member.leaveBalance
-                                      .slice(0, 4)
-                                      .map((leave: any, idx: number) => (
-                                        <Grid item xs={6} key={idx}>
-                                          <Box
-                                            sx={{
-                                              p: 1,
-                                              borderRadius: 1,
-                                              bgcolor: "background.default",
-                                            }}
-                                          >
-                                            <Typography
-                                              variant="caption"
-                                              color="text.secondary"
-                                            >
-                                              {leave.leaveType.code}
-                                            </Typography>
-                                            <Typography
-                                              variant="body2"
-                                              fontWeight="bold"
-                                            >
-                                              {leave.available}/
-                                              {leave.maxDaysPerPeriod}
-                                            </Typography>
-                                          </Box>
-                                        </Grid>
-                                      ))}
-                                  </Grid>
-                                ) : (
-                                  <Alert severity="info" sx={{ mt: 1 }}>
-                                    No leave data available
-                                  </Alert>
-                                )}
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </>
+            </Grid>
           )}
         </Grid>
       </CardContent>
-    </Card >
+    </Card>
   );
 };
 

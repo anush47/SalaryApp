@@ -68,6 +68,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { UnifiedAttendancePanel } from "./UnifiedAttendancePanel";
 import { AttendanceRecordDialog } from "@/app/components/attendance/AttendanceRecordDialog";
 import { AttendanceStatisticsPanel } from "./AttendanceStatisticsPanel";
+import { useAttendanceAggregation, useAllEmployeesAttendanceAggregation } from '@/app/hooks/useAttendanceAggregation';
 
 interface CompanyAttendanceProps {
     user: any;
@@ -78,6 +79,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [startDate, setStartDate] = useState(dayjs().startOf('month'));
     const [endDate, setEndDate] = useState(dayjs().endOf('month'));
     const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+
     const [openPresentDialog, setOpenPresentDialog] = useState(false);
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
@@ -90,6 +92,25 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const tabReverseMap: Record<number, string> = { 0: "logs", 1: "history", 2: "stats" };
 
     const [tabValue, setTabValue] = useState(tabMap[currentTab] ?? 0);
+
+    // Aggregation Hooks for Stats
+    const { records: singleRecords, loading: loadingSingle } = useAttendanceAggregation(
+        selectedEmployee?._id || "",
+        companyId,
+        startDate.format('YYYY-MM-DD'),
+        endDate.format('YYYY-MM-DD'),
+        tabValue === 2 && !!selectedEmployee
+    );
+
+    const { records: allRecords, loading: loadingAll } = useAllEmployeesAttendanceAggregation(
+        companyId,
+        startDate.format('YYYY-MM-DD'),
+        endDate.format('YYYY-MM-DD'),
+        tabValue === 2 && !selectedEmployee
+    );
+
+    const aggregatedRecords = selectedEmployee ? singleRecords : allRecords;
+    const loadingAggregation = selectedEmployee ? loadingSingle : loadingAll;
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
@@ -707,7 +728,8 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             />
                         ) : (
                             <AttendanceStatisticsPanel
-                                logs={logs}
+                                records={aggregatedRecords}
+                                loading={loadingAggregation}
                                 selectedEmployee={selectedEmployee}
                                 shifts={shifts}
                             />

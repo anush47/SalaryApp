@@ -442,6 +442,7 @@ export const useAttendanceAggregation = (
         return {
             totalDays: records.length,
             workedDays: records.filter(r => r.status === 'Present').length,
+            lateCount: records.filter(r => r.isLate).length, // Added line
             leaves: records.filter(r => r.status === 'Leave').length,
             absent: records.filter(r => r.status === 'Absent').length,
             totalHours: Math.floor(records.reduce((acc, curr) => acc + curr.durationMinutes, 0) / 60),
