@@ -156,37 +156,8 @@ export class ShiftService {
         let bestShift: Shift | undefined;
         let minDiff = Infinity;
 
-        // 1. Priority: Check if time is INSIDE the shift window
-        for (const shift of shifts) {
-            if (!shift.startTime || !shift.endTime) continue;
-
-            const start = dayjs(shift.startTime, "HH:mm");
-            const end = dayjs(shift.endTime, "HH:mm");
-
-            if (!start.isValid() || !end.isValid()) continue;
-
-            const isOvernight = end.isBefore(start);
-
-            // Check containment
-            let isInside = false;
-            if (isOvernight) {
-                // e.g. 22:00 to 06:00. Time is inside if >= 22:00 OR <= 06:00
-                if (targetTime.isSame(start) || targetTime.isAfter(start) || targetTime.isSame(end) || targetTime.isBefore(end)) {
-                    isInside = true;
-                }
-            } else {
-                // Standard day shift: 09:00 to 17:00
-                if ((targetTime.isSame(start) || targetTime.isAfter(start)) && (targetTime.isSame(end) || targetTime.isBefore(end))) {
-                    isInside = true;
-                }
-            }
-
-            if (isInside) {
-                // Found a containing shift! Return immediately or collect if needed.
-                // Assuming non-overlapping shifts, returning first match is safe.
-                return shift;
-            }
-        }
+        // 1. Priority: Find shift with CLOSEST Start Time
+        // Prevents issues where being "inside" a shift (but very late) overrides being "early" for the next shift.
 
         // 2. Fallback: Closest Start Time
         shifts.forEach(shift => {
