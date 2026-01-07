@@ -531,35 +531,54 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     return (
         <Card sx={{ minHeight: { xs: "calc(100vh - 57px)", sm: "calc(100vh - 64px)" }, overflowY: "auto", }}>
             <CardHeader
+                sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    '& .MuiCardHeader-content': { width: '100%' }
+                }}
                 title={
-                    <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection={{ xs: "column", sm: "row" }} gap={{ xs: 1, sm: 2 }}>
-                        <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.25rem', sm: '2.125rem' } }}>
+                    <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        width="100%"
+                        gap={1}
+                    >
+                        <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.1rem', sm: '1.8rem', md: '2.125rem' }, fontWeight: 'bold' }}>
                             Live Attendance
                         </Typography>
                         {lastLog && (
-                            <Stack direction="row" spacing={1} alignItems="center">
+                            <Stack direction="row" spacing={0.5} alignItems="center">
                                 {isPending && (
-                                    <Chip label="Pending Approval" size="small" color="warning" variant="outlined" />
+                                    <Chip label="Pending" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                                 )}
                                 {isRejected && (
-                                    <Chip label="Rejected" size="small" color="error" variant="outlined" />
+                                    <Chip label="Rejected" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                                 )}
                                 <Chip
-                                    icon={isClockedIn ? <CheckCircle /> : <Logout />}
+                                    icon={isClockedIn ? <CheckCircle sx={{ fontSize: '1rem !important' }} /> : <Logout sx={{ fontSize: '1rem !important' }} />}
                                     label={currentStatus}
                                     color={isClockedIn ? "success" : "default"}
                                     variant="filled"
-                                    sx={{ height: { xs: 32, sm: 40 }, px: { xs: 1, sm: 2 }, fontSize: { xs: '0.75rem', sm: '1rem' }, fontWeight: 'bold' }}
+                                    sx={{
+                                        height: { xs: 24, sm: 32, md: 40 },
+                                        px: { xs: 0.5, sm: 1 },
+                                        fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem' },
+                                        fontWeight: 'bold'
+                                    }}
                                 />
                             </Stack>
                         )}
                     </Box>
                 }
             />
-            <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
+            <CardContent sx={{
+                maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" },
+                p: { xs: 1.5, sm: 3 },
+                pt: { xs: 0, sm: 2 }
+            }}>
 
 
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 1.5, sm: 3 } }}>
                     <Tabs
                         value={tabValue}
                         onChange={handleTabChange}
@@ -592,7 +611,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 {tabValue === 0 && (<>
                     <Grid container spacing={4}>
                         <Grid item xs={12} lg={4}>
-                            <Stack spacing={3}>
+                            <Stack spacing={{ xs: 1.5, sm: 3 }}>
                                 <Paper variant="outlined" sx={{
                                     textAlign: "center",
                                     py: { xs: 1.5, sm: 3 },
@@ -713,45 +732,49 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                     </Typography>
                                     <Divider sx={{ mb: 1.5 }} />
                                     <Stack direction="row" spacing={1} width="100%" mb={1.5}>
-                                        <LoadingButton
-                                            variant="contained"
-                                            color="success"
-                                            size="large"
-                                            fullWidth
-                                            loading={loading || loadingLogs || locationStatus.fetching}
-                                            disabled={lastLog?.type === 'in' || loadingLogs || locationStatus.fetching}
-                                            onClick={() => handleAttendance("in")}
-                                            startIcon={<Place sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                                            sx={{
-                                                py: { xs: 2.5, sm: 1.5 },
-                                                borderRadius: 2,
-                                                fontSize: { xs: '0.75rem', sm: '1rem' },
-                                                whiteSpace: 'nowrap',
-                                                minWidth: 0
-                                            }}
-                                        >
-                                            Check In
-                                        </LoadingButton>
-
-                                        <LoadingButton
-                                            variant="contained"
-                                            color="warning"
-                                            size="large"
-                                            fullWidth
-                                            loading={loading || loadingLogs || locationStatus.fetching}
-                                            disabled={(!lastLog && !loadingLogs) || lastLog?.type === 'out' || loadingLogs || locationStatus.fetching}
-                                            onClick={() => handleAttendance("out")}
-                                            startIcon={<Logout sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                                            sx={{
-                                                py: { xs: 2.5, sm: 1.5 },
-                                                borderRadius: 2,
-                                                fontSize: { xs: '0.75rem', sm: '1rem' },
-                                                whiteSpace: 'nowrap',
-                                                minWidth: 0
-                                            }}
-                                        >
-                                            Check Out
-                                        </LoadingButton>
+                                        {!isClockedIn ? (
+                                            <LoadingButton
+                                                variant="contained"
+                                                color="success"
+                                                size="large"
+                                                fullWidth
+                                                loading={loading || loadingLogs || locationStatus.fetching}
+                                                disabled={loading || loadingLogs || locationStatus.fetching}
+                                                onClick={() => handleAttendance("in")}
+                                                startIcon={<Place sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                                                sx={{
+                                                    py: { xs: 2.5, sm: 2 },
+                                                    borderRadius: 2,
+                                                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                                                    fontWeight: 'bold',
+                                                    whiteSpace: 'nowrap',
+                                                    minWidth: 0
+                                                }}
+                                            >
+                                                Check In
+                                            </LoadingButton>
+                                        ) : (
+                                            <LoadingButton
+                                                variant="contained"
+                                                color="warning"
+                                                size="large"
+                                                fullWidth
+                                                loading={loading || loadingLogs || locationStatus.fetching}
+                                                disabled={loading || loadingLogs || locationStatus.fetching}
+                                                onClick={() => handleAttendance("out")}
+                                                startIcon={<Logout sx={{ fontSize: { xs: 20, sm: 24 } }} />}
+                                                sx={{
+                                                    py: { xs: 2.5, sm: 2 },
+                                                    borderRadius: 2,
+                                                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                                                    fontWeight: 'bold',
+                                                    whiteSpace: 'nowrap',
+                                                    minWidth: 0
+                                                }}
+                                            >
+                                                Check Out
+                                            </LoadingButton>
+                                        )}
                                     </Stack>
 
                                     <TextField
