@@ -639,6 +639,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                             <AttendanceStatisticsPanel
                                 logs={logs}
                                 selectedEmployee={selectedEmployee}
+                                shifts={shifts}
                             />
                         )}
                     </Box>

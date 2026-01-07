@@ -30,9 +30,10 @@ import dayjs from 'dayjs';
 interface AttendanceStatisticsPanelProps {
     logs: any[];
     selectedEmployee?: any | null;
+    shifts?: any[];
 }
 
-export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps> = ({ logs, selectedEmployee }) => {
+export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps> = ({ logs, selectedEmployee, shifts = [] }) => {
     const theme = useTheme();
 
     const stats = useMemo(() => {
@@ -78,11 +79,33 @@ export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps>
                 // 1. Analyze First Punch (Punctuality & Zone)
                 const firstIn = empLogs.find(l => l.type === 'in');
                 if (firstIn) {
-                    // Punctuality
-                    const hour = dayjs(firstIn.timestamp).hour();
-                    const minute = dayjs(firstIn.timestamp).minute();
-                    // Threshold: 9:00 AM
-                    if (hour > 9 || (hour === 9 && minute > 0)) {
+                    // Punctuality Logic
+                    let isLate = false;
+
+                    // Determine Shift Start Time
+                    let expectedStart = "09:00"; // Fallback default
+                    // 1. Check if log has populated shift object
+                    if (firstIn.shift && typeof firstIn.shift === 'object' && firstIn.shift.startTime) {
+                        expectedStart = firstIn.shift.startTime;
+                    }
+                    // 2. Check if log has shift ID and look up in passed shifts prop
+                    else if ((firstIn.shift && typeof firstIn.shift === 'string') || (firstIn.shift?.shiftId)) {
+                        const sId = firstIn.shift?.shiftId || firstIn.shift;
+                        const def = shifts.find(s => s._id === sId || s.id === sId);
+                        if (def) expectedStart = def.startTime;
+                    }
+                    // 3. Fallback: If no shift assigned, check if there is a 'Standard' or default shift in shifts list?
+                    // Safe default: 09:00 is acceptable if absolutely no info.
+
+                    const [eh, em] = expectedStart.split(':').map(Number);
+                    const shiftStartTime = dayjs(firstIn.timestamp).hour(eh).minute(em).second(0);
+
+                    // Late threshold: > 1 minute after start
+                    if (dayjs(firstIn.timestamp).isAfter(shiftStartTime.add(1, 'minute'))) {
+                        isLate = true;
+                    }
+
+                    if (isLate) {
                         dailyLate++;
                         totalLate++;
                     } else {
