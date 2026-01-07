@@ -349,7 +349,7 @@ export class AttendanceService {
         const record = await Attendance.findById(id)
             .populate({
                 path: 'employee',
-                select: 'name memberNo attendanceOverrides role user', // Ensure 'user' is selected
+                select: 'name memberNo attendanceOverrides role user manager', // Ensure 'user' and 'manager' is selected
             })
             .populate('shift', 'name startTime endTime');
 
@@ -358,9 +358,24 @@ export class AttendanceService {
         const isEmployer = await Company.exists({ _id: record.company, user: context.user.id });
         const employeeUser = (record.employee as any)?.user;
         const isSelf = employeeUser && employeeUser.toString() === context.user.id;
-        const isCompanyAdmin = false; // TODO: Check if user is an admin of the company
 
-        if (!isEmployer && !isSelf && !isCompanyAdmin) {
+        // 1. Global Admin Check
+        const isGlobalAdmin = context.user.role === 'admin';
+
+        // 2. Manager Check
+        let isManager = false;
+        if (!isEmployer && !isGlobalAdmin && !isSelf) {
+            // Check if current user is the manager of the record's employee
+            const recordManagerId = (record.employee as any)?.manager;
+            if (recordManagerId) {
+                const currentEmployee = await Employee.findOne({ user: context.user.id });
+                if (currentEmployee && recordManagerId.toString() === (currentEmployee as any)._id.toString()) {
+                    isManager = true;
+                }
+            }
+        }
+
+        if (!isEmployer && !isSelf && !isGlobalAdmin && !isManager) {
             throw new Error("Unauthorized to access this record");
         }
 
