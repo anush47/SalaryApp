@@ -12,6 +12,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { Grid } from '@mui/material';
 import dayjs from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchEmployees } from '@/app/lib/api/employeeApi';
@@ -55,7 +56,13 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
         queryFn: () => fetchEmployees({ companyId, limit: 1000 })
     });
 
-    const employees = employeesData?.employees || [];
+    const employees = React.useMemo(() => {
+        const list = employeesData?.employees || [];
+        return [...list].sort((a, b) => {
+            if (a.active === b.active) return a.name.localeCompare(b.name);
+            return a.active ? -1 : 1;
+        });
+    }, [employeesData]);
 
     // Aggregation Hook
     const { records, stats, loading: loadingAggregation } = useAttendanceAggregation(
@@ -85,24 +92,50 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
             {selectedEmployee ? (
                 <>
                     {/* Summary Cards */}
-                    <Stack direction="row" spacing={2} mb={3} overflow="auto" pb={1}>
-                        <Paper sx={{ p: 2, minWidth: 120, bgcolor: 'primary.lighter', textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Worked Days</Typography>
-                            <Typography variant="h5" color="primary.main" fontWeight="bold">{stats?.workedDays || 0}</Typography>
-                        </Paper>
-                        <Paper sx={{ p: 2, minWidth: 120, bgcolor: 'error.lighter', textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Absent</Typography>
-                            <Typography variant="h5" color="error.main" fontWeight="bold">{stats?.absent || 0}</Typography>
-                        </Paper>
-                        <Paper sx={{ p: 2, minWidth: 120, bgcolor: 'info.lighter', textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Total Hours</Typography>
-                            <Typography variant="h5" color="info.main" fontWeight="bold">{stats?.totalHours || 0}h</Typography>
-                        </Paper>
-                        <Paper sx={{ p: 2, minWidth: 120, bgcolor: 'success.lighter', textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Overtime</Typography>
-                            <Typography variant="h5" color="success.main" fontWeight="bold">{stats?.totalOT || 0}h</Typography>
-                        </Paper>
-                    </Stack>
+                    <Grid container spacing={1.5} mb={3}>
+                        {[
+                            { label: 'Worked Days', value: stats?.workedDays || 0, color: 'primary' },
+                            { label: 'Absent', value: stats?.absent || 0, color: 'error' },
+                            { label: 'Total Hours', value: `${stats?.totalHours || 0}h`, color: 'info' },
+                            { label: 'Overtime', value: `${stats?.totalOT || 0}h`, color: 'success' },
+                        ].map((stat, idx) => (
+                            <Grid item xs={6} sm={3} key={idx}>
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        p: { xs: 1, sm: 2 },
+                                        textAlign: 'center',
+                                        borderRadius: 2,
+                                        borderLeft: `3px solid`,
+                                        borderColor: `${stat.color}.main`,
+                                        bgcolor: 'background.paper',
+                                    }}
+                                >
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: 'text.secondary',
+                                            display: 'block',
+                                            fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                                            fontWeight: 'medium'
+                                        }}
+                                    >
+                                        {stat.label}
+                                    </Typography>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{
+                                            color: `${stat.color}.main`,
+                                            fontWeight: 'bold',
+                                            fontSize: { xs: '1rem', sm: '1.25rem' }
+                                        }}
+                                    >
+                                        {stat.value}
+                                    </Typography>
+                                </Paper>
+                            </Grid>
+                        ))}
+                    </Grid>
 
                     <DailyAttendanceTable
                         records={records}

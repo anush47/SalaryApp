@@ -181,29 +181,68 @@ export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps>
     return (
         <Box sx={{ flexGrow: 1, p: 2 }}>
             {/* Key Metrics Cards */}
-            <Grid container spacing={3} mb={4}>
-                <Grid item xs={12} sm={3}>
-                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 2 }}>
-                        <Typography variant="overline" sx={{ opacity: 0.9 }}>Total Man-Days</Typography>
-                        <Typography variant="h4" fontWeight="bold">{stats.totalPresentDays}</Typography>
+            <Grid container spacing={1.5} mb={3}>
+                <Grid item xs={6} sm={3}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: { xs: 1.5, sm: 2 },
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            borderLeft: `4px solid`,
+                            borderColor: 'primary.main'
+                        }}
+                    >
+                        <Typography variant="overline" sx={{ color: 'text.secondary', fontSize: { xs: '0.6rem', sm: '0.75rem' }, fontWeight: 'bold' }}>Total Man-Days</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ color: 'primary.main', fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' } }}>{stats.totalPresentDays}</Typography>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={3}>
-                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'secondary.light', color: 'secondary.contrastText', borderRadius: 2 }}>
-                        <Typography variant="overline" sx={{ opacity: 0.9 }}>Avg Work Hours</Typography>
-                        <Typography variant="h4" fontWeight="bold">{stats.avgDailyHours} h</Typography>
+                <Grid item xs={6} sm={3}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: { xs: 1.5, sm: 2 },
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            borderLeft: `4px solid`,
+                            borderColor: 'secondary.main'
+                        }}
+                    >
+                        <Typography variant="overline" sx={{ color: 'text.secondary', fontSize: { xs: '0.6rem', sm: '0.75rem' }, fontWeight: 'bold' }}>Avg Work Hours</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ color: 'secondary.main', fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' } }}>{stats.avgDailyHours} h</Typography>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={3}>
-                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'success.light', color: 'success.contrastText', borderRadius: 2 }}>
-                        <Typography variant="overline" sx={{ opacity: 0.9 }}>Active Employees</Typography>
-                        <Typography variant="h4" fontWeight="bold">{stats.uniqueEmployees}</Typography>
+                <Grid item xs={6} sm={3}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: { xs: 1.5, sm: 2 },
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            borderLeft: `4px solid`,
+                            borderColor: 'success.main'
+                        }}
+                    >
+                        <Typography variant="overline" sx={{ color: 'text.secondary', fontSize: { xs: '0.6rem', sm: '0.75rem' }, fontWeight: 'bold' }}>Active Employees</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ color: 'success.main', fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' } }}>{stats.uniqueEmployees}</Typography>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={3}>
-                    <Paper elevation={0} sx={{ p: 2, bgcolor: stats.totalPresentDays > 0 && (stats.totalLate / stats.totalPresentDays) > 0.2 ? 'warning.light' : 'info.light', color: 'white', borderRadius: 2 }}>
-                        <Typography variant="overline" sx={{ opacity: 0.9 }}>Zone Compliance</Typography>
-                        <Typography variant="h4" fontWeight="bold">
+                <Grid item xs={6} sm={3}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: { xs: 1.5, sm: 2 },
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            borderLeft: `4px solid`,
+                            borderColor: stats.totalPresentDays > 0 && (stats.totalLate / stats.totalPresentDays) > 0.2 ? 'warning.main' : 'info.main'
+                        }}
+                    >
+                        <Typography variant="overline" sx={{ color: 'text.secondary', fontSize: { xs: '0.6rem', sm: '0.75rem' }, fontWeight: 'bold' }}>Zone Compliance</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{
+                            color: stats.totalPresentDays > 0 && (stats.totalLate / stats.totalPresentDays) > 0.2 ? 'warning.main' : 'info.main',
+                            fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }
+                        }}>
                             {stats.verifiedCount + stats.unverifiedCount > 0
                                 ? Math.round((stats.verifiedCount / (stats.verifiedCount + stats.unverifiedCount)) * 100)
                                 : 0}%
@@ -216,9 +255,9 @@ export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps>
             <Grid container spacing={3}>
                 {/* 1. Daily Trends (Area + Line) */}
                 <Grid item xs={12} md={8}>
-                    <Card sx={{ height: '100%', borderRadius: 3 }}>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom fontWeight="bold">Workforce Activity Trends</Typography>
+                    <Card variant="outlined" sx={{ height: '100%', borderRadius: 3 }}>
+                        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                            <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>Workforce Activity Trends</Typography>
                             <Box height={320} width="100%">
                                 <ResponsiveContainer>
                                     <AreaChart data={stats.dailyStats}>

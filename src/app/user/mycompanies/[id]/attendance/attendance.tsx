@@ -63,6 +63,7 @@ import { DatePicker as MUIDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useSnackbar } from "@/app/context/SnackbarContext";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { UnifiedAttendancePanel } from "./UnifiedAttendancePanel";
 import { AttendanceRecordDialog } from "@/app/components/attendance/AttendanceRecordDialog";
@@ -81,11 +82,29 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
     const [viewLog, setViewLog] = useState<any>(null);
     const [openViewDialog, setOpenViewDialog] = useState(false);
 
-    const [tabValue, setTabValue] = useState(0);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const currentTab = searchParams.get("tab") || "logs";
+
+    const tabMap: Record<string, number> = { logs: 0, history: 1, stats: 2 };
+    const tabReverseMap: Record<number, string> = { 0: "logs", 1: "history", 2: "stats" };
+
+    const [tabValue, setTabValue] = useState(tabMap[currentTab] ?? 0);
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
+        const params = new URLSearchParams(window.location.search);
+        params.set("tab", tabReverseMap[newValue]);
+        router.push(`?${params.toString()}`, { scroll: false });
     };
+
+    // Keep tabs in sync if URL changes externally
+    React.useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab && tabMap[tab] !== undefined && tabMap[tab] !== tabValue) {
+            setTabValue(tabMap[tab]);
+        }
+    }, [searchParams]);
 
     const setQuickRange = (range: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth') => {
         switch (range) {
@@ -139,7 +158,13 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
         queryFn: () => fetchEmployees({ companyId, limit: 1000 })
     });
 
-    const employees = employeesData?.employees || [];
+    const employees = React.useMemo(() => {
+        const list = employeesData?.employees || [];
+        return [...list].sort((a, b) => {
+            if (a.active === b.active) return a.name.localeCompare(b.name);
+            return a.active ? -1 : 1;
+        });
+    }, [employeesData]);
 
     const { data: logsResponse, isLoading, refetch } = useQuery({
         queryKey: ["companyAttendanceLogs", companyId, startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD"), selectedEmployee?._id],
@@ -155,6 +180,11 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
         refetchInterval: 60000 // Refresh every minute
     });
     const latestLogs = latestStatusResponse?.success ? latestStatusResponse.data : [];
+
+    const handleRefresh = async () => {
+        await Promise.all([refetch(), refetchLatest()]);
+        showSnackbar({ message: "Attendance data refreshed", severity: "success" });
+    };
 
 
 
@@ -429,27 +459,45 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                 overflowY: "auto",
             }}>
                 <CardHeader
+                    sx={{ p: { xs: 1.5, sm: 2 } }}
                     title={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
-                            <Box sx={{ mb: { xs: 2, lg: 0 } }}>
-                                <Typography variant="h4" fontWeight="bold">Attendance Dashboard</Typography>
-                                <Typography color="text.secondary" variant="body2">Real-time attendance tracking and approvals</Typography>
-                                <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 2 }} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-                                    <Tab label="Daily Logs (All)" />
-                                    <Tab label="Employee History (Unified)" />
-                                    <Tab label="Statistics" />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 2, lg: 3 } }}>
+                            <Box sx={{ mb: { xs: 0, lg: 0 }, width: '100%' }}>
+                                <Typography variant="h4" fontWeight="bold" sx={{ fontSize: { xs: '1.25rem', sm: '1.8rem', md: '2.125rem' } }}>Attendance Dashboard</Typography>
+                                <Typography color="text.secondary" variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Real-time tracking and approvals</Typography>
+                                <Tabs value={tabValue} onChange={handleTabChange} sx={{ mt: 1.5, minHeight: { xs: 32, sm: 48 } }} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
+                                    <Tab label="Logs" sx={{ textTransform: 'none', minHeight: { xs: 32, sm: 48 }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
+                                    <Tab label="History" sx={{ textTransform: 'none', minHeight: { xs: 32, sm: 48 }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
+                                    <Tab label="Stats" sx={{ textTransform: 'none', minHeight: { xs: 32, sm: 48 }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
                                 </Tabs>
                             </Box>
                             <Box sx={{ width: { xs: '100%', lg: 'auto' } }}>
                                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
                                     <Autocomplete
-                                        options={[{ name: 'All Employees', _id: 'all', memberNo: 'ALL' }, ...employees]}
-                                        getOptionLabel={(option) => `${option.name}${option.memberNo ? ` (${option.memberNo})` : ''}`}
-                                        value={selectedEmployee || { name: 'All Employees', _id: 'all', memberNo: 'ALL' }}
+                                        options={[{ name: 'All Employees', _id: 'all', memberNo: 'ALL', active: true }, ...employees]}
+                                        getOptionLabel={(option) => `${option.name}${option.memberNo ? ` (${option.memberNo})` : ''}${option.active === false ? ' (Inactive)' : ''}`}
+                                        value={selectedEmployee || { name: 'All Employees', _id: 'all', memberNo: 'ALL', active: true }}
                                         onChange={(_, newValue) => {
                                             if (newValue?._id === 'all') setSelectedEmployee(null);
                                             else setSelectedEmployee(newValue);
                                         }}
+                                        renderOption={(props, option) => (
+                                            <li {...props}>
+                                                <Box sx={{ color: option.active === false ? 'text.disabled' : 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Typography sx={{ fontWeight: option.active === false ? 'normal' : '500', fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                                                        {option.name}
+                                                    </Typography>
+                                                    {option.memberNo && (
+                                                        <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                                            ({option.memberNo})
+                                                        </Typography>
+                                                    )}
+                                                    {option.active === false && (
+                                                        <Chip label="Inactive" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                                                    )}
+                                                </Box>
+                                            </li>
+                                        )}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
@@ -463,65 +511,80 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                                 }}
                                             />
                                         )}
-                                        sx={{ minWidth: 250, flexGrow: 1 }}
+                                        sx={{ minWidth: { xs: '100%', sm: 250 }, flexGrow: 1 }}
                                         loading={loadingEmployees}
                                         isOptionEqualToValue={(option, value) => option._id === value._id}
                                         clearOnEscape
                                     />
                                 </Stack>
-                                <Stack direction="row" spacing={1} sx={{ mb: 1, overflowX: 'auto', pb: 0.5 }}>
-                                    {[
-                                        { label: 'Today', value: 'today' },
-                                        { label: 'Yesterday', value: 'yesterday' },
-                                        { label: 'Last 7 Days', value: 'last7' },
-                                        { label: 'This Month', value: 'thisMonth' },
-                                        { label: 'Last Month', value: 'lastMonth' }
-                                    ].map((r) => (
-                                        <Chip
-                                            key={r.value}
-                                            label={r.label}
-                                            size="small"
-                                            onClick={() => setQuickRange(r.value as any)}
+
+                                <Box sx={{ mb: 1, overflowX: 'auto', pb: 0.5, whiteSpace: 'nowrap', '&::-webkit-scrollbar': { height: 4 } }}>
+                                    <Stack direction="row" spacing={1}>
+                                        {[
+                                            { label: 'Today', value: 'today' },
+                                            { label: 'Yesterday', value: 'yesterday' },
+                                            { label: 'Last 7 Days', value: 'last7' },
+                                            { label: 'This Month', value: 'thisMonth' },
+                                            { label: 'Last Month', value: 'lastMonth' }
+                                        ].map((r) => (
+                                            <Chip
+                                                key={r.value}
+                                                label={r.label}
+                                                size="small"
+                                                onClick={() => setQuickRange(r.value as any)}
+                                                variant="outlined"
+                                                clickable
+                                                sx={{ borderRadius: 1, fontSize: '0.7rem' }}
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Box>
+
+                                <Grid container spacing={1} alignItems="center">
+                                    <Grid item xs={12} sm="auto">
+                                        <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                <MUIDatePicker
+                                                    label="From"
+                                                    value={startDate}
+                                                    onChange={(newValue) => newValue && setStartDate(newValue)}
+                                                    slotProps={{ textField: { size: 'small', sx: { width: { xs: '100%', sm: 130 } } } }}
+                                                />
+                                                <MUIDatePicker
+                                                    label="To"
+                                                    value={endDate}
+                                                    onChange={(newValue) => newValue && setEndDate(newValue)}
+                                                    slotProps={{ textField: { size: 'small', sx: { width: { xs: '100%', sm: 130 } } } }}
+                                                />
+                                            </Box>
+                                        </LocalizationProvider>
+                                    </Grid>
+                                    <Grid item xs={12} sm="auto">
+                                        <Button
                                             variant="outlined"
-                                            clickable
-                                            sx={{ borderRadius: 1 }}
-                                        />
-                                    ))}
-                                </Stack>
-                                <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap">
-                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <MUIDatePicker
-                                            label="From"
-                                            value={startDate}
-                                            onChange={(newValue) => newValue && setStartDate(newValue)}
-                                            slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
-                                        />
-                                        <MUIDatePicker
-                                            label="To"
-                                            value={endDate}
-                                            onChange={(newValue) => newValue && setEndDate(newValue)}
-                                            slotProps={{ textField: { size: 'small', sx: { width: { xs: 'calc(50% - 8px)', sm: 140 } } } }}
-                                        />
-                                    </LocalizationProvider>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<Refresh />}
-                                        onClick={() => refetch()}
-                                        disabled={isLoading}
-                                        size="small"
-                                        sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
-                                    >
-                                        Refresh
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<Download />}
-                                        size="small"
-                                        sx={{ flexGrow: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 100 } }}
-                                    >
-                                        Export
-                                    </Button>
-                                </Stack>
+                                            startIcon={<Refresh />}
+                                            onClick={handleRefresh}
+                                            disabled={isLoading}
+                                            size="small"
+                                            fullWidth
+                                            sx={{ minWidth: { sm: 120 }, height: 40 }}
+                                        >
+                                            Refresh Data
+                                        </Button>
+                                    </Grid>
+                                    {/* <Grid item xs={6} sm="auto">
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<Download />}
+                                            size="small"
+                                            fullWidth
+                                            sx={{ minWidth: { sm: 100 }, height: 40 }}
+                                        >
+                                            Export
+                                        </Button>
+                                    </Grid> */}
+                                </Grid>
+
                             </Box>
                         </Box>
                     }
@@ -529,57 +592,64 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                 <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
                     {/* Stats Section */}
                     {tabValue === 0 && (
-                        <Grid container spacing={2} mb={4}>
+                        <Grid container spacing={1.5} mb={3}>
                             {[
                                 {
                                     label: 'Present Now',
                                     value: presentEmployees.length,
-                                    color: 'info.main',
+                                    color: 'info',
                                     onClick: () => setOpenPresentDialog(true),
                                     cursor: 'pointer',
                                     action: 'View List'
                                 },
-                                { label: 'Total Records', value: stats.total, color: 'primary.main' },
-                                { label: 'Approved', value: stats.approved, color: 'success.main' },
-                                { label: 'Pending Approval', value: stats.pending, color: 'warning.main' },
-                                { label: 'Rejected', value: stats.rejected, color: 'error.main' }
+                                { label: 'Total', value: stats.total, color: 'primary' },
+                                { label: 'Approved', value: stats.approved, color: 'success' },
+                                { label: 'Pending', value: stats.pending, color: 'warning' },
+                                { label: 'Rejected', value: stats.rejected, color: 'error' }
                             ].map((stat, idx) => (
-                                <Grid item xs={12} sm={6} md={2.4} key={idx}>
+                                <Grid item xs={6} sm={4} md={2.4} key={idx}>
                                     <Paper
-                                        elevation={0}
+                                        variant="outlined"
                                         onClick={stat.onClick}
                                         sx={{
-                                            p: 2,
-                                            bgcolor: stat.color,
-                                            color: 'white',
+                                            p: { xs: 1.5, sm: 2 },
+                                            bgcolor: 'background.paper',
                                             borderRadius: 2,
                                             display: 'flex',
                                             flexDirection: 'column',
                                             cursor: stat.cursor || 'default',
                                             transition: 'all 0.2s',
                                             position: 'relative',
-                                            overflow: 'hidden',
-                                            '&:hover': stat.cursor ? { transform: 'translateY(-2px)', boxShadow: 3 } : {}
+                                            borderLeft: `4px solid`,
+                                            borderColor: `${stat.color}.main`,
+                                            '&:hover': stat.cursor ? { bgcolor: `${stat.color}.lighter`, borderColor: `${stat.color}.main` } : {}
                                         }}>
-                                        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                                            <Box>
-                                                <Typography variant="overline" sx={{ opacity: 0.8, lineHeight: 1.2 }}>{stat.label}</Typography>
-                                                <Typography variant="h4" fontWeight="bold">{stat.value}</Typography>
-                                            </Box>
+                                        <Typography
+                                            variant="overline"
+                                            sx={{
+                                                color: 'text.secondary',
+                                                lineHeight: 1.2,
+                                                fontSize: { xs: '0.6rem', sm: '0.75rem' },
+                                                fontWeight: 'bold'
+                                            }}
+                                        >
+                                            {stat.label}
+                                        </Typography>
+                                        <Box display="flex" alignItems="center" justifyContent="space-between" mt={0.5}>
+                                            <Typography
+                                                variant="h5"
+                                                fontWeight="bold"
+                                                sx={{
+                                                    fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                                                    color: `${stat.color}.main`
+                                                }}
+                                            >
+                                                {stat.value}
+                                            </Typography>
                                             {(stat as any).action && (
-                                                <Chip
-                                                    size="small"
-                                                    label={(stat as any).action}
-                                                    icon={<Visibility sx={{ fontSize: '1rem !important', color: 'inherit !important' }} />}
-                                                    sx={{
-                                                        bgcolor: 'rgba(255,255,255,0.2)',
-                                                        color: 'white',
-                                                        fontWeight: 'bold',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
-                                                    }}
-                                                />
+                                                <IconButton size="small" color="info" sx={{ p: 0.5 }}>
+                                                    <Visibility sx={{ fontSize: '1rem' }} />
+                                                </IconButton>
                                             )}
                                         </Box>
                                     </Paper>
