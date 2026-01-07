@@ -121,7 +121,7 @@ const FitMapBounds = ({ markers, circles }: { markers: { lat: number, lng: numbe
             });
 
             if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 19 });
                 hasFitted.current = true;
             }
         }
