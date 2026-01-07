@@ -33,6 +33,8 @@ export class SalaryGenerationService {
             throw new Error("Company not found");
         }
 
+        const useShiftStartForOT = employee.shiftSettings?.useShiftStartForOT || company.shiftSettings?.useShiftStartForOT || false;
+
         // Parse period to get date range
         // Default to Asia/Colombo if timezone is not provided or invalid
         const tz = timezone || "Asia/Colombo";
@@ -119,9 +121,40 @@ export class SalaryGenerationService {
 
                     console.log(`[SalaryGeneration] ${dateStr}: Using shift from attendance log: ${attendanceShift?.name || 'Unknown'} (ID: ${attendanceShift?.shiftId || attendanceShift?._id}), BreakDuration: ${attendanceShift?.breakDuration}h`);
 
+                    // Shift Start Clamping Logic
+                    let recordsForCalc = [...group.records];
+                    if (useShiftStartForOT && attendanceShift && attendanceShift.startTime) {
+                        try {
+                            // Sort to find first IN
+                            recordsForCalc.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+                            if (recordsForCalc.length > 0) {
+                                const firstRec = recordsForCalc[0];
+                                if (firstRec.type === 'in') { // Validity check
+                                    // Parse Shift Start
+                                    // Using dayjs with timezone to ensure correct wall-clock time matching
+                                    const shiftStart = dayjs.tz(`${group.date} ${attendanceShift.startTime}`, "YYYY-MM-DD HH:mm", timezone);
+                                    const recordIn = dayjs(firstRec.timestamp);
+
+                                    if (recordIn.isBefore(shiftStart)) {
+                                        console.log(`[SalaryGeneration] ${dateStr}: Clamping Early Check-in. Actual: ${recordIn.format("HH:mm")}, Shift Start: ${shiftStart.format("HH:mm")}`);
+                                        // Create a clone with modified timestamp
+                                        // Note: timestamp field should be Date or string compatible with Date constructor
+                                        recordsForCalc[0] = {
+                                            ...firstRec,
+                                            timestamp: shiftStart.toDate()
+                                        };
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error(`[SalaryGeneration] Error applying OT Clamping for ${dateStr}`, e);
+                        }
+                    }
+
                     const dailyRecord = DailyCalculationService.processDailyRecordNew({
                         date: dateObj,
-                        attendanceRecords: group.records,
+                        attendanceRecords: recordsForCalc,
                         shift: attendanceShift,
                         workingDayStatus,
                         isMercantileHoliday: holidayInfo.isMercantileHoliday,

@@ -7,7 +7,7 @@ import { getShiftAssignments, getActiveShift } from "@/app/lib/api/shiftsApi";
 import { getHolidays } from "@/app/lib/api/holidaysApi"; // Implemented
 import { fetchEmployee } from "@/app/lib/api/employeeApi";
 import { fetchCompany } from "@/app/lib/api/companyApi";
-import { calculateOT } from "@/app/lib/utils/attendanceUtils";
+import { calculateOT, calculateEffectiveDuration } from "@/app/lib/utils/attendanceUtils";
 
 dayjs.extend(isBetween);
 
@@ -365,8 +365,24 @@ export const useAttendanceAggregation = (
                 // If multiple shifts, maybe only mark "Absent" if ALL missed? 
                 // No, missed shift is absent.
 
-                // Metrics
                 const totalDuration = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+
+                // Get useShiftStartForOT Flag
+                const useShiftStartForOT = employee.shiftSettings?.useShiftStartForOT ?? company.shiftSettings?.useShiftStartForOT ?? false;
+
+                // Calculate Effective Duration for OT
+                // We reconstruct sessions objects for the util (needs Date objects)
+                const utilSessions = sessions.map(s => ({
+                    in: new Date(s.checkInTime),
+                    out: s.checkOutTime ? new Date(s.checkOutTime) : undefined
+                }));
+
+                const effectiveDurationForOT = calculateEffectiveDuration(
+                    utilSessions,
+                    shiftExpected.start,
+                    useShiftStartForOT,
+                    company.timezone || "Asia/Colombo"
+                );
 
                 // Check Half Day status for OT Calculation
                 // Is Half Day if:
@@ -385,7 +401,7 @@ export const useAttendanceAggregation = (
 
                 // Standardized OT Calculation
                 const otMinutes = calculateOT(
-                    totalDuration,
+                    effectiveDurationForOT,
                     shiftExpected.breakDuration || 60, // Default 60 if not set
                     currentStatus
                 );
@@ -455,7 +471,8 @@ export const useAttendanceAggregation = (
                     outDeviceChange: lastOutSession?.outDeviceChange,
                     checkInTime: firstSession?.checkInTime,
                     checkOutTime: lastCheckOutTime,
-                    durationMinutes: totalDuration,
+                    // Use Effective Duration if configuration is enabled, otherwise Total Duration
+                    durationMinutes: useShiftStartForOT ? effectiveDurationForOT : totalDuration,
                     otMinutes,
                     leaveStatus: relevantLeave ? (relevantLeave.halfDay ? (relevantLeave.halfDayPeriod === 'first_half' ? 'Half-First' : 'Half-Final') : (relevantLeave.totalMinutes ? 'Short' : 'Full')) : undefined,
                     leaveType: (relevantLeave?.leaveType as any)?.name,

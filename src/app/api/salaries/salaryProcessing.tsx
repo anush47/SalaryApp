@@ -29,6 +29,7 @@ export const processSalaryWithInOut = async (
 
 
   const shifts = employee.shiftSettings?.shifts || [];
+  const useShiftStartForOT = employee.shiftSettings?.useShiftStartForOT || employee.company?.shiftSettings?.useShiftStartForOT || false;
   const source = existingSalary || employee;
 
   // Determine if inOut contains already processed records (objects) or unprocessed Dates
@@ -68,7 +69,8 @@ export const processSalaryWithInOut = async (
       summary: "",
     },
     remark = "",
-    noPay = 0
+    noPay = 0,
+    displayInDate?: Date
   ) => {
     const result = DailyCalculationService.processDailyRecord(
       inDate,
@@ -80,6 +82,9 @@ export const processSalaryWithInOut = async (
       employee,
       { remark, noPay }
     );
+    if (displayInDate) {
+      result.in = displayInDate.toISOString();
+    }
     records.push(result);
   };
 
@@ -202,8 +207,21 @@ export const processSalaryWithInOut = async (
         );
         const holiday = getHoliday(inDate, holidays);
 
+        // Shift Start Clamping Logic
+        let effectiveInDate = inDate;
+        let displayInDate: Date | undefined = undefined;
+
+        if (useShiftStartForOT && !dayHasRecord && shift) {
+          const shiftStart = getShiftStart(shift.startTime, inDate);
+          // If actual IN is BEFORE shift start, clamp it.
+          if (inDate < shiftStart) {
+            effectiveInDate = shiftStart;
+            displayInDate = inDate; // Preserve actual for display
+          }
+        }
+
         // Process the record for the current in/out
-        processRecord(inDate, outDate, workingDayStatus, holiday);
+        processRecord(effectiveInDate, outDate, workingDayStatus, holiday, "", 0, displayInDate);
 
         // Move to the next day
         day.setUTCDate(outDate.getUTCDate() + 1);

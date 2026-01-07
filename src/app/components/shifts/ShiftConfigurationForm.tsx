@@ -49,6 +49,7 @@ export interface ShiftSettingsData {
     shifts: Shift[];
     defaultShiftId?: string;
     autoSelect: boolean;
+    useShiftStartForOT?: boolean;
 }
 
 interface ShiftConfigurationFormProps {
@@ -168,6 +169,24 @@ export const ShiftConfigurationForm = ({
                                 label="Smart Auto-Select Shift"
                             />
                             <FormHelperText>Automatically select shift based on check-in time</FormHelperText>
+                        </FormControl>
+
+                        <FormControl fullWidth sx={{ mt: 2 }}>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={settings.useShiftStartForOT || false}
+                                        onChange={(e) => onChange({ ...settings, useShiftStartForOT: e.target.checked })}
+                                        disabled={!isEditing}
+                                    />
+                                }
+                                label="Use Shift Start for OT"
+                            />
+                            <FormHelperText>
+                                If enabled, OT is calculated from Shift Start Time (ignoring early arrivals).
+                                <br />
+                                If disabled, OT is calculated from Actual Check-in Time.
+                            </FormHelperText>
                         </FormControl>
                     </Grid>
 

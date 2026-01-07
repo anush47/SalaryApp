@@ -45,6 +45,7 @@ export interface ICompany extends Document {
     }[];
     defaultShiftId?: string;
     autoSelect: boolean;
+    useShiftStartForOT: boolean;
   };
   workingDays: {
     mon: "full" | "half" | "off";
@@ -245,6 +246,7 @@ const companySchema = new Schema<ICompany>(
       },
       defaultShiftId: String,
       autoSelect: { type: Boolean, default: false },
+      useShiftStartForOT: { type: Boolean, default: false },
     },
     paymentStructure: {
       additions: {

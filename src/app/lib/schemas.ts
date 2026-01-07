@@ -256,6 +256,11 @@ export const employeeUpdateSchema = z.object({
       })
     )
     .optional(),
+  shiftSettings: z.object({
+    defaultShiftId: z.string().optional(),
+    autoSelect: z.boolean().optional(),
+    useShiftStartForOT: z.boolean().optional(),
+  }).optional(),
   paymentStructure: z
     .object({
       additions: z.array(
@@ -435,6 +440,11 @@ export const companyUpdateSchema = z.object({
     })
     .optional(),
   mode: z.string().optional(),
+  shiftSettings: z.object({
+    defaultShiftId: z.string().optional(),
+    autoSelect: z.boolean().optional(),
+    useShiftStartForOT: z.boolean().optional(),
+  }).optional(),
   workingDays: z
     .object({
       mon: z.string().optional(),

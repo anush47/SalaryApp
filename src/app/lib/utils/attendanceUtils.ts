@@ -1,4 +1,9 @@
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Types derived from existing interfaces - Used for geofencing and attendance configuration mapping
 export interface GeoConfig {
@@ -181,4 +186,89 @@ export const calculateOT = (
     }
 
     return netWorkedMinutes - thresholdMinutes;
+};
+
+/**
+ * Calculates the "Effective Duration" for OT purposes.
+ * 
+ * @param sessions Array of { in: Date, out?: Date }
+ * @param shiftStartTimeStr Optional shift start time "HH:mm" (e.g. "08:00")
+ * @param useShiftStartForOT Boolean flag behavior
+ * 
+ * Logic:
+ * 1. If `useShiftStartForOT` is TRUE and `shiftStartTimeStr` is provided:
+ *    - For the FIRST session only:
+ *      - If Actual IN < Shift Start: Effective IN = Shift Start (Clamp early arrival)
+ *      - If Actual IN > Shift Start: Effective IN = Actual IN (Late arrival counts as is)
+ *    - Subsequent sessions use actual times.
+ * 2. If FALSE, use actual times for everything.
+ * 
+ * Returns total minutes.
+ */
+export const calculateEffectiveDuration = (
+    sessions: { in: Date; out?: Date }[],
+    shiftStartTimeStr?: string,
+    useShiftStartForOT: boolean = false,
+    companyTimezone: string = "Asia/Colombo"
+): number => {
+    if (!sessions || sessions.length === 0) return 0;
+
+    // Helper to parse Shift Start Time relative to a specific date
+    // Helper to parse Shift Start Time relative to a specific date in Company Timezone
+    const getShiftStartDate = (date: Date, timeStr: string) => {
+        // Use dayjs to handle timezone correctly
+        // 1. Convert input date to company timezone
+        // 2. Set hours/minutes
+        // 3. returned Date is in UTC equivalent
+        const [hours, mins] = timeStr.split(':').map(Number);
+
+        // Ensure valid timezone
+        const tz = companyTimezone || "Asia/Colombo";
+
+        const shiftStart = dayjs(date).tz(tz)
+            .hour(hours)
+            .minute(mins)
+            .second(0)
+            .millisecond(0);
+
+        return shiftStart.toDate();
+    };
+
+    let totalMinutes = 0;
+
+    // Sort sessions by time to ensure we identify the "First" one correctly
+    const sortedSessions = [...sessions].sort((a, b) => a.in.getTime() - b.in.getTime());
+
+    sortedSessions.forEach((session, index) => {
+        const inTime = session.in;
+        const outTime = session.out || new Date(); // If running live, out is "now"
+
+        let effectiveIn = inTime;
+
+        // Apply Clamping ONLY to the very first session of the day
+        if (index === 0 && useShiftStartForOT && shiftStartTimeStr) {
+            const shiftStart = getShiftStartDate(inTime, shiftStartTimeStr);
+
+            // If checked in BEFORE shift start, clamp to shift start
+            if (inTime < shiftStart) {
+                // However, ensure we don't clamp if they checked out before shift even started? 
+                // (e.g. Came 6am, Left 7am, Shift 8am). 
+                // If outTime < shiftStart, duration is 0 for OT context?
+                // Logic: "Work done before shift doesn't count for OT/Hours if this flag is on".
+
+                if (outTime < shiftStart) {
+                    effectiveIn = outTime; // Resulting duration 0
+                } else {
+                    effectiveIn = shiftStart;
+                }
+            }
+        }
+
+        const durationMs = outTime.getTime() - effectiveIn.getTime();
+        const durationMins = Math.max(0, Math.floor(durationMs / 60000));
+
+        totalMinutes += durationMins;
+    });
+
+    return totalMinutes;
 };

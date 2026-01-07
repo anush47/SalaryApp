@@ -111,6 +111,7 @@ export interface IEmployee extends Document {
     }[];
     defaultShiftId?: string;
     autoSelect: boolean;
+    useShiftStartForOT: boolean;
   };
   probabilities: {
     workOnOff: number;
@@ -375,6 +376,7 @@ const employeeSchema = new Schema<IEmployee>(
       },
       defaultShiftId: String,
       autoSelect: { type: Boolean, default: false },
+      useShiftStartForOT: { type: Boolean, default: false },
     },
     startedAt: {
       type: String,
