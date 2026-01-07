@@ -61,26 +61,22 @@ export class LeaveRequestService {
             company: companyId, // Always filter by company
         };
 
-        // If myRequests, show employee's own requests
-        if (myRequests && session.user.role === "employee") {
-            const employee = await Employee.findOne({
+        // Security: Enforce data scope for employees
+        if (session.user.role === "employee") {
+            const me = await Employee.findOne({
                 user: session.user.id,
                 company: companyId,
             });
-            if (employee) {
-                query.employee = employee._id;
-            }
-        }
 
-        // If pendingApprovals, show requests assigned to this employee as approver
-        if (pendingApprovals && session.user.role === "employee") {
-            const employee = await Employee.findOne({
-                user: session.user.id,
-                company: companyId,
-            });
-            if (employee) {
-                query.approver = employee._id;
-                query.status = "pending";
+            if (me) {
+                if (pendingApprovals) {
+                    // Show requests assigned to this employee as approver
+                    query.approver = me._id;
+                    query.status = "pending";
+                } else {
+                    // Default: Show ONLY own requests
+                    query.employee = me._id;
+                }
             }
         }
 
