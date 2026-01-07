@@ -7,6 +7,7 @@ import { getShiftAssignments, getActiveShift } from "@/app/lib/api/shiftsApi";
 import { getHolidays } from "@/app/lib/api/holidaysApi"; // Implemented
 import { fetchEmployee } from "@/app/lib/api/employeeApi";
 import { fetchCompany } from "@/app/lib/api/companyApi";
+import { calculateOT } from "@/app/lib/utils/attendanceUtils";
 
 dayjs.extend(isBetween);
 
@@ -239,7 +240,14 @@ export const useAttendanceAggregation = (
                         shiftExpected.name = shiftDef.name;
                         shiftExpected.start = shiftDef.startTime;
                         shiftExpected.end = shiftDef.endTime;
-                        shiftExpected.breakDuration = shiftDef.breakDuration || 60; // Use defined break or default
+                        const val = Number(shiftDef.breakDuration);
+                        // Heuristic: If <= 12, assume Hours and convert to Minutes. If > 12, assume Minutes.
+                        // If 0 or NaN, default to 60 minutes.
+                        if (val > 0) {
+                            shiftExpected.breakDuration = val <= 12 ? val * 60 : val;
+                        } else {
+                            shiftExpected.breakDuration = 60;
+                        }
                     }
                 }
 
@@ -360,19 +368,27 @@ export const useAttendanceAggregation = (
                 // Metrics
                 const totalDuration = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
 
-                // OT (Simple)
-                // Need standard hours.
-                const startH = Number(shiftExpected.start.split(":")[0]);
-                const endH = Number(shiftExpected.end.split(":")[0]);
-                // Approx standard duration
-                let standardMins = (endH * 60 + Number(shiftExpected.end.split(":")[1] || 0)) - (startH * 60 + Number(shiftExpected.start.split(":")[1] || 0));
+                // Check Half Day status for OT Calculation
+                // Is Half Day if:
+                // 1. Status is explicitly 'Half Day' (if we supported that enum directly)
+                // 2. OR Relevant Leave is Half Day
+                let isHalfDayForOT = false;
+                if (relevantLeave && (relevantLeave.halfDay || (relevantLeave.leaveType as any)?.name?.toLowerCase().includes('half'))) {
+                    isHalfDayForOT = true;
+                }
 
-                if (standardMins < 0) standardMins += 24 * 60; // Overnight
-                standardMins -= (shiftExpected.breakDuration || 60); // Subtract Shift Break
+                // Determine effective status for OT (Full, Half, Off, Holiday)
+                let currentStatus = "Full Day";
+                if (isHalfDayForOT) currentStatus = "Half Day";
+                else if (shiftExpected.off) currentStatus = "Off";
+                else if (isHoliday) currentStatus = "Holiday";
 
-                if (standardMins < 0) standardMins = 0;
-
-                const otMinutes = Math.max(0, totalDuration - standardMins);
+                // Standardized OT Calculation
+                const otMinutes = calculateOT(
+                    totalDuration,
+                    shiftExpected.breakDuration || 60, // Default 60 if not set
+                    currentStatus
+                );
 
                 const firstSession = sessions[0];
                 let isLate = false;

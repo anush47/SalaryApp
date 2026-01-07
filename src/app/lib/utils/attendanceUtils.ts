@@ -139,3 +139,46 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 
     return R * c; // Distance in meters
 };
+
+/**
+ * Standarized Overtime Calculation
+ * Logic:
+ * 1. Net Worked Hours = Total Duration - Shift Break
+ * 2. If Half Day: Threshold is 5 hours (300 mins)
+ * 3. If Off Day / Holiday: Threshold is 0 (All worked time is OT)
+ * 4. If Full Day: Threshold is 8 hours (480 mins)
+ * 5. OT = Net Worked Hours - Threshold (min 0)
+ */
+export const calculateOT = (
+    totalDurationMinutes: number,
+    breakDurationMinutes: number,
+    dayStatus: string // 'Full Day' | 'Half Day' | 'Off' | 'Holiday' ...
+): number => {
+    // 1. Deduct Break
+    // Note: totalDurationMinutes usually is "Clock Out - Clock In", which INCLUDES break time if they didn't clock out for break.
+    // If the system tracks breaks separately effectively, input should adjust.
+    // Assuming totalDurationMinutes is the raw difference between First IN and Last OUT (or sum of sessions), which implicitly includes break time if they are on premises.
+    // If the user says "ignore the selected shifts break", they usually mean "deduct it".
+
+    // Safety check
+    if (totalDurationMinutes <= 0) return 0;
+
+    const netWorkedMinutes = totalDurationMinutes - (breakDurationMinutes || 0);
+
+    // 2. Determine Threshold
+    let thresholdMinutes = 480; // Default Full Day 8h
+
+    const statusLower = dayStatus?.toLowerCase() || "";
+
+    if (statusLower.includes('half')) {
+        thresholdMinutes = 300; // 5 hours
+    } else if (statusLower === 'off' || statusLower === 'holiday' || statusLower.includes('weekend')) {
+        thresholdMinutes = 0; // All worked time is OT
+    }
+
+    if (netWorkedMinutes <= thresholdMinutes) {
+        return 0;
+    }
+
+    return netWorkedMinutes - thresholdMinutes;
+};

@@ -10,6 +10,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 import { calculateSingleLeaveDeduction } from "../../../lib/leaveDeductionCalculation";
+import { calculateOT } from "@/app/lib/utils/attendanceUtils";
 
 interface OTBreakdown {
     normalOT: number; // 1.5x hours
@@ -45,15 +46,15 @@ export class DailyCalculationService {
         let doubleOT = 0;
         let tripleOT = 0;
 
-        // Calculate OT hours based on day type
-        let otHours = 0;
-        if (workingDayStatus === "off" || isMercantileHoliday || isPublicHoliday) {
-            otHours = workingHours; // All hours are OT
-        } else if (workingDayStatus === "half") {
-            otHours = Math.max(workingHours - halfDayTreshold, 0);
-        } else {
-            otHours = Math.max(workingHours - workingHoursTreshold, 0);
-        }
+        // Calculate OT hours based on day type using shared utility
+        // workingHours passed here is already 'Net' (break subtracted if applicable)
+        // So we pass 0 as break to calculateOT
+        const otMinutes = calculateOT(
+            workingHours * 60,
+            0,
+            workingDayStatus
+        );
+        const otHours = otMinutes / 60;
 
         // Categorize OT by type
         if (isMercantileHoliday) {
