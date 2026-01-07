@@ -144,14 +144,18 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
 
     // 2. Compute Effective Zones using Shared Logic
     const zonesData = useMemo(() => {
+
+
+
         if (!employee || !companyProfile) return { zones: [], isGeofencingEnabled: false, isRemoteAllowed: false };
 
         const company = companyProfile;
-        const companyConfig = company.attendanceConfig || {};
         const employeeOverrides = employee.attendanceOverrides;
 
         const effectiveData = getEffectiveAllowedZones(company, employeeOverrides);
         const { zones, isGeofencingEnabled, enforceValidation } = effectiveData;
+
+
 
         // Check for remote check-in flag
         const isRemoteAllowed = employeeOverrides?.enabled && employeeOverrides.isRemote;
@@ -166,7 +170,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
             enforceValidation,
             isRemoteAllowed: !!allowRemote
         };
-    }, [employee]);
+    }, [employee, companyProfile]);
 
     const allShifts = useMemo(() => {
         if (!employee || !companyProfile) return [];
@@ -183,28 +187,36 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
 
 
     useEffect(() => {
+
         if (!shouldShowMap) {
             setLocationStatus(prev => ({ ...prev, isInside: true, error: null, fetching: false, distance: null, coords: null }));
             return;
         }
 
+        // Reset state when map becomes active to prevent stale "isInside: true"
+        setLocationStatus(prev => ({ ...prev, fetching: true, error: null, isInside: false, distance: null }));
+
         if (!navigator.geolocation) {
-            setLocationStatus(prev => ({ ...prev, error: "Geolocation not supported", fetching: false, coords: null }));
+            console.error("[Attendance] Geolocation not supported");
+            setLocationStatus(prev => ({ ...prev, error: "Geolocation not supported", fetching: false, coords: null, isInside: false }));
             return;
         }
 
         // Check for secure context (HTTPS)
         if (typeof window !== 'undefined' && !window.isSecureContext) {
-            setLocationStatus(prev => ({ ...prev, error: "Insecure Context: Geolocation requires HTTPS to function on most devices.", fetching: false, coords: null }));
+
+            setLocationStatus(prev => ({ ...prev, error: "Insecure Context: Geolocation requires HTTPS to function on most devices.", fetching: false, coords: null, isInside: false }));
             return;
         }
 
         let watchId: number;
 
         const startWatching = (highAccuracy: boolean) => {
+
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
                     const { latitude, longitude } = position.coords;
+
 
                     let isInsideAny = false;
                     let minDistance = Infinity;
@@ -212,12 +224,15 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                     if (effectiveZones.length > 0) {
                         effectiveZones.forEach(zone => {
                             const dist = calculateDistance(latitude, longitude, zone.lat, zone.lng);
+
                             if (dist < minDistance) minDistance = dist;
                             if (dist <= zone.radius) isInsideAny = true;
                         });
                     } else {
                         isInsideAny = !geoEnabled;
                     }
+
+
 
                     setLocationStatus({
                         isInside: isInsideAny,
@@ -228,10 +243,11 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                     });
                 },
                 (error) => {
-                    console.warn(`Geolocation watch error (highAccuracy=${highAccuracy}):`, error);
+
 
                     // Fallback to standard accuracy if High Accuracy fails/times out
                     if (highAccuracy && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)) {
+
                         navigator.geolocation.clearWatch(watchId);
                         startWatching(false);
                         return;
@@ -246,7 +262,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                         msg = "Location information is unavailable. Ensure GPS is enabled on your device.";
                     }
 
-                    setLocationStatus(prev => ({ ...prev, error: msg, fetching: false, coords: null }));
+                    setLocationStatus(prev => ({ ...prev, error: msg, fetching: false, coords: null, isInside: false }));
                 },
                 { enableHighAccuracy: highAccuracy, maximumAge: 10000, timeout: highAccuracy ? 15000 : 30000 }
             );
@@ -260,23 +276,56 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     }, [zonesData, shouldShowMap]);
 
     const refreshLocation = () => {
+
         if (!navigator.geolocation) return;
-        setLocationStatus(prev => ({ ...prev, fetching: true, error: null }));
+
+        // Reset state
+        setLocationStatus(prev => ({
+            ...prev,
+            fetching: true,
+            error: null,
+            isInside: false,
+            distance: null,
+            coords: null
+        }));
+
+        let isMounted = true;
+
+        // Safety timeout to prevent infinite spinning
+        const safetyTimeout = setTimeout(() => {
+            if (isMounted) {
+
+                setLocationStatus(prev => {
+                    if (!prev.fetching) return prev; // Already finished
+                    return { ...prev, error: "Location detection timed out completely.", fetching: false, isInside: false, coords: null };
+                });
+            }
+        }, 12000); // 12 seconds max safety valve
+
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
+                if (!isMounted) return;
+                clearTimeout(safetyTimeout);
+
                 const { latitude, longitude } = position.coords;
+
+
                 let isInsideAny = false;
                 let minDistance = Infinity;
 
                 if (effectiveZones.length > 0) {
                     effectiveZones.forEach(zone => {
                         const dist = calculateDistance(latitude, longitude, zone.lat, zone.lng);
+
                         if (dist < minDistance) minDistance = dist;
                         if (dist <= zone.radius) isInsideAny = true;
                     });
                 } else {
                     isInsideAny = !geoEnabled;
                 }
+
+
 
                 setLocationStatus({
                     isInside: isInsideAny,
@@ -287,11 +336,17 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 });
             },
             (error) => {
+                if (!isMounted) return;
+                clearTimeout(safetyTimeout);
+
+
+
                 let msg = "Unable to retrieve location";
                 if (error.code === error.PERMISSION_DENIED) msg = "Permission denied";
                 else if (error.code === error.TIMEOUT) msg = "Timeout - check GPS signal";
                 else if (error.code === error.POSITION_UNAVAILABLE) msg = "Location unavailable";
-                setLocationStatus(prev => ({ ...prev, error: msg, fetching: false }));
+
+                setLocationStatus(prev => ({ ...prev, error: msg, fetching: false, isInside: false, coords: null }));
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -391,7 +446,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                         });
                     },
                     (error) => {
-                        console.warn(`Geolocation error (highAccuracy=${highAccuracy}):`, error);
+
 
                         // Fallback to standard accuracy if High Accuracy fails or times out
                         if (highAccuracy && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)) {
@@ -399,17 +454,9 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                             return;
                         }
 
-                        // If cached location exists, use it
-                        if (locationStatus.coords) {
-                            resolve({
-                                lat: locationStatus.coords.latitude,
-                                lng: locationStatus.coords.longitude,
-                                accuracy: (locationStatus.coords as any).accuracy || 20
-                            });
-                        } else {
-                            // Proceed without location (returns null)
-                            resolve(null);
-                        }
+                        // FAILED to get location. Do NOT use cached/stale location.
+
+                        resolve(null);
                     },
                     { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 15000 : 30000, maximumAge: 10000 }
                 );
@@ -420,14 +467,14 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
         let locationPromise: Promise<{ lat: number, lng: number, accuracy: number } | null>;
 
         if (locationStatus.coords && !locationStatus.error) {
-            console.log("Using cached location for ultra-fast check-in");
+
             locationPromise = Promise.resolve({
                 lat: locationStatus.coords.latitude,
                 lng: locationStatus.coords.longitude,
                 accuracy: locationStatus.coords.accuracy
             });
         } else {
-            console.log("No cached location, fetching fresh position...");
+
             locationPromise = getLocation();
         }
 
@@ -727,23 +774,33 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                             {locationStatus.fetching ? (
                                                 <CircularProgress size={24} color="info" />
                                             ) : (
-                                                <LocationOn color={locationStatus.isInside ? "success" : (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching) ? "error" : (strictEnforce ? "error" : "warning"))} />
+                                                <LocationOn color={
+                                                    !geoEnabled ? "info" :
+                                                        locationStatus.isInside ? "success" :
+                                                            (locationStatus.error || (!locationStatus.coords && !locationStatus.fetching) ? "error" :
+                                                                (strictEnforce ? "error" : "warning"))
+                                                } />
                                             )}
                                             <Box sx={{ flex: 1 }}>
                                                 <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.85rem' }}>
                                                     {locationStatus.fetching ? "Detecting location..." :
                                                         locationStatus.error ? "LOCATION PROBLEM" :
                                                             !locationStatus.coords ? "LOCATION NOT FOUND" :
-                                                                locationStatus.isInside ? "Within Allowed Zone" : "OUTSIDE ALLOWED ZONE"}
+                                                                !geoEnabled ? "OPEN ACCESS (GEOFENCE OFF)" :
+                                                                    locationStatus.isInside ? "WITHIN ALLOWED ZONE" : "OUTSIDE ALLOWED ZONE"}
                                                 </Typography>
 
                                                 {locationStatus.error ? (
                                                     <Typography variant="caption" color="error.dark" sx={{ display: 'block', fontWeight: 'bold' }}>
                                                         {locationStatus.error}
                                                     </Typography>
-                                                ) : (locationStatus.distance !== null && !locationStatus.isInside) ? (
+                                                ) : (locationStatus.distance !== null && !locationStatus.isInside && geoEnabled) ? (
                                                     <Typography variant="body2" color="error.main" fontWeight="bold">
                                                         {locationStatus.distance.toFixed(0)}m away
+                                                    </Typography>
+                                                ) : (!geoEnabled) ? (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                                        Attendance marking is allowed from any location.
                                                     </Typography>
                                                 ) : !locationStatus.coords && !locationStatus.fetching ? (
                                                     <Typography variant="caption" color="error.dark" sx={{ display: 'block' }}>
@@ -751,7 +808,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                     </Typography>
                                                 ) : null}
                                             </Box>
-                                            {!locationStatus.fetching && (
+                                            {!locationStatus.fetching && (locationStatus.error || !locationStatus.coords) && (
                                                 <Button
                                                     size="small"
                                                     variant="outlined"
