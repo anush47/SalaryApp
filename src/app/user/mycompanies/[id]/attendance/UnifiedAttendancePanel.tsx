@@ -16,7 +16,7 @@ import { Grid } from '@mui/material';
 import dayjs from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchEmployees } from '@/app/lib/api/employeeApi';
-import { useAttendanceAggregation, DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
+import { useAttendanceAggregation, useAllEmployeesAttendanceAggregation, DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
 import { DailyAttendanceTable } from '@/app/components/attendance/DailyAttendanceTable';
 import { Refresh } from '@mui/icons-material';
 import { AttendanceRecordDialog } from '@/app/components/attendance/AttendanceRecordDialog';
@@ -64,13 +64,24 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
         });
     }, [employeesData]);
 
-    // Aggregation Hook
-    const { records, stats, loading: loadingAggregation } = useAttendanceAggregation(
+    // Aggregation Hooks
+    const { records: singleRecords, stats, loading: loadingSingle } = useAttendanceAggregation(
         selectedEmployee?._id || "",
         companyId,
         startDate.format('YYYY-MM-DD'),
-        endDate.format('YYYY-MM-DD')
+        endDate.format('YYYY-MM-DD'),
+        !!selectedEmployee
     );
+
+    const { records: allRecords, loading: loadingAll } = useAllEmployeesAttendanceAggregation(
+        companyId,
+        startDate.format('YYYY-MM-DD'),
+        endDate.format('YYYY-MM-DD'),
+        !selectedEmployee
+    );
+
+    const records = selectedEmployee ? singleRecords : allRecords;
+    const loadingAggregation = selectedEmployee ? loadingSingle : loadingAll;
 
     const queryClient = useQueryClient();
 
@@ -89,69 +100,61 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
         <Box sx={{ p: 2 }}>
 
 
-            {selectedEmployee ? (
-                <>
-                    {/* Summary Cards */}
-                    <Grid container spacing={1.5} mb={3}>
-                        {[
-                            { label: 'Worked Days', value: stats?.workedDays || 0, color: 'primary' },
-                            { label: 'Absent', value: stats?.absent || 0, color: 'error' },
-                            { label: 'Total Hours', value: `${stats?.totalHours || 0}h`, color: 'info' },
-                            { label: 'Overtime', value: `${stats?.totalOT || 0}h`, color: 'success' },
-                        ].map((stat, idx) => (
-                            <Grid item xs={6} sm={3} key={idx}>
-                                <Paper
-                                    variant="outlined"
+            {selectedEmployee && (
+                <Grid container spacing={1.5} mb={3}>
+                    {[
+                        { label: 'Worked Days', value: stats?.workedDays || 0, color: 'primary' },
+                        { label: 'Absent', value: stats?.absent || 0, color: 'error' },
+                        { label: 'Total Hours', value: `${stats?.totalHours || 0}h`, color: 'info' },
+                        { label: 'Overtime', value: `${stats?.totalOT || 0}h`, color: 'success' },
+                    ].map((stat, idx) => (
+                        <Grid item xs={6} sm={3} key={idx}>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: { xs: 1, sm: 2 },
+                                    textAlign: 'center',
+                                    borderRadius: 2,
+                                    borderLeft: `3px solid`,
+                                    borderColor: `${stat.color}.main`,
+                                    bgcolor: 'background.paper',
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
                                     sx={{
-                                        p: { xs: 1, sm: 2 },
-                                        textAlign: 'center',
-                                        borderRadius: 2,
-                                        borderLeft: `3px solid`,
-                                        borderColor: `${stat.color}.main`,
-                                        bgcolor: 'background.paper',
+                                        color: 'text.secondary',
+                                        display: 'block',
+                                        fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                                        fontWeight: 'medium'
                                     }}
                                 >
-                                    <Typography
-                                        variant="caption"
-                                        sx={{
-                                            color: 'text.secondary',
-                                            display: 'block',
-                                            fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                                            fontWeight: 'medium'
-                                        }}
-                                    >
-                                        {stat.label}
-                                    </Typography>
-                                    <Typography
-                                        variant="h6"
-                                        sx={{
-                                            color: `${stat.color}.main`,
-                                            fontWeight: 'bold',
-                                            fontSize: { xs: '1rem', sm: '1.25rem' }
-                                        }}
-                                    >
-                                        {stat.value}
-                                    </Typography>
-                                </Paper>
-                            </Grid>
-                        ))}
-                    </Grid>
-
-                    <DailyAttendanceTable
-                        records={records}
-                        loading={loadingAggregation}
-                        onEdit={handleEditRecord}
-                        onLeaveClick={handleLeaveClick}
-                        userRole="employer"
-                    />
-                </>
-            ) : (
-                <Box sx={{ p: 5, textAlign: 'center', border: '1px dashed grey', borderRadius: 2 }}>
-                    <Typography color="text.secondary">
-                        Please select an employee to view their unified attendance history.
-                    </Typography>
-                </Box>
+                                    {stat.label}
+                                </Typography>
+                                <Typography
+                                    variant="h6"
+                                    sx={{
+                                        color: `${stat.color}.main`,
+                                        fontWeight: 'bold',
+                                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                                    }}
+                                >
+                                    {stat.value}
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
             )}
+
+            <DailyAttendanceTable
+                records={records}
+                loading={loadingAggregation}
+                onEdit={handleEditRecord}
+                onLeaveClick={handleLeaveClick}
+                userRole="employer"
+                showEmployeeColumn={!selectedEmployee}
+            />
 
             {/* Edit Dialog */}
             <AttendanceRecordDialog

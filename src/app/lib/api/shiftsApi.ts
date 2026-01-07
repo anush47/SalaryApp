@@ -1,9 +1,11 @@
 import { ApiResponse } from '@/app/lib/apiResponse';
 
-export const getShiftAssignments = async (employeeId: string, startDate?: string, endDate?: string): Promise<ApiResponse> => {
-    let url = `/api/shifts/assignments?employeeId=${employeeId}`;
-    if (startDate) url += `&startDate=${startDate}`;
-    if (endDate) url += `&endDate=${endDate}`;
+export const getShiftAssignments = async (employeeId?: string, startDate?: string, endDate?: string, companyId?: string): Promise<ApiResponse> => {
+    let url = `/api/shifts/assignments?`;
+    if (employeeId) url += `employeeId=${employeeId}&`;
+    if (companyId) url += `companyId=${companyId}&`;
+    if (startDate) url += `startDate=${startDate}&`;
+    if (endDate) url += `endDate=${endDate}&`;
 
     const response = await fetch(url);
     return response.json();

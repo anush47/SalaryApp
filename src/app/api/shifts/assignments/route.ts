@@ -16,13 +16,16 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get("date");
     const startDate = searchParams.get("startDate"); // For range
     const endDate = searchParams.get("endDate");
+    const companyId = searchParams.get("companyId");
 
-    if (!employeeId) {
-        return NextResponse.json({ success: false, message: "Employee ID is required" }, { status: 400 });
+    if (!employeeId && !companyId) {
+        return NextResponse.json({ success: false, message: "Employee ID or Company ID is required" }, { status: 400 });
     }
 
     try {
-        let query: any = { employee: employeeId };
+        let query: any = {};
+        if (employeeId) query.employee = employeeId;
+        if (companyId) query.company = companyId;
 
         if (date) {
             query.date = date;

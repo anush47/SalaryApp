@@ -13,6 +13,7 @@ interface DailyAttendanceTableProps {
     onEdit?: (record: DailyAttendanceRecord) => void;
     onLeaveClick?: (record: DailyAttendanceRecord) => void;
     userRole: 'employee' | 'employer';
+    showEmployeeColumn?: boolean;
     maxHeight?: string | number;
 }
 
@@ -22,6 +23,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
     onEdit,
     onLeaveClick,
     userRole,
+    showEmployeeColumn = false,
     maxHeight = 500
 }) => {
 
@@ -62,6 +64,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
             <Table size="small" stickyHeader>
                 <TableHead>
                     <TableRow sx={{ bgcolor: 'action.hover', '& th': { bgcolor: 'action.hover' } }}>
+                        {showEmployeeColumn && <TableCell>Employee</TableCell>}
                         <TableCell>Date</TableCell>
                         <TableCell>Shift</TableCell>
                         <TableCell>Status</TableCell>
@@ -88,6 +91,18 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                     borderLeftColor: record.status === 'Leave' ? 'primary.main' : 'transparent',
                                 }}
                             >
+                                {showEmployeeColumn && (
+                                    <TableCell>
+                                        <Typography variant="body2" fontWeight="bold">
+                                            {record.employee?.name}
+                                        </Typography>
+                                        {record.employee?.memberNo && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                #{record.employee.memberNo}
+                                            </Typography>
+                                        )}
+                                    </TableCell>
+                                )}
                                 <TableCell>
                                     <Box>
                                         <Typography variant="body2" fontWeight="bold">
