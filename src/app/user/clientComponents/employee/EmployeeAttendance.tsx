@@ -650,14 +650,24 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                     )
                                                 }
 
-                                                // 3. Late (After Start + 1m)
-                                                if (currentTime.isAfter(shiftStart.add(1, 'minute'))) {
+                                                // 3. Late (After Start + 1m) AND Before End
+                                                if (currentTime.isAfter(shiftStart.add(1, 'minute')) && currentTime.isBefore(shiftEnd)) {
                                                     return (
                                                         <Typography variant="caption" color="error.main" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
                                                             <Warning sx={{ fontSize: 12 }} /> Note: You are marking in Late
                                                         </Typography>
                                                     )
                                                 }
+
+                                                // 4. After Shift
+                                                if (currentTime.isAfter(shiftEnd)) {
+                                                    return (
+                                                        <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+                                                            <Info sx={{ fontSize: 12 }} /> Note: Shift has ended
+                                                        </Typography>
+                                                    )
+                                                }
+
                                                 return null;
                                             })()}
                                         </Box>
