@@ -40,7 +40,8 @@ import { AttendanceRecordDialog } from "@/app/components/attendance/AttendanceRe
 import { DailyAttendanceTable } from "@/app/components/attendance/DailyAttendanceTable";
 import { DailyAttendanceRecord } from "@/app/hooks/useAttendanceAggregation";
 import AttendanceStatsChart from "@/app/components/attendance/AttendanceStatsChart";
-import { TrendingUp, TrendingDown, AssignmentInd, EventNote, Map } from "@mui/icons-material";
+import { TrendingUp, TrendingDown, AssignmentInd, EventNote, Map, WorkOff, EventBusy } from "@mui/icons-material";
+import QuickActions from "./QuickActions";
 
 interface UserProps {
     user: {
@@ -556,6 +557,8 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                 }
             />
             <CardContent sx={{ maxWidth: { xs: "100vw", md: "calc(100vw - 240px)" } }}>
+
+
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs
                         value={tabValue}
@@ -586,7 +589,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                     </Tabs>
                 </Box>
 
-                {tabValue === 0 && (
+                {tabValue === 0 && (<>
                     <Grid container spacing={4}>
                         <Grid item xs={12} lg={4}>
                             <Stack spacing={3}>
@@ -886,7 +889,68 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                             </Box>
                         </Grid>
                     </Grid>
-                )}
+
+                    {/* Quick Actions (Below Map) */}
+                    <Box sx={{ mt: 3, mb: 3 }}>
+                        <QuickActions isClockedIn={isClockedIn} view="attendance" />
+                    </Box>
+
+                    {/* Overview / Dashboard Stats */}
+                    <Box mt={4}>
+                        <Typography variant="h6" gutterBottom>Overview</Typography>
+                        <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                            {loadingDaily ? (
+                                <Grid item xs={12} display="flex" justifyContent="center" p={2}>
+                                    <CircularProgress size={30} />
+                                </Grid>
+                            ) : (
+                                <>
+                                    {[
+                                        { label: 'Present', val: dailyStats?.workedDays || 0, icon: <CheckCircle sx={{ color: 'success.main', opacity: 0.8, fontSize: 24 }} />, color: 'success.main' },
+                                        { label: 'Absent', val: dailyStats?.absent || 0, icon: <WorkOff sx={{ color: 'error.main', opacity: 0.8, fontSize: 24 }} />, color: 'error.main' },
+                                        { label: 'Leaves', val: dailyStats?.leaves || 0, icon: <EventBusy sx={{ color: 'warning.main', opacity: 0.8, fontSize: 24 }} />, color: 'warning.main' },
+                                        { label: 'Hours', val: `${dailyStats?.totalHours || 0}h`, icon: <AccessTime sx={{ color: 'primary.main', opacity: 0.8, fontSize: 24 }} />, color: 'primary.main' },
+                                        { label: 'OT', val: `${dailyStats?.totalOT || 0}h`, icon: <TrendingUp sx={{ color: 'secondary.main', opacity: 0.8, fontSize: 24 }} />, color: 'secondary.main' },
+                                    ].map((stat, idx) => (
+                                        <Grid item xs={6} sm={4} md={2.4} key={idx}>
+                                            <Card
+                                                variant="outlined"
+                                                sx={{
+                                                    borderLeft: '3px solid',
+                                                    borderLeftColor: stat.color,
+                                                }}
+                                            >
+                                                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                        <Box>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{stat.label}</Typography>
+                                                            <Typography variant="h5" fontWeight="bold">{stat.val}</Typography>
+                                                        </Box>
+                                                        {stat.icon}
+                                                    </Box>
+                                                </CardContent>
+                                            </Card>
+                                        </Grid>
+                                    ))}
+                                </>
+                            )}
+                        </Grid>
+
+                        {/* Work Hours Graph */}
+                        {dailyRecords.some(r => r.durationMinutes > 0) && (
+                            <Card variant="outlined" sx={{ mb: 2 }}>
+                                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                        Work Hours (This Month)
+                                    </Typography>
+                                    <Box sx={{ width: '100%', mt: 2 }}>
+                                        <AttendanceStatsChart data={dailyRecords} height={250} />
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </Box>
+                </>)}
 
                 {tabValue === 1 && (
                     <Grid container spacing={3}>

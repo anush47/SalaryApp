@@ -36,6 +36,7 @@ import {
   Fingerprint,
   EventBusy,
 } from "@mui/icons-material";
+import QuickActions from "./QuickActions";
 import AttendanceStatsChart from "@/app/components/attendance/AttendanceStatsChart";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
@@ -347,52 +348,7 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
         {/* Quick Actions at the top */}
         <Box sx={{ mb: 2 }}>
-          <Grid container spacing={1.5}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Button
-                variant="contained"
-                fullWidth
-                startIcon={<Fingerprint />}
-                onClick={() => router.push("/user?userPageSelect=attendance&tab=live")}
-                sx={{ py: 1.2, fontWeight: 'bold' }}
-              >
-                {isClockedIn ? "Clock Out / Attendance" : "Clock In / Attendance"}
-              </Button>
-            </Grid>
-            <Grid item xs={6} sm={6} md={3}>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<EventNote />}
-                onClick={() => router.push("/user?userPageSelect=leaves&tab=apply")}
-                sx={{ py: 1.2 }}
-              >
-                Apply Leave
-              </Button>
-            </Grid>
-            <Grid item xs={6} sm={6} md={3}>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<Receipt />}
-                onClick={() => router.push("/user?userPageSelect=payslips&tab=payslips")}
-                sx={{ py: 1.2 }}
-              >
-                Payslips
-              </Button>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<Person />}
-                onClick={() => router.push("/user?userPageSelect=profile")}
-                sx={{ py: 1.2 }}
-              >
-                My Profile
-              </Button>
-            </Grid>
-          </Grid>
+          <QuickActions isClockedIn={isClockedIn} view="dashboard" />
         </Box>
 
         <Grid container spacing={1.5} sx={{ mb: 2 }}>

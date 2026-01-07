@@ -87,11 +87,19 @@ export default function HomePageClient() {
   const handleOpenDemoModal = () => setOpenDemoModal(true);
   const handleCloseDemoModal = () => setOpenDemoModal(false);
 
-  // Prefetching logic
+  // Prefetching logic & Auto-Redirect
   useEffect(() => {
+    if (status === "loading") return; // Wait for auth
+
     if (session) {
       if (session.user?.role === "employee") {
-        router.prefetch("/user?userPageSelect=dashboard");
+        router.prefetch("/user?userPageSelect=attendance");
+        const searchParams = new URLSearchParams(window.location.search);
+        const shouldRedirect = searchParams.get("redirect") !== "false";
+
+        if (shouldRedirect) {
+          router.push("/user?userPageSelect=attendance"); // Auto-redirect for employees
+        }
       } else {
         router.prefetch("/user?userPageSelect=mycompanies");
         queryClient.prefetchQuery({
@@ -105,6 +113,24 @@ export default function HomePageClient() {
       router.prefetch("/api/auth/signin");
     }
   }, [session, router, queryClient, status]);
+
+  if (status === "loading") {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          background: theme.palette.mode === "dark"
+            ? "radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%)"
+            : "radial-gradient(circle at 50% 0%, #e0f2fe 0%, #ffffff 100%)",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   const userName = (() => {
     if (session?.user?.name) return session.user.name.split(" ")[0];
@@ -260,7 +286,7 @@ export default function HomePageClient() {
                 href={
                   session
                     ? session.user?.role === "employee"
-                      ? "/user?userPageSelect=dashboard"
+                      ? "/user?userPageSelect=attendance"
                       : "/user?userPageSelect=mycompanies"
                     : "/api/auth/signin"
                 }
@@ -668,7 +694,7 @@ export default function HomePageClient() {
               href={
                 session
                   ? session.user?.role === "employee"
-                    ? "/user?userPageSelect=dashboard"
+                    ? "/user?userPageSelect=attendance"
                     : "/user?userPageSelect=mycompanies"
                   : "/api/auth/signin"
               }

@@ -170,7 +170,7 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const [breadcrumbs, setBreadcrumbs] = React.useState<React.ReactNode[]>([]);
   React.useEffect(() => {
     setBreadcrumbs([
-      <LinkM underline="hover" key="1" color="text.main" href="/">
+      <LinkM underline="hover" key="1" color="text.main" href="/?redirect=false">
         Home
       </LinkM>,
       <LinkM underline="none" key="2" color="text.main">
@@ -299,7 +299,7 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
             className="flex-grow"
             style={{ display: "flex", alignItems: "center" }}
           >
-            <Link href={"/"}>
+            <Link href={"/?redirect=false"}>
               <Typography
                 variant="h5"
                 sx={{ flexGrow: 1 }}
