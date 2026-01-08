@@ -67,11 +67,8 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const { data: employeeData, isLoading: loadingEmployee, isError: errorEmployee } = useQuery({
     queryKey: ["employee_sidebar", user.id],
     queryFn: async () => {
-      console.log("UserSideBar: Fetching employee for user.id:", user.id);
       const res = await fetchEmployees({ user: user.id });
-      console.log("UserSideBar: fetchEmployees raw result:", res);
       const employees = Array.isArray(res) ? res : (res as any).employees || [];
-      console.log("UserSideBar: Resolved employees:", employees);
       return employees[0];
     },
     enabled: user.role === "employee",
@@ -80,9 +77,7 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const { data: managerData, isLoading: loadingManager, status: managerStatus, error: managerQueryError } = useQuery({
     queryKey: ["managerDashboard", employeeData?._id],
     queryFn: async () => {
-      console.log("UserSideBar: Fetching manager dashboard for:", employeeData?._id);
       const res = await fetchManagerDashboard(employeeData?._id);
-      console.log("UserSideBar: fetchManagerDashboard raw result:", res);
       return res;
     },
     enabled: !!employeeData?._id,
@@ -95,18 +90,10 @@ const UserSideBar: React.FC<Props> = ({ user, selected, setSelected }) => {
   const isManager = React.useMemo(() => {
     if (!managerData) return false;
     const teamTotal = managerData?.team?.total ?? (managerData?.team?.members?.length) ?? 0;
-    console.log("UserSideBar: Calculating isManager:", { teamTotal, managerData });
     return teamTotal > 0;
   }, [managerData]);
 
-  console.log("UserSideBar Final State:", {
-    role: user.role,
-    employeeId: employeeData?._id,
-    managerStatus,
-    isManager,
-    loadingManager,
-    hasManagerData: !!managerData
-  });
+
 
 
   const handleDrawerToggle = () => {
