@@ -461,7 +461,8 @@ export const useAllEmployeesAttendanceAggregation = (
     companyId: string,
     startDate: string,
     endDate: string,
-    enabled: boolean = true
+    enabled: boolean = true,
+    filterEmployeeIds?: string[] // Optional: Filter for specific employees (e.g. for Team View)
 ) => {
     const { data: companyData, isLoading: loadingCompany } = useQuery({
         queryKey: ["company", companyId],
@@ -504,8 +505,13 @@ export const useAllEmployeesAttendanceAggregation = (
     });
 
     const allRecords = React.useMemo(() => {
-        const employees = Array.isArray(employeesData) ? employeesData : (employeesData?.employees || []);
+        let employees = Array.isArray(employeesData) ? employeesData : (employeesData?.employees || []);
         if (!companyData || employees.length === 0) return [];
+
+        // Apply filtering if provided
+        if (filterEmployeeIds && filterEmployeeIds.length > 0) {
+            employees = employees.filter((e: any) => filterEmployeeIds.includes(e._id));
+        }
 
         const logs = logsData?.data || [];
         const leaves = leavesData?.data || [];
@@ -536,7 +542,7 @@ export const useAllEmployeesAttendanceAggregation = (
             if (dateDiff !== 0) return dateDiff;
             return (a.employee?.name || "").localeCompare(b.employee?.name || "");
         });
-    }, [companyData, employeesData, logsData, leavesData, shiftsData, holidaysData, startDate, endDate]);
+    }, [companyData, employeesData, logsData, leavesData, shiftsData, holidaysData, startDate, endDate, filterEmployeeIds]);
 
     return {
         records: allRecords,

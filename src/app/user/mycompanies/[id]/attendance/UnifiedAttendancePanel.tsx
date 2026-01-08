@@ -29,6 +29,8 @@ interface UnifiedAttendancePanelProps {
     endDate: dayjs.Dayjs;
     selectedEmployee: any | null;
     setSelectedEmployee: (emp: any | null) => void;
+    userRole?: 'employer' | 'manager' | 'employee';
+    filterEmployeeIds?: string[];
 }
 
 export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
@@ -36,7 +38,9 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
     startDate,
     endDate,
     selectedEmployee,
-    setSelectedEmployee
+    setSelectedEmployee,
+    userRole = 'employer',
+    filterEmployeeIds
 }) => {
     const [selectedRecord, setSelectedRecord] = useState<DailyAttendanceRecord | null>(null);
     const [selectedLeaveId, setSelectedLeaveId] = useState<string | undefined>();
@@ -57,12 +61,16 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
     });
 
     const employees = React.useMemo(() => {
-        const list = employeesData?.employees || [];
+        let list = employeesData?.employees || [];
+        // Filter autocomplete list if filterEmployeeIds is provided
+        if (filterEmployeeIds && filterEmployeeIds.length > 0) {
+            list = list.filter((e: any) => filterEmployeeIds.includes(e._id));
+        }
         return [...list].sort((a, b) => {
             if (a.active === b.active) return a.name.localeCompare(b.name);
             return a.active ? -1 : 1;
         });
-    }, [employeesData]);
+    }, [employeesData, filterEmployeeIds]);
 
     // Aggregation Hooks
     const { records: singleRecords, stats, loading: loadingSingle } = useAttendanceAggregation(
@@ -77,7 +85,8 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
         companyId,
         startDate.format('YYYY-MM-DD'),
         endDate.format('YYYY-MM-DD'),
-        !selectedEmployee
+        !selectedEmployee,
+        filterEmployeeIds
     );
 
     const records = selectedEmployee ? singleRecords : allRecords;
@@ -152,7 +161,7 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
                 loading={loadingAggregation}
                 onEdit={handleEditRecord}
                 onLeaveClick={handleLeaveClick}
-                userRole="employer"
+                userRole={userRole}
                 showEmployeeColumn={!selectedEmployee}
             />
 
@@ -164,6 +173,7 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
                 employee={selectedEmployee}
                 companyConfig={companyData}
                 shifts={shifts}
+                userRole={userRole}
                 onSaveSuccess={() => {
                     // Invalidate keys used by useAttendanceAggregation and other panels
                     queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });

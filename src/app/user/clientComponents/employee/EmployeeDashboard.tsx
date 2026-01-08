@@ -578,13 +578,10 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
 
           {isManager && (
             <Grid item xs={12} md={6}>
-              <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid', borderColor: 'info.main' }}>
+              <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid', borderColor: 'primary.main' }}>
                 <CardContent sx={{ p: 2 }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">Team Oversight</Typography>
-                      <Typography variant="caption" color="text.secondary">Quick view of team status</Typography>
-                    </Box>
+                    <Typography variant="subtitle1" fontWeight="bold">Team Oversight</Typography>
                     <Button
                       size="small"
                       variant="text"
@@ -594,21 +591,141 @@ const EmployeeDashboard: React.FC<UserProps> = ({ user }) => {
                       Manage Team
                     </Button>
                   </Box>
-                  <Divider sx={{ mb: 1 }} />
-                  <Stack spacing={1}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">Pending Leaves</Typography>
-                      <Chip label={managerData?.leaves?.totalPending || 0} size="small" color={managerData?.leaves?.totalPending > 0 ? "warning" : "default"} />
-                    </Box>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">Pending Attendance</Typography>
-                      <Chip label={managerData?.attendance?.totalPending || 0} size="small" color={managerData?.attendance?.totalPending > 0 ? "info" : "default"} />
-                    </Box>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">Team Members</Typography>
-                      <Typography variant="body2" fontWeight="bold">{managerData?.team?.total || 0}</Typography>
-                    </Box>
-                  </Stack>
+                  <Divider sx={{ mb: 2 }} />
+                  <Grid container spacing={1.5}>
+                    {/* Pending Leaves Card */}
+                    <Grid item xs={12} sm={4}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          cursor: managerData?.leaves?.totalPending > 0 ? 'pointer' : 'default',
+                          transition: 'all 0.2s',
+                          '&:hover': managerData?.leaves?.totalPending > 0 ? {
+                            borderColor: 'warning.main',
+                            boxShadow: 1
+                          } : {}
+                        }}
+                        onClick={() => managerData?.leaves?.totalPending > 0 && router.push("/user?userPageSelect=teamManagement&tab=leaves")}
+                      >
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <Typography variant="caption" color="text.secondary" fontWeight="bold">Pending Leaves</Typography>
+                          <Chip
+                            label={managerData?.leaves?.totalPending || 0}
+                            size="small"
+                            color={managerData?.leaves?.totalPending > 0 ? "warning" : "default"}
+                          />
+                        </Box>
+                        {managerData?.leaves?.pending && managerData.leaves.pending.length > 0 ? (
+                          <Box>
+                            <Divider sx={{ mb: 0.5 }} />
+                            <Stack spacing={0.5} sx={{ mt: 1 }}>
+                              {managerData.leaves.pending.slice(0, 2).map((leave: any) => (
+                                <Box key={leave._id}>
+                                  <Typography variant="caption" fontWeight="bold" display="block">
+                                    {leave.employee?.name || 'Unknown'}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                                    {leave.leaveType?.name} • {leave.totalDays}d
+                                  </Typography>
+                                </Box>
+                              ))}
+                              {managerData.leaves.totalPending > 2 && (
+                                <Typography variant="caption" color="primary" fontWeight="bold" sx={{ mt: 0.5 }}>
+                                  +{managerData.leaves.totalPending - 2} more
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            No pending leaves
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Grid>
+
+                    {/* Pending Attendance Card */}
+                    <Grid item xs={12} sm={4}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          cursor: managerData?.attendance?.totalPending > 0 ? 'pointer' : 'default',
+                          transition: 'all 0.2s',
+                          '&:hover': managerData?.attendance?.totalPending > 0 ? {
+                            borderColor: 'info.main',
+                            boxShadow: 1
+                          } : {}
+                        }}
+                        onClick={() => managerData?.attendance?.totalPending > 0 && router.push("/user?userPageSelect=teamManagement&tab=attendance")}
+                      >
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <Typography variant="caption" color="text.secondary" fontWeight="bold">Pending Attendance</Typography>
+                          <Chip
+                            label={managerData?.attendance?.totalPending || 0}
+                            size="small"
+                            color={managerData?.attendance?.totalPending > 0 ? "info" : "default"}
+                          />
+                        </Box>
+                        {managerData?.attendance?.pending && managerData.attendance.pending.length > 0 ? (
+                          <Box>
+                            <Divider sx={{ mb: 0.5 }} />
+                            <Stack spacing={0.5} sx={{ mt: 1 }}>
+                              {managerData.attendance.pending.slice(0, 2).map((att: any) => (
+                                <Box key={att._id}>
+                                  <Typography variant="caption" fontWeight="bold" display="block">
+                                    {att.employee?.name || 'Unknown'}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                                    {att.type?.toUpperCase()} • {dayjs(att.timestamp).format("MMM D, h:mm A")}
+                                  </Typography>
+                                </Box>
+                              ))}
+                              {managerData.attendance.totalPending > 2 && (
+                                <Typography variant="caption" color="primary" fontWeight="bold" sx={{ mt: 0.5 }}>
+                                  +{managerData.attendance.totalPending - 2} more
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            No pending attendance
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Grid>
+
+                    {/* Team Members Card */}
+                    <Grid item xs={12} sm={4}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            boxShadow: 1
+                          }
+                        }}
+                        onClick={() => router.push("/user?userPageSelect=teamManagement&tab=0")}
+                      >
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <Typography variant="caption" color="text.secondary" fontWeight="bold">Team Members</Typography>
+                          <Typography variant="body2" fontWeight="bold">{managerData?.team?.total || 0}</Typography>
+                        </Box>
+                        <Divider sx={{ mb: 0.5 }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          Click to view team
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
                 </CardContent>
               </Card>
             </Grid>

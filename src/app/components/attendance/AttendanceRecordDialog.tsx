@@ -129,6 +129,7 @@ interface AttendanceRecordDialogProps {
     disableTabSwitch?: boolean;
     readOnly?: boolean;
     disableShiftChange?: boolean; // New prop to disable shift editing
+    userRole?: 'employer' | 'manager' | 'employee';
 }
 
 export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
@@ -141,7 +142,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     onSaveSuccess,
     disableTabSwitch = false,
     readOnly = false,
-    disableShiftChange = false
+    disableShiftChange = false,
+    userRole = 'employer'
 }) => {
     const { showSnackbar } = useSnackbar();
     const theme = useTheme();
@@ -649,10 +651,10 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                 value={formData.timestamp}
                                                 onChange={(v) => setFormData({ ...formData, timestamp: v })}
                                                 slotProps={{ textField: { fullWidth: true, size: 'small' } }}
-                                                disabled={readOnly}
+                                                disabled={readOnly || userRole === 'manager'}
                                             />
                                         </LocalizationProvider>
-                                        {isNew && !readOnly && (
+                                        {isNew && !readOnly && userRole !== 'manager' && (
                                             <Box mt={1}>
                                                 <Typography variant="caption" display="flex" alignItems="center" gap={1}>
                                                     <input
@@ -665,6 +667,11 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                     /> Record Time? (Uncheck for Status Only)
                                                 </Typography>
                                             </Box>
+                                        )}
+                                        {userRole === 'manager' && (
+                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                                Time editing is disabled for managers.
+                                            </Typography>
                                         )}
                                     </Grid>
 
@@ -696,8 +703,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                 setFormData({ ...formData, shiftId: e.target.value });
                                             }}
                                             SelectProps={{ native: true }}
-                                            helperText={disableShiftChange ? "Shift editing disabled in this view" : "Select the shift for this attendance"}
-                                            disabled={readOnly || disableShiftChange}
+                                            helperText={disableShiftChange || userRole === 'manager' ? "Shift editing disabled" : "Select the shift for this attendance"}
+                                            disabled={readOnly || disableShiftChange || userRole === 'manager'}
                                         >
                                             <option value="">No Shift</option>
                                             {shifts && shifts.length > 0 ? (
@@ -727,8 +734,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             value={formData.dayStatus}
                                             onChange={(e) => setFormData({ ...formData, dayStatus: e.target.value })}
                                             SelectProps={{ native: true }}
-                                            helperText="Overrides calculated status"
-                                            disabled={readOnly}
+                                            helperText={userRole === 'manager' ? "Override disabled" : "Overrides calculated status"}
+                                            disabled={readOnly || userRole === 'manager'}
                                         >
                                             <option value="full">Full Day</option>
                                             <option value="half">Half Day</option>
@@ -736,7 +743,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         </TextField>
                                     </Grid>
 
-                                    {!readOnly && currentLog && (formData.shiftId !== originalShiftId || formData.dayStatus !== originalDayStatus) && (
+                                    {!readOnly && userRole !== 'manager' && currentLog && (formData.shiftId !== originalShiftId || formData.dayStatus !== originalDayStatus) && (
                                         <Grid item xs={12}>
                                             <Alert severity="info" icon={<Warning />}>
                                                 <Typography variant="caption">

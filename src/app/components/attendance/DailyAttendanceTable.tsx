@@ -12,7 +12,7 @@ interface DailyAttendanceTableProps {
     loading: boolean;
     onEdit?: (record: DailyAttendanceRecord) => void;
     onLeaveClick?: (record: DailyAttendanceRecord) => void;
-    userRole: 'employee' | 'employer';
+    userRole: 'employee' | 'employer' | 'manager';
     showEmployeeColumn?: boolean;
     maxHeight?: string | number;
 }
@@ -71,7 +71,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                         <TableCell align="center">In</TableCell>
                         <TableCell align="center">Out</TableCell>
                         <TableCell align="right">Duration</TableCell>
-                        {userRole === 'employer' && <TableCell align="right">OT</TableCell>}
+                        {(userRole === 'employer' || userRole === 'manager') && <TableCell align="right">OT</TableCell>}
                         <TableCell align="center">Actions</TableCell>
                     </TableRow>
                 </TableHead>
@@ -226,13 +226,13 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                         <Chip label="SHORT" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem', ml: 0.5 }} />
                                     )}
                                 </TableCell>
-                                {userRole === 'employer' && (
+                                {(userRole === 'employer' || userRole === 'manager') && (
                                     <TableCell align="right" sx={{ color: record.otMinutes > 0 ? 'success.main' : 'inherit', fontWeight: record.otMinutes > 0 ? 'bold' : 'normal' }}>
                                         {record.otMinutes > 0 ? `+${formatDuration(record.otMinutes)}` : '-'}
                                     </TableCell>
                                 )}
                                 <TableCell align="center">
-                                    {(userRole === 'employer' || (userRole === 'employee' && (!isOff || record.checkInTime || record.checkOutTime))) && (
+                                    {((userRole === 'employer' || userRole === 'manager') || (userRole === 'employee' && (!isOff || record.checkInTime || record.checkOutTime))) && (
                                         <Tooltip title={userRole === 'employee' ? "View Details" : "Edit Details"}>
                                             <IconButton size="small" onClick={() => onEdit && onEdit(record)}>
                                                 <Visibility fontSize="small" />
