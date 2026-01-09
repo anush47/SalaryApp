@@ -61,6 +61,12 @@ export interface DailyAttendanceRecord {
     requiresAttention: boolean;
     remarks?: string;
 
+    // Status & Verification Flags
+    inStatus?: string;
+    outStatus?: string;
+    inVerified?: boolean;
+    outVerified?: boolean;
+
     // Multiple Sessions Support
     sessions?: {
         inLogId: string;
@@ -69,6 +75,10 @@ export interface DailyAttendanceRecord {
         checkOutTime?: string;
         inDeviceChange?: boolean;
         outDeviceChange?: boolean;
+        inVerified?: boolean;
+        outVerified?: boolean;
+        inStatus?: string;
+        outStatus?: string;
         durationMinutes: number;
     }[];
 }
@@ -238,6 +248,10 @@ export const calculateAttendanceForEmployee = (
                     checkOutTime: nextOut?.timestamp,
                     inDeviceChange: deviceChangeMap[inLog._id],
                     outDeviceChange: nextOut ? deviceChangeMap[nextOut._id] : false,
+                    inVerified: inLog.location?.isVerified,
+                    outVerified: nextOut?.location?.isVerified,
+                    inStatus: inLog.status,
+                    outStatus: nextOut?.status,
                     durationMinutes: duration
                 });
             });
@@ -272,10 +286,18 @@ export const calculateAttendanceForEmployee = (
             const totalDuration = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
             const useShiftStartForOT = employee.shiftSettings?.useShiftStartForOT ?? company.shiftSettings?.useShiftStartForOT ?? false;
 
-            const utilSessions = sessions.map(s => ({
-                in: new Date(s.checkInTime),
-                out: s.checkOutTime ? new Date(s.checkOutTime) : undefined
-            }));
+            const utilSessions = sessions.map(s => {
+                let outTime = s.checkOutTime ? new Date(s.checkOutTime) : undefined;
+                // Fix: If session is open for > 24 hours, do not count it towards OT/Work duration
+                // treat it as 0 duration by setting out = in
+                if (!outTime && dayjs().diff(dayjs(s.checkInTime), 'hour') > 24) {
+                    outTime = new Date(s.checkInTime);
+                }
+                return {
+                    in: new Date(s.checkInTime),
+                    out: outTime
+                };
+            });
 
             const effectiveDurationForOT = calculateEffectiveDuration(
                 utilSessions,
@@ -354,6 +376,10 @@ export const calculateAttendanceForEmployee = (
                 outLogId: lastOutSession?.outLogId,
                 inDeviceChange: firstSession?.inDeviceChange,
                 outDeviceChange: lastOutSession?.outDeviceChange,
+                inVerified: firstSession?.inVerified,
+                outVerified: lastOutSession?.outVerified,
+                inStatus: firstSession?.inStatus,
+                outStatus: lastOutSession?.outStatus,
                 checkInTime: firstSession?.checkInTime,
                 checkOutTime: lastCheckOutTime,
                 durationMinutes: useShiftStartForOT ? effectiveDurationForOT : totalDuration,

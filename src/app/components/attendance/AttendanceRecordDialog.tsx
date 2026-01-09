@@ -197,14 +197,36 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         }
     }, [dailyRecord]);
 
-    // Edit Forms State
-    const [formData, setFormData] = useState({
-        timestamp: null as dayjs.Dayjs | null,
-        status: 'approved',
-        remarks: '',
-        shiftId: '',
-        dayStatus: 'full'
-    });
+    // Persistent Form Data for Tabs and Sessions
+    // Key: `${sessionIdx}-${type}` where type is 'in' or 'out'
+    const [sessionFormData, setSessionFormData] = useState<Record<string, any>>({});
+
+    // Virtual sessions (newly created but not saved)
+    const [newSessionCount, setNewSessionCount] = useState(0);
+
+    // Helper to get defaults based on shift
+    const getShiftDefaults = (shiftId: string, type: 'in' | 'out', dateStr: string) => {
+        const shift = shifts.find((s: any) => (s._id || s.shiftId) === shiftId);
+        let defaultTime = null;
+
+        if (shift) {
+            const timeStr = type === 'in' ? shift.startTime : shift.endTime;
+            if (timeStr) {
+                // Parse "HH:mm" from shift settings
+                const [h, m] = timeStr.split(':').map(Number);
+                defaultTime = dayjs(dateStr).hour(h).minute(m).second(0);
+            }
+        }
+
+        // Fallbacks if no shift time: 9 AM for IN, 6 PM for OUT
+        if (!defaultTime) {
+            defaultTime = type === 'in'
+                ? dayjs(dateStr).hour(9).minute(0).second(0)
+                : dayjs(dateStr).hour(18).minute(0).second(0);
+        }
+
+        return defaultTime;
+    };
 
     // Track original values to detect changes
     const [originalShiftId, setOriginalShiftId] = useState<string>('');
@@ -324,34 +346,93 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         return s;
     }, [dailyRecord]);
 
-    const currentSession = sessions[selectedSessionIdx] || null;
+    // Combined sessions: Existing + New
+    const allSessions = useMemo(() => {
+        const base: any[] = [...sessions];
+        for (let i = 0; i < newSessionCount; i++) {
+            base.push({}); // Empty object for new session
+        }
+        return base;
+    }, [sessions, newSessionCount]);
+
+    const currentSession = allSessions[selectedSessionIdx] || null;
     const currentLogId = activeSubTab === 0 ? currentSession?.inLogId : currentSession?.outLogId;
     const currentLog = currentLogId ? fetchedLogs[currentLogId] : null;
 
     // Update form when session or sub-tab changes
+    // Initialize or Update Form Data on Tab/Log Change
     useEffect(() => {
+        const type = activeSubTab === 0 ? 'in' : 'out';
+        const formKey = `${selectedSessionIdx}-${type}`;
+
+        const shiftIdToUse = dailyRecord?.shiftId || "";
+
+        setSessionFormData(prev => {
+            const currentData = prev[formKey];
+
+            if (currentLog) {
+                // Edit Mode: Sync with DB Log always
+                const shiftId = currentLog.shift?.shiftId || currentLog.shift?._id || (typeof currentLog.shift === 'string' ? currentLog.shift : '');
+                return {
+                    ...prev,
+                    [formKey]: {
+                        timestamp: currentLog.resolutionMode === 'status_only' ? null : dayjs(currentLog.timestamp),
+                        status: currentLog.status || 'approved',
+                        remarks: currentLog.remarks || '',
+                        shiftId: shiftId,
+                        dayStatus: currentLog.dayStatus || 'full',
+                        mode: 'edit'
+                    }
+                };
+            } else {
+                // Create Mode
+                if (currentData && currentData.mode === 'create') {
+                    // Already initialized and potentially edited by user, preserve it
+                    return prev;
+                }
+
+                // Initialize Defaults
+                return {
+                    ...prev,
+                    [formKey]: {
+                        timestamp: getShiftDefaults(shiftIdToUse, type, dailyRecord?.date || dayjs().format('YYYY-MM-DD')),
+                        status: 'approved',
+                        remarks: '',
+                        shiftId: shiftIdToUse,
+                        dayStatus: dailyRecord?.isOffDay || dailyRecord?.isHoliday ? 'off' : 'full',
+                        mode: 'create'
+                    }
+                }
+            }
+        });
+
         if (currentLog) {
             const shiftId = currentLog.shift?.shiftId || currentLog.shift?._id || (typeof currentLog.shift === 'string' ? currentLog.shift : '');
-            setFormData({
-                timestamp: currentLog.resolutionMode === 'status_only' ? null : dayjs(currentLog.timestamp),
-                status: currentLog.status || 'approved',
-                remarks: currentLog.remarks || '',
-                shiftId,
-                dayStatus: currentLog.dayStatus || 'full'
-            });
             setOriginalShiftId(shiftId);
             setOriginalDayStatus(currentLog.dayStatus || 'full');
-        } else {
-            // Reset for creation (Missing record)
-            setFormData({
-                timestamp: null,
-                status: 'approved',
-                remarks: '',
-                shiftId: dailyRecord?.shiftId || '',
-                dayStatus: dailyRecord?.isOffDay || dailyRecord?.isHoliday ? 'off' : 'full'
-            });
         }
-    }, [selectedSessionIdx, activeSubTab, fetchedLogs, dailyRecord]);
+
+    }, [selectedSessionIdx, activeSubTab, fetchedLogs, dailyRecord, allSessions]);
+
+    // Current Form Data Accessor
+    const activeFormKey = `${selectedSessionIdx}-${activeSubTab === 0 ? 'in' : 'out'}`;
+    const formData = sessionFormData[activeFormKey] || {
+        timestamp: null,
+        status: 'approved',
+        remarks: '',
+        shiftId: '',
+        dayStatus: 'full'
+    };
+
+    const handleFormChange = (field: string, value: any) => {
+        setSessionFormData(prev => ({
+            ...prev,
+            [activeFormKey]: {
+                ...prev[activeFormKey],
+                [field]: value
+            }
+        }));
+    };
 
 
     const handleSave = async () => {
@@ -360,9 +441,18 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         const type = activeSubTab === 0 ? 'in' : 'out';
         const targetLog = currentLog;
 
+        // Get data strictly from state to ensure latest
+        const currentFormData = sessionFormData[activeFormKey] || {
+            timestamp: null,
+            status: 'approved',
+            remarks: '',
+            shiftId: '',
+            dayStatus: 'full'
+        };
+
         // Find the selected shift
-        const selectedShift = formData.shiftId
-            ? shifts.find((s: any) => (s._id || s.shiftId) === formData.shiftId)
+        const selectedShift = currentFormData.shiftId
+            ? shifts.find((s: any) => (s._id || s.shiftId) === currentFormData.shiftId)
             : null;
 
         // If shift found, format it correctly for the API
@@ -379,16 +469,16 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 // Update
                 const res = await updateAttendanceStatus(
                     targetLog._id,
-                    formData.status as any,
-                    formData.timestamp?.toISOString(),
-                    formData.shiftId,
-                    formData.remarks,
-                    formData.dayStatus,
+                    currentFormData.status as any,
+                    currentFormData.timestamp?.toISOString(),
+                    currentFormData.shiftId,
+                    currentFormData.remarks,
+                    currentFormData.dayStatus,
                     shiftForAPI // Pass formatted shift object
                 );
                 if (res.success) {
                     // If shift was changed, also update the paired record
-                    const shiftChanged = formData.shiftId !== originalShiftId;
+                    const shiftChanged = currentFormData.shiftId !== originalShiftId;
 
                     // Determine the paired record
                     const otherLogId = type === 'out' ? currentSession?.inLogId : currentSession?.outLogId;
@@ -400,7 +490,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                 otherLog._id,
                                 otherLog.status,
                                 otherLog.resolutionMode === 'status_only' ? undefined : otherLog.timestamp,
-                                formData.shiftId,
+                                currentFormData.shiftId,
                                 otherLog.remarks,
                                 otherLog.dayStatus,
                                 shiftForAPI
@@ -415,6 +505,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                         severity: "success"
                     });
                     onSaveSuccess?.();
+                    // Don't close immediately if we have multiple sessions to edit? 
+                    // For now, close as per original design.
                     onClose();
                 } else {
                     showSnackbar({ message: res.error?.message || "Failed to update", severity: "error" });
@@ -427,19 +519,24 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                     accuracy: 10
                 } : { lat: 0, lng: 0, accuracy: 0 };
 
+                // Ensure we have a valid employee ID
+                const employeeId = employee?._id || (dailyRecord as any).employeeId;
+                if (!employeeId) {
+                    showSnackbar({ message: "Employee ID missing. Cannot create record.", severity: "error" });
+                    return;
+                }
+
                 const res = await createAttendance({
                     type,
                     location: defaultLoc,
-                    employeeId: employee?._id || (dailyRecord as any).employeeId || undefined,
-                    timestamp: formData.timestamp ? formData.timestamp.toISOString() : dayjs(dailyRecord.date).startOf('day').toISOString(),
-                    remarks: formData.remarks,
-                    status: formData.status,
-                    dayStatus: formData.dayStatus,
-                    resolutionMode: formData.timestamp ? undefined : 'status_only',
+                    employeeId: employeeId,
+                    timestamp: currentFormData.timestamp ? currentFormData.timestamp.toISOString() : dayjs(dailyRecord.date).startOf('day').toISOString(),
+                    remarks: currentFormData.remarks,
+                    status: currentFormData.status,
+                    dayStatus: currentFormData.dayStatus,
+                    resolutionMode: currentFormData.timestamp ? undefined : 'status_only',
                     shift: shiftForAPI // Pass formatted shift object
                 });
-
-
 
                 if (res.success) {
                     showSnackbar({ message: "Record created successfully", severity: "success" });
@@ -564,7 +661,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                             </Box>
                             <Tabs
                                 orientation="vertical"
-                                variant="standard"
+                                variant="scrollable"
                                 value={selectedSessionIdx}
                                 onChange={(_, v) => {
                                     setSelectedSessionIdx(v);
@@ -573,16 +670,18 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                 sx={{
                                     borderRight: isMobile ? 'none' : 1,
                                     borderColor: 'divider',
+                                    '& .MuiTabs-indicator': { left: 0, right: 'auto', width: 3 },
                                     '& .MuiTab-root': {
                                         alignItems: 'flex-start',
                                         textAlign: 'left',
                                         py: 1.5,
                                         borderBottom: '1px solid',
-                                        borderColor: 'divider'
+                                        borderColor: 'divider',
+                                        maxWidth: '100%'
                                     }
                                 }}
                             >
-                                {sessions.length > 0 ? sessions.map((s, idx) => (
+                                {allSessions.map((s, idx) => (
                                     <Tab
                                         key={idx}
                                         label={
@@ -594,10 +693,27 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             </Box>
                                         }
                                     />
-                                )) : (
-                                    <Tab label={<Typography variant="body2" color="error">No Records</Typography>} disabled />
-                                )}
+                                ))}
                             </Tabs>
+                            <Box p={1} borderTop="1px solid" borderColor="divider">
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    startIcon={<AddCircle />}
+                                    size="small"
+                                    onClick={() => {
+                                        setNewSessionCount(prev => prev + 1);
+                                        // Auto-select the new session (index = length of existing + new count - 1, which becomes length + count after update)
+                                        // But state update is async, wait for it or just set index.
+                                        setTimeout(() => {
+                                            setSelectedSessionIdx(allSessions.length);
+                                            setActiveSubTab(0);
+                                        }, 0);
+                                    }}
+                                >
+                                    Add Session
+                                </Button>
+                            </Box>
                         </Grid>
 
                         {/* Content Area */}
@@ -648,8 +764,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         <LocalizationProvider dateAdapter={AdapterDayjs}>
                                             <DateTimePicker
                                                 label="Timestamp"
-                                                value={formData.timestamp}
-                                                onChange={(v) => setFormData({ ...formData, timestamp: v })}
+                                                value={sessionFormData[activeFormKey]?.timestamp}
+                                                onChange={(v) => handleFormChange('timestamp', v)}
                                                 slotProps={{ textField: { fullWidth: true, size: 'small' } }}
                                                 disabled={readOnly || userRole === 'manager'}
                                             />
@@ -659,10 +775,10 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                 <Typography variant="caption" display="flex" alignItems="center" gap={1}>
                                                     <input
                                                         type="checkbox"
-                                                        checked={!!formData.timestamp}
+                                                        checked={!!sessionFormData[activeFormKey]?.timestamp}
                                                         onChange={(e) => {
-                                                            if (e.target.checked) setFormData({ ...formData, timestamp: dayjs() });
-                                                            else setFormData({ ...formData, timestamp: null });
+                                                            if (e.target.checked) handleFormChange('timestamp', dayjs());
+                                                            else handleFormChange('timestamp', null);
                                                         }}
                                                     /> Record Time? (Uncheck for Status Only)
                                                 </Typography>
@@ -681,8 +797,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             fullWidth
                                             size="small"
                                             label="Status"
-                                            value={formData.status}
-                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            value={sessionFormData[activeFormKey]?.status}
+                                            onChange={(e) => handleFormChange('status', e.target.value)}
                                             SelectProps={{ native: true }}
                                             disabled={readOnly}
                                         >
@@ -698,9 +814,9 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             fullWidth
                                             size="small"
                                             label="Shift"
-                                            value={formData.shiftId}
+                                            value={sessionFormData[activeFormKey]?.shiftId}
                                             onChange={(e) => {
-                                                setFormData({ ...formData, shiftId: e.target.value });
+                                                handleFormChange('shiftId', e.target.value);
                                             }}
                                             SelectProps={{ native: true }}
                                             helperText={disableShiftChange || userRole === 'manager' ? "Shift editing disabled" : "Select the shift for this attendance"}
@@ -731,8 +847,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             fullWidth
                                             size="small"
                                             label="Day Status Override"
-                                            value={formData.dayStatus}
-                                            onChange={(e) => setFormData({ ...formData, dayStatus: e.target.value })}
+                                            value={sessionFormData[activeFormKey]?.dayStatus}
+                                            onChange={(e) => handleFormChange('dayStatus', e.target.value)}
                                             SelectProps={{ native: true }}
                                             helperText={userRole === 'manager' ? "Override disabled" : "Overrides calculated status"}
                                             disabled={readOnly || userRole === 'manager'}
@@ -743,7 +859,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                         </TextField>
                                     </Grid>
 
-                                    {!readOnly && userRole !== 'manager' && currentLog && (formData.shiftId !== originalShiftId || formData.dayStatus !== originalDayStatus) && (
+                                    {!readOnly && userRole !== 'manager' && currentLog && (sessionFormData[activeFormKey]?.shiftId !== originalShiftId || sessionFormData[activeFormKey]?.dayStatus !== originalDayStatus) && (
                                         <Grid item xs={12}>
                                             <Alert severity="info" icon={<Warning />}>
                                                 <Typography variant="caption">
@@ -760,8 +876,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             multiline
                                             rows={2}
                                             label="Remarks / Notes"
-                                            value={formData.remarks}
-                                            onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                                            value={sessionFormData[activeFormKey]?.remarks}
+                                            onChange={(e) => handleFormChange('remarks', e.target.value)}
                                             size="small"
                                             disabled={readOnly}
                                         />

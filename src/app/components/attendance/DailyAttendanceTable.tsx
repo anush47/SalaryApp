@@ -3,7 +3,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Paper, Chip, Typography, Box, IconButton, Tooltip, TextField
 } from '@mui/material';
-import { CheckCircle, Cancel, Edit, Info, Hotel, Warning, Visibility, PhoneIphone } from '@mui/icons-material';
+import { CheckCircle, Cancel, Edit, Info, Hotel, Warning, Visibility, PhoneIphone, LocationOn, AccessTime, TimerOff, HourglassEmpty } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
 
@@ -63,7 +63,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
         <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: maxHeight, overflowY: 'auto' }}>
             <Table size="small" stickyHeader>
                 <TableHead>
-                    <TableRow sx={{ bgcolor: 'action.hover', '& th': { bgcolor: 'action.hover' } }}>
+                    <TableRow sx={{ bgcolor: 'action.hover', '& th': { bgcolor: 'action.selected' } }}>
                         {showEmployeeColumn && <TableCell>Employee</TableCell>}
                         <TableCell>Date</TableCell>
                         <TableCell>Shift</TableCell>
@@ -132,7 +132,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                             size="small"
                                             label={record.status === 'Leave' ? record.leaveStatus || 'Leave' : record.status}
                                             color={getStatusColor(record.status) as any}
-                                            variant={record.status === 'Absent' ? 'filled' : 'outlined'}
+                                            variant="outlined"
                                             icon={record.status === 'Holiday' ? <Hotel /> : undefined}
                                         />
                                         {record.leaveType && (
@@ -165,11 +165,18 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                                 <Box key={idx} display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                     {formatTime(session.checkInTime)}
                                                     {idx === 0 && record.isLate && (
-                                                        <Chip label="LATE" color="error" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                        <Tooltip title="Late Arrival">
+                                                            <AccessTime color="warning" sx={{ fontSize: 16 }} />
+                                                        </Tooltip>
                                                     )}
                                                     {session.inDeviceChange && (
                                                         <Tooltip title="Device Changed">
                                                             <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                        </Tooltip>
+                                                    )}
+                                                    {session.inVerified === false && (
+                                                        <Tooltip title="Location Not Verified">
+                                                            <LocationOn color="warning" sx={{ fontSize: 16 }} />
                                                         </Tooltip>
                                                     )}
                                                 </Box>
@@ -178,11 +185,18 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                 {formatTime(record.checkInTime)}
                                                 {record.isLate && (
-                                                    <Chip label="LATE" color="error" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                    <Tooltip title="Late Arrival">
+                                                        <AccessTime color="warning" sx={{ fontSize: 16 }} />
+                                                    </Tooltip>
                                                 )}
                                                 {record.inDeviceChange && (
                                                     <Tooltip title="Device Changed">
                                                         <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                    </Tooltip>
+                                                )}
+                                                {record.inVerified === false && (
+                                                    <Tooltip title="Location Not Verified">
+                                                        <LocationOn color="warning" sx={{ fontSize: 16 }} />
                                                     </Tooltip>
                                                 )}
                                             </Box>
@@ -196,11 +210,18 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                                 <Box key={idx} display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                     {formatTime(session.checkOutTime)}
                                                     {idx === record.sessions!.length - 1 && record.isLeftEarly && (
-                                                        <Chip label="EARLY" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                        <Tooltip title="Left Early">
+                                                            <AccessTime color="warning" sx={{ fontSize: 16 }} />
+                                                        </Tooltip>
                                                     )}
                                                     {session.outDeviceChange && (
                                                         <Tooltip title="Device Changed">
                                                             <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                        </Tooltip>
+                                                    )}
+                                                    {session.outVerified === false && (
+                                                        <Tooltip title="Location Not Verified">
+                                                            <LocationOn color="warning" sx={{ fontSize: 16 }} />
                                                         </Tooltip>
                                                     )}
                                                 </Box>
@@ -209,11 +230,18 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                                                 {formatTime(record.checkOutTime)}
                                                 {record.isLeftEarly && (
-                                                    <Chip label="EARLY" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                    <Tooltip title="Left Early">
+                                                        <AccessTime color="warning" sx={{ fontSize: 16 }} />
+                                                    </Tooltip>
                                                 )}
                                                 {record.outDeviceChange && (
                                                     <Tooltip title="Device Changed">
                                                         <PhoneIphone color="warning" sx={{ fontSize: 16 }} />
+                                                    </Tooltip>
+                                                )}
+                                                {record.outVerified === false && (
+                                                    <Tooltip title="Location Not Verified">
+                                                        <LocationOn color="warning" sx={{ fontSize: 16 }} />
                                                     </Tooltip>
                                                 )}
                                             </Box>
@@ -223,7 +251,9 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                 <TableCell align="right">
                                     {formatDuration(record.durationMinutes)}
                                     {record.isLessHours && (
-                                        <Chip label="SHORT" color="warning" size="small" sx={{ height: 16, fontSize: '0.6rem', ml: 0.5 }} />
+                                        <Tooltip title="Short Hours">
+                                            <AccessTime color="warning" sx={{ fontSize: 16, ml: 0.5 }} />
+                                        </Tooltip>
                                     )}
                                 </TableCell>
                                 {(userRole === 'employer' || userRole === 'manager') && (
@@ -239,11 +269,24 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
                                             </IconButton>
                                         </Tooltip>
                                     )}
-                                    {record.requiresAttention && (
-                                        <Tooltip title="Missing Punch or Irregularity">
-                                            <Warning color="warning" fontSize="small" sx={{ ml: 1 }} />
-                                        </Tooltip>
-                                    )}
+                                    {/* Consolidated Warning */}
+                                    {(() => {
+                                        const isPending = record.inStatus === 'pending' || record.outStatus === 'pending' || (record.sessions && record.sessions.some(s => s.inStatus === 'pending' || s.outStatus === 'pending'));
+                                        const hasIssue = record.requiresAttention || isPending;
+
+                                        if (!hasIssue) return null;
+
+                                        const title = [
+                                            record.requiresAttention ? "Missing Punch or Irregularity" : null,
+                                            isPending ? "Pending Approval" : null
+                                        ].filter(Boolean).join(" & ");
+
+                                        return (
+                                            <Tooltip title={title}>
+                                                <Warning color="warning" fontSize="small" sx={{ ml: 1 }} />
+                                            </Tooltip>
+                                        );
+                                    })()}
                                 </TableCell>
                             </TableRow>
                         );
