@@ -82,7 +82,7 @@ export const DailyAttendanceTable: React.FC<DailyAttendanceTableProps> = ({
 
                         return (
                             <TableRow
-                                key={`${record.date}-${record.shiftId || index}`}
+                                key={`${record.date}-${record.employee?._id || 'unk'}-${index}`}
                                 sx={{
                                     bgcolor: record.status === 'Absent' ? 'error.lighter' :
                                         record.status === 'Leave' ? 'primary.lighter' :
