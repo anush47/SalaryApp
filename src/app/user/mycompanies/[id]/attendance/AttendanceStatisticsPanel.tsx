@@ -10,12 +10,10 @@ import {
     Avatar,
     Stack,
     Divider,
-    CircularProgress
+    CircularProgress,
+    Chip
 } from '@mui/material';
 import {
-    PieChart,
-    Pie,
-    Cell,
     BarChart,
     Bar,
     XAxis,
@@ -25,11 +23,19 @@ import {
     Legend,
     ResponsiveContainer,
     AreaChart,
-    Area
+    Area,
+    Cell
 } from 'recharts';
 import dayjs from 'dayjs';
 import { DailyAttendanceRecord } from '@/app/hooks/useAttendanceAggregation';
-import { Person, TrendingUp, WarningAmber, CheckCircleOutline } from '@mui/icons-material';
+import {
+    Person,
+    Schedule,
+    TrendingUp,
+    AccessTime,
+    WarningAmber,
+    EmojiEvents
+} from '@mui/icons-material';
 
 interface AttendanceStatisticsPanelProps {
     records: DailyAttendanceRecord[];
@@ -38,102 +44,276 @@ interface AttendanceStatisticsPanelProps {
     shifts?: any[];
 }
 
-export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps> = ({ records, loading, selectedEmployee, shifts = [] }) => {
+export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps> = ({ records, loading, selectedEmployee }) => {
     const theme = useTheme();
 
     const stats = useMemo(() => {
         if (!records || records.length === 0) return null;
 
+        // Track unique employees and daily data
         const uniqueEmployees = new Set<string>();
-        const dailyAgg: Record<string, { date: string; present: number; totalOT: number; totalHours: number; lateCount: number }> = {};
+        const dailyData: Record<string, {
+            date: string;
+            onTime: number;
+            late: number;
+            totalHours: number;
+            totalOT: number;
+            presentCount: number;
+        }> = {};
 
-        const employeeTotals: Record<string, { name: string; memberNo?: string; hours: number; lateCount: number; presentCount: number }> = {};
+        const employeeData: Record<string, {
+            name: string;
+            memberNo?: string;
+            totalHours: number;
+            daysPresent: number;
+            totalOT: number;
+            lateCount: number;
+            earlyLeaveCount: number;
+            absentCount: number;
+            leaveCount: number;
+            locationIssues: number; // Unverified check-ins/outs
+            basic?: number;
+        }> = {};
 
-        let totalWorkedMinutes = 0;
-        let totalOTMinutes = 0;
-        let totalLate = 0;
-        let totalVerified = 0;
-        let totalUnverified = 0;
-        let totalPresent = 0;
+        let totalDaysPresent = 0;
+        let totalDaysLate = 0;
+        let totalDaysAbsent = 0;
+        let totalDaysLeave = 0;
+        let totalHoursWorked = 0;
+        let totalOTHours = 0;
+        let totalScheduledDays = 0;
+        let totalEarlyLeaves = 0;
+        let totalLocationIssues = 0;
 
+        // Process all records
         records.forEach(r => {
-            const date = r.date;
             const empId = r.employee?._id || 'unknown';
-            uniqueEmployees.add(empId);
+            const date = r.date;
 
-            if (!dailyAgg[date]) {
-                dailyAgg[date] = { date, present: 0, totalOT: 0, totalHours: 0, lateCount: 0 };
+            uniqueEmployees.add(empId);
+            totalScheduledDays++;
+
+            // Initialize daily bucket
+            if (!dailyData[date]) {
+                dailyData[date] = { date, onTime: 0, late: 0, totalHours: 0, totalOT: 0, presentCount: 0 };
             }
 
+            // Initialize employee bucket
+            if (empId !== 'unknown' && !employeeData[empId]) {
+                employeeData[empId] = {
+                    name: r.employee?.name || 'Unknown',
+                    memberNo: r.employee?.memberNo,
+                    totalHours: 0,
+                    daysPresent: 0,
+                    totalOT: 0,
+                    lateCount: 0,
+                    earlyLeaveCount: 0,
+                    absentCount: 0,
+                    leaveCount: 0,
+                    locationIssues: 0,
+                    basic: (r.employee as any)?.basic
+                };
+            }
+
+            // Aggregate data
             if (r.status === 'Present') {
-                totalPresent++;
-                dailyAgg[date].present++;
-                dailyAgg[date].totalHours += (r.durationMinutes / 60);
-                dailyAgg[date].totalOT += (r.otMinutes / 60);
-                totalWorkedMinutes += r.durationMinutes;
-                totalOTMinutes += r.otMinutes;
+                totalDaysPresent++;
+                const hours = r.durationMinutes / 60;
+                const ot = r.otMinutes / 60;
+
+                totalHoursWorked += hours;
+                totalOTHours += ot;
+
+                dailyData[date].totalHours += hours;
+                dailyData[date].totalOT += ot;
+                dailyData[date].presentCount++;
 
                 if (r.isLate) {
-                    totalLate++;
-                    dailyAgg[date].lateCount++;
+                    totalDaysLate++;
+                    dailyData[date].late++;
+                    if (empId !== 'unknown') employeeData[empId].lateCount++;
+                } else {
+                    dailyData[date].onTime++;
                 }
 
-                // Compliance
-                if (r.checkInLocation) {
-                    // Assuming if there is location info, it was recorded. 
-                    // In a real app we'd check isVerified flag if available in record.
-                    // For now, let's use the raw log's behavior if we can link it.
-                    // Since record doesn't have isVerified directly, we'll assume isVerified if no Warning flag.
-                    if (!r.requiresAttention) totalVerified++;
-                    else totalUnverified++;
+                if (r.isLeftEarly) {
+                    totalEarlyLeaves++;
+                    if (empId !== 'unknown') employeeData[empId].earlyLeaveCount++;
                 }
-            }
 
-            // Employee Leaderboard Logic
-            if (empId !== 'unknown') {
-                if (!employeeTotals[empId]) {
-                    employeeTotals[empId] = {
-                        name: r.employee?.name || 'Unknown',
-                        memberNo: r.employee?.memberNo,
-                        hours: 0,
-                        lateCount: 0,
-                        presentCount: 0
-                    };
+                // Track location compliance issues
+                const hasLocationIssue = !r.inVerified || !r.outVerified;
+                if (hasLocationIssue && empId !== 'unknown') {
+                    employeeData[empId].locationIssues++;
+                    totalLocationIssues++;
                 }
-                if (r.status === 'Present') {
-                    employeeTotals[empId].hours += (r.durationMinutes / 60);
-                    employeeTotals[empId].presentCount++;
-                    if (r.isLate) employeeTotals[empId].lateCount++;
+
+                if (empId !== 'unknown') {
+                    employeeData[empId].totalHours += hours;
+                    employeeData[empId].totalOT += ot;
+                    employeeData[empId].daysPresent++;
                 }
+            } else if (r.status === 'Absent') {
+                totalDaysAbsent++;
+                if (empId !== 'unknown') employeeData[empId].absentCount++;
+            } else if (r.status === 'Leave') {
+                totalDaysLeave++;
+                if (empId !== 'unknown') employeeData[empId].leaveCount++;
             }
         });
 
-        const sortedDays = Object.values(dailyAgg).sort((a, b) => a.date.localeCompare(b.date));
-        const avgHours = totalPresent > 0 ? (totalWorkedMinutes / totalPresent / 60) : 0;
+        // Calculate KPIs
+        const attendanceRate = totalScheduledDays > 0
+            ? Math.round((totalDaysPresent / totalScheduledDays) * 100)
+            : 0;
 
-        // Leaderboards
-        const mostProductive = Object.values(employeeTotals)
-            .sort((a, b) => b.hours - a.hours)
+        const avgHoursPerDay = totalDaysPresent > 0
+            ? Number((totalHoursWorked / totalDaysPresent).toFixed(1))
+            : 0;
+
+        const punctualityRate = totalDaysPresent > 0
+            ? Math.round(((totalDaysPresent - totalDaysLate) / totalDaysPresent) * 100)
+            : 0;
+
+        // Calculate costs if salary data available
+        let totalOTCost = 0;
+        let totalLaborCost = 0;
+        let hasSalaryData = false;
+
+        Object.values(employeeData).forEach(emp => {
+            if (emp.basic) {
+                hasSalaryData = true;
+                const hourlyRate = emp.basic / 240;
+                const otRate = hourlyRate * 1.5;
+                totalOTCost += emp.totalOT * otRate;
+                totalLaborCost += emp.basic;
+            }
+        });
+
+        // Sort daily data and calculate averages
+        const dailyStats = Object.values(dailyData)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .map(day => ({
+                ...day,
+                avgHours: day.presentCount > 0 ? Number((day.totalHours / day.presentCount).toFixed(1)) : 0,
+                avgOT: day.presentCount > 0 ? Number((day.totalOT / day.presentCount).toFixed(1)) : 0
+            }));
+
+        // Work hours distribution (4 buckets)
+        const hoursDistribution = [
+            { name: 'Under 6h', count: 0, color: theme.palette.error.main, label: 'Under-utilized' },
+            { name: '6-8h', count: 0, color: theme.palette.warning.main, label: 'Below target' },
+            { name: '8-9h', count: 0, color: theme.palette.success.main, label: 'Optimal' },
+            { name: '9h+', count: 0, color: theme.palette.info.main, label: 'Overworked' }
+        ];
+
+        Object.values(employeeData).forEach(emp => {
+            const avgHours = emp.daysPresent > 0 ? emp.totalHours / emp.daysPresent : 0;
+            if (avgHours > 0 && avgHours < 6) hoursDistribution[0].count++;
+            else if (avgHours >= 6 && avgHours < 8) hoursDistribution[1].count++;
+            else if (avgHours >= 8 && avgHours < 9) hoursDistribution[2].count++;
+            else if (avgHours >= 9) hoursDistribution[3].count++;
+        });
+
+        // Top OT employees (top 5)
+        const topOTEmployees = Object.values(employeeData)
+            .filter(emp => emp.totalOT > 0)
+            .sort((a, b) => b.totalOT - a.totalOT)
+            .slice(0, 5)
+            .map(emp => ({
+                ...emp,
+                otCost: emp.basic ? (emp.basic / 240) * 1.5 * emp.totalOT : null
+            }));
+
+        // Top performers (by total hours)
+        const topPerformers = Object.values(employeeData)
+            .sort((a, b) => b.totalHours - a.totalHours)
             .slice(0, 5);
 
-        const mostPunctual = Object.values(employeeTotals)
-            .filter(e => e.presentCount > 0)
-            .sort((a, b) => (a.lateCount / a.presentCount) - (b.lateCount / b.presentCount) || b.presentCount - a.presentCount)
+        // Leave details - track who took leave and when
+        const leaveDetails: Array<{
+            employeeName: string;
+            date: string;
+            leaveType?: string;
+            leaveStatus?: string;
+        }> = [];
+
+        records.forEach(r => {
+            if (r.status === 'Leave' && r.employee) {
+                leaveDetails.push({
+                    employeeName: r.employee.name,
+                    date: r.date,
+                    leaveType: r.leaveType,
+                    leaveStatus: r.leaveStatus
+                });
+            }
+        });
+
+        // Sort leave details by date
+        leaveDetails.sort((a, b) => a.date.localeCompare(b.date));
+
+        // Needs attention (high late/absent rate, early leaves, location issues, or low hours)
+        const needsAttention = Object.values(employeeData)
+            .filter(emp => {
+                // Only count days with actual records (present + absent + leave)
+                const totalRecordedDays = emp.daysPresent + emp.absentCount + emp.leaveCount;
+                const lateRate = emp.daysPresent > 0 ? (emp.lateCount / emp.daysPresent) * 100 : 0;
+                const absentRate = totalRecordedDays > 0 ? (emp.absentCount / totalRecordedDays) * 100 : 0;
+                const avgHours = emp.daysPresent > 0 ? emp.totalHours / emp.daysPresent : 0;
+                const locationIssueRate = emp.daysPresent > 0 ? (emp.locationIssues / emp.daysPresent) * 100 : 0;
+
+                return lateRate > 20 || absentRate > 10 || avgHours < 6 || emp.earlyLeaveCount > 2 || locationIssueRate > 30;
+            })
+            .map(emp => {
+                const issues = [];
+                const totalRecordedDays = emp.daysPresent + emp.absentCount + emp.leaveCount;
+
+                if (emp.lateCount > 0) issues.push(`${emp.lateCount} late`);
+                if (emp.earlyLeaveCount > 0) issues.push(`${emp.earlyLeaveCount} early`);
+                if (emp.absentCount > 0) issues.push(`${emp.absentCount} absent`);
+                if (emp.locationIssues > 0) issues.push(`${emp.locationIssues} location`);
+
+                return {
+                    ...emp,
+                    issues,
+                    issueText: issues.join(', ') || 'Low hours',
+                    daysWorked: totalRecordedDays
+                };
+            })
             .slice(0, 5);
 
         return {
-            totalPresent,
-            totalOT: Math.round(totalOTMinutes / 60),
-            avgHours: Math.round(avgHours * 10) / 10,
-            uniqueEmployees: uniqueEmployees.size,
-            complianceRate: (totalVerified + totalUnverified > 0) ? Math.round((totalVerified / (totalVerified + totalUnverified)) * 100) : 100,
-            lateRate: totalPresent > 0 ? Math.round((totalLate / totalPresent) * 100) : 0,
-            dailyStats: sortedDays,
-            mostProductive,
-            mostPunctual,
-            totalLate
+            // KPIs
+            attendanceRate,
+            avgHoursPerDay,
+            totalOTHours: Math.round(totalOTHours),
+            punctualityRate,
+
+            // Costs
+            totalOTCost: Math.round(totalOTCost),
+            totalLaborCost: Math.round(totalLaborCost),
+            hasSalaryData,
+
+            // Leave stats
+            totalDaysLeave,
+            leaveRate: totalScheduledDays > 0 ? Math.round((totalDaysLeave / totalScheduledDays) * 100) : 0,
+            leaveDetails,
+
+            // Charts
+            dailyStats,
+            hoursDistribution,
+            topOTEmployees,
+
+            // Leaderboards
+            topPerformers,
+            needsAttention,
+
+            // Counts
+            uniqueEmployeeCount: uniqueEmployees.size,
+            totalEarlyLeaves,
+            totalLocationIssues
         };
-    }, [records]);
+    }, [records, theme]);
 
     if (loading) {
         return (
@@ -151,130 +331,202 @@ export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps>
         );
     }
 
-    const punctualityData = [
-        { name: 'On Time', value: stats.totalPresent - stats.totalLate, color: theme.palette.success.main },
-        { name: 'Late', value: stats.totalLate, color: theme.palette.warning.main },
-    ];
+    // Helper function to get color based on value and thresholds
+    const getKPIColor = (value: number, type: 'attendance' | 'punctuality' | 'hours') => {
+        if (type === 'attendance' || type === 'punctuality') {
+            if (value >= 95) return 'success';
+            if (value >= 85) return 'warning';
+            return 'error';
+        }
+        // For hours
+        if (value >= 7.5 && value <= 9) return 'success';
+        if (value >= 6 && value < 7.5) return 'warning';
+        return 'error';
+    };
 
-    const StatCard = ({ title, value, unit, color, icon: Icon }: any) => (
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: `4px solid`, borderColor: `${color}.main`, height: '100%' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                    <Typography variant="overline" color="text.secondary" fontWeight="bold">{title}</Typography>
-                    <Typography variant="h4" fontWeight="bold" color={`${color}.main`}>
-                        {value} <Typography variant="caption" color="text.secondary">{unit}</Typography>
-                    </Typography>
-                </Box>
-                <Icon sx={{ color: `${color}.light`, opacity: 0.5 }} />
-            </Stack>
-        </Paper>
-    );
-
-    const LeaderboardList = ({ title, data, type }: any) => (
-        <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
-            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
-                <Typography variant="subtitle2" fontWeight="bold">{title}</Typography>
-            </Box>
-            <Box sx={{ p: 0 }}>
-                {data.map((emp: any, idx: number) => (
-                    <Box key={idx}>
-                        <Stack direction="row" spacing={2} alignItems="center" sx={{ px: 2, py: 1.5 }}>
-                            <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: idx === 0 ? 'primary.main' : 'action.disabled' }}>
-                                {idx + 1}
-                            </Avatar>
-                            <Box sx={{ flexGrow: 1 }}>
-                                <Typography variant="body2" fontWeight="medium">{emp.name}</Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    {type === 'hours' ? `${Math.round(emp.hours)}h worked` : `${emp.lateCount} lates / ${emp.presentCount} days`}
-                                </Typography>
-                            </Box>
-                        </Stack>
-                        {idx < data.length - 1 && <Divider />}
-                    </Box>
-                ))}
-            </Box>
-        </Card>
-    );
+    const KPICard = ({ title, value, unit, color }: any) => {
+        return (
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: { xs: 1, sm: 2 },
+                    textAlign: 'center',
+                    borderRadius: 2,
+                    borderLeft: `3px solid`,
+                    borderColor: `${color}.main`,
+                    bgcolor: 'background.paper',
+                }}
+            >
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: 'text.secondary',
+                        display: 'block',
+                        fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                        fontWeight: 'medium'
+                    }}
+                >
+                    {title}
+                </Typography>
+                <Typography
+                    variant="h6"
+                    sx={{
+                        color: `${color}.main`,
+                        fontWeight: 'bold',
+                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                    }}
+                >
+                    {value}{unit}
+                </Typography>
+            </Paper>
+        );
+    };
 
     return (
-        <Box sx={{ p: 2 }}>
-            {/* Top Metrics */}
-            <Grid container spacing={2} mb={3}>
+        <Box sx={{ p: { xs: 1, sm: 2 } }}>
+            {/* KPI Cards - Matching logs tab styling */}
+            <Grid container spacing={1.5} mb={3}>
                 <Grid item xs={6} sm={3}>
-                    <StatCard title="Total Present" value={stats.totalPresent} unit="Days" color="primary" icon={Person} />
+                    <KPICard
+                        title="Attendance Rate"
+                        value={stats.attendanceRate}
+                        unit="%"
+                        color="primary"
+                    />
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                    <StatCard title="Avg Daily" value={stats.avgHours} unit="Hours" color="secondary" icon={TrendingUp} />
+                    <KPICard
+                        title="Avg Hours/Day"
+                        value={stats.avgHoursPerDay}
+                        unit="h"
+                        color="info"
+                    />
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                    <StatCard title="Total OT" value={stats.totalOT} unit="Hours" color="success" icon={CheckCircleOutline} />
+                    <KPICard
+                        title="Total Overtime"
+                        value={stats.totalOTHours}
+                        unit="h"
+                        color="success"
+                    />
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                    <StatCard title="Lateness" value={stats.lateRate} unit="%" color="warning" icon={WarningAmber} />
+                    <KPICard
+                        title="Punctuality"
+                        value={stats.punctualityRate}
+                        unit="%"
+                        color="warning"
+                    />
                 </Grid>
             </Grid>
 
-            {/* Trends */}
-            <Grid container spacing={2} mb={3}>
+            {/* Main Chart: Daily Attendance - Bar Chart */}
+            <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
+                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Daily Attendance
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                        Present employees (on-time vs late)
+                    </Typography>
+                    <Box height={{ xs: 200, sm: 250 }}>
+                        <ResponsiveContainer>
+                            <BarChart data={stats.dailyStats} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} opacity={0.3} />
+                                <XAxis
+                                    dataKey="date"
+                                    tickFormatter={(val) => dayjs(val).format('DD MMM')}
+                                    fontSize={11}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <YAxis
+                                    fontSize={11}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    allowDecimals={false}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: theme.palette.background.paper,
+                                        borderRadius: 8,
+                                        border: '1px solid ' + theme.palette.divider,
+                                        boxShadow: theme.shadows[3]
+                                    }}
+                                    labelFormatter={(l) => dayjs(l).format('dddd, DD MMMM')}
+                                />
+                                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                                <Bar dataKey="onTime" stackId="a" fill={theme.palette.success.main} name="On Time" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="late" stackId="a" fill={theme.palette.warning.main} name="Late" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Box>
+                </CardContent>
+            </Card>
+
+            {/* Two Column: Work Hours Line Chart & OT */}
+            <Grid container spacing={2} mb={2}>
                 <Grid item xs={12} md={8}>
-                    <Card variant="outlined" sx={{ borderRadius: 2 }}>
-                        <CardContent>
-                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Workforce & Overtime Trends</Typography>
-                            <Box height={350}>
+                    <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                                Daily Work Hours Trend
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                                Average hours and OT per employee per day
+                            </Typography>
+                            <Box height={{ xs: 200, sm: 250 }}>
                                 <ResponsiveContainer>
-                                    <AreaChart data={stats.dailyStats}>
+                                    <AreaChart data={stats.dailyStats} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <defs>
+                                            <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
+                                            </linearGradient>
                                             <linearGradient id="colorOT" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor={theme.palette.success.main} stopOpacity={0.1} />
-                                                <stop offset="95%" stopColor={theme.palette.success.main} stopOpacity={0} />
+                                                <stop offset="5%" stopColor={theme.palette.warning.main} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={theme.palette.warning.main} stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} opacity={0.3} />
                                         <XAxis
                                             dataKey="date"
                                             tickFormatter={(val) => dayjs(val).format('DD MMM')}
-                                            fontSize={12}
+                                            fontSize={11}
                                             axisLine={false}
                                             tickLine={false}
                                         />
                                         <YAxis
-                                            yAxisId="left"
+                                            fontSize={11}
                                             axisLine={false}
                                             tickLine={false}
-                                            fontSize={12}
-                                            label={{ value: 'Headcount', angle: -90, position: 'insideLeft', style: { fontSize: 10 } }}
-                                        />
-                                        <YAxis
-                                            yAxisId="right"
-                                            orientation="right"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            fontSize={12}
-                                            unit="h"
-                                            label={{ value: 'Avg OT', angle: 90, position: 'insideRight', style: { fontSize: 10 } }}
                                         />
                                         <Tooltip
-                                            contentStyle={{ borderRadius: 8, border: 'none', boxShadow: theme.shadows[3] }}
+                                            contentStyle={{
+                                                backgroundColor: theme.palette.background.paper,
+                                                borderRadius: 8,
+                                                border: '1px solid ' + theme.palette.divider,
+                                                boxShadow: theme.shadows[3]
+                                            }}
                                             labelFormatter={(l) => dayjs(l).format('dddd, DD MMMM')}
                                         />
+                                        <Legend wrapperStyle={{ fontSize: '12px' }} />
                                         <Area
-                                            yAxisId="right"
                                             type="monotone"
-                                            dataKey="totalOT"
-                                            stroke={theme.palette.success.main}
-                                            fillOpacity={1}
+                                            dataKey="avgHours"
+                                            stroke={theme.palette.primary.main}
+                                            fill="url(#colorHours)"
+                                            name="Avg Hours"
+                                            strokeWidth={2}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="avgOT"
+                                            stroke={theme.palette.warning.main}
                                             fill="url(#colorOT)"
-                                            name="Daily OT"
+                                            name="Avg OT"
+                                            strokeWidth={2}
                                         />
-                                        <Bar
-                                            yAxisId="left"
-                                            dataKey="present"
-                                            fill={theme.palette.primary.main}
-                                            radius={[4, 4, 0, 0]}
-                                            barSize={20}
-                                            name="Headcount"
-                                        />
-                                        <Legend verticalAlign="top" align="right" height={36} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </Box>
@@ -284,53 +536,207 @@ export const AttendanceStatisticsPanel: React.FC<AttendanceStatisticsPanelProps>
 
                 <Grid item xs={12} md={4}>
                     <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
-                        <CardContent>
-                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Arrival Punctuality</Typography>
-                            <Box height={250}>
-                                <ResponsiveContainer>
-                                    <PieChart>
-                                        <Pie
-                                            data={punctualityData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {punctualityData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </Box>
-                            <Stack spacing={1}>
-                                {punctualityData.map((d, i) => (
-                                    <Stack key={i} direction="row" justifyContent="space-between" alignItems="center">
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: d.color }} />
-                                            <Typography variant="body2">{d.name}</Typography>
-                                        </Stack>
-                                        <Typography variant="body2" fontWeight="bold">{d.value}</Typography>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                                Top Overtime Users
+                            </Typography>
+                            <Box>
+                                {stats.topOTEmployees.length === 0 ? (
+                                    <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
+                                        No overtime recorded
+                                    </Typography>
+                                ) : (
+                                    <Stack spacing={1.5}>
+                                        {stats.topOTEmployees.map((emp, idx) => (
+                                            <Paper key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 1 }}>
+                                                <Stack direction="row" spacing={2} alignItems="center">
+                                                    <Avatar sx={{
+                                                        width: 32,
+                                                        height: 32,
+                                                        fontSize: '0.875rem',
+                                                        bgcolor: emp.totalOT > 20 ? 'error.main' : 'warning.main'
+                                                    }}>
+                                                        {idx + 1}
+                                                    </Avatar>
+                                                    <Box sx={{ flexGrow: 1 }}>
+                                                        <Typography variant="body2" fontWeight="medium">
+                                                            {emp.name}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {Math.round(emp.totalOT)}h OT in {emp.daysPresent} days
+                                                            {emp.otCost && ` • $${Math.round(emp.otCost).toLocaleString()}`}
+                                                        </Typography>
+                                                    </Box>
+                                                    {emp.totalOT > 20 && (
+                                                        <Chip label="High" size="small" color="error" />
+                                                    )}
+                                                </Stack>
+                                            </Paper>
+                                        ))}
                                     </Stack>
-                                ))}
-                            </Stack>
+                                )}
+                            </Box>
                         </CardContent>
                     </Card>
                 </Grid>
             </Grid>
 
-            {/* Leaderboards */}
+            {/* Performance Leaderboards & Leave Stats */}
             {!selectedEmployee && (
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                        <LeaderboardList title="Top Performers (Work Hours)" data={stats.mostProductive} type="hours" />
+                    <Grid item xs={12} sm={6} lg={4}>
+                        <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'success.lighter' }}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <EmojiEvents sx={{ color: 'success.main', fontSize: 20 }} />
+                                    <Typography variant="subtitle2" fontWeight="bold">Top Performers</Typography>
+                                </Stack>
+                            </Box>
+                            <Box sx={{ p: 0 }}>
+                                {stats.topPerformers.map((emp, idx) => (
+                                    <Box key={idx}>
+                                        <Stack direction="row" spacing={2} alignItems="center" sx={{ px: 2, py: 1.5 }}>
+                                            <Avatar sx={{
+                                                width: 32,
+                                                height: 32,
+                                                fontSize: '0.875rem',
+                                                bgcolor: idx === 0 ? 'success.main' : 'action.disabled',
+                                                fontWeight: 'bold'
+                                            }}>
+                                                {idx + 1}
+                                            </Avatar>
+                                            <Box sx={{ flexGrow: 1 }}>
+                                                <Typography variant="body2" fontWeight="medium">{emp.name}</Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {Math.round(emp.totalHours)}h • {emp.daysPresent} days
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                        {idx < stats.topPerformers.length - 1 && <Divider />}
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Card>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <LeaderboardList title="Punctuality Champions" data={stats.mostPunctual} type="lateness" />
+
+                    <Grid item xs={12} sm={6} lg={4}>
+                        <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'error.lighter' }}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <WarningAmber sx={{ color: 'error.main', fontSize: 20 }} />
+                                    <Typography variant="subtitle2" fontWeight="bold">Needs Attention</Typography>
+                                </Stack>
+                            </Box>
+                            <Box sx={{ p: 0 }}>
+                                {stats.needsAttention.length === 0 ? (
+                                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            All employees performing well!
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    stats.needsAttention.map((emp, idx) => (
+                                        <Box key={idx}>
+                                            <Stack spacing={1} sx={{ px: 2, py: 1.5 }}>
+                                                <Stack direction="row" spacing={2} alignItems="center">
+                                                    <Avatar sx={{
+                                                        width: 32,
+                                                        height: 32,
+                                                        fontSize: '0.875rem',
+                                                        bgcolor: 'error.main',
+                                                        fontWeight: 'bold'
+                                                    }}>
+                                                        !
+                                                    </Avatar>
+                                                    <Box sx={{ flexGrow: 1 }}>
+                                                        <Typography variant="body2" fontWeight="medium">{emp.name}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {emp.daysWorked} recorded days
+                                                        </Typography>
+                                                    </Box>
+                                                </Stack>
+                                                <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ pl: 5 }}>
+                                                    {emp.issues.map((issue, i) => {
+                                                        const isLocation = issue.includes('location');
+                                                        const isLate = issue.includes('late');
+                                                        const isEarly = issue.includes('early');
+                                                        const isAbsent = issue.includes('absent');
+
+                                                        let color: 'error' | 'warning' | 'info' = 'error';
+                                                        if (isLocation) color = 'info';
+                                                        else if (isLate || isEarly) color = 'warning';
+
+                                                        return (
+                                                            <Chip
+                                                                key={i}
+                                                                label={issue}
+                                                                size="small"
+                                                                color={color}
+                                                                sx={{ fontSize: '0.7rem', height: 20 }}
+                                                            />
+                                                        );
+                                                    })}
+                                                </Stack>
+                                            </Stack>
+                                            {idx < stats.needsAttention.length - 1 && <Divider />}
+                                        </Box>
+                                    ))
+                                )}
+                            </Box>
+                        </Card>
                     </Grid>
+
+                    {/* Leave Statistics */}
+                    {stats.totalDaysLeave > 0 && (
+                        <Grid item xs={12} sm={6} lg={4}>
+                            <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'info.lighter' }}>
+                                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                                        <Typography variant="subtitle2" fontWeight="bold">
+                                            Leave Statistics
+                                        </Typography>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Chip
+                                                label={`${stats.totalDaysLeave} days`}
+                                                size="small"
+                                                color="info"
+                                                sx={{ fontWeight: 'bold', height: 20, fontSize: '0.7rem' }}
+                                            />
+                                            <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
+                                                {stats.leaveRate}%
+                                            </Typography>
+                                        </Stack>
+                                    </Stack>
+                                </Box>
+                                <Box sx={{ p: 0, maxHeight: 400, overflowY: 'auto' }}>
+                                    {stats.leaveDetails.map((leave, idx) => (
+                                        <Box key={idx}>
+                                            <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 2, py: 1.5 }}>
+                                                <Box sx={{
+                                                    width: 6,
+                                                    height: 6,
+                                                    borderRadius: '50%',
+                                                    bgcolor: 'info.main',
+                                                    flexShrink: 0
+                                                }} />
+                                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                                    <Typography variant="body2" fontWeight="medium" noWrap>
+                                                        {leave.employeeName}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {dayjs(leave.date).format('MMM DD')}
+                                                        {leave.leaveType && ` • ${leave.leaveType}`}
+                                                        {leave.leaveStatus && leave.leaveStatus !== 'Full' && ` (${leave.leaveStatus})`}
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                            {idx < stats.leaveDetails.length - 1 && <Divider />}
+                                        </Box>
+                                    ))}
+                                </Box>
+                            </Card>
+                        </Grid>
+                    )}
                 </Grid>
             )}
         </Box>
