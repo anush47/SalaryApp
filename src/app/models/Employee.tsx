@@ -141,6 +141,12 @@ export interface IEmployee extends Document {
   emergencyContact: string;
   editable: boolean;
   autoAcknowledge: boolean;
+  faceData?: {
+    descriptor: number[];
+    registeredAt: Date;
+    registeredBy?: string | Types.ObjectId;
+    images?: string[];
+  };
 }
 
 // Define Shift Schema separately to handle String _id
@@ -549,6 +555,23 @@ const employeeSchema = new Schema<IEmployee>(
     autoAcknowledge: {
       type: Boolean,
       default: true,
+    },
+    faceData: {
+      descriptor: {
+        type: [Number],
+        default: undefined,
+      },
+      registeredAt: {
+        type: Date,
+      },
+      registeredBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+      images: {
+        type: [String],
+        default: undefined,
+      },
     },
   },
   {
