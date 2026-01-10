@@ -101,3 +101,13 @@ export async function fetchLeaveBalance(employeeId: string) {
 export async function fetchManagerDashboard(employeeId: string) {
   return apiFetch(`/api/dashboard/manager?employeeId=${employeeId}`);
 }
+
+/**
+ * Delete face data for an employee
+ */
+export async function deleteFaceData(employeeId: string) {
+  return apiFetch('/api/employees', {
+    method: 'PUT',
+    body: JSON.stringify({ _id: employeeId, faceData: null }),
+  });
+}

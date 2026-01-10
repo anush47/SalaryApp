@@ -76,12 +76,11 @@ export class KioskService {
     static async getEmployeesForKiosk(apiKey: string) {
         // Validate API key first (Includes dbConnect)
         const companyInfo = await this.validateApiKey(apiKey);
-
         const employees = await Employee.find({
             company: companyInfo.companyId,
             active: true,
         })
-            .select("_id name memberNo faceData")
+            .select("_id name memberNo faceData.registeredAt")
             .sort({ memberNo: 1 })
             .lean();
 
@@ -89,7 +88,7 @@ export class KioskService {
             _id: emp._id.toString(),
             name: emp.name,
             memberNo: emp.memberNo,
-            hasFaceData: !!(emp.faceData && emp.faceData.descriptors && emp.faceData.descriptors.length > 0),
+            hasFaceData: !!(emp.faceData && emp.faceData.registeredAt),
         }));
     }
 
@@ -119,7 +118,6 @@ export class KioskService {
         employee.faceData = {
             descriptors: faceData.descriptors,
             registeredAt: new Date(),
-            images: faceData.images || [],
         };
 
         await employee.save();
@@ -158,9 +156,9 @@ export class KioskService {
         const employeesPromise = Employee.find({
             company: companyId,
             active: true,
-            "faceData.descriptors": { $exists: true, $ne: [] },
+            "faceData.descriptors": { $exists: true },
         })
-            .select("_id name memberNo faceData.descriptors")
+            .select("_id name memberNo +faceData.descriptors")
             .lean();
 
         let spoofPromise = null;

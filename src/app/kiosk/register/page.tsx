@@ -59,8 +59,6 @@ export default function KioskRegisterPage() {
         { label: "Look Center", instruction: "Look directly at the camera" },
         { label: "Turn Left", instruction: "Turn your head slightly to the left" },
         { label: "Turn Right", instruction: "Turn your head slightly to the right" },
-        { label: "Look Up", instruction: "Tilt your head slightly upwards" },
-        { label: "Look Down", instruction: "Tilt your head slightly downwards" },
     ];
 
     const [stream, setStream] = useState<MediaStream | null>(null);
@@ -193,12 +191,11 @@ export default function KioskRegisterPage() {
             setCapturedDescriptors(prev => [...prev, descriptor]);
             setStepImages(prev => [...prev, imageData]);
 
-            if (currentStep < 4) {
+            if (currentStep < 2) {
                 // Move to next step
                 setCurrentStep(prev => prev + 1);
             } else {
                 // All steps done, ready to register
-                // We'll auto-register or let user confirm. Let's auto-register for seamlessness.
                 await finishRegistration([...capturedDescriptors, descriptor], [...stepImages, imageData]);
             }
 
@@ -446,7 +443,7 @@ export default function KioskRegisterPage() {
                             )}
 
                             <Box sx={{ position: "absolute", top: 16, left: 16, display: "flex", gap: 1 }}>
-                                {[0, 1, 2, 3, 4].map(step => (
+                                {[0, 1, 2].map(step => (
                                     <Box
                                         key={step}
                                         sx={{

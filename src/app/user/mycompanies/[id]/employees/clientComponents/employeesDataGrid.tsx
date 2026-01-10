@@ -211,6 +211,8 @@ export interface Employee {
   faceData?: {
     descriptors?: number[][];
     descriptor?: number[]; // Legacy support
+    registeredAt?: string | Date;
+    registeredBy?: string;
   };
 };
 

@@ -747,3 +747,33 @@ const stats = useMemo(() => {
 *   **Responsive Design**: Always implement mobile-first layouts with progressive enhancement for larger screens.
 *   **Color Consistency**: Use theme palette colors (`primary.main`, `success.main`, etc.) instead of hardcoded values.
 
+## 13. Facial Recognition Architecture
+
+### 13.1. Zero-Image Storage Policy
+To ensure optimal performance and privacy, the application enforces a strict **Zero-Image Storage Policy** for facial recognition data.
+
+-   **No Base64 Storage**: The system **never** stores raw base64 images of employee faces in the database `Employee` collection.
+-   **Descriptor-Only**: During registration, raw images are processed immediately to extract 128/512-dimensional mathematical descriptors. Only these descriptors are saved.
+-   **Schema Exclusion**: The `faceData.descriptors` field is defined with `select: false` in the Mongoose schema. This ensures heavy facial data is excluded by default from all queries (e.g., employee lists, salary exports), preventing payload bloat.
+
+### 13.2. Surgical Data Fetching
+Face data is only retrieved when strictly necessary for recognition matching.
+
+-   **Default Behavior**: `Employee.find()` returns general profile data but **excludes** facial descriptors.
+-   **Kiosk Matching**: The Kiosk service uses a specific query with `.select("+faceData.descriptors")` to explicitly request descriptors only during the active attendance marking process.
+-   **Admin UI**: The Employee Edit page displays registration status (e.g., "Face data registered on [Date]") using the lightweight `registeredAt` timestamp, without fetching the actual descriptors.
+
+### 13.3. Registration Workflow
+The Kiosk face registration process is optimized for speed and user experience.
+
+-   **3-Pose Capture**: Registration requires only **3 poses** (Center, Left, Right) to build a robust face profile.
+-   **Immediate Processing**: Images are processed client-side (or server-side ephemeral) to generate descriptors, which are then sent to the backend. The original images are discarded post-processing.
+-   **Liveness Detection**: Anti-spoofing checks are performed on the live stream/captured frame before descriptor generation.
+
+### 13.4. Data Management UI
+Admins have full control over face data via the Employee Edit page:
+
+-   **Delete Face Data**: A dedicated button allows for the removal of existing face profiles (descriptors and timestamps).
+-   **Status Visibility**: Clear indicators show *when* face data was registered.
+-   **User Linking**: The UI also displays linked user account details ("Account created on...") to provide a complete view of digital identity.
+

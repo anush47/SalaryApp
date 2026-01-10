@@ -145,7 +145,6 @@ export interface IEmployee extends Document {
     descriptors: number[][];
     registeredAt: Date;
     registeredBy?: string | Types.ObjectId;
-    images?: string[];
   };
 }
 
@@ -559,6 +558,7 @@ const employeeSchema = new Schema<IEmployee>(
     faceData: {
       descriptors: {
         type: [[Number]],
+        select: false,
         default: undefined,
       },
       registeredAt: {
@@ -567,10 +567,6 @@ const employeeSchema = new Schema<IEmployee>(
       registeredBy: {
         type: Schema.Types.ObjectId,
         ref: "User",
-      },
-      images: {
-        type: [String],
-        default: undefined,
       },
     },
   },

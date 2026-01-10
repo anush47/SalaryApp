@@ -1950,19 +1950,30 @@ const EditEmployeeForm: React.FC<{
 
         <Grid mt={3} item xs={12}>
           {formFields.user ? (
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<Delete />}
-              onClick={() => setDeleteUserDialogOpen(true)}
-              disabled={!isEditing || loading}
-            >
-              {loading ? (
-                <CircularProgress size={24} />
-              ) : (
-                "Delete User Account"
-              )}
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Delete />}
+                onClick={() => setDeleteUserDialogOpen(true)}
+                disabled={!isEditing || loading}
+              >
+                {loading ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  "Delete User Account"
+                )}
+              </Button>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Account created on{" "}
+                  {dayjs(formFields.user.createdAt).format("DD/MM/YYYY")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formFields.user.email}
+                </Typography>
+              </Box>
+            </Box>
           ) : (
             <>
               <Button
@@ -1990,16 +2001,21 @@ const EditEmployeeForm: React.FC<{
         </Grid>
 
         <Grid mt={3} item xs={12}>
-          {formFields.faceData && ((formFields.faceData.descriptors && formFields.faceData.descriptors.length > 0) || formFields.faceData.descriptor) ? (
-            <Button
-              variant="outlined"
-              color="warning"
-              startIcon={<Delete />}
-              onClick={handleRemoveFaceData}
-              disabled={!isEditing || loading}
-            >
-              {loading ? <CircularProgress size={24} /> : "Remove Face Data"}
-            </Button>
+          {formFields.faceData && (formFields.faceData.registeredAt || formFields.faceData.descriptors?.length || formFields.faceData.descriptor) ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Delete />}
+                onClick={handleRemoveFaceData}
+                disabled={!isEditing || loading}
+              >
+                {loading ? <CircularProgress size={24} /> : "Delete Face Data"}
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                Face data registered on {dayjs(formFields.faceData.registeredAt).format("DD/MM/YYYY")}
+              </Typography>
+            </Box>
           ) : (
             <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
               No Face Data Registered

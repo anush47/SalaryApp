@@ -23,7 +23,8 @@ export class EmployeeService {
   static async getEmployee(employeeId: string, context: RequestContext) {
     await dbConnect();
 
-    const employee = await Employee.findById(employeeId).populate('user', 'email name');
+    const employee = await Employee.findById(employeeId)
+      .populate('user', 'email name createdAt');
 
     if (!employee) {
       throw new NotFoundError("Employee record not found");
@@ -51,6 +52,7 @@ export class EmployeeService {
       .populate('user', '-password')
       .populate('company', 'name employerNo paymentStructure attendanceConfig geoFencing')
       .populate('department', 'name')
+      .populate('manager', 'name memberNo')
       .populate('manager', 'name memberNo')
       .lean();
 
