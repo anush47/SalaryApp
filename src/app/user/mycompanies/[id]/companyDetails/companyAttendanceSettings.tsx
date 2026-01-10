@@ -27,6 +27,7 @@ interface CompanyAttendanceSettingsProps {
     isEditing: boolean;
     attendanceConfig: Company["attendanceConfig"] | undefined;
     geoFencing: Company["geoFencing"] | undefined;
+    apiKey?: string;
     onUpdate: (fields: Partial<Company>) => void;
 }
 
@@ -34,6 +35,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
     isEditing,
     attendanceConfig,
     geoFencing,
+    apiKey,
     onUpdate,
 }) => {
 
@@ -61,6 +63,7 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
         ...defaultConfig,
         ...(attendanceConfig as any), // Spread attendance flags
         geoFencing: geoFencing || defaultConfig.geoFencing, // Override geoFencing
+        apiKey: apiKey, // Include apiKey from root level
     };
 
     const handleConfigChange = (newConfig: AttendanceConfigData) => {
@@ -68,12 +71,13 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
         // 1. GeoFencing
         const newGeoFencing = newConfig.geoFencing;
 
-        // 2. Attendance Config (extract flags)
-        const { geoFencing: _, ...newAttendanceConfig } = newConfig;
+        // 2. Attendance Config (extract flags, remove geoFencing and apiKey)
+        const { geoFencing: _, apiKey: extractedApiKey, ...newAttendanceConfig } = newConfig;
 
         onUpdate({
             attendanceConfig: newAttendanceConfig as any,
-            geoFencing: newGeoFencing
+            geoFencing: newGeoFencing,
+            apiKey: extractedApiKey
         });
     };
 

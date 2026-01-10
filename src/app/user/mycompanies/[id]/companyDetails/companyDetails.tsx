@@ -255,12 +255,17 @@ const CompanyDetails = ({
       return;
     }
 
-    // Unzip geoFencing from attendanceConfig if it exists there (Frontend structure vs Backend structure)
+    // Unzip geoFencing and apiKey from attendanceConfig if they exist there (Frontend structure vs Backend structure)
     const payload = { ...formFields };
     if (payload.attendanceConfig && (payload.attendanceConfig as any).geoFencing) {
       payload.geoFencing = (payload.attendanceConfig as any).geoFencing;
-      const { geoFencing, ...restConfig } = payload.attendanceConfig as any;
+      const { geoFencing, apiKey, ...restConfig } = payload.attendanceConfig as any;
       payload.attendanceConfig = restConfig;
+
+      // Move apiKey to root level if it exists
+      if (apiKey !== undefined) {
+        payload.apiKey = apiKey;
+      }
     }
 
     await updateCompanyMutation.mutateAsync(payload);
@@ -715,6 +720,7 @@ const CompanyDetails = ({
                 isEditing={isEditing}
                 attendanceConfig={formFields.attendanceConfig}
                 geoFencing={formFields.geoFencing}
+                apiKey={formFields.apiKey}
                 onUpdate={(updatedFields) => {
                   setFormFields(
                     (prev) =>
