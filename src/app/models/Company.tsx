@@ -85,6 +85,7 @@ export interface ICompany extends Document {
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
     approvalMode?: "automatic" | "always" | "out_of_zone";
+    livenessDetection?: boolean;
   };
   geoFencing: {
     enabled: boolean;
@@ -378,6 +379,7 @@ const companySchema = new Schema<ICompany>(
         enum: ["automatic", "always", "out_of_zone"],
         default: "automatic",
       },
+      livenessDetection: { type: Boolean, default: false },
     },
     geoFencing: {
       enabled: { type: Boolean, default: false },

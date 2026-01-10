@@ -347,6 +347,7 @@ const attendanceConfigSchema = z.object({
   salaryIntegration: z.boolean().optional(),
   allowRemoteCheckIn: z.boolean().optional(),
   requireApproval: z.boolean().optional(),
+  livenessDetection: z.boolean().optional(),
   apiKey: z.string().optional(),
 });
 

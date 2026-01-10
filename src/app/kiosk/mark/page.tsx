@@ -60,6 +60,7 @@ export default function KioskMarkPage() {
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [mounted, setMounted] = useState(false);
     const [companyName, setCompanyName] = useState("");
+    const [companyInfo, setCompanyInfo] = useState<Awaited<ReturnType<typeof validateApiKey>> | null>(null);
 
     // Overlay State
     const [overlayData, setOverlayData] = useState<{
@@ -107,6 +108,7 @@ export default function KioskMarkPage() {
         // Load Company Info
         validateApiKey(storedKey).then(info => {
             setCompanyName(info.companyName);
+            setCompanyInfo(info);
         }).catch(() => {
             // If validation fails, maybe just keep default or redirect
             console.warn("Could not validate key or fetch company name");

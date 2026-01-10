@@ -9,7 +9,15 @@ export interface CompanyInfo {
     companyId: string;
     companyName: string;
     timezone: string;
-    attendanceConfig: any;
+    attendanceConfig: {
+        enabled: boolean;
+        pwaCheckIn: boolean;
+        hardwareIntegration: boolean;
+        salaryIntegration: boolean;
+        allowRemoteCheckIn: boolean;
+        requireApproval: boolean;
+        livenessDetection?: boolean;
+    };
     geoFencing: any;
 }
 

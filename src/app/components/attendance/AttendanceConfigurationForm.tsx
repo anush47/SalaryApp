@@ -28,6 +28,7 @@ export interface AttendanceConfigData {
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
     approvalMode?: "automatic" | "always" | "out_of_zone";
+    livenessDetection?: boolean;
     features?: {
         pwaCheckIn: boolean;
         hardwareIntegration: boolean;
@@ -317,6 +318,12 @@ export const AttendanceConfigurationForm: React.FC<AttendanceConfigurationFormPr
                             control={<Checkbox checked={config.hardwareIntegration || false} onChange={(e) => handlePolicyChange("hardwareIntegration", e.target.checked)} disabled={!isEditing} />}
                             label="Hardware Integration"
                         />
+                        {config.hardwareIntegration && (
+                            <FormControlLabel
+                                control={<Checkbox checked={config.livenessDetection || false} onChange={(e) => handlePolicyChange("livenessDetection", e.target.checked)} disabled={!isEditing} />}
+                                label="Liveness Detection (Anti-Spoofing)"
+                            />
+                        )}
                     </Box>
                 </Grid>
 
