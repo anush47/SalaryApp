@@ -142,7 +142,7 @@ export interface IEmployee extends Document {
   editable: boolean;
   autoAcknowledge: boolean;
   faceData?: {
-    descriptor: number[];
+    descriptors: number[][];
     registeredAt: Date;
     registeredBy?: string | Types.ObjectId;
     images?: string[];
@@ -557,8 +557,8 @@ const employeeSchema = new Schema<IEmployee>(
       default: true,
     },
     faceData: {
-      descriptor: {
-        type: [Number],
+      descriptors: {
+        type: [[Number]],
         default: undefined,
       },
       registeredAt: {

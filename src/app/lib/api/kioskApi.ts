@@ -21,7 +21,7 @@ export interface Employee {
 }
 
 export interface FaceData {
-    descriptor: number[];
+    descriptors: number[][];
     image?: string;
     images?: string[];
 }
@@ -92,7 +92,7 @@ export async function registerFace(
             apiKey,
             employeeId,
             faceData: {
-                descriptor: faceData.descriptor,
+                descriptors: faceData.descriptors,
                 images: faceData.images || [],
             },
         }),
@@ -122,7 +122,7 @@ export async function markAttendance(
         body: JSON.stringify({
             apiKey,
             faceData: {
-                descriptor: faceData.descriptor,
+                descriptors: faceData.descriptors,
                 image: faceData.image,
             },
             location,

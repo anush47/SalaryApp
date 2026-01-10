@@ -624,6 +624,11 @@ const EditEmployeeForm: React.FC<{
     );
   };
 
+  const handleRemoveFaceData = () => {
+    const updatedData = { ...formFields, faceData: null };
+    updateEmployeeMutation.mutate(updatedData as any);
+  };
+
   const LeaveOverrideWarningDialog = () => {
     return (
       <Dialog
@@ -1950,7 +1955,7 @@ const EditEmployeeForm: React.FC<{
               color="error"
               startIcon={<Delete />}
               onClick={() => setDeleteUserDialogOpen(true)}
-              disabled={loading}
+              disabled={!isEditing || loading}
             >
               {loading ? (
                 <CircularProgress size={24} />
@@ -1964,7 +1969,7 @@ const EditEmployeeForm: React.FC<{
                 variant="contained"
                 color="secondary"
                 onClick={() => setCreateUserDialogOpen(true)}
-                disabled={loading}
+                disabled={!isEditing || loading}
               >
                 {loading ? (
                   <CircularProgress size={24} />
@@ -1981,6 +1986,24 @@ const EditEmployeeForm: React.FC<{
                 account.
               </Typography>
             </>
+          )}
+        </Grid>
+
+        <Grid mt={3} item xs={12}>
+          {formFields.faceData && ((formFields.faceData.descriptors && formFields.faceData.descriptors.length > 0) || formFields.faceData.descriptor) ? (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<Delete />}
+              onClick={handleRemoveFaceData}
+              disabled={!isEditing || loading}
+            >
+              {loading ? <CircularProgress size={24} /> : "Remove Face Data"}
+            </Button>
+          ) : (
+            <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
+              No Face Data Registered
+            </Typography>
           )}
         </Grid>
 

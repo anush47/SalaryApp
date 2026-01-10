@@ -405,6 +405,11 @@ export class EmployeeService {
       unsetFields.calculationMethod = 1;
     }
 
+    // Explicitly unset faceData if passed as null
+    if (parsedBody.faceData === null) {
+      unsetFields.faceData = 1;
+    }
+
     // Remove fields from updateData if they are to be unset
     Object.keys(unsetFields).forEach((field) => {
       delete (updateData as Record<string, unknown>)[field];

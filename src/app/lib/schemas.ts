@@ -316,6 +316,7 @@ export const employeeUpdateSchema = z.object({
   documents: z.record(z.string()).optional(),
   taxType: z.enum(["company", "individual"]).optional(),
   autoAcknowledge: z.boolean().optional(),
+  faceData: z.union([z.null(), z.undefined(), z.record(z.any())]).optional(),
 });
 
 export const employeeIdSchema = z.string().min(1, "Employee ID is required");

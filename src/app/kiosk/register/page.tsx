@@ -48,6 +48,18 @@ export default function KioskRegisterPage() {
     const [success, setSuccess] = useState("");
     const [cameraActive, setCameraActive] = useState(false);
     const [capturedImages, setCapturedImages] = useState<string[]>([]);
+    const [currentStep, setCurrentStep] = useState(0); // 0: Center, 1: Turn Left, 2: Turn Right
+    const [capturedDescriptors, setCapturedDescriptors] = useState<number[][]>([]);
+    const [stepImages, setStepImages] = useState<string[]>([]);
+
+    const steps = [
+        { label: "Look Center", instruction: "Look directly at the camera" },
+        { label: "Turn Left", instruction: "Turn your head slightly to the left" },
+        { label: "Turn Right", instruction: "Turn your head slightly to the right" },
+        { label: "Look Up", instruction: "Tilt your head slightly upwards" },
+        { label: "Look Down", instruction: "Tilt your head slightly downwards" },
+    ];
+
     const [stream, setStream] = useState<MediaStream | null>(null);
 
     // Check API key on mount and load models
@@ -131,82 +143,109 @@ export default function KioskRegisterPage() {
         setCameraActive(false);
     };
 
-    const captureImage = () => {
+    const handleCapture = async () => {
         if (!videoRef.current || !canvasRef.current) return;
-
-        const canvas = canvasRef.current;
-        const video = videoRef.current;
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-            ctx.drawImage(video, 0, 0);
-            const imageData = canvas.toDataURL("image/jpeg", 0.9); // Higher quality for recognition
-            if (capturedImages.length < 1) { // Limit to 1 good image for now for simplicity, or keep list
-                setCapturedImages([imageData]); // Just keep the latest for now if we want single shot
-            }
-        }
-    };
-
-    const handleRegister = async () => {
-        const currentSelectedEmployee = employees.find(e => e._id === selectedEmployee);
-
-        if (!currentSelectedEmployee || capturedImages.length === 0) {
-            setError("Please select an employee and capture an image.");
-            return;
-        }
 
         setLoading(true);
         setError("");
-        setSuccess("");
 
         try {
-            // Process the first captured image
-            const imageSrc = capturedImages[0];
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Could not get canvas context");
+
+            ctx.drawImage(video, 0, 0);
+            const imageData = canvas.toDataURL("image/jpeg", 0.9);
+
+            // Detect face
             const img = new Image();
-            img.src = imageSrc;
+            img.src = imageData;
             await img.decode();
 
-            // Detect face and extract descriptor using face-api.js
             const detection = await detectFace(img);
 
             if (!detection) {
-                setError("No face detected! Please ensure your face is clearly visible and try again.");
+                setError("No face detected! Please ensure your face is clearly visible.");
                 setLoading(false);
                 return;
             }
 
-            const faceDescriptor = Array.from(detection.descriptor); // Convert Float32Array to number[]
+            const descriptor = Array.from(detection.descriptor);
 
+            // Success for this step
+            setCapturedDescriptors(prev => [...prev, descriptor]);
+            setStepImages(prev => [...prev, imageData]);
+
+            if (currentStep < 4) {
+                // Move to next step
+                setCurrentStep(prev => prev + 1);
+            } else {
+                // All steps done, ready to register
+                // We'll auto-register or let user confirm. Let's auto-register for seamlessness.
+                await finishRegistration([...capturedDescriptors, descriptor], [...stepImages, imageData]);
+            }
+
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || "Capture failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const finishRegistration = async (finalDescriptors: number[][], finalImages: string[]) => {
+        const currentSelectedEmployee = employees.find(e => e._id === selectedEmployee);
+
+        if (!currentSelectedEmployee) {
+            setError("No employee selected.");
+            return;
+        }
+
+        try {
             const successRegistration = await registerFace(apiKey, currentSelectedEmployee._id, {
-                descriptor: faceDescriptor,
-                image: imageSrc,
+                descriptors: finalDescriptors,
+                images: finalImages,
             });
 
             if (successRegistration) {
-                setSuccess("Face registered successfully! Redirecting...");
-                setCapturedImages([]);
-                setSelectedEmployee("");
+                setSuccess("All poses captured & registered successfully!");
                 stopCamera();
+                setCurrentStep(0);
+                setCapturedDescriptors([]);
+                setStepImages([]);
+                setSelectedEmployee("");
 
-                // Reload employees to update hasFaceData status
+                // Reload employees
                 await loadEmployees(apiKey);
 
                 setTimeout(() => {
                     router.push("/kiosk");
                 }, 2000);
-            } else {
-                setError("Failed to register face. Please try again.");
             }
         } catch (err: any) {
-            console.error(err);
-            setError(err.message || "An unexpected error occurred during registration.");
-        } finally {
-            setLoading(false);
+            setError(err.message || "Failed to save registration data.");
+            // Reset to start on critical failure? Or just let them retry?
+            // Let's reset for consistency
+            setCapturedDescriptors([]);
+            setStepImages([]);
+            setCurrentStep(0);
         }
     };
+
+    const resetProcess = () => {
+        setCapturedDescriptors([]);
+        setStepImages([]);
+        setCurrentStep(0);
+        setError("");
+        setSuccess("");
+    };
+
+
 
     const gradientBackground =
         theme.palette.mode === "dark"
@@ -299,127 +338,108 @@ export default function KioskRegisterPage() {
                                 width: "100%",
                                 aspectRatio: "4/3",
                                 bgcolor: "black",
-                                borderRadius: 2,
+                                borderRadius: 3,
                                 overflow: "hidden",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
+                                border: `2px solid ${alpha(theme.palette.divider, 0.2)}`,
+                                boxShadow: theme.shadows[4],
                             }}
                         >
                             {!cameraActive ? (
-                                <Button
-                                    variant="contained"
-                                    size="large"
-                                    startIcon={<Videocam />}
-                                    onClick={startCamera}
+                                <Stack
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    sx={{ height: "100%", color: "text.secondary", gap: 2 }}
                                 >
-                                    Start Camera
-                                </Button>
+                                    <Videocam sx={{ fontSize: 64, opacity: 0.5 }} />
+                                    <Typography>Select an employee and start camera</Typography>
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<CameraAlt />}
+                                        onClick={startCamera}
+                                        disabled={!selectedEmployee}
+                                    >
+                                        Start Camera
+                                    </Button>
+                                </Stack>
                             ) : (
-                                <video
-                                    ref={videoRef}
-                                    autoPlay
-                                    playsInline
-                                    muted // Ensure no feedback loop
-                                    style={{
-                                        width: "100%",
-                                        height: "100%",
-                                        objectFit: "cover",
-                                    }}
-                                />
+                                <>
+                                    <video
+                                        ref={videoRef}
+                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                        muted
+                                        playsInline
+                                    />
+                                    <Box
+                                        sx={{
+                                            position: "absolute",
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            p: 2,
+                                            background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)",
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            flexDirection: "column",
+                                            gap: 2
+                                        }}
+                                    >
+                                        <Typography sx={{ color: "white", fontWeight: "bold", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
+                                            Step {currentStep + 1}/3: {steps[currentStep].label}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
+                                            {steps[currentStep].instruction}
+                                        </Typography>
+
+                                        <Stack direction="row" spacing={2}>
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                onClick={handleCapture}
+                                                disabled={loading}
+                                                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CameraAlt />}
+                                            >
+                                                {loading ? "Processing..." : "Capture"}
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                onClick={() => {
+                                                    stopCamera();
+                                                    resetProcess();
+                                                }}
+                                                disabled={loading}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </Stack>
+                                    </Box>
+                                </>
                             )}
+
+                            <Box sx={{ position: "absolute", top: 16, left: 16, display: "flex", gap: 1 }}>
+                                {[0, 1, 2, 3, 4].map(step => (
+                                    <Box
+                                        key={step}
+                                        sx={{
+                                            width: 12,
+                                            height: 12,
+                                            borderRadius: "50%",
+                                            bgcolor: currentStep >= step ? "success.main" : "grey.500",
+                                            border: "2px solid white",
+                                            boxShadow: 1
+                                        }}
+                                    />
+                                ))}
+                            </Box>
                         </Box>
 
-                        {/* Hidden canvas for capture */}
                         <canvas ref={canvasRef} style={{ display: "none" }} />
 
-                        {/* Camera Controls */}
-                        {cameraActive && (
-                            <Stack direction="row" spacing={2} justifyContent="center">
-                                <Button
-                                    variant="contained"
-                                    startIcon={<CameraAlt />}
-                                    onClick={captureImage}
-                                    disabled={!selectedEmployee}
-                                >
-                                    Capture Image
-                                </Button>
-                                <Button variant="outlined" color="error" onClick={stopCamera}>
-                                    Stop Camera
-                                </Button>
-                            </Stack>
-                        )}
+                        {error && <Alert severity="error">{error}</Alert>}
+                        {success && <Alert severity="success">{success}</Alert>}
 
-                        {/* Captured Images Preview */}
-                        {capturedImages.length > 0 && (
-                            <Box>
-                                <Typography variant="subtitle2" gutterBottom>
-                                    Captured Image
-                                </Typography>
-                                <Stack direction="row" spacing={1} flexWrap="wrap">
-                                    {capturedImages.map((img, idx) => (
-                                        <Box
-                                            key={idx}
-                                            component="img"
-                                            src={img}
-                                            sx={{
-                                                width: 100,
-                                                height: 100,
-                                                objectFit: "cover",
-                                                borderRadius: 1,
-                                                border: "2px solid",
-                                                borderColor: "primary.main",
-                                            }}
-                                        />
-                                    ))}
-                                </Stack>
-                            </Box>
-                        )}
 
-                        {/* Alerts */}
-                        {error && (
-                            <Alert severity="error" onClose={() => setError("")}>
-                                {error}
-                            </Alert>
-                        )}
-
-                        {success && (
-                            <Alert
-                                severity="success"
-                                icon={<CheckCircle />}
-                                onClose={() => setSuccess("")}
-                            >
-                                {success}
-                            </Alert>
-                        )}
-
-                        {/* Register Button */}
-                        <Button
-                            fullWidth
-                            variant="contained"
-                            size="large"
-                            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PersonAdd />}
-                            onClick={handleRegister}
-                            disabled={loading || !selectedEmployee || capturedImages.length === 0}
-                            sx={{ py: 1.5 }}
-                        >
-                            {loading ? "Registering..." : "Register Face"}
-                        </Button>
-
-                        {/* Info */}
-                        <Alert severity="info">
-                            <Typography variant="body2">
-                                <strong>Instructions:</strong>
-                                <br />
-                                1. Select an employee from the dropdown
-                                <br />
-                                2. Start the camera and position your face in the frame
-                                <br />
-                                3. Capture a clear image of your face
-                                <br />
-                                4. Click "Register Face" to complete setup
-                            </Typography>
-                        </Alert>
                     </Stack>
                 </Paper>
             </Container>

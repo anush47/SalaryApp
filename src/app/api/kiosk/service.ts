@@ -21,7 +21,7 @@ export const registerFaceSchema = z.object({
     apiKey: z.string().min(1, "API key is required"),
     employeeId: z.string().min(1, "Employee ID is required"),
     faceData: z.object({
-        descriptor: z.array(z.number()).length(128, "Face descriptor must be 128 dimensions"),
+        descriptors: z.array(z.array(z.number())).min(1, "At least one face descriptor is required"),
         images: z.array(z.string()).optional(),
     }),
 });
@@ -29,7 +29,7 @@ export const registerFaceSchema = z.object({
 export const markAttendanceSchema = z.object({
     apiKey: z.string().min(1, "API key is required"),
     faceData: z.object({
-        descriptor: z.array(z.number()).length(128, "Face descriptor must be 128 dimensions"),
+        descriptors: z.array(z.array(z.number())).min(1, "At least one face descriptor is required"),
         image: z.string().optional(),
     }),
     location: z.object({
@@ -90,7 +90,7 @@ export class KioskService {
             _id: emp._id.toString(),
             name: emp.name,
             memberNo: emp.memberNo,
-            hasFaceData: !!(emp.faceData && emp.faceData.descriptor && emp.faceData.descriptor.length > 0),
+            hasFaceData: !!(emp.faceData && emp.faceData.descriptors && emp.faceData.descriptors.length > 0),
         }));
     }
 
@@ -100,7 +100,7 @@ export class KioskService {
     static async registerEmployeeFace(
         apiKey: string,
         employeeId: string,
-        faceData: { descriptor: number[]; images?: string[] }
+        faceData: { descriptors: number[][]; images?: string[] }
     ) {
         await dbConnect();
 
@@ -120,7 +120,7 @@ export class KioskService {
 
         // Update employee with face data
         employee.faceData = {
-            descriptor: faceData.descriptor,
+            descriptors: faceData.descriptors,
             registeredAt: new Date(),
             images: faceData.images || [],
         };
@@ -128,7 +128,7 @@ export class KioskService {
         await employee.save();
 
         console.log(`[KIOSK] Face registered for employee: ${employee.name} (${employee.memberNo})`);
-        console.log(`[KIOSK] Descriptor length: ${faceData.descriptor.length}`);
+        console.log(`[KIOSK] Descriptors count: ${faceData.descriptors.length}`);
         console.log(`[KIOSK] Images count: ${faceData.images?.length || 0}`);
 
         return {
@@ -144,7 +144,7 @@ export class KioskService {
      */
     static async markAttendance(
         apiKey: string,
-        faceData: { descriptor: number[]; image?: string },
+        faceData: { descriptors: number[][]; image?: string },
         location?: { latitude: number; longitude: number; accuracy?: number },
         deviceId?: string,
         timestamp?: string
@@ -154,8 +154,9 @@ export class KioskService {
         // Log raw request
         console.log(`\n========== [KIOSK] RAW ATTENDANCE REQUEST ==========`);
         console.log(`API Key: ${apiKey.substring(0, 8)}...`);
-        console.log(`Face Descriptor Length: ${faceData.descriptor.length}`);
-        console.log(`Face Descriptor Sample (first 5):`, faceData.descriptor.slice(0, 5));
+        console.log(`Face Descriptors Count: ${faceData.descriptors.length}`);
+        console.log(`First Descriptor Length: ${faceData.descriptors[0]?.length || 0}`);
+        console.log(`First Descriptor Sample (first 5):`, faceData.descriptors[0]?.slice(0, 5) || []);
         console.log(`Location:`, location ? `${location.latitude}, ${location.longitude}` : 'Not provided');
         console.log(`Device ID: ${deviceId || 'Not provided'}`);
         console.log(`Timestamp: ${timestamp || new Date().toISOString()}`);
@@ -171,7 +172,7 @@ export class KioskService {
         const employees = await Employee.find({
             company: companyInfo.companyId,
             active: true,
-            "faceData.descriptor": { $exists: true, $ne: [] },
+            "faceData.descriptors": { $exists: true, $ne: [] },
         })
             .select("_id name memberNo faceData")
             .lean();
@@ -182,8 +183,8 @@ export class KioskService {
             throw new BadRequestError("No employees with registered faces found for this company");
         }
 
-        // Find best match
-        const matchResult = await this.findBestFaceMatch(faceData.descriptor, employees);
+        // Find best match using the first descriptor (from live capture)
+        const matchResult = await this.findBestFaceMatch(faceData.descriptors[0], employees);
 
         if (!matchResult) {
             console.log(`[KIOSK] No matching face found (Threshold: 0.6)`);
@@ -345,18 +346,24 @@ export class KioskService {
         let bestDistance = Infinity;
 
         for (const employee of employees) {
-            if (!employee.faceData || !employee.faceData.descriptor) {
+            // Check if employee has valid descriptors array
+            if (!employee.faceData || !employee.faceData.descriptors || !Array.isArray(employee.faceData.descriptors)) {
                 continue;
             }
 
-            const distance = this.calculateEuclideanDistance(
-                inputDescriptor,
-                employee.faceData.descriptor
-            );
+            // Compare against EACH registered descriptor for this employee
+            for (const storedDescriptor of employee.faceData.descriptors) {
+                if (!storedDescriptor || storedDescriptor.length !== 128) continue;
 
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestMatch = employee;
+                const distance = this.calculateEuclideanDistance(
+                    inputDescriptor,
+                    storedDescriptor
+                );
+
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestMatch = employee;
+                }
             }
         }
 

@@ -208,6 +208,10 @@ export interface Employee {
   };
   calculationMethod?: "attendance" | "fixed_days" | "no_ot";
   autoAcknowledge?: boolean;
+  faceData?: {
+    descriptors?: number[][];
+    descriptor?: number[]; // Legacy support
+  };
 };
 
 

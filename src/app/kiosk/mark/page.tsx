@@ -214,7 +214,7 @@ export default function KioskMarkPage() {
             });
 
             const result = await markAttendance(apiKey, {
-                descriptor: faceDescriptor,
+                descriptors: [faceDescriptor],
                 image: imageData,
             }, {
                 latitude: position.coords.latitude,
