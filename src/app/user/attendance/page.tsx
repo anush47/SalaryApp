@@ -30,6 +30,12 @@ export default function AttendancePage() {
     const [selectedShiftId, setSelectedShiftId] = useState<string>("");
     const [manualShiftDialogOpen, setManualShiftDialogOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [currentTime, setCurrentTime] = useState(dayjs());
+
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(dayjs()), 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -173,8 +179,13 @@ export default function AttendancePage() {
                 <Typography variant="subtitle1" color="text.secondary">
                     {dayjs().format("dddd, D MMMM YYYY")}
                 </Typography>
-                <Typography variant="h2" fontWeight="bold" color="primary">
-                    {dayjs().format("HH:mm")}
+                <Typography
+                    variant="h2"
+                    fontWeight="bold"
+                    color="primary"
+                    sx={{ fontSize: { xs: "2.5rem", sm: "3rem", md: "3.75rem" } }}
+                >
+                    {currentTime.format("hh:mm:ss A")}
                 </Typography>
                 {shiftContext?.shift && (
                     <Typography variant="subtitle2" color="success.main" mt={1}>

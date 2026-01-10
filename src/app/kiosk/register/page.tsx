@@ -19,13 +19,16 @@ import {
     IconButton,
     useTheme,
     alpha,
+    Tooltip,
 } from "@mui/material";
+import Link from "next/link";
 import {
     ArrowBack,
     CameraAlt,
     CheckCircle,
     PersonAdd,
     Videocam,
+    Home,
 } from "@mui/icons-material";
 import { getEmployees, registerFace, Employee } from "@/app/lib/api/kioskApi";
 import { detectFace, loadModels } from "@/app/lib/faceRecognition";
@@ -69,6 +72,15 @@ export default function KioskRegisterPage() {
             });
         }
     }, [stream, cameraActive]);
+
+    // Cleanup stream on unmount
+    useEffect(() => {
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach((track) => track.stop());
+            }
+        };
+    }, [stream]);
 
     const loadEmployees = async (key: string) => {
         setLoading(true);
@@ -211,8 +223,15 @@ export default function KioskRegisterPage() {
                 position: "relative",
             }}
         >
-            <Box sx={{ position: "absolute", top: 16, right: 16 }}>
+            <Box sx={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 1, alignItems: "center" }}>
                 <ThemeSwitch />
+                <Tooltip title="Go to Home">
+                    <Link href="/" passHref>
+                        <IconButton color="primary">
+                            <Home />
+                        </IconButton>
+                    </Link>
+                </Tooltip>
             </Box>
 
             <Container maxWidth="md">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
     Box,
     Container,
@@ -14,18 +15,33 @@ import {
     Stack,
     useTheme,
     alpha,
+    Avatar,
+    Chip,
+    IconButton,
+    Tooltip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
 } from "@mui/material";
-import { Business, VpnKey, CheckCircle } from "@mui/icons-material";
+import { Business, VpnKey, CheckCircle, Logout, Home, Warning } from "@mui/icons-material";
 import { validateApiKey, CompanyInfo } from "@/app/lib/api/kioskApi";
+import Link from "next/link";
 
 import { ThemeSwitch } from "@/app/theme-provider";
 
 export default function KioskPage() {
     const router = useRouter();
+    const { data: session } = useSession();
     const [apiKey, setApiKey] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+    const [confirmLogout, setConfirmLogout] = useState(false);
+    const [newApiKey, setNewApiKey] = useState("");
+    const [changeError, setChangeError] = useState("");
+    const [changing, setChanging] = useState(false);
 
     // Check if API key is already stored
     useEffect(() => {
@@ -60,11 +76,38 @@ export default function KioskPage() {
         }
     };
 
-    const handleClearKey = () => {
-        setApiKey("");
-        setCompanyInfo(null);
-        setError("");
-        localStorage.removeItem("kiosk_api_key");
+    const openChangeDialog = () => {
+        setNewApiKey("");
+        setChangeError("");
+        setConfirmLogout(true);
+    };
+
+    const handleChangeKey = async () => {
+        if (!newApiKey.trim()) {
+            setChangeError("Please enter a new API key");
+            return;
+        }
+
+        if (newApiKey === apiKey) {
+            setChangeError("Invalid API key");
+            return;
+        }
+
+        setChanging(true);
+        setChangeError("");
+
+        try {
+            const info = await validateApiKey(newApiKey);
+            // Validation successful
+            setCompanyInfo(info);
+            setApiKey(newApiKey);
+            localStorage.setItem("kiosk_api_key", newApiKey);
+            setConfirmLogout(false);
+        } catch (err: any) {
+            setChangeError(err.message || "Invalid API key");
+        } finally {
+            setChanging(false);
+        }
     };
 
     const theme = useTheme();
@@ -87,8 +130,45 @@ export default function KioskPage() {
                 position: "relative",
             }}
         >
-            <Box sx={{ position: "absolute", top: 16, right: 16 }}>
+            <Box sx={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 2, alignItems: "center" }}>
                 <ThemeSwitch />
+                <Tooltip title="Go to Home">
+                    <Link href="/" passHref>
+                        <IconButton color="primary">
+                            <Home />
+                        </IconButton>
+                    </Link>
+                </Tooltip>
+                {session?.user ? (
+                    <>
+                        <Chip
+                            avatar={<Avatar src={session.user.image || undefined} />}
+                            label={session.user.name}
+                            variant="outlined"
+                            sx={{
+                                borderColor: alpha(theme.palette.primary.main, 0.3),
+                                bgcolor: alpha(theme.palette.background.paper, 0.5),
+                                backdropFilter: "blur(8px)",
+                            }}
+                        />
+                        <Tooltip title="Sign Out">
+                            <IconButton
+                                onClick={() => (window.location.href = "/api/auth/signout")}
+                                color="primary"
+                            >
+                                <Logout />
+                            </IconButton>
+                        </Tooltip>
+                    </>
+                ) : (
+                    <Button
+                        variant="outlined"
+                        href="/api/auth/signin?callbackUrl=/kiosk"
+                        sx={{ borderRadius: "20px" }}
+                    >
+                        Sign In
+                    </Button>
+                )}
             </Box>
 
             <Container maxWidth="sm">
@@ -112,6 +192,13 @@ export default function KioskPage() {
                             Enter your company API key to get started
                         </Typography>
                     </Stack>
+
+                    {/* Admin Warning */}
+                    {session?.user && (
+                        <Alert severity="warning" sx={{ mb: 3 }}>
+                            Admin/Setup Mode Active. Sign out for normal kiosk operation.
+                        </Alert>
+                    )}
 
                     {/* API Key Input */}
                     {!companyInfo && (
@@ -151,6 +238,24 @@ export default function KioskPage() {
                             >
                                 {loading ? <CircularProgress size={24} color="inherit" /> : "Validate & Continue"}
                             </Button>
+
+                            {/* Show disabled register button if signed in as employer but no API Key */}
+                            {session?.user && (session.user.role === "employer" || session.user.role === "admin") && (
+                                <Tooltip title="Please validate an API key first">
+                                    <Box>
+                                        <Button
+                                            fullWidth
+                                            variant="contained"
+                                            size="large"
+                                            disabled
+                                            sx={{ py: 1.5, borderRadius: 2 }}
+                                            startIcon={<Business />}
+                                        >
+                                            Register Employee Faces
+                                        </Button>
+                                    </Box>
+                                </Tooltip>
+                            )}
                         </Stack>
                     )}
 
@@ -171,16 +276,20 @@ export default function KioskPage() {
                             </Alert>
 
                             <Stack spacing={2}>
-                                <Button
-                                    fullWidth
-                                    variant="contained"
-                                    size="large"
-                                    onClick={() => router.push("/kiosk/register")}
-                                    sx={{ py: 1.5, borderRadius: 2 }}
-                                    startIcon={<Business />}
-                                >
-                                    Register Employee Faces
-                                </Button>
+
+
+                                {(session?.user?.role === "employer" || session?.user?.role === "admin") && (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        size="large"
+                                        onClick={() => router.push("/kiosk/register")}
+                                        sx={{ py: 1.5, borderRadius: 2 }}
+                                        startIcon={<Business />}
+                                    >
+                                        Register Employee Faces
+                                    </Button>
+                                )}
 
                                 <Button
                                     fullWidth
@@ -196,10 +305,10 @@ export default function KioskPage() {
 
                                 <Button
                                     fullWidth
-                                    variant="outlined"
-                                    color="error"
-                                    onClick={handleClearKey}
-                                    sx={{ py: 1.5, borderRadius: 2 }}
+                                    variant="text"
+                                    color="inherit"
+                                    onClick={openChangeDialog}
+                                    sx={{ py: 1.5, borderRadius: 2, color: "text.secondary" }}
                                 >
                                     Change API Key
                                 </Button>
@@ -219,6 +328,42 @@ export default function KioskPage() {
                     </Typography>
                 </Paper>
             </Container>
-        </Box>
+
+            {/* Verification Dialog */}
+            <Dialog
+                open={confirmLogout}
+                onClose={() => setConfirmLogout(false)}
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>Change API Key</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Enter the new API key below. The current key will remain active if the new one is invalid.
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="New API Key"
+                        type="password"
+                        fullWidth
+                        variant="outlined"
+                        value={newApiKey}
+                        onChange={(e) => setNewApiKey(e.target.value)}
+                        disabled={changing}
+                        error={!!changeError}
+                        helperText={changeError}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmLogout(false)} color="inherit" disabled={changing}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleChangeKey} color="primary" variant="contained" disabled={changing}>
+                        {changing ? <CircularProgress size={24} color="inherit" /> : "Validate & Change"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box >
     );
 }

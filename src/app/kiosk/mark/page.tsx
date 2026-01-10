@@ -28,6 +28,8 @@ import {
     Videocam,
     VideocamOff,
     FaceRetouchingNatural,
+    Coffee,
+    Warning as WarningIcon,
 } from "@mui/icons-material";
 import { markAttendance, AttendanceResult } from "@/app/lib/api/kioskApi";
 import dayjs from "dayjs";
@@ -60,21 +62,25 @@ export default function KioskMarkPage() {
     // Overlay State
     const [overlayData, setOverlayData] = useState<{
         name: string;
-        type: "in" | "out";
+        type: "in" | "out" | "info" | "warning";
         greeting: string;
         time: string;
+        isError?: boolean;
+        shiftName?: string;
     } | null>(null);
+    const [overlayOpen, setOverlayOpen] = useState(false);
 
     // Auto-hide overlay after 3 seconds
     useEffect(() => {
-        if (overlayData) {
+        if (overlayOpen) {
             const timer = setTimeout(() => {
-                setOverlayData(null);
-                setLastResult(null); // Clear the small alert too when overlay clears
+                setOverlayOpen(false);
+                // Don't clear overlayData immediately to allow exit animation
+                setLastResult(null); // Clear the small alert too
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [overlayData]);
+    }, [overlayOpen]);
 
     const getGreeting = () => {
         const hour = dayjs().hour();
@@ -115,6 +121,15 @@ export default function KioskMarkPage() {
             }
         }
     }, [stream, cameraActive]);
+
+    // Cleanup stream on unmount
+    useEffect(() => {
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [stream]);
 
     // Update clock
     useEffect(() => {
@@ -205,23 +220,49 @@ export default function KioskMarkPage() {
                 name: result.employeeName,
                 type: result.type,
                 greeting: greeting,
-                time: dayjs().format("h:mm A")
+                time: dayjs().format("h:mm A"),
+                shiftName: result.shiftName // Pass shift name to overlay
             });
 
+            setOverlayOpen(true);
+
         } catch (err: any) {
-            setError(err.message || "Failed to mark attendance");
+            const errorMessage = err.message || "Failed to mark attendance";
+
+            // Check for "wait" message (Cooldown)
+            if (errorMessage.toLowerCase().includes("wait") && errorMessage.toLowerCase().includes("minute")) {
+                const match = errorMessage.match(/(\d+)\s*more minute/);
+                const minutes = match ? match[1] : "?";
+
+                // Show Warning Overlay
+                setOverlayData({
+                    name: "", // Remove "Take a breather" / "Please Wait" text
+                    type: "warning",
+                    greeting: "Already Scanned",
+                    time: `Wait ${minutes}m`,
+                    isError: true
+                });
+                setOverlayOpen(true);
+            } else {
+                setError(errorMessage);
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    const gradientBackground =
+        theme.palette.mode === "dark"
+            ? "radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%)"
+            : "radial-gradient(circle at 50% 0%, #e0f2fe 0%, #ffffff 100%)";
+
     return (
         <Box
             sx={{
                 minHeight: "100vh",
-                bgcolor: "background.default",
+                background: gradientBackground,
                 py: 3,
-                color: "text.primary",
+                color: theme.palette.text.primary,
                 position: "relative",
             }}
         >
@@ -229,7 +270,7 @@ export default function KioskMarkPage() {
                 <ThemeSwitch />
             </Box>
 
-            <Container maxWidth="lg">
+            <Container maxWidth={false}>
                 {/* Header */}
                 <Stack direction="row" alignItems="center" spacing={2} mb={3}>
                     <IconButton
@@ -246,10 +287,191 @@ export default function KioskMarkPage() {
                 {/* Main Content */}
                 {/* Main Content */}
                 {/* Main Content */}
-                <Box sx={{ maxWidth: recentAttendance.length > 0 ? "1200px" : "600px", mx: "auto" }}>
-                    <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
-                        {/* Left Column: Combined Clock & Camera Card */}
-                        <Box sx={{ flex: 1, width: "100%" }}>
+                {/* Main Content */}
+                <Box sx={{ position: "relative", display: "flex", flexDirection: { xs: "column", lg: "row" }, justifyContent: "center", alignItems: "center" }}>
+                    {/* Centered Camera Section */}
+                    <Box sx={{ width: "100%", maxWidth: "600px", zIndex: 2 }}>
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                borderRadius: 4,
+                                bgcolor: "background.paper",
+                                border: "1px solid",
+                                borderColor: "divider",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 3,
+                            }}
+                        >
+                            <Stack direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ py: 1, position: 'relative' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <AccessTime sx={{ fontSize: 32, color: "primary.main" }} />
+                                    <Box>
+                                        <Typography
+                                            variant="h3"
+                                            fontWeight="800"
+                                            sx={{
+                                                letterSpacing: -1,
+                                                lineHeight: 1,
+                                                fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" }
+                                            }}
+                                        >
+                                            {mounted ? currentTime.format("hh:mm:ss A") : "--:--:-- --"}
+                                        </Typography>
+                                        <Typography variant="subtitle2" color="text.secondary" fontWeight={500}>
+                                            {mounted ? currentTime.format("dddd, D MMMM YYYY") : "Loading..."}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                {cameraActive && (
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="small"
+                                        onClick={stopCamera}
+                                        sx={{
+                                            position: { sm: 'absolute' },
+                                            right: { sm: 0 },
+                                            borderRadius: 2,
+                                            textTransform: "none",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        Stop
+                                    </Button>
+                                )}
+                            </Stack>
+
+                            <Divider />
+
+                            {/* Camera Section */}
+                            <Box
+                                sx={{
+                                    position: "relative",
+                                    width: "100%",
+                                    height: { xs: "50vh", sm: "60vh", md: "400px" },
+                                    bgcolor: "black",
+                                    borderRadius: 3,
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {!cameraActive ? (
+                                    <Box
+                                        sx={{
+                                            height: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            flexDirection: "column",
+                                            bgcolor: "action.hover",
+                                        }}
+                                    >
+                                        <Videocam sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+                                        <Typography color="text.secondary">Camera Stopped</Typography>
+                                    </Box>
+                                ) : (
+                                    <>
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                objectFit: "cover",
+                                            }}
+                                        />
+                                        <Box
+                                            sx={{
+                                                position: "absolute",
+                                                top: "50%",
+                                                left: "50%",
+                                                transform: "translate(-50%, -50%)",
+                                                width: { xs: "70%", sm: "300px" },
+                                                height: { xs: "50%", sm: "400px" },
+                                                maxWidth: "300px",
+                                                maxHeight: "350px",
+                                                border: "2px dashed",
+                                                borderColor: alpha(theme.palette.success.main, 0.7),
+                                                borderRadius: "40%",
+                                                boxShadow: `0 0 0 9999px ${alpha("#000", 0.5)}`,
+                                                pointerEvents: "none",
+                                            }}
+                                        />
+                                    </>
+                                )}
+                            </Box>
+
+                            <canvas ref={canvasRef} style={{ display: "none" }} />
+
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: "100%" }}>
+                                {cameraActive && (
+                                    null
+                                )}
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    size="large"
+                                    color="primary"
+                                    startIcon={
+                                        loading ? (
+                                            <CircularProgress size={24} color="inherit" />
+                                        ) : (
+                                            <FaceRetouchingNatural sx={{ fontSize: 24 }} />
+                                        )
+                                    }
+                                    onClick={cameraActive ? captureAndMark : startCamera}
+                                    disabled={loading}
+                                    sx={{
+                                        py: 1.5,
+                                        fontSize: "1.1rem",
+                                        borderRadius: 2,
+                                        textTransform: "none",
+                                        fontWeight: 700,
+                                        boxShadow: "none",
+                                    }}
+                                >
+                                    {loading ? "Verifying..." : (cameraActive ? "Mark Attendance Now" : "Start Camera")}
+                                </Button>
+                            </Stack>
+
+                            {error && (
+                                <Alert severity="error" icon={<ErrorIcon />} onClose={() => setError("")} sx={{ borderRadius: 2 }}>
+                                    {error}
+                                </Alert>
+                            )}
+
+                            {lastResult && (
+                                <Alert
+                                    severity="success"
+                                    icon={<CheckCircle fontSize="large" />}
+                                    sx={{ borderRadius: 2 }}
+                                >
+                                    <Typography variant="subtitle1" fontWeight="bold">
+                                        {lastResult.employeeName} - {lastResult.type.toUpperCase()}
+                                    </Typography>
+                                </Alert>
+                            )}
+                        </Paper>
+                    </Box>
+
+                    {/* Recent Activity - Absolute Right on Desktop */}
+                    {recentAttendance.length > 0 && (
+                        <Box
+                            sx={{
+                                position: { xs: "static", lg: "absolute" },
+                                right: 0,
+                                top: 0,
+                                width: { xs: "100%", lg: 300 },
+                                mt: { xs: 3, lg: 0 },
+                                zIndex: 1,
+                                height: { lg: "100%" },
+                                overflowY: { lg: "auto" },
+                                maxHeight: { lg: "calc(100vh - 100px)" }
+                            }}
+                        >
                             <Paper
                                 elevation={0}
                                 sx={{
@@ -258,224 +480,64 @@ export default function KioskMarkPage() {
                                     bgcolor: "background.paper",
                                     border: "1px solid",
                                     borderColor: "divider",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 3,
                                 }}
                             >
-                                {/* Clock Header */}
-                                <Stack direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ py: 1 }}>
-                                    <AccessTime sx={{ fontSize: 32, color: "primary.main" }} />
-                                    <Box>
-                                        <Typography variant="h3" fontWeight="800" sx={{ letterSpacing: -1, lineHeight: 1 }}>
-                                            {mounted ? currentTime.format("HH:mm:ss") : "--:--:--"}
+                                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <AccessTime color="action" />
+                                        <Typography variant="h6" fontWeight="bold">
+                                            Recent Activity
                                         </Typography>
-                                        <Typography variant="subtitle2" color="text.secondary" fontWeight={500}>
-                                            {mounted ? currentTime.format("dddd, D MMMM YYYY") : "Loading..."}
-                                        </Typography>
-                                    </Box>
+                                    </Stack>
                                 </Stack>
-
-                                <Divider />
-
-                                {/* Camera Section */}
-                                <Box
-                                    sx={{
-                                        position: "relative",
-                                        width: "100%",
-                                        height: { xs: "50vh", sm: "60vh", md: "400px" },
-                                        bgcolor: "black",
-                                        borderRadius: 3,
-                                        overflow: "hidden",
-                                    }}
-                                >
-                                    {!cameraActive ? (
+                                <Divider sx={{ mb: 2 }} />
+                                <Stack spacing={1.5}>
+                                    {recentAttendance.map((record, idx) => (
                                         <Box
+                                            key={idx}
                                             sx={{
-                                                height: "100%",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                flexDirection: "column",
+                                                p: 1.5,
+                                                borderRadius: 2,
                                                 bgcolor: "action.hover",
                                             }}
                                         >
-                                            <Videocam sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
-                                            <Typography color="text.secondary">Starting Camera...</Typography>
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <Avatar
+                                                    sx={{
+                                                        width: 32,
+                                                        height: 32,
+                                                        bgcolor: record.type === "in" ? "success.main" : "info.main",
+                                                        fontSize: "0.8rem",
+                                                        fontWeight: "bold",
+                                                    }}
+                                                >
+                                                    {record.employeeName.charAt(0)}
+                                                </Avatar>
+                                                <Box flex={1} minWidth={0}>
+                                                    <Typography variant="subtitle2" fontWeight="600" noWrap>
+                                                        {record.employeeName}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {dayjs(record.timestamp).fromNow()}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    fontWeight="bold"
+                                                    sx={{
+                                                        color: record.type === "in" ? "success.main" : "info.main",
+                                                        textTransform: "uppercase"
+                                                    }}
+                                                >
+                                                    {record.type}
+                                                </Typography>
+                                            </Stack>
                                         </Box>
-                                    ) : (
-                                        <>
-                                            <video
-                                                ref={videoRef}
-                                                autoPlay
-                                                playsInline
-                                                muted
-                                                style={{
-                                                    width: "100%",
-                                                    height: "100%",
-                                                    objectFit: "cover",
-                                                }}
-                                            />
-                                            <Box
-                                                sx={{
-                                                    position: "absolute",
-                                                    top: "50%",
-                                                    left: "50%",
-                                                    transform: "translate(-50%, -50%)",
-                                                    width: { xs: "70%", sm: "300px" },
-                                                    height: { xs: "50%", sm: "400px" },
-                                                    maxWidth: "300px",
-                                                    maxHeight: "350px",
-                                                    border: "2px dashed",
-                                                    borderColor: alpha(theme.palette.success.main, 0.7),
-                                                    borderRadius: "40%",
-                                                    boxShadow: `0 0 0 9999px ${alpha("#000", 0.5)}`,
-                                                    pointerEvents: "none",
-                                                }}
-                                            />
-                                        </>
-                                    )}
-                                </Box>
-
-                                <canvas ref={canvasRef} style={{ display: "none" }} />
-
-                                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: "100%" }}>
-                                    {cameraActive && (
-                                        <Button
-                                            variant="outlined"
-                                            color="error"
-                                            size="large"
-                                            startIcon={<VideocamOff />}
-                                            onClick={stopCamera}
-                                            sx={{
-                                                py: 1.5,
-                                                fontSize: "1rem",
-                                                borderRadius: 2,
-                                                textTransform: "none",
-                                                fontWeight: 600,
-                                                flex: { xs: 1, sm: "none" }
-                                            }}
-                                        >
-                                            Stop
-                                        </Button>
-                                    )}
-                                    <Button
-                                        fullWidth
-                                        variant="contained"
-                                        size="large"
-                                        color="primary"
-                                        startIcon={
-                                            loading ? (
-                                                <CircularProgress size={24} color="inherit" />
-                                            ) : (
-                                                <FaceRetouchingNatural sx={{ fontSize: 24 }} />
-                                            )
-                                        }
-                                        onClick={cameraActive ? captureAndMark : startCamera}
-                                        disabled={loading}
-                                        sx={{
-                                            py: 1.5,
-                                            fontSize: "1.1rem",
-                                            borderRadius: 2,
-                                            textTransform: "none",
-                                            fontWeight: 700,
-                                            boxShadow: "none",
-                                        }}
-                                    >
-                                        {loading ? "Verifying..." : (cameraActive ? "Mark Attendance Now" : "Start Camera")}
-                                    </Button>
+                                    ))}
                                 </Stack>
-
-                                {error && (
-                                    <Alert severity="error" icon={<ErrorIcon />} onClose={() => setError("")} sx={{ borderRadius: 2 }}>
-                                        {error}
-                                    </Alert>
-                                )}
-
-                                {lastResult && (
-                                    <Alert
-                                        severity="success"
-                                        icon={<CheckCircle fontSize="large" />}
-                                        sx={{ borderRadius: 2 }}
-                                    >
-                                        <Typography variant="subtitle1" fontWeight="bold">
-                                            {lastResult.employeeName} - {lastResult.type.toUpperCase()}
-                                        </Typography>
-                                    </Alert>
-                                )}
                             </Paper>
                         </Box>
-
-                        {/* Recent Activity - Right Column on Desktop */}
-                        {recentAttendance.length > 0 && (
-                            <Box sx={{ width: { xs: "100%", md: 400 }, flexShrink: 0 }}>
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 3,
-                                        borderRadius: 4,
-                                        bgcolor: "background.paper",
-                                        border: "1px solid",
-                                        borderColor: "divider",
-                                    }}
-                                >
-                                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                            <AccessTime color="action" />
-                                            <Typography variant="h6" fontWeight="bold">
-                                                Recent Activity
-                                            </Typography>
-                                        </Stack>
-                                    </Stack>
-                                    <Divider sx={{ mb: 2 }} />
-                                    <Stack spacing={1.5}>
-                                        {recentAttendance.map((record, idx) => (
-                                            <Box
-                                                key={idx}
-                                                sx={{
-                                                    p: 1.5,
-                                                    borderRadius: 2,
-                                                    bgcolor: "action.hover",
-                                                }}
-                                            >
-                                                <Stack direction="row" spacing={1.5} alignItems="center">
-                                                    <Avatar
-                                                        sx={{
-                                                            width: 32,
-                                                            height: 32,
-                                                            bgcolor: record.type === "in" ? "success.main" : "info.main",
-                                                            fontSize: "0.8rem",
-                                                            fontWeight: "bold",
-                                                        }}
-                                                    >
-                                                        {record.employeeName.charAt(0)}
-                                                    </Avatar>
-                                                    <Box flex={1} minWidth={0}>
-                                                        <Typography variant="subtitle2" fontWeight="600" noWrap>
-                                                            {record.employeeName}
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {dayjs(record.timestamp).fromNow()}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Typography
-                                                        variant="caption"
-                                                        fontWeight="bold"
-                                                        sx={{
-                                                            color: record.type === "in" ? "success.main" : "info.main",
-                                                            textTransform: "uppercase"
-                                                        }}
-                                                    >
-                                                        {record.type}
-                                                    </Typography>
-                                                </Stack>
-                                            </Box>
-                                        ))}
-                                    </Stack>
-                                </Paper>
-                            </Box>
-                        )}
-                    </Stack>
+                    )}
                 </Box>
             </Container>
 
@@ -488,13 +550,13 @@ export default function KioskMarkPage() {
                     flexDirection: 'column',
                     cursor: 'pointer'
                 }}
-                open={!!overlayData}
+                open={overlayOpen}
                 onClick={() => {
-                    setOverlayData(null);
+                    setOverlayOpen(false);
                     setLastResult(null);
                 }}
             >
-                <Zoom in={!!overlayData} style={{ transitionDelay: !!overlayData ? '100ms' : '0ms' }}>
+                <Zoom in={overlayOpen} style={{ transitionDelay: overlayOpen ? '100ms' : '0ms' }}>
                     <Stack alignItems="center" spacing={4} sx={{ textAlign: 'center', p: 3 }}>
                         <Box sx={{ position: 'relative' }}>
                             <Box
@@ -505,19 +567,40 @@ export default function KioskMarkPage() {
                                     right: 0,
                                     bottom: 0,
                                     borderRadius: '50%',
-                                    boxShadow: (theme) => `0 0 60px ${theme.palette.success.main}`,
+                                    boxShadow: `0 0 60px ${overlayData?.type === 'warning' ? theme.palette.warning.main : (overlayData?.isError ? theme.palette.info.main : theme.palette.success.main)}`,
                                     opacity: 0.5,
                                     animation: 'pulse 2s infinite'
                                 }}
                             />
-                            <CheckCircle
-                                sx={{
-                                    fontSize: 140,
-                                    color: 'success.main',
-                                    filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
-                                    position: 'relative'
-                                }}
-                            />
+                            {/* Icon Selection */}
+                            {overlayData?.type === 'warning' ? (
+                                <WarningIcon
+                                    sx={{
+                                        fontSize: 140,
+                                        color: 'warning.main',
+                                        filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
+                                        position: 'relative'
+                                    }}
+                                />
+                            ) : overlayData?.isError ? (
+                                <Coffee
+                                    sx={{
+                                        fontSize: 140,
+                                        color: 'info.main',
+                                        filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
+                                        position: 'relative'
+                                    }}
+                                />
+                            ) : (
+                                <CheckCircle
+                                    sx={{
+                                        fontSize: 140,
+                                        color: 'success.main',
+                                        filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
+                                        position: 'relative'
+                                    }}
+                                />
+                            )}
                         </Box>
 
                         <Box>
@@ -530,7 +613,7 @@ export default function KioskMarkPage() {
                                     color: 'rgba(255,255,255,0.9)'
                                 }}
                             >
-                                Hi, {overlayData?.name}
+                                {overlayData?.greeting}
                             </Typography>
 
                             <Typography
@@ -542,7 +625,7 @@ export default function KioskMarkPage() {
                                     mb: 2
                                 }}
                             >
-                                {overlayData?.greeting}!
+                                {overlayData?.name}
                             </Typography>
 
                             <Typography
@@ -551,23 +634,46 @@ export default function KioskMarkPage() {
                                 sx={{
                                     textShadow: '0 4px 30px rgba(0,0,0,0.5)',
                                     mb: 2,
-                                    letterSpacing: -1
+                                    letterSpacing: -1,
+                                    maxWidth: '90vw', // Responsive width
+                                    fontSize: { xs: '3rem', sm: '4rem', md: '5rem' } // Responsive font size
                                 }}
                             >
                                 {overlayData?.time}
                             </Typography>
-                            <Chip
-                                label={overlayData?.type.toUpperCase()}
-                                color={overlayData?.type === 'in' ? 'success' : 'info'}
-                                sx={{
-                                    fontSize: '2rem',
-                                    height: 56,
-                                    px: 2,
-                                    borderRadius: 3,
-                                    fontWeight: 800,
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-                                }}
-                            />
+
+                            {/* Show Shift Name if available */}
+                            {overlayData?.shiftName && !overlayData?.isError && (
+                                <Box sx={{ mb: 2 }}>
+                                    <Chip
+                                        label={`Shift: ${overlayData.shiftName}`}
+                                        sx={{
+                                            bgcolor: 'rgba(255,255,255,0.1)',
+                                            color: 'white',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            fontSize: '1.2rem',
+                                            height: 48,
+                                            px: 2,
+                                            mb: 2
+                                        }}
+                                    />
+                                </Box>
+                            )}
+
+                            {!overlayData?.isError && (
+                                <Chip
+                                    label={overlayData?.type?.toUpperCase()}
+                                    color={overlayData?.type === 'in' ? 'success' : 'info'}
+                                    sx={{
+                                        fontSize: '2rem',
+                                        height: 56,
+                                        px: 4,
+                                        borderRadius: 28,
+                                        boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+                                        border: '2px solid rgba(255,255,255,0.2)'
+                                    }}
+                                />
+                            )}
                         </Box>
                     </Stack>
                 </Zoom>

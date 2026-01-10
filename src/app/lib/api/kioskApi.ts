@@ -36,6 +36,8 @@ export interface AttendanceResult {
     timestamp: string;
     verified: boolean;
     confidence: number;
+    shiftName?: string;
+    attendanceTypeReason?: string;
 }
 
 /**

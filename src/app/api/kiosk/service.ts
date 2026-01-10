@@ -6,6 +6,7 @@ import { BadRequestError, NotFoundError, UnauthorizedError } from "@/app/lib/err
 import { z } from "zod";
 
 import { getNextAttendanceType, getAttendanceTypeExplanation } from "@/app/lib/attendanceTypeLogic";
+import { ShiftService } from "@/app/lib/services/shiftService";
 
 // Validation schemas
 export const validateApiKeySchema = z.object({
@@ -227,11 +228,74 @@ export class KioskService {
             console.log(`[KIOSK] → Hours Since Last IN: ${attendanceTypeResult.hoursSinceLastIn.toFixed(2)}`);
         }
 
-        console.log(`\n[KIOSK] ⚠️  LOG ONLY MODE: Attendance NOT saved to database`);
-        console.log(`[KIOSK] Would mark: ${attendanceTypeResult.nextType.toUpperCase()} for ${matchedEmployee.name}\n`);
+        // Prepare timestamp - ALWAYS use server time for Kiosk to ensure integrity
+        const eventTime = new Date(); // Use server time
 
-        // Prepare timestamp
-        const eventTime = timestamp ? new Date(timestamp) : new Date();
+        // --- SHIFT LOGIC START ---
+        // Resolve Shift using centralized service
+        // Kiosk always assumes "system" resolution unless we add UI to select shift (which we haven't yet)
+        const dateStr = eventTime.toISOString().split('T')[0];
+        const checkInTime = eventTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: companyInfo.timezone || 'Asia/Colombo' });
+
+        let resolvedShift = null;
+        let finalResolutionMode = "system";
+
+        // Logic similar to AttendanceService.createAttendance
+        const employeeDoc = await Employee.findById(matchedEmployee._id); // Re-fetch full doc for methods/virtuals if needed, or cast matchedEmployee
+
+        // We need the full employee document for ShiftService (assignments etc)
+        // matchedEmployee from 'find' is lean() so it might miss some deep fields if not selected?
+        // Actually earlier we selected: "_id name memberNo faceData". 
+        // ShiftService might need 'company', 'shiftAssignments' etc.
+        // Let's re-fetch safely or ensure we have data. 
+        // But for performance, let's try to fetch what's needed or just fetch full doc if ShiftService requires it.
+        // ShiftService.resolveActiveShift takes (employee, company, ...)
+
+        // Re-fetching full employee to be safe for complicated shift logic
+        const fullEmployee = await Employee.findById(matchedEmployee._id);
+        const fullCompany = await Company.findById(companyInfo.companyId); // we have companyInfo but ShiftService might expect Mongoose doc or specific shape
+
+        if (fullEmployee && fullCompany) {
+            const shiftResult = await ShiftService.resolveActiveShift(fullEmployee, fullCompany, dateStr, checkInTime);
+            resolvedShift = shiftResult.shift;
+            // Note: We are ignoring shiftResult.checkInBlocked for Kiosk for now, 
+            // or should we block? User asked to "pick the shift".
+            // If we want to be strict:
+            // if (shiftResult.checkInBlocked) { throw new ForbiddenError(...) }
+            // For now, we just assign the shift if found.
+        }
+        // --- SHIFT LOGIC END ---
+
+        // Save to Database
+        const attendance = await Attendance.create({
+            company: companyInfo.companyId,
+            employee: matchedEmployee._id,
+            timestamp: eventTime,
+            type: attendanceTypeResult.nextType,
+            method: "kiosk",
+            status: "approved", // Kiosk is considered verified
+            location: location ? {
+                lat: location.latitude,
+                lng: location.longitude,
+                radius: location.accuracy,
+                isVerified: true, // Kiosk location is trusted (or verified by deviceId)
+                name: "Kiosk Device"
+            } : undefined,
+            deviceId: deviceId,
+            deviceDetails: "Kiosk Face Recognition",
+            confidence: confidence, // Store facial recognition confidence if schema supports it
+            verified: true,
+            resolutionMode: "system",
+            shift: resolvedShift ? {
+                shiftId: resolvedShift._id,
+                name: resolvedShift.name,
+                startTime: resolvedShift.startTime,
+                endTime: resolvedShift.endTime,
+                type: resolvedShift.type
+            } : undefined
+        });
+
+        console.log(`[KIOSK] ✓ SAVED: Attendance ID ${attendance._id} for ${matchedEmployee.name}`);
 
         // Return real match response
         return {
@@ -245,6 +309,8 @@ export class KioskService {
             verified: true,
             confidence: confidence,
             attendanceTypeReason: attendanceTypeResult.reason,
+            attendanceId: attendance._id.toString(),
+            shiftName: resolvedShift?.name // Return shift name to frontend
         };
     }
 

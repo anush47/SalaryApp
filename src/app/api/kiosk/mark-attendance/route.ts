@@ -29,6 +29,21 @@ export async function POST(req: NextRequest) {
             return ApiResponseUtils.sendBadRequest(error.errors[0].message);
         }
 
-        return ApiResponseUtils.sendError(error);
+        // Handle custom BaseError (like BadRequestError)
+        if (error instanceof Error) {
+            // Check for specific status if available (duck typing or import BaseError)
+            // But ApiResponseUtils.sendError takes a message string as first arg.
+            // The previous code passed the entire error object which caused the issue.
+
+            // If it is a known error type (checking code or status property if we had access, 
+            // but effectively we just need the message).
+            const status = (error as any).status || 500;
+            if (status === 400) {
+                return ApiResponseUtils.sendBadRequest(error.message);
+            }
+            return ApiResponseUtils.sendError(error.message, undefined, undefined, undefined, status);
+        }
+
+        return ApiResponseUtils.sendError("An unexpected error occurred");
     }
 }
