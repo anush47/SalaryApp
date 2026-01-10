@@ -123,11 +123,14 @@ export default function KioskPage() {
                 minHeight: "100vh",
                 background: gradientBackground,
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
-                p: 2,
+                justifyContent: { xs: "flex-start", md: "center" },
+                p: { xs: 2, md: 4 },
+                pt: { xs: 10, md: 4 }, // Add top padding for mobile to clear status bar/notch
                 color: theme.palette.text.primary,
                 position: "relative",
+                overflowY: "auto", // Allow scrolling
             }}
         >
             <Box sx={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 2, alignItems: "center" }}>

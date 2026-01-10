@@ -30,8 +30,9 @@ import {
     FaceRetouchingNatural,
     Coffee,
     Warning as WarningIcon,
+    Business,
 } from "@mui/icons-material";
-import { markAttendance, AttendanceResult } from "@/app/lib/api/kioskApi";
+import { markAttendance, AttendanceResult, validateApiKey } from "@/app/lib/api/kioskApi";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
@@ -58,6 +59,7 @@ export default function KioskMarkPage() {
     const [currentTime, setCurrentTime] = useState(dayjs());
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [companyName, setCompanyName] = useState("");
 
     // Overlay State
     const [overlayData, setOverlayData] = useState<{
@@ -101,6 +103,15 @@ export default function KioskMarkPage() {
             return;
         }
         setApiKey(storedKey);
+
+        // Load Company Info
+        validateApiKey(storedKey).then(info => {
+            setCompanyName(info.companyName);
+        }).catch(() => {
+            // If validation fails, maybe just keep default or redirect
+            console.warn("Could not validate key or fetch company name");
+        });
+
         loadModels().catch(console.error);
         startCamera();
     }, []);
@@ -272,17 +283,55 @@ export default function KioskMarkPage() {
 
             <Container maxWidth={false}>
                 {/* Header */}
-                <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+                {/* Header */}
+                <Box sx={{ position: "relative", mb: { xs: 1, md: 3 }, minHeight: { xs: 40, md: 48 }, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <IconButton
                         onClick={() => router.push("/kiosk")}
-                        sx={{ bgcolor: "background.paper" }}
+                        sx={{
+                            bgcolor: "background.paper",
+                            padding: { xs: 0.5, md: 1 },
+                            position: "absolute",
+                            left: 0,
+                            zIndex: 1
+                        }}
+                        size="small"
                     >
-                        <ArrowBack />
+                        <ArrowBack fontSize="small" />
                     </IconButton>
-                    <Typography variant="h5" fontWeight="bold">
-                        Mark Attendance
-                    </Typography>
-                </Stack>
+                    <Box sx={{ overflow: "hidden", textAlign: "center", width: "100%", px: 5 }}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                            <Typography
+                                variant="h4"
+                                fontWeight="800"
+                                sx={{
+                                    fontSize: { xs: "1.25rem", md: "2rem" },
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    lineHeight: 1.2,
+                                    background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                                    WebkitBackgroundClip: "text",
+                                    WebkitTextFillColor: "transparent",
+                                    display: "block"
+                                }}
+                            >
+                                {companyName || "Attendance Kiosk"}
+                            </Typography>
+                        </Stack>
+                        <Typography
+                            variant="subtitle2"
+                            color="text.secondary"
+                            sx={{
+                                fontSize: { xs: "0.75rem", md: "0.875rem" },
+                                fontWeight: 500,
+                                lineHeight: 1,
+                                mt: 0.5
+                            }}
+                        >
+                            Mark Your Attendance
+                        </Typography>
+                    </Box>
+                </Box>
 
                 {/* Main Content */}
                 {/* Main Content */}
