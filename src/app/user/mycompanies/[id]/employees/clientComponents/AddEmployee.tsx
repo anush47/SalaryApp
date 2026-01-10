@@ -178,7 +178,7 @@ const AddEmployeeForm: React.FC<{
   }, [companyData, user]);
 
   useEffect(() => {
-    if (employeesData) {
+    if (employeesData && Array.isArray(employeesData)) {
       const sortedEmployees = [...employeesData].sort(
         (a: Employee, b: Employee) => a.memberNo - b.memberNo
       );
