@@ -31,7 +31,7 @@ export default function KioskPage() {
     useEffect(() => {
         const storedKey = localStorage.getItem("kiosk_api_key");
         if (storedKey) {
-            setApiKey(storedKey);
+            // Don't set state, just validate. This keeps the key out of the UI input.
             handleValidate(storedKey);
         }
     }, []);
@@ -119,6 +119,7 @@ export default function KioskPage() {
                             <TextField
                                 fullWidth
                                 label="API Key"
+                                type="password"
                                 variant="outlined"
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
