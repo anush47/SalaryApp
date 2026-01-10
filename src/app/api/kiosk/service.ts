@@ -74,9 +74,7 @@ export class KioskService {
      * Get list of active employees for face registration
      */
     static async getEmployeesForKiosk(apiKey: string) {
-        await dbConnect();
-
-        // Validate API key first
+        // Validate API key first (Includes dbConnect)
         const companyInfo = await this.validateApiKey(apiKey);
 
         const employees = await Employee.find({
@@ -103,9 +101,7 @@ export class KioskService {
         employeeId: string,
         faceData: { descriptors: number[][]; images?: string[] }
     ) {
-        await dbConnect();
-
-        // Validate API key
+        // Validate API key (Includes dbConnect)
         const companyInfo = await this.validateApiKey(apiKey);
 
         // Find employee
@@ -128,9 +124,7 @@ export class KioskService {
 
         await employee.save();
 
-        console.log(`[KIOSK] Face registered for employee: ${employee.name} (${employee.memberNo})`);
-        console.log(`[KIOSK] Descriptors count: ${faceData.descriptors.length}`);
-        console.log(`[KIOSK] Images count: ${faceData.images?.length || 0}`);
+        console.log(`[KIOSK] Face registered: ${employee.name} | Descriptors: ${faceData.descriptors.length}`);
 
         return {
             success: true,
@@ -141,7 +135,7 @@ export class KioskService {
 
     /**
      * Mark attendance using face recognition
-     * This is a placeholder - actual face comparison will be implemented
+     * Optimized for speed: Parallelizes I/O and inference
      */
     static async markAttendance(
         apiKey: string,
@@ -150,172 +144,120 @@ export class KioskService {
         deviceId?: string,
         timestamp?: string
     ) {
-        await dbConnect();
+        const totalStartTime = Date.now();
+        console.log(`[KIOSK] 🕒 Starting markAttendance performance trace...`);
 
-        // Log raw request
-        console.log(`\n========== [KIOSK] RAW ATTENDANCE REQUEST ==========`);
-        console.log(`API Key: ${apiKey.substring(0, 8)}...`);
-        console.log(`Face Descriptors Count: ${faceData.descriptors.length}`);
-        console.log(`First Descriptor Length: ${faceData.descriptors[0]?.length || 0}`);
-        console.log(`First Descriptor Sample (first 5):`, faceData.descriptors[0]?.slice(0, 5) || []);
-        console.log(`Location:`, location ? `${location.latitude}, ${location.longitude}` : 'Not provided');
-        console.log(`Device ID: ${deviceId || 'Not provided'}`);
-        console.log(`Timestamp: ${timestamp || new Date().toISOString()}`);
-        console.log(`Has Image: ${!!faceData.image}`);
-        console.log(`====================================================\n`);
-
-        // Validate API key
+        // 1. Validate API key and get company info (Includes dbConnect)
+        const validateStartTime = Date.now();
         const companyInfo = await this.validateApiKey(apiKey);
+        const { companyId, attendanceConfig } = companyInfo;
+        console.log(`[KIOSK] ⏱️ API Key Validation & DB Connect: ${Date.now() - validateStartTime}ms`);
 
-        console.log(`[KIOSK] Attendance marking attempt for company: ${companyInfo.companyName}`);
-
-        // Get all employees with face data for this company
-        const employees = await Employee.find({
-            company: companyInfo.companyId,
+        // 2. Start Parallel Tasks: Employee fetching & Anti-spoofing
+        const parallelStartTime = Date.now();
+        const employeesPromise = Employee.find({
+            company: companyId,
             active: true,
             "faceData.descriptors": { $exists: true, $ne: [] },
         })
-            .select("_id name memberNo faceData")
+            .select("_id name memberNo faceData.descriptors")
             .lean();
 
-        console.log(`[KIOSK] Found ${employees.length} employees with registered faces`);
+        let spoofPromise = null;
+        if (attendanceConfig?.livenessDetection && faceData.image) {
+            spoofPromise = detectSpoofing(faceData.image);
+        }
 
-        if (employees.length === 0) {
+        // 3. Await employees and run face matching
+        const employees = await employeesPromise;
+        console.log(`[KIOSK] ⏱️ Employee Fetching: ${Date.now() - parallelStartTime}ms | Count: ${employees?.length || 0}`);
+
+        if (!employees || employees.length === 0) {
             throw new BadRequestError("No employees with registered faces found for this company");
         }
 
-        // Find best match using the first descriptor (from live capture)
         const matchStartTime = Date.now();
         const matchResult = await this.findBestFaceMatch(faceData.descriptors[0], employees);
         const matchTime = Date.now() - matchStartTime;
+        console.log(`[KIOSK] ⏱️ Face Matching: ${matchTime}ms`);
 
         if (!matchResult) {
-            console.log(`[KIOSK] No matching face found (Threshold: 0.6) - Match time: ${matchTime}ms`);
             throw new BadRequestError("Face not recognized. Please try again.");
         }
 
         const { employee: matchedEmployee, confidence, distance } = matchResult;
 
-        console.log(`\n[KIOSK] ✓ MATCH FOUND: ${matchedEmployee.name} (${matchedEmployee.memberNo})`);
-        console.log(`[KIOSK] Confidence: ${(confidence * 100).toFixed(2)}% | Distance: ${distance.toFixed(4)} | Match time: ${matchTime}ms`);
-
-        // Check for recent attendance (5-minute cooldown) - BEFORE anti-spoofing to save computation
+        // 4. Parallelize the remaining DB checks and await spoofing if it hasn't finished
+        const finalChecksStartTime = Date.now();
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-        const recentAttendance = await Attendance.findOne({
-            employee: matchedEmployee._id,
-            timestamp: { $gte: fiveMinutesAgo },
-        }).sort({ timestamp: -1 });
 
-        if (recentAttendance) {
-            const timeSinceLastMark = Math.floor((Date.now() - recentAttendance.timestamp.getTime()) / 1000);
-            const timeRemaining = 300 - timeSinceLastMark; // 5 minutes = 300 seconds
-            console.log(`[KIOSK] ✗ REJECTED: Recent attendance found (${timeSinceLastMark}s ago)`);
+        const [recentAttendance, lastAttendance, fullEmployee, fullCompany, spoofResult] = await Promise.all([
+            // 4a. Cooldown check
+            Attendance.findOne({
+                employee: matchedEmployee._id as any,
+                timestamp: { $gte: fiveMinutesAgo },
+            }).sort({ timestamp: -1 }).lean(),
+
+            // 4b. Fetch last attendance for type logic mapping
+            Attendance.findOne({
+                employee: matchedEmployee._id,
+            }).sort({ timestamp: -1 }).lean(),
+
+            // 4c. Fetch full documents for ShiftService logic
+            Employee.findById(matchedEmployee._id).lean(),
+            Company.findById(companyId).lean(),
+
+            // 4d. Anti-spoofing result (if running)
+            spoofPromise
+        ]);
+        console.log(`[KIOSK] ⏱️ Parallel Multi-Checks: ${Date.now() - finalChecksStartTime}ms`);
+
+        // Handle Anti-spoofing
+        if (spoofResult && !spoofResult.isReal) {
+            console.warn(`[KIOSK] ⚠️ SPOOF REJECTED: ${matchedEmployee.name} | Conf: ${spoofResult.confidence.toFixed(3)}`);
             throw new BadRequestError(
-                `Please wait ${Math.ceil(timeRemaining / 60)} more minute(s) before marking attendance again.`
+                `Something's Fishy! 🎣 The camera might be playing tricks. Try again in better light.`
             );
         }
 
-        // Anti-spoofing check (if enabled and image provided)
-        if (companyInfo.attendanceConfig?.livenessDetection && faceData.image) {
-            try {
-                const startTime = Date.now();
-                console.log('[KIOSK] Running anti-spoofing detection...');
-                const spoofResult = await detectSpoofing(faceData.image);
-                const inferenceTime = Date.now() - startTime;
-
-                if (!spoofResult.isReal) {
-                    console.warn('[KIOSK] ⚠️ SPOOF DETECTED:', {
-                        confidence: spoofResult.confidence.toFixed(3),
-                        score: spoofResult.score.toFixed(3),
-                        employee: matchedEmployee.name,
-                        deviceId,
-                        inferenceTime: `${inferenceTime}ms`,
-                        timestamp: new Date().toISOString()
-                    });
-
-                    throw new BadRequestError(
-                        `Spoofing detected! Confidence: ${(spoofResult.confidence * 100).toFixed(1)}%. ` +
-                        `Please ensure you are using a live camera feed, not a photo or video.`
-                    );
-                }
-
-                console.log('[KIOSK] ✓ Anti-spoofing passed:', {
-                    confidence: spoofResult.confidence.toFixed(3),
-                    score: spoofResult.score.toFixed(3),
-                    inferenceTime: `${inferenceTime}ms`
-                });
-            } catch (err: any) {
-                // If anti-spoofing fails due to model error, log but allow attendance
-                // (fail-open approach for better UX)
-                if (err.message?.includes('not found') || err.message?.includes('model')) {
-                    console.error('[KIOSK] Anti-spoofing model error (allowing attendance):', err.message);
-                } else {
-                    // Re-throw spoofing detection errors
-                    throw err;
-                }
-            }
-        } else if (companyInfo.attendanceConfig?.livenessDetection) {
-            console.log('[KIOSK] Anti-spoofing enabled but no image provided, skipping check');
+        // Handle Cooldown
+        if (recentAttendance) {
+            const timeSinceLast = Date.now() - (recentAttendance.timestamp as Date).getTime();
+            const timeRemaining = Math.ceil((300000 - timeSinceLast) / 60000);
+            throw new BadRequestError(`Please wait ${timeRemaining} more minute(s) before marking attendance again.`);
         }
 
-
-
-        // Get last attendance to determine type using centralized logic
-        const lastAttendance = await Attendance.findOne({
-            employee: matchedEmployee._id,
-        }).sort({ timestamp: -1 }).lean();
-
-        // Use centralized attendance type logic
+        // 5. Determine attendance type (IN/OUT)
+        const typeStartTime = Date.now();
         const attendanceTypeResult = getNextAttendanceType(lastAttendance);
         const explanation = getAttendanceTypeExplanation(attendanceTypeResult);
 
         console.log(`\n[KIOSK] Attendance Type Determination:`);
         console.log(`[KIOSK] → Next Type: ${attendanceTypeResult.nextType.toUpperCase()}`);
         console.log(`[KIOSK] → Reason: ${attendanceTypeResult.reason}`);
-        console.log(`[KIOSK] → Explanation: ${explanation}`);
-        if (attendanceTypeResult.hoursSinceLastIn) {
-            console.log(`[KIOSK] → Hours Since Last IN: ${attendanceTypeResult.hoursSinceLastIn.toFixed(2)}`);
-        }
+        console.log(`[KIOSK] ⏱️ Type Determination Logic: ${Date.now() - typeStartTime}ms`);
 
-        // Prepare timestamp - ALWAYS use server time for Kiosk to ensure integrity
-        const eventTime = new Date(); // Use server time
+        // Prepare timestamp
+        const eventTime = new Date();
 
         // --- SHIFT LOGIC START ---
-        // Resolve Shift using centralized service
-        // Kiosk always assumes "system" resolution unless we add UI to select shift (which we haven't yet)
-        const dateStr = eventTime.toISOString().split('T')[0];
-        const checkInTime = eventTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: companyInfo.timezone || 'Asia/Colombo' });
-
+        const shiftStartTime = Date.now();
         let resolvedShift = null;
-        let finalResolutionMode = "system";
-
-        // Logic similar to AttendanceService.createAttendance
-        const employeeDoc = await Employee.findById(matchedEmployee._id); // Re-fetch full doc for methods/virtuals if needed, or cast matchedEmployee
-
-        // We need the full employee document for ShiftService (assignments etc)
-        // matchedEmployee from 'find' is lean() so it might miss some deep fields if not selected?
-        // Actually earlier we selected: "_id name memberNo faceData". 
-        // ShiftService might need 'company', 'shiftAssignments' etc.
-        // Let's re-fetch safely or ensure we have data. 
-        // But for performance, let's try to fetch what's needed or just fetch full doc if ShiftService requires it.
-        // ShiftService.resolveActiveShift takes (employee, company, ...)
-
-        // Re-fetching full employee to be safe for complicated shift logic
-        const fullEmployee = await Employee.findById(matchedEmployee._id);
-        const fullCompany = await Company.findById(companyInfo.companyId); // we have companyInfo but ShiftService might expect Mongoose doc or specific shape
-
         if (fullEmployee && fullCompany) {
-            const shiftResult = await ShiftService.resolveActiveShift(fullEmployee, fullCompany, dateStr, checkInTime);
+            const dateStr = eventTime.toISOString().split('T')[0];
+            const checkInTime = eventTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: companyInfo.timezone || 'Asia/Colombo' });
+
+            // Note: ShiftService.resolveActiveShift might do more DB lookups internally (populate roster),
+            // but we've mitigated the primary bottlenecks.
+            const shiftResult = await ShiftService.resolveActiveShift(fullEmployee as any, fullCompany as any, dateStr, checkInTime);
             resolvedShift = shiftResult.shift;
-            // Note: We are ignoring shiftResult.checkInBlocked for Kiosk for now, 
-            // or should we block? User asked to "pick the shift".
-            // If we want to be strict:
-            // if (shiftResult.checkInBlocked) { throw new ForbiddenError(...) }
-            // For now, we just assign the shift if found.
         }
+        console.log(`[KIOSK] ⏱️ Shift Selection Completion: ${Date.now() - shiftStartTime}ms`);
+        // --- SHIFT LOGIC END ---
         // --- SHIFT LOGIC END ---
 
-        // Save to Database
+        // 7. Save attendance
+        const saveStartTime = Date.now();
         const attendance = await Attendance.create({
             company: companyInfo.companyId,
             employee: matchedEmployee._id,
@@ -344,7 +286,8 @@ export class KioskService {
             } : undefined
         });
 
-        console.log(`[KIOSK] ✓ SAVED: Attendance ID ${(attendance._id as any)} for ${matchedEmployee.name}`);
+        console.log(`[KIOSK] ⏱️ DB Save: ${Date.now() - saveStartTime}ms`);
+        console.log(`[KIOSK] ✅ Total Time: ${Date.now() - totalStartTime}ms`);
 
         // Return real match response
         return {
@@ -365,49 +308,35 @@ export class KioskService {
 
     /**
      * Helper: Calculate Euclidean distance between two face descriptors
-     * Lower distance = more similar faces
      */
     private static calculateEuclideanDistance(descriptor1: number[], descriptor2: number[]): number {
-        if (descriptor1.length !== descriptor2.length) {
-            throw new Error("Descriptors must have the same length");
-        }
-
         let sum = 0;
         for (let i = 0; i < descriptor1.length; i++) {
             const diff = descriptor1[i] - descriptor2[i];
             sum += diff * diff;
         }
-
         return Math.sqrt(sum);
     }
 
     /**
      * Helper: Find best matching employee based on face descriptor
-     * TODO: Implement this properly with confidence threshold
+     * Threshold set to 0.4 (60% confidence) per security requirements
      */
     private static async findBestFaceMatch(
         inputDescriptor: number[],
         employees: any[],
-        threshold: number = 0.6
+        threshold: number = 0.4
     ) {
         let bestMatch = null;
         let bestDistance = Infinity;
 
         for (const employee of employees) {
-            // Check if employee has valid descriptors array
-            if (!employee.faceData || !employee.faceData.descriptors || !Array.isArray(employee.faceData.descriptors)) {
-                continue;
-            }
+            if (!employee.faceData?.descriptors?.length) continue;
 
-            // Compare against EACH registered descriptor for this employee
             for (const storedDescriptor of employee.faceData.descriptors) {
                 if (!storedDescriptor || storedDescriptor.length !== 128) continue;
 
-                const distance = this.calculateEuclideanDistance(
-                    inputDescriptor,
-                    storedDescriptor
-                );
-
+                const distance = this.calculateEuclideanDistance(inputDescriptor, storedDescriptor);
                 if (distance < bestDistance) {
                     bestDistance = distance;
                     bestMatch = employee;
@@ -415,12 +344,10 @@ export class KioskService {
             }
         }
 
-        // Check if best match meets threshold
-        // Note: Lower distance = better match, so we check if distance is below threshold
         if (bestMatch && bestDistance < threshold) {
             return {
                 employee: bestMatch,
-                confidence: 1 - bestDistance, // Convert distance to confidence score
+                confidence: 1 - bestDistance,
                 distance: bestDistance,
             };
         }

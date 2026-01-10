@@ -42,7 +42,7 @@ export class AntiSpoofingDetector {
             };
             const results = await this.session!.run(feeds);
 
-            // 4. Parse output - Model outputs [real_score, fake_score] (indices were swapped!)
+            // 4. Parse output - Model outputs [fake_score, real_score]
             const output = results.output.data as Float32Array;
             const realScore = output[0];  // First output is REAL
             const fakeScore = output[1];  // Second output is FAKE

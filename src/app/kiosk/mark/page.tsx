@@ -31,6 +31,9 @@ import {
     Coffee,
     Warning as WarningIcon,
     Business,
+    Security as GuardIcon,
+    People as PeopleIcon,
+    Help as HelpIcon,
 } from "@mui/icons-material";
 import { markAttendance, AttendanceResult, validateApiKey } from "@/app/lib/api/kioskApi";
 import dayjs from "dayjs";
@@ -38,7 +41,8 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { ThemeSwitch } from "@/app/theme-provider";
-import { detectFace, loadModels } from "@/app/lib/faceRecognition";
+import { detectFace, getAllFaces, loadModels } from "@/app/lib/faceRecognition";
+import { KioskOverlay, OverlayData, OverlayType } from "../components/KioskOverlay";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -63,14 +67,7 @@ export default function KioskMarkPage() {
     const [companyInfo, setCompanyInfo] = useState<Awaited<ReturnType<typeof validateApiKey>> | null>(null);
 
     // Overlay State
-    const [overlayData, setOverlayData] = useState<{
-        name: string;
-        type: "in" | "out" | "info" | "warning";
-        greeting: string;
-        time: string;
-        isError?: boolean;
-        shiftName?: string;
-    } | null>(null);
+    const [overlayData, setOverlayData] = useState<OverlayData | null>(null);
     const [overlayOpen, setOverlayOpen] = useState(false);
     const [modelsLoaded, setModelsLoaded] = useState(false);
 
@@ -91,6 +88,87 @@ export default function KioskMarkPage() {
         if (hour < 12) return "Good Morning";
         if (hour < 18) return "Good Afternoon";
         return "Good Evening";
+    };
+
+    /**
+     * Unified Overlay Handler
+     * Manages all kiosk feedback states (success, errors, security)
+     */
+    const triggerOverlay = (
+        type: OverlayType,
+        opts: {
+            name?: string;
+            greeting?: string;
+            time?: string;
+            shiftName?: string;
+            isError?: boolean;
+            icon?: React.ReactNode;
+            color?: string;
+        } = {}
+    ) => {
+        const config: Record<OverlayType, any> = {
+            in: {
+                greeting: getGreeting(),
+                name: opts.name || "Employee",
+                time: dayjs().format("h:mm A"),
+                isError: false
+            },
+            out: {
+                greeting: "Goodbye",
+                name: opts.name || "Employee",
+                time: dayjs().format("h:mm A"),
+                isError: false
+            },
+            info: {
+                greeting: "Where's the face? 🔍",
+                name: "Please position your face in the frame",
+                time: "Scan Failed",
+                isError: true
+            },
+            warning: {
+                greeting: "Already Scanned",
+                name: "Please wait a moment",
+                time: opts.time || "Wait",
+                isError: true
+            },
+            spoof: {
+                greeting: "Something's Fishy! 🎣",
+                name: "The camera might be playing tricks!",
+                time: "Try Better Light",
+                isError: true
+            },
+            crowded: {
+                greeting: "Crowded! 🧑‍🤝‍🧑",
+                name: "Only one person in frame, please",
+                time: opts.time || "Faces detected",
+                isError: true
+            },
+            unknown: {
+                greeting: "Who's that? 🕵️‍♂️",
+                name: "I don't think we've met yet! 😉",
+                time: "Face Recognition Failed",
+                isError: true
+            },
+            custom: {
+                greeting: opts.greeting || "Custom!",
+                name: opts.name || "Something happened",
+                time: opts.time || "",
+                isError: opts.isError
+            }
+        };
+
+        const selected = config[type];
+        setOverlayData({
+            type,
+            greeting: opts.greeting || selected.greeting,
+            name: opts.name || selected.name,
+            time: opts.time || selected.time,
+            isError: opts.isError !== undefined ? opts.isError : selected.isError,
+            shiftName: opts.shiftName,
+            icon: opts.icon,
+            color: opts.color
+        });
+        setOverlayOpen(true);
     };
 
     useEffect(() => {
@@ -205,12 +283,26 @@ export default function KioskMarkPage() {
             img.src = imageData;
             await img.decode();
 
-            const detection = await detectFace(img);
-            if (!detection) {
-                setError("No face detected! Please position your face in the frame.");
+            const detections = await getAllFaces(img);
+
+            if (detections.length === 0) {
+                triggerOverlay("info", {
+                    greeting: "No Face Detected",
+                    name: "Please position your face in the frame"
+                });
                 setLoading(false);
                 return;
             }
+
+            if (detections.length > 1) {
+                triggerOverlay("crowded", {
+                    time: `${detections.length} faces detected`
+                });
+                setLoading(false);
+                return;
+            }
+
+            const detection = detections[0];
 
             const faceDescriptor = Array.from(detection.descriptor) as number[];
 
@@ -230,17 +322,11 @@ export default function KioskMarkPage() {
             setLastResult(result);
             setRecentAttendance(prev => [result, ...prev].slice(0, 10));
 
-            // Show Overlay
-            const greeting = result.type === 'in' ? getGreeting() : "Goodbye";
-            setOverlayData({
+            // Show Overlay using the new trigger
+            triggerOverlay(result.type as "in" | "out", {
                 name: result.employeeName,
-                type: result.type,
-                greeting: greeting,
-                time: dayjs().format("h:mm A"),
-                shiftName: result.shiftName // Pass shift name to overlay
+                shiftName: result.shiftName
             });
-
-            setOverlayOpen(true);
 
         } catch (err: any) {
             const errorMessage = err.message || "Failed to mark attendance";
@@ -249,18 +335,13 @@ export default function KioskMarkPage() {
             if (errorMessage.toLowerCase().includes("wait") && errorMessage.toLowerCase().includes("minute")) {
                 const match = errorMessage.match(/(\d+)\s*more minute/);
                 const minutes = match ? match[1] : "?";
-
-                // Show Warning Overlay
-                setOverlayData({
-                    name: "", // Remove "Take a breather" / "Please Wait" text
-                    type: "warning",
-                    greeting: "Already Scanned",
-                    time: `Wait ${minutes}m`,
-                    isError: true
-                });
-                setOverlayOpen(true);
+                triggerOverlay("warning", { time: `Wait ${minutes}m` });
+            } else if (errorMessage.includes("Something's Fishy")) {
+                triggerOverlay("spoof");
+            } else if (errorMessage.toLowerCase().includes("face not recognized")) {
+                triggerOverlay("unknown");
             } else {
-                setError(errorMessage);
+                triggerOverlay("info", { greeting: errorMessage });
             }
         } finally {
             setLoading(false);
@@ -595,143 +676,14 @@ export default function KioskMarkPage() {
                 </Box>
             </Container>
 
-            {/* Success Overlay */}
-            <Backdrop
-                sx={{
-                    color: '#fff',
-                    zIndex: (theme) => theme.zIndex.drawer + 1,
-                    backdropFilter: 'blur(10px)',
-                    flexDirection: 'column',
-                    cursor: 'pointer'
-                }}
+            <KioskOverlay
                 open={overlayOpen}
-                onClick={() => {
+                data={overlayData}
+                onClose={() => {
                     setOverlayOpen(false);
                     setLastResult(null);
                 }}
-            >
-                <Zoom in={overlayOpen} style={{ transitionDelay: overlayOpen ? '100ms' : '0ms' }}>
-                    <Stack alignItems="center" spacing={4} sx={{ textAlign: 'center', p: 3 }}>
-                        <Box sx={{ position: 'relative' }}>
-                            <Box
-                                sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    borderRadius: '50%',
-                                    boxShadow: `0 0 60px ${overlayData?.type === 'warning' ? theme.palette.warning.main : (overlayData?.isError ? theme.palette.info.main : theme.palette.success.main)}`,
-                                    opacity: 0.5,
-                                    animation: 'pulse 2s infinite'
-                                }}
-                            />
-                            {/* Icon Selection */}
-                            {overlayData?.type === 'warning' ? (
-                                <WarningIcon
-                                    sx={{
-                                        fontSize: 140,
-                                        color: 'warning.main',
-                                        filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
-                                        position: 'relative'
-                                    }}
-                                />
-                            ) : overlayData?.isError ? (
-                                <Coffee
-                                    sx={{
-                                        fontSize: 140,
-                                        color: 'info.main',
-                                        filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
-                                        position: 'relative'
-                                    }}
-                                />
-                            ) : (
-                                <CheckCircle
-                                    sx={{
-                                        fontSize: 140,
-                                        color: 'success.main',
-                                        filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
-                                        position: 'relative'
-                                    }}
-                                />
-                            )}
-                        </Box>
-
-                        <Box>
-                            <Typography
-                                variant="h3"
-                                fontWeight="700"
-                                sx={{
-                                    textShadow: '0 4px 30px rgba(0,0,0,0.5)',
-                                    mb: 1,
-                                    color: 'rgba(255,255,255,0.9)'
-                                }}
-                            >
-                                {overlayData?.greeting}
-                            </Typography>
-
-                            <Typography
-                                variant="h4"
-                                fontWeight="500"
-                                sx={{
-                                    opacity: 0.9,
-                                    textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-                                    mb: 2
-                                }}
-                            >
-                                {overlayData?.name}
-                            </Typography>
-
-                            <Typography
-                                variant="h2"
-                                fontWeight="900"
-                                sx={{
-                                    textShadow: '0 4px 30px rgba(0,0,0,0.5)',
-                                    mb: 2,
-                                    letterSpacing: -1,
-                                    maxWidth: '90vw', // Responsive width
-                                    fontSize: { xs: '3rem', sm: '4rem', md: '5rem' } // Responsive font size
-                                }}
-                            >
-                                {overlayData?.time}
-                            </Typography>
-
-                            {/* Show Shift Name if available */}
-                            {overlayData?.shiftName && !overlayData?.isError && (
-                                <Box sx={{ mb: 2 }}>
-                                    <Chip
-                                        label={`Shift: ${overlayData.shiftName}`}
-                                        sx={{
-                                            bgcolor: 'rgba(255,255,255,0.1)',
-                                            color: 'white',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            fontSize: '1.2rem',
-                                            height: 48,
-                                            px: 2,
-                                            mb: 2
-                                        }}
-                                    />
-                                </Box>
-                            )}
-
-                            {!overlayData?.isError && (
-                                <Chip
-                                    label={overlayData?.type?.toUpperCase()}
-                                    color={overlayData?.type === 'in' ? 'success' : 'info'}
-                                    sx={{
-                                        fontSize: '2rem',
-                                        height: 56,
-                                        px: 4,
-                                        borderRadius: 28,
-                                        boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
-                                        border: '2px solid rgba(255,255,255,0.2)'
-                                    }}
-                                />
-                            )}
-                        </Box>
-                    </Stack>
-                </Zoom>
-            </Backdrop>
+            />
 
             <style jsx global>{`
                 @keyframes pulse {
