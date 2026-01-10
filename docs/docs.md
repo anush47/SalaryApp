@@ -654,7 +654,96 @@ Implements a dual-view strategy for managing shifts within attendance:
 *   **Hybrid Storage**: `dailyRecords` stores enriched shift objects (for history) but services sanitize to IDs for valid updates.
 *   **Break Resolution**: Implements `Math.max(detected, default)` logic. Automatically looks up legacy shift definitions if `breakDuration` is missing from logs.
 
+### 11.5. Statistics Dashboard Architecture
+The attendance statistics panel demonstrates modern dashboard design patterns with employer-focused analytics.
+
+#### 11.5.1. Data Aggregation Pattern
+*   **Single-Pass Aggregation**: Use `useMemo` to perform all calculations in one pass through records, tracking multiple metrics simultaneously:
+    *   Daily aggregates (present, late, hours, OT)
+    *   Employee-level metrics (total hours, attendance rate, compliance issues)
+    *   Leaderboards (top performers, needs attention)
+*   **Computed Metrics**: Calculate derived values (averages, rates, percentages) during aggregation rather than in render phase for better performance.
+*   **Type Safety**: Define explicit TypeScript interfaces for aggregated data structures to ensure consistency across calculations.
+
+**Example Structure:**
+```typescript
+const stats = useMemo(() => {
+  const employeeData: Record<string, {
+    totalHours: number;
+    daysPresent: number;
+    lateCount: number;
+    locationIssues: number;
+    // ... other metrics
+  }> = {};
+  
+  records.forEach(r => {
+    // Single-pass aggregation
+  });
+  
+  return {
+    kpis: { attendanceRate, avgHours, ... },
+    charts: { dailyStats, ... },
+    leaderboards: { topPerformers, needsAttention }
+  };
+}, [records]);
+```
+
+#### 11.5.2. Responsive Dashboard Layout
+*   **Progressive Disclosure**: Use MUI Grid breakpoints to adapt layout complexity:
+    *   **Mobile (xs)**: Single column, stacked cards
+    *   **Tablet (sm)**: 2-column layout for paired insights
+    *   **Desktop (lg)**: 3-4 column layout for comprehensive overview
+*   **Consistent Card Styling**: Match KPI card design across different dashboard sections:
+    ```typescript
+    <Paper variant="outlined" sx={{
+      p: { xs: 1, sm: 2 },
+      borderLeft: `3px solid`,
+      borderColor: `${color}.main`,
+      textAlign: 'center'
+    }}>
+    ```
+*   **Compact UI**: Reduce padding and spacing for information density:
+    *   Card padding: `p: 1.5` instead of `p: 2-3`
+    *   Chart heights: `200-250px` instead of `300px+`
+    *   Typography: `subtitle2` instead of `h6` for headers
+
+#### 11.5.3. Location Compliance Tracking
+*   **Verification Flags**: Track `inVerified` and `outVerified` from attendance records to identify location compliance issues.
+*   **Multi-Criteria Alerts**: Combine multiple issue types in "Needs Attention":
+    *   Late arrivals (warning - yellow)
+    *   Early departures (warning - yellow)
+    *   Absences (error - red)
+    *   Location issues (info - blue)
+*   **Detailed Breakdown**: Use color-coded chips to display multiple issues per employee:
+    ```typescript
+    <Chip 
+      label="2 late"
+      size="small"
+      color="warning"
+      sx={{ fontSize: '0.7rem', height: 20 }}
+    />
+    ```
+
+#### 11.5.4. Chart Selection Guidelines
+*   **Bar Charts**: Use for categorical comparisons (daily attendance by status)
+*   **Line/Area Charts**: Use for trends over time (work hours, OT trends)
+*   **Stacked Charts**: Show composition (on-time vs late within present count)
+*   **Compact Legends**: Use `fontSize: '12px'` for chart legends
+*   **Responsive Heights**: Adjust chart heights based on screen size:
+    ```typescript
+    <Box height={{ xs: 200, sm: 250 }}>
+    ```
+
+#### 11.5.5. Leave Statistics Pattern
+*   **Detailed Tracking**: Store leave details with employee name, date, type, and status during aggregation.
+*   **Inline Display**: Position leave statistics alongside other leaderboards on large screens (3-column layout).
+*   **Scrollable Content**: Use `maxHeight: 400px` with `overflowY: 'auto'` for long lists.
+*   **Compact List Items**: Display each leave as a single row with dot indicator and condensed information.
+
 ## 12. Coding Standards
 *   **Imports**: Use absolute aliases (`@/app/...`) to prevent relative path drift (`ts(2307)`).
 *   **UI Patterns**: Design stateless tables (e.g., `DailyRecordsTable`) for reuse across Dialogs and Pages.
+*   **Data Aggregation**: Prefer single-pass aggregation in `useMemo` for complex statistics calculations.
+*   **Responsive Design**: Always implement mobile-first layouts with progressive enhancement for larger screens.
+*   **Color Consistency**: Use theme palette colors (`primary.main`, `success.main`, etc.) instead of hardcoded values.
 
