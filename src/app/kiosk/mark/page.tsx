@@ -12,31 +12,32 @@ import {
     CircularProgress,
     Stack,
     IconButton,
-    Card,
-    CardContent,
-    Divider,
     useTheme,
     alpha,
     Chip,
+    Avatar,
+    Divider,
 } from "@mui/material";
 import {
     ArrowBack,
     CheckCircle,
-    Error,
+    Error as ErrorIcon,
     AccessTime,
     Videocam,
+    VideocamOff,
     FaceRetouchingNatural,
 } from "@mui/icons-material";
 import { markAttendance, AttendanceResult } from "@/app/lib/api/kioskApi";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import relativeTime from "dayjs/plugin/relativeTime"; // Added relativeTime plugin
+import relativeTime from "dayjs/plugin/relativeTime";
 import { ThemeSwitch } from "@/app/theme-provider";
+import { detectFace, loadModels } from "@/app/lib/faceRecognition";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-dayjs.extend(relativeTime); // Extend with relativeTime
+dayjs.extend(relativeTime);
 
 export default function KioskMarkPage() {
     const router = useRouter();
@@ -45,16 +46,15 @@ export default function KioskMarkPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const [apiKey, setApiKey] = useState("");
-    const [companyTimezone, setCompanyTimezone] = useState("Asia/Colombo");
-    const [currentTime, setCurrentTime] = useState(dayjs());
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [cameraActive, setCameraActive] = useState(false);
-    const [stream, setStream] = useState<MediaStream | null>(null); // New stream state
     const [lastResult, setLastResult] = useState<AttendanceResult | null>(null);
     const [recentAttendance, setRecentAttendance] = useState<AttendanceResult[]>([]);
+    const [currentTime, setCurrentTime] = useState(dayjs());
+    const [stream, setStream] = useState<MediaStream | null>(null);
 
-    // Load API key and company info
+    // Check API key and load models
     useEffect(() => {
         const storedKey = localStorage.getItem("kiosk_api_key");
         if (!storedKey) {
@@ -62,62 +62,55 @@ export default function KioskMarkPage() {
             return;
         }
         setApiKey(storedKey);
-
-        // Load company timezone from localStorage if available
-        const companyInfo = localStorage.getItem("kiosk_company_info");
-        if (companyInfo) {
-            try {
-                const info = JSON.parse(companyInfo);
-                setCompanyTimezone(info.timezone || "Asia/Colombo");
-            } catch (e) {
-                console.error("Failed to parse company info");
-            }
-        }
-
+        loadModels().catch(console.error);
         startCamera();
-
-        return () => {
-            stopCamera();
-        };
     }, []);
 
-    // Update clock every second
+    // Attach stream to video with safe play handling
     useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentTime(dayjs().tz(companyTimezone));
-        }, 1000);
+        if (stream && videoRef.current && cameraActive) {
+            const video = videoRef.current;
+            video.srcObject = stream;
 
-        return () => clearInterval(interval);
-    }, [companyTimezone]);
-
-    // Attach stream to video element when active
-    useEffect(() => {
-        if (cameraActive && stream && videoRef.current) {
-            videoRef.current.srcObject = stream;
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Auto-play was prevented
+                    // Show a UI element to let the user manually start playback
+                    console.log("Video play failed:", error);
+                });
+            }
         }
-    }, [cameraActive, stream]);
+    }, [stream, cameraActive]);
+
+    // Update clock
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(dayjs()), 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     const startCamera = async () => {
+        if (cameraActive) return;
         try {
-            const s = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: 640, height: 480 },
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
             });
-            setStream(s);
+            setStream(mediaStream);
             setCameraActive(true);
-        } catch (err) {
-            setError("Failed to access camera. Please grant camera permissions.");
+        } catch (err: any) {
+            setError(`Camera access failed: ${err.message}`);
         }
     };
 
     const stopCamera = () => {
         if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
+            stream.getTracks().forEach(track => track.stop());
             setStream(null);
+            setCameraActive(false);
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
         }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-        setCameraActive(false);
     };
 
     const captureAndMark = async () => {
@@ -128,57 +121,50 @@ export default function KioskMarkPage() {
         setLastResult(null);
 
         try {
-            // Capture image
             const canvas = canvasRef.current;
             const video = videoRef.current;
 
+            // Ensure video dimensions are available
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                throw new Error("Video stream not ready yet");
+            }
+
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-
             const ctx = canvas.getContext("2d");
-            if (ctx) {
-                ctx.drawImage(video, 0, 0);
-                const imageData = canvas.toDataURL("image/jpeg", 0.8);
+            if (!ctx) throw new Error("Canvas context not available");
 
-                // Generate placeholder face descriptor (128 dimensions)
-                // In production, this would use face-api.js to extract real descriptors
-                const placeholderDescriptor = Array.from({ length: 128 }, () => Math.random());
+            ctx.drawImage(video, 0, 0);
+            const imageData = canvas.toDataURL("image/jpeg", 0.95);
 
-                // Get location if available
-                let location;
-                try {
-                    // Short timeout for location to not block UI
-                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            timeout: 3000,
-                            enableHighAccuracy: false, // faster
-                        });
-                    });
-                    location = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        accuracy: position.coords.accuracy,
-                    };
-                } catch (e) { /* ignore */ }
+            const img = new Image();
+            img.src = imageData;
+            await img.decode();
 
-                // Mark attendance
-                const result = await markAttendance(
-                    apiKey,
-                    {
-                        descriptor: placeholderDescriptor,
-                        image: imageData,
-                    },
-                    location
-                );
-
-                setLastResult(result);
-                setRecentAttendance((prev) => [result, ...prev.slice(0, 10)]); // Keep last 10 records
-
-                // Clear success message after 3 seconds
-                setTimeout(() => {
-                    setLastResult(null);
-                }, 5000);
+            const detection = await detectFace(img);
+            if (!detection) {
+                setError("No face detected! Please position your face in the frame.");
+                setLoading(false);
+                return;
             }
+
+            const faceDescriptor = Array.from(detection.descriptor);
+
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+            });
+
+            const result = await markAttendance(apiKey, {
+                descriptor: faceDescriptor,
+                image: imageData,
+            }, {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+            });
+
+            setLastResult(result);
+            setRecentAttendance(prev => [result, ...prev].slice(0, 10));
         } catch (err: any) {
             setError(err.message || "Failed to mark attendance");
         } finally {
@@ -194,35 +180,27 @@ export default function KioskMarkPage() {
     return (
         <Box
             sx={{
-                height: "100vh", // Full viewport height
+                minHeight: "100vh",
                 background: gradientBackground,
+                py: 3,
                 color: theme.palette.text.primary,
                 position: "relative",
-                overflow: "hidden", // Prevent full page scroll
-                display: "flex",
-                flexDirection: "column",
             }}
         >
             <Box sx={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
                 <ThemeSwitch />
             </Box>
 
-            <Container
-                maxWidth="xl"
-                sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    pt: 3,
-                    pb: 3
-                }}
-            >
-                {/* Header - Compact */}
-                <Stack direction="row" alignItems="center" spacing={2} mb={2} flexShrink={0}>
-                    <IconButton onClick={() => router.push("/kiosk")} color="primary" sx={{
-                        bgcolor: alpha(theme.palette.background.paper, 0.5),
-                        "&:hover": { bgcolor: alpha(theme.palette.background.paper, 0.8) }
-                    }}>
+            <Container maxWidth="lg">
+                {/* Header */}
+                <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+                    <IconButton
+                        onClick={() => router.push("/kiosk")}
+                        sx={{
+                            bgcolor: alpha(theme.palette.background.paper, 0.5),
+                            "&:hover": { bgcolor: alpha(theme.palette.background.paper, 0.8) },
+                        }}
+                    >
                         <ArrowBack />
                     </IconButton>
                     <Typography variant="h5" fontWeight="bold">
@@ -230,111 +208,124 @@ export default function KioskMarkPage() {
                     </Typography>
                 </Stack>
 
-                <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="stretch" sx={{ flex: 1, minHeight: 0 }}>
-                    {/* Left: Camera and Clock */}
-                    <Box flex={1} sx={{ display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto" }}>
-                        <Stack spacing={2} sx={{ height: "100%" }}>
-                            {/* Live Clock - More compact */}
-                            <Paper variant="outlined" sx={{
+                {/* Main Content */}
+                <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
+                    {/* Left Column: Clock & Camera */}
+                    <Stack spacing={3} sx={{ flex: 1, width: "100%" }}>
+                        {/* Clock */}
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 2,
                                 textAlign: "center",
-                                py: 2,
-                                px: 2,
                                 borderRadius: 3,
-                                borderLeft: '6px solid',
-                                borderLeftColor: 'primary.main',
                                 bgcolor: alpha(theme.palette.background.paper, 0.6),
                                 backdropFilter: "blur(20px)",
-                                boxShadow: '0 4px 20px -2px rgba(0,0,0,0.1)',
-                                flexShrink: 0,
-                            }}>
-                                <Stack direction="row" alignItems="center" justifyContent="center" spacing={2}>
-                                    <AccessTime sx={{ fontSize: 32, color: 'primary.main' }} />
-                                    <Box>
-                                        <Typography variant="h3" fontWeight="800" sx={{ letterSpacing: -1, lineHeight: 1 }}>
-                                            {currentTime.format("HH:mm:ss")}
-                                        </Typography>
-                                        <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                                            {currentTime.format("dddd, D MMMM YYYY")}
-                                        </Typography>
-                                    </Box>
-                                </Stack>
-                            </Paper>
+                            }}
+                        >
+                            <Stack direction="row" alignItems="center" justifyContent="center" spacing={2}>
+                                <AccessTime sx={{ fontSize: 32, color: "primary.main" }} />
+                                <Box>
+                                    <Typography variant="h3" fontWeight="800" sx={{ letterSpacing: -1, lineHeight: 1 }}>
+                                        {currentTime.format("HH:mm:ss")}
+                                    </Typography>
+                                    <Typography variant="subtitle2" color="text.secondary" fontWeight={500}>
+                                        {currentTime.format("dddd, D MMMM YYYY")}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </Paper>
 
-                            {/* Camera Section - Fills remaining space */}
-                            <Paper
-                                variant="outlined"
+                        {/* Camera Section */}
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 2,
+                                borderRadius: 4,
+                                bgcolor: alpha(theme.palette.background.paper, 0.6),
+                                backdropFilter: "blur(20px)",
+                            }}
+                        >
+                            <Box
                                 sx={{
-                                    p: 2,
-                                    borderRadius: 4,
-                                    bgcolor: alpha(theme.palette.background.paper, 0.6),
-                                    backdropFilter: "blur(20px)",
-                                    flex: 1,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    minHeight: 0,
+                                    position: "relative",
+                                    width: "100%",
+                                    height: { xs: "50vh", sm: "60vh", md: "500px" },
+                                    bgcolor: "black",
+                                    borderRadius: 2,
+                                    overflow: "hidden",
+                                    mb: 2,
                                 }}
                             >
-                                <Box
-                                    sx={{
-                                        position: "relative",
-                                        flex: 1,
-                                        width: "100%",
-                                        bgcolor: "black",
-                                        borderRadius: 3,
-                                        overflow: "hidden",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        mb: 2,
-                                        minHeight: 0,
-                                    }}
-                                >
-                                    {!cameraActive ? (
-                                        <Box textAlign="center">
-                                            <Videocam sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-                                            <Typography color="text.secondary">Starting Camera...</Typography>
-                                        </Box>
-                                    ) : (
-                                        <>
-                                            <video
-                                                ref={videoRef}
-                                                autoPlay
-                                                playsInline
-                                                style={{
-                                                    width: "100%",
-                                                    height: "100%",
-                                                    objectFit: "contain", // contain ensuring full view
-                                                }}
-                                            />
-                                            {/* Face detection overlay */}
-                                            <Box
-                                                sx={{
-                                                    position: "absolute",
-                                                    top: "50%",
-                                                    left: "50%",
-                                                    transform: "translate(-50%, -50%)",
-                                                    width: "300px", // fixed size optimal for face
-                                                    height: "400px",
-                                                    border: "2px dashed",
-                                                    borderColor: alpha(theme.palette.success.main, 0.7),
-                                                    borderRadius: "40%",
-                                                    boxShadow: `0 0 0 9999px ${alpha('#000', 0.5)}`,
-                                                    pointerEvents: "none",
-                                                    position: "absolute",
-                                                    top: "50%",
-                                                    left: "50%",
-                                                    transform: "translate(-50%, -50%)",
-                                                }}
-                                            />
-                                        </>
-                                    )}
-                                </Box>
+                                {!cameraActive ? (
+                                    <Box
+                                        sx={{
+                                            height: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            flexDirection: "column",
+                                        }}
+                                    >
+                                        <Videocam sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+                                        <Typography color="text.secondary">Starting Camera...</Typography>
+                                    </Box>
+                                ) : (
+                                    <>
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                objectFit: "cover",
+                                            }}
+                                        />
+                                        <Box
+                                            sx={{
+                                                position: "absolute",
+                                                top: "50%",
+                                                left: "50%",
+                                                transform: "translate(-50%, -50%)",
+                                                width: { xs: "70%", sm: "300px" },
+                                                height: { xs: "50%", sm: "400px" },
+                                                maxWidth: "300px",
+                                                maxHeight: "400px",
+                                                border: "2px dashed",
+                                                borderColor: alpha(theme.palette.success.main, 0.7),
+                                                borderRadius: "40%",
+                                                boxShadow: `0 0 0 9999px ${alpha("#000", 0.5)}`,
+                                                pointerEvents: "none",
+                                            }}
+                                        />
+                                    </>
+                                )}
+                            </Box>
 
-                                {/* Hidden canvas for capture */}
-                                <canvas ref={canvasRef} style={{ display: "none" }} />
+                            <canvas ref={canvasRef} style={{ display: "none" }} />
 
-                                {/* Mark Attendance Button */}
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                                {cameraActive && (
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="large"
+                                        startIcon={<VideocamOff />}
+                                        onClick={stopCamera}
+                                        sx={{
+                                            py: 2,
+                                            fontSize: "1.1rem",
+                                            borderRadius: 3,
+                                            textTransform: "none",
+                                            fontWeight: 700,
+                                            display: { xs: "flex", md: "none" } // Only show on mobile/tablet
+                                        }}
+                                    >
+                                        Stop Camera
+                                    </Button>
+                                )}
                                 <Button
                                     fullWidth
                                     variant="contained"
@@ -347,128 +338,123 @@ export default function KioskMarkPage() {
                                             <FaceRetouchingNatural sx={{ fontSize: 24 }} />
                                         )
                                     }
-                                    onClick={captureAndMark}
-                                    disabled={loading || !cameraActive}
+                                    onClick={cameraActive ? captureAndMark : startCamera}
+                                    disabled={loading}
                                     sx={{
                                         py: 2,
                                         fontSize: "1.1rem",
                                         borderRadius: 3,
-                                        textTransform: 'none',
+                                        textTransform: "none",
                                         fontWeight: 700,
-                                        flexShrink: 0
                                     }}
                                 >
-                                    {loading ? "Verifying..." : "Mark Attendance"}
+                                    {loading ? "Verifying..." : (cameraActive ? "Mark Attendance" : "Start Camera")}
                                 </Button>
-
-                                {/* Error Alert */}
-                                {error && (
-                                    <Alert severity="error" icon={<Error />} onClose={() => setError("")} sx={{ mt: 1, borderRadius: 2 }}>
-                                        {error}
-                                    </Alert>
-                                )}
-
-                                {/* Success Result */}
-                                {lastResult && (
-                                    <Alert
-                                        severity="success"
-                                        icon={<CheckCircle fontSize="large" />}
-                                        sx={{ mt: 1, borderRadius: 2, alignItems: 'center' }}
-                                    >
-                                        <Typography variant="subtitle1" fontWeight="bold">
-                                            {lastResult.employeeName} - {lastResult.type.toUpperCase()}
-                                        </Typography>
-                                    </Alert>
-                                )}
-                            </Paper>
-                        </Stack>
-                    </Box>
-
-                    {/* Right: Recent Attendance - Scrollable independent list */}
-                    <Box width={{ xs: "100%", md: 350, lg: 400 }} sx={{ height: "100%", minHeight: 0 }}>
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2,
-                                borderRadius: 4,
-                                bgcolor: alpha(theme.palette.background.paper, 0.6),
-                                backdropFilter: "blur(20px)",
-                                height: "100%",
-                                display: 'flex',
-                                flexDirection: 'column',
-                                overflow: "hidden"
-                            }}
-                        >
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} flexShrink={0}>
-                                <Typography variant="h6" fontWeight="800">
-                                    Recent Activity
-                                </Typography>
-                                <Chip label="Live" color="error" size="small" sx={{
-                                    height: 20,
-                                    animation: 'pulse 2s infinite',
-                                    '@keyframes pulse': {
-                                        '0%': { opacity: 1 },
-                                        '50%': { opacity: 0.5 },
-                                        '100%': { opacity: 1 },
-                                    }
-                                }} />
                             </Stack>
-                            <Divider sx={{ mb: 2 }} />
 
-                            <Stack spacing={1.5} sx={{ flex: 1, overflowY: 'auto', pr: 1 }}>
-                                {recentAttendance.length === 0 ? (
-                                    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" height="100%" color="text.secondary" opacity={0.6}>
-                                        <AccessTime sx={{ fontSize: 40, mb: 1 }} />
-                                        <Typography variant="body2">No recent records</Typography>
-                                    </Box>
-                                ) : (
-                                    recentAttendance.map((record, idx) => (
-                                        <Card key={idx} variant="outlined" sx={{
-                                            bgcolor: alpha(theme.palette.background.paper, 0.4),
-                                            '&:hover': { bgcolor: alpha(theme.palette.background.paper, 0.8) }
-                                        }}>
-                                            <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                                                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                                    <Stack direction="row" spacing={1.5} alignItems="center">
-                                                        <Box
-                                                            sx={{
-                                                                width: 36,
-                                                                height: 36,
-                                                                borderRadius: '50%',
-                                                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                                color: theme.palette.primary.main,
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '0.9rem'
-                                                            }}
-                                                        >
-                                                            {record.employeeName.charAt(0)}
-                                                        </Box>
-                                                        <Box>
-                                                            <Typography variant="subtitle2" fontWeight="bold" noWrap sx={{ maxWidth: 140 }}>
-                                                                {record.employeeName}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {dayjs(record.timestamp).fromNow()}
-                                                            </Typography>
-                                                        </Box>
-                                                    </Stack>
-                                                    <Chip
-                                                        label={record.type === "in" ? "IN" : "OUT"}
-                                                        size="small"
-                                                        color={record.type === "in" ? "success" : "warning"}
-                                                        sx={{ height: 20, fontWeight: 'bold', fontSize: '0.7rem' }}
-                                                    />
-                                                </Stack>
-                                            </CardContent>
-                                        </Card>
-                                    ))
-                                )}
-                            </Stack>
+                            {error && (
+                                <Alert severity="error" icon={<ErrorIcon />} onClose={() => setError("")} sx={{ mt: 2, borderRadius: 2 }}>
+                                    {error}
+                                </Alert>
+                            )}
+
+                            {lastResult && (
+                                <Alert
+                                    severity="success"
+                                    icon={<CheckCircle fontSize="large" />}
+                                    sx={{ mt: 2, borderRadius: 2 }}
+                                >
+                                    <Typography variant="subtitle1" fontWeight="bold">
+                                        {lastResult.employeeName} - {lastResult.type.toUpperCase()}
+                                    </Typography>
+                                </Alert>
+                            )}
                         </Paper>
-                    </Box>
+                    </Stack>
+
+                    {/* Right Column: Recent Activity */}
+                    {recentAttendance.length > 0 && (
+                        <Box sx={{ width: { xs: "100%", md: 350 }, flexShrink: 0 }}>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 4,
+                                    bgcolor: alpha(theme.palette.background.paper, 0.6),
+                                    backdropFilter: "blur(20px)",
+                                }}
+                            >
+                                <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                                    <AccessTime color="primary" />
+                                    <Typography variant="h6" fontWeight="bold">
+                                        Recent Activity
+                                    </Typography>
+                                    <Chip
+                                        label="Live"
+                                        color="error"
+                                        size="small"
+                                        sx={{
+                                            height: 20,
+                                            animation: "pulse 2s infinite",
+                                            "@keyframes pulse": {
+                                                "0%, 100%": { opacity: 1 },
+                                                "50%": { opacity: 0.5 },
+                                            },
+                                        }}
+                                    />
+                                </Stack>
+                                <Divider sx={{ mb: 2 }} />
+                                <Stack spacing={1.5}>
+                                    {recentAttendance.map((record, idx) => (
+                                        <Paper
+                                            key={idx}
+                                            elevation={0}
+                                            sx={{
+                                                p: 1.5,
+                                                borderRadius: 2,
+                                                bgcolor:
+                                                    record.type === "in"
+                                                        ? alpha(theme.palette.success.main, 0.1)
+                                                        : alpha(theme.palette.info.main, 0.1),
+                                                border: "1px solid",
+                                                borderColor:
+                                                    record.type === "in"
+                                                        ? alpha(theme.palette.success.main, 0.3)
+                                                        : alpha(theme.palette.info.main, 0.3),
+                                            }}
+                                        >
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <Avatar
+                                                    sx={{
+                                                        width: 36,
+                                                        height: 36,
+                                                        bgcolor: record.type === "in" ? "success.main" : "info.main",
+                                                        fontSize: "0.9rem",
+                                                    }}
+                                                >
+                                                    {record.employeeName.charAt(0)}
+                                                </Avatar>
+                                                <Box flex={1} minWidth={0}>
+                                                    <Typography variant="subtitle2" fontWeight="600" noWrap>
+                                                        {record.employeeName}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {dayjs(record.timestamp).fromNow()}
+                                                    </Typography>
+                                                </Box>
+                                                <Chip
+                                                    label={record.type.toUpperCase()}
+                                                    size="small"
+                                                    color={record.type === "in" ? "success" : "info"}
+                                                    sx={{ fontWeight: 700, minWidth: 45 }}
+                                                />
+                                            </Stack>
+                                        </Paper>
+                                    ))}
+                                </Stack>
+                            </Paper>
+                        </Box>
+                    )}
                 </Stack>
             </Container>
         </Box>

@@ -463,7 +463,7 @@ const AddEmployeeForm: React.FC<{
                 <MenuItem value="">
                   <em>None</em>
                 </MenuItem>
-                {employeesData?.map((emp: any) => (
+                {Array.isArray(employeesData) && employeesData.map((emp: any) => (
                   <MenuItem key={emp._id} value={emp._id}>
                     {emp.name} ({emp.memberNo})
                   </MenuItem>

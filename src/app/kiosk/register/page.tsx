@@ -28,9 +28,12 @@ import {
     Videocam,
 } from "@mui/icons-material";
 import { getEmployees, registerFace, Employee } from "@/app/lib/api/kioskApi";
+import { detectFace, loadModels } from "@/app/lib/faceRecognition";
+import { ThemeSwitch } from "@/app/theme-provider";
 
 export default function KioskRegisterPage() {
     const router = useRouter();
+    const theme = useTheme();
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -42,8 +45,9 @@ export default function KioskRegisterPage() {
     const [success, setSuccess] = useState("");
     const [cameraActive, setCameraActive] = useState(false);
     const [capturedImages, setCapturedImages] = useState<string[]>([]);
+    const [stream, setStream] = useState<MediaStream | null>(null);
 
-    // Check API key on mount
+    // Check API key on mount and load models
     useEffect(() => {
         const storedKey = localStorage.getItem("kiosk_api_key");
         if (!storedKey) {
@@ -52,7 +56,19 @@ export default function KioskRegisterPage() {
         }
         setApiKey(storedKey);
         loadEmployees(storedKey);
+        loadModels().catch(console.error);
     }, []);
+
+    // Attach stream to video element when both are ready
+    useEffect(() => {
+        if (stream && videoRef.current && cameraActive) {
+            console.log("Attaching stream to video element");
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(err => {
+                console.error("Play error:", err);
+            });
+        }
+    }, [stream, cameraActive]);
 
     const loadEmployees = async (key: string) => {
         setLoading(true);
@@ -67,27 +83,40 @@ export default function KioskRegisterPage() {
     };
 
     const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: 640, height: 480 },
-            });
+        if (cameraActive) {
+            console.log("Camera already active");
+            return;
+        }
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                setCameraActive(true);
-            }
-        } catch (err) {
-            setError("Failed to access camera. Please grant camera permissions.");
+        setError(""); // Clear previous errors
+
+        try {
+            console.log("Requesting camera access...");
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+            });
+            console.log("Camera access granted, stream:", mediaStream);
+
+            // Store stream in state and set camera active
+            // The useEffect will attach it to the video element
+            setStream(mediaStream);
+            setCameraActive(true);
+            console.log("Camera activated, stream stored");
+        } catch (err: any) {
+            console.error("Camera Error:", err);
+            setError(`Camera access failed: ${err.message || err.name}. Please grant camera permissions.`);
         }
     };
 
     const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
+        if (stream) {
             stream.getTracks().forEach((track) => track.stop());
-            videoRef.current.srcObject = null;
-            setCameraActive(false);
+            setStream(null);
         }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        setCameraActive(false);
     };
 
     const captureImage = () => {
@@ -102,19 +131,18 @@ export default function KioskRegisterPage() {
         const ctx = canvas.getContext("2d");
         if (ctx) {
             ctx.drawImage(video, 0, 0);
-            const imageData = canvas.toDataURL("image/jpeg", 0.8);
-            setCapturedImages((prev) => [...prev, imageData]);
+            const imageData = canvas.toDataURL("image/jpeg", 0.9); // Higher quality for recognition
+            if (capturedImages.length < 1) { // Limit to 1 good image for now for simplicity, or keep list
+                setCapturedImages([imageData]); // Just keep the latest for now if we want single shot
+            }
         }
     };
 
     const handleRegister = async () => {
-        if (!selectedEmployee) {
-            setError("Please select an employee");
-            return;
-        }
+        const currentSelectedEmployee = employees.find(e => e._id === selectedEmployee);
 
-        if (capturedImages.length === 0) {
-            setError("Please capture at least one image");
+        if (!currentSelectedEmployee || capturedImages.length === 0) {
+            setError("Please select an employee and capture an image.");
             return;
         }
 
@@ -123,34 +151,50 @@ export default function KioskRegisterPage() {
         setSuccess("");
 
         try {
-            // Generate placeholder face descriptor (128 dimensions)
-            // In production, this would use face-api.js to extract real descriptors
-            const placeholderDescriptor = Array.from({ length: 128 }, () => Math.random());
+            // Process the first captured image
+            const imageSrc = capturedImages[0];
+            const img = new Image();
+            img.src = imageSrc;
+            await img.decode();
 
-            await registerFace(apiKey, selectedEmployee, {
-                descriptor: placeholderDescriptor,
-                images: capturedImages,
+            // Detect face and extract descriptor using face-api.js
+            const detection = await detectFace(img);
+
+            if (!detection) {
+                setError("No face detected! Please ensure your face is clearly visible and try again.");
+                setLoading(false);
+                return;
+            }
+
+            const faceDescriptor = Array.from(detection.descriptor); // Convert Float32Array to number[]
+
+            const successRegistration = await registerFace(apiKey, currentSelectedEmployee._id, {
+                descriptor: faceDescriptor,
+                image: imageSrc,
             });
 
-            setSuccess("Face registered successfully!");
-            setCapturedImages([]);
-            setSelectedEmployee("");
-            stopCamera();
+            if (successRegistration) {
+                setSuccess("Face registered successfully! Redirecting...");
+                setCapturedImages([]);
+                setSelectedEmployee("");
+                stopCamera();
 
-            // Reload employees to update hasFaceData status
-            await loadEmployees(apiKey);
+                // Reload employees to update hasFaceData status
+                await loadEmployees(apiKey);
+
+                setTimeout(() => {
+                    router.push("/kiosk");
+                }, 2000);
+            } else {
+                setError("Failed to register face. Please try again.");
+            }
         } catch (err: any) {
-            setError(err.message || "Failed to register face");
+            console.error(err);
+            setError(err.message || "An unexpected error occurred during registration.");
         } finally {
             setLoading(false);
         }
     };
-
-    import { ThemeSwitch } from "@/app/theme-provider";
-
-    const selectedEmp = employees.find((e) => e._id === selectedEmployee);
-
-    const theme = useTheme();
 
     const gradientBackground =
         theme.palette.mode === "dark"
@@ -257,6 +301,7 @@ export default function KioskRegisterPage() {
                                     ref={videoRef}
                                     autoPlay
                                     playsInline
+                                    muted // Ensure no feedback loop
                                     style={{
                                         width: "100%",
                                         height: "100%",
@@ -278,7 +323,7 @@ export default function KioskRegisterPage() {
                                     onClick={captureImage}
                                     disabled={!selectedEmployee}
                                 >
-                                    Capture ({capturedImages.length}/5)
+                                    Capture Image
                                 </Button>
                                 <Button variant="outlined" color="error" onClick={stopCamera}>
                                     Stop Camera
@@ -290,7 +335,7 @@ export default function KioskRegisterPage() {
                         {capturedImages.length > 0 && (
                             <Box>
                                 <Typography variant="subtitle2" gutterBottom>
-                                    Captured Images ({capturedImages.length})
+                                    Captured Image
                                 </Typography>
                                 <Stack direction="row" spacing={1} flexWrap="wrap">
                                     {capturedImages.map((img, idx) => (
@@ -299,8 +344,8 @@ export default function KioskRegisterPage() {
                                             component="img"
                                             src={img}
                                             sx={{
-                                                width: 80,
-                                                height: 80,
+                                                width: 100,
+                                                height: 100,
                                                 objectFit: "cover",
                                                 borderRadius: 1,
                                                 border: "2px solid",
@@ -334,7 +379,7 @@ export default function KioskRegisterPage() {
                             fullWidth
                             variant="contained"
                             size="large"
-                            startIcon={loading ? <CircularProgress size={20} /> : <PersonAdd />}
+                            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PersonAdd />}
                             onClick={handleRegister}
                             disabled={loading || !selectedEmployee || capturedImages.length === 0}
                             sx={{ py: 1.5 }}
@@ -351,9 +396,9 @@ export default function KioskRegisterPage() {
                                 <br />
                                 2. Start the camera and position your face in the frame
                                 <br />
-                                3. Capture 3-5 images from different angles
+                                3. Capture a clear image of your face
                                 <br />
-                                4. Click "Register Face" to save
+                                4. Click "Register Face" to complete setup
                             </Typography>
                         </Alert>
                     </Stack>

@@ -5,6 +5,8 @@ import Attendance from "@/app/models/Attendance";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "@/app/lib/errorHandler";
 import { z } from "zod";
 
+import { getNextAttendanceType, getAttendanceTypeExplanation } from "@/app/lib/attendanceTypeLogic";
+
 // Validation schemas
 export const validateApiKeySchema = z.object({
     apiKey: z.string().min(1, "API key is required"),
@@ -148,17 +150,21 @@ export class KioskService {
     ) {
         await dbConnect();
 
+        // Log raw request
+        console.log(`\n========== [KIOSK] RAW ATTENDANCE REQUEST ==========`);
+        console.log(`API Key: ${apiKey.substring(0, 8)}...`);
+        console.log(`Face Descriptor Length: ${faceData.descriptor.length}`);
+        console.log(`Face Descriptor Sample (first 5):`, faceData.descriptor.slice(0, 5));
+        console.log(`Location:`, location ? `${location.latitude}, ${location.longitude}` : 'Not provided');
+        console.log(`Device ID: ${deviceId || 'Not provided'}`);
+        console.log(`Timestamp: ${timestamp || new Date().toISOString()}`);
+        console.log(`Has Image: ${!!faceData.image}`);
+        console.log(`====================================================\n`);
+
         // Validate API key
         const companyInfo = await this.validateApiKey(apiKey);
 
         console.log(`[KIOSK] Attendance marking attempt for company: ${companyInfo.companyName}`);
-        console.log(`[KIOSK] Face descriptor length: ${faceData.descriptor.length}`);
-        console.log(`[KIOSK] Location:`, location);
-        console.log(`[KIOSK] Device ID: ${deviceId}`);
-        console.log(`[KIOSK] Timestamp: ${timestamp || new Date().toISOString()}`);
-
-        // TODO: Implement face comparison logic
-        // For now, return a placeholder response
 
         // Get all employees with face data for this company
         const employees = await Employee.find({
@@ -171,44 +177,74 @@ export class KioskService {
 
         console.log(`[KIOSK] Found ${employees.length} employees with registered faces`);
 
-        // Placeholder: Compare with first employee (will be replaced with actual comparison)
         if (employees.length === 0) {
-            throw new BadRequestError("No employees with registered faces found");
+            throw new BadRequestError("No employees with registered faces found for this company");
         }
 
-        // TODO: Implement actual face comparison using euclidean distance
-        // const bestMatch = await this.findBestFaceMatch(faceData.descriptor, employees);
+        // Find best match
+        const matchResult = await this.findBestFaceMatch(faceData.descriptor, employees);
 
-        // For now, use first employee as placeholder
-        const matchedEmployee = employees[0];
+        if (!matchResult) {
+            console.log(`[KIOSK] No matching face found (Threshold: 0.6)`);
+            throw new BadRequestError("Face not recognized. Please try again.");
+        }
 
-        console.log(`[KIOSK] PLACEHOLDER: Matched with employee: ${matchedEmployee.name}`);
+        const { employee: matchedEmployee, confidence, distance } = matchResult;
 
-        // Determine if this is check-in or check-out
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        console.log(`\n[KIOSK] ✓ MATCH FOUND: ${matchedEmployee.name} (${matchedEmployee.memberNo})`);
+        console.log(`[KIOSK] Confidence: ${(confidence * 100).toFixed(2)}% | Distance: ${distance.toFixed(4)}`);
 
-        const lastAttendance = await Attendance.findOne({
+        // Check for recent attendance (5-minute cooldown)
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const recentAttendance = await Attendance.findOne({
             employee: matchedEmployee._id,
-            timestamp: { $gte: today },
+            timestamp: { $gte: fiveMinutesAgo },
         }).sort({ timestamp: -1 });
 
-        const attendanceType = !lastAttendance || lastAttendance.type === "out" ? "in" : "out";
+        if (recentAttendance) {
+            const timeSinceLastMark = Math.floor((Date.now() - recentAttendance.timestamp.getTime()) / 1000);
+            const timeRemaining = 300 - timeSinceLastMark; // 5 minutes = 300 seconds
+            console.log(`[KIOSK] ✗ REJECTED: Recent attendance found (${timeSinceLastMark}s ago)`);
+            throw new BadRequestError(
+                `Please wait ${Math.ceil(timeRemaining / 60)} more minute(s) before marking attendance again.`
+            );
+        }
 
-        console.log(`[KIOSK] Attendance type: ${attendanceType}`);
-        console.log(`[KIOSK] Last attendance:`, lastAttendance ? lastAttendance.type : "none");
+        // Get last attendance to determine type using centralized logic
+        const lastAttendance = await Attendance.findOne({
+            employee: matchedEmployee._id,
+        }).sort({ timestamp: -1 }).lean();
 
-        // Return placeholder response
+        // Use centralized attendance type logic
+        const attendanceTypeResult = getNextAttendanceType(lastAttendance);
+        const explanation = getAttendanceTypeExplanation(attendanceTypeResult);
+
+        console.log(`\n[KIOSK] Attendance Type Determination:`);
+        console.log(`[KIOSK] → Next Type: ${attendanceTypeResult.nextType.toUpperCase()}`);
+        console.log(`[KIOSK] → Reason: ${attendanceTypeResult.reason}`);
+        console.log(`[KIOSK] → Explanation: ${explanation}`);
+        if (attendanceTypeResult.hoursSinceLastIn) {
+            console.log(`[KIOSK] → Hours Since Last IN: ${attendanceTypeResult.hoursSinceLastIn.toFixed(2)}`);
+        }
+
+        console.log(`\n[KIOSK] ⚠️  LOG ONLY MODE: Attendance NOT saved to database`);
+        console.log(`[KIOSK] Would mark: ${attendanceTypeResult.nextType.toUpperCase()} for ${matchedEmployee.name}\n`);
+
+        // Prepare timestamp
+        const eventTime = timestamp ? new Date(timestamp) : new Date();
+
+        // Return real match response
         return {
             success: true,
             matched: true,
             employeeId: matchedEmployee._id.toString(),
             employeeName: matchedEmployee.name,
             memberNo: matchedEmployee.memberNo,
-            type: attendanceType,
-            timestamp: timestamp || new Date().toISOString(),
-            verified: true, // Placeholder
-            confidence: 0.95, // Placeholder confidence score
+            type: attendanceTypeResult.nextType,
+            timestamp: eventTime.toISOString(),
+            verified: true,
+            confidence: confidence,
+            attendanceTypeReason: attendanceTypeResult.reason,
         };
     }
 
