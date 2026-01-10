@@ -72,6 +72,7 @@ export default function KioskMarkPage() {
         shiftName?: string;
     } | null>(null);
     const [overlayOpen, setOverlayOpen] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
 
     // Auto-hide overlay after 3 seconds
     useEffect(() => {
@@ -114,7 +115,9 @@ export default function KioskMarkPage() {
             console.warn("Could not validate key or fetch company name");
         });
 
-        loadModels().catch(console.error);
+        loadModels()
+            .then(() => setModelsLoaded(true))
+            .catch(console.error);
         startCamera();
     }, []);
 
@@ -209,7 +212,7 @@ export default function KioskMarkPage() {
                 return;
             }
 
-            const faceDescriptor = Array.from(detection.descriptor);
+            const faceDescriptor = Array.from(detection.descriptor) as number[];
 
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
@@ -474,7 +477,7 @@ export default function KioskMarkPage() {
                                         )
                                     }
                                     onClick={cameraActive ? captureAndMark : startCamera}
-                                    disabled={loading}
+                                    disabled={loading || !modelsLoaded}
                                     sx={{
                                         py: 1.5,
                                         fontSize: "1.1rem",
@@ -484,7 +487,7 @@ export default function KioskMarkPage() {
                                         boxShadow: "none",
                                     }}
                                 >
-                                    {loading ? "Verifying..." : (cameraActive ? "Mark Attendance Now" : "Start Camera")}
+                                    {!modelsLoaded ? "Loading Models..." : (loading ? "Verifying..." : (cameraActive ? "Mark Attendance Now" : "Start Camera"))}
                                 </Button>
                             </Stack>
 

@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { getNextAttendanceType, getAttendanceTypeExplanation } from "@/app/lib/attendanceTypeLogic";
 import { ShiftService } from "@/app/lib/services/shiftService";
+import { detectSpoofing } from "@/app/lib/antiSpoofing";
 
 // Validation schemas
 export const validateApiKeySchema = z.object({
@@ -133,7 +134,7 @@ export class KioskService {
 
         return {
             success: true,
-            employeeId: employee._id.toString(),
+            employeeId: (employee._id as any).toString(),
             employeeName: employee.name,
         };
     }
@@ -184,19 +185,21 @@ export class KioskService {
         }
 
         // Find best match using the first descriptor (from live capture)
+        const matchStartTime = Date.now();
         const matchResult = await this.findBestFaceMatch(faceData.descriptors[0], employees);
+        const matchTime = Date.now() - matchStartTime;
 
         if (!matchResult) {
-            console.log(`[KIOSK] No matching face found (Threshold: 0.6)`);
+            console.log(`[KIOSK] No matching face found (Threshold: 0.6) - Match time: ${matchTime}ms`);
             throw new BadRequestError("Face not recognized. Please try again.");
         }
 
         const { employee: matchedEmployee, confidence, distance } = matchResult;
 
         console.log(`\n[KIOSK] ✓ MATCH FOUND: ${matchedEmployee.name} (${matchedEmployee.memberNo})`);
-        console.log(`[KIOSK] Confidence: ${(confidence * 100).toFixed(2)}% | Distance: ${distance.toFixed(4)}`);
+        console.log(`[KIOSK] Confidence: ${(confidence * 100).toFixed(2)}% | Distance: ${distance.toFixed(4)} | Match time: ${matchTime}ms`);
 
-        // Check for recent attendance (5-minute cooldown)
+        // Check for recent attendance (5-minute cooldown) - BEFORE anti-spoofing to save computation
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         const recentAttendance = await Attendance.findOne({
             employee: matchedEmployee._id,
@@ -211,6 +214,51 @@ export class KioskService {
                 `Please wait ${Math.ceil(timeRemaining / 60)} more minute(s) before marking attendance again.`
             );
         }
+
+        // Anti-spoofing check (if enabled and image provided)
+        if (companyInfo.attendanceConfig?.livenessDetection && faceData.image) {
+            try {
+                const startTime = Date.now();
+                console.log('[KIOSK] Running anti-spoofing detection...');
+                const spoofResult = await detectSpoofing(faceData.image);
+                const inferenceTime = Date.now() - startTime;
+
+                if (!spoofResult.isReal) {
+                    console.warn('[KIOSK] ⚠️ SPOOF DETECTED:', {
+                        confidence: spoofResult.confidence.toFixed(3),
+                        score: spoofResult.score.toFixed(3),
+                        employee: matchedEmployee.name,
+                        deviceId,
+                        inferenceTime: `${inferenceTime}ms`,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    throw new BadRequestError(
+                        `Spoofing detected! Confidence: ${(spoofResult.confidence * 100).toFixed(1)}%. ` +
+                        `Please ensure you are using a live camera feed, not a photo or video.`
+                    );
+                }
+
+                console.log('[KIOSK] ✓ Anti-spoofing passed:', {
+                    confidence: spoofResult.confidence.toFixed(3),
+                    score: spoofResult.score.toFixed(3),
+                    inferenceTime: `${inferenceTime}ms`
+                });
+            } catch (err: any) {
+                // If anti-spoofing fails due to model error, log but allow attendance
+                // (fail-open approach for better UX)
+                if (err.message?.includes('not found') || err.message?.includes('model')) {
+                    console.error('[KIOSK] Anti-spoofing model error (allowing attendance):', err.message);
+                } else {
+                    // Re-throw spoofing detection errors
+                    throw err;
+                }
+            }
+        } else if (companyInfo.attendanceConfig?.livenessDetection) {
+            console.log('[KIOSK] Anti-spoofing enabled but no image provided, skipping check');
+        }
+
+
 
         // Get last attendance to determine type using centralized logic
         const lastAttendance = await Attendance.findOne({
@@ -296,7 +344,7 @@ export class KioskService {
             } : undefined
         });
 
-        console.log(`[KIOSK] ✓ SAVED: Attendance ID ${attendance._id} for ${matchedEmployee.name}`);
+        console.log(`[KIOSK] ✓ SAVED: Attendance ID ${(attendance._id as any)} for ${matchedEmployee.name}`);
 
         // Return real match response
         return {
@@ -310,7 +358,7 @@ export class KioskService {
             verified: true,
             confidence: confidence,
             attendanceTypeReason: attendanceTypeResult.reason,
-            attendanceId: attendance._id.toString(),
+            attendanceId: (attendance._id as any).toString(),
             shiftName: resolvedShift?.name // Return shift name to frontend
         };
     }

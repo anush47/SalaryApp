@@ -24,6 +24,6 @@ export async function POST(req: NextRequest) {
         }
 
         // Let error handler middleware handle other errors
-        return ApiResponseUtils.sendError(error);
+        return ApiResponseUtils.sendError((error as any).message || String(error));
     }
 }

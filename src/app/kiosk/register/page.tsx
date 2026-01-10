@@ -30,7 +30,7 @@ import {
     Videocam,
     Home,
 } from "@mui/icons-material";
-import { getEmployees, registerFace, Employee } from "@/app/lib/api/kioskApi";
+import { getEmployees, registerFace, Employee, validateApiKey } from "@/app/lib/api/kioskApi";
 import { detectFace, loadModels } from "@/app/lib/faceRecognition";
 import { ThemeSwitch } from "@/app/theme-provider";
 
@@ -41,6 +41,7 @@ export default function KioskRegisterPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const [apiKey, setApiKey] = useState("");
+    const [companyName, setCompanyName] = useState("");
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedEmployee, setSelectedEmployee] = useState("");
     const [loading, setLoading] = useState(false);
@@ -51,6 +52,8 @@ export default function KioskRegisterPage() {
     const [currentStep, setCurrentStep] = useState(0); // 0: Center, 1: Turn Left, 2: Turn Right
     const [capturedDescriptors, setCapturedDescriptors] = useState<number[][]>([]);
     const [stepImages, setStepImages] = useState<string[]>([]);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [employeesLoading, setEmployeesLoading] = useState(false);
 
     const steps = [
         { label: "Look Center", instruction: "Look directly at the camera" },
@@ -71,7 +74,16 @@ export default function KioskRegisterPage() {
         }
         setApiKey(storedKey);
         loadEmployees(storedKey);
-        loadModels().catch(console.error);
+
+        validateApiKey(storedKey).then(info => {
+            setCompanyName(info.companyName);
+        }).catch(() => {
+            console.warn("Could not fetch company name");
+        });
+
+        loadModels()
+            .then(() => setModelsLoaded(true))
+            .catch(console.error);
     }, []);
 
     // Attach stream to video element when both are ready
@@ -95,14 +107,14 @@ export default function KioskRegisterPage() {
     }, [stream]);
 
     const loadEmployees = async (key: string) => {
-        setLoading(true);
+        setEmployeesLoading(true);
         try {
             const emps = await getEmployees(key);
             setEmployees(emps);
         } catch (err: any) {
             setError(err.message || "Failed to load employees");
         } finally {
-            setLoading(false);
+            setEmployeesLoading(false);
         }
     };
 
@@ -286,9 +298,24 @@ export default function KioskRegisterPage() {
                     >
                         <ArrowBack />
                     </IconButton>
-                    <Typography variant="h4" fontWeight="bold">
-                        Face Registration
-                    </Typography>
+                    <Box>
+                        <Typography
+                            fontWeight="800"
+                            sx={{
+                                fontSize: { xs: "1.1rem", md: "1.5rem" },
+                                lineHeight: 1.2,
+                                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                                WebkitBackgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                                display: "block"
+                            }}
+                        >
+                            {companyName || "Attendance Kiosk"}
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold">
+                            Face Registration
+                        </Typography>
+                    </Box>
                 </Stack>
 
                 <Paper
@@ -309,7 +336,8 @@ export default function KioskRegisterPage() {
                                 value={selectedEmployee}
                                 onChange={(e) => setSelectedEmployee(e.target.value)}
                                 label="Select Employee"
-                                disabled={loading}
+                                disabled={loading || employeesLoading}
+                                IconComponent={employeesLoading ? () => <CircularProgress size={20} sx={{ mr: 2 }} /> : undefined}
                             >
                                 {employees.map((emp) => (
                                     <MenuItem key={emp._id} value={emp._id}>
@@ -356,9 +384,9 @@ export default function KioskRegisterPage() {
                                         variant="contained"
                                         startIcon={<CameraAlt />}
                                         onClick={startCamera}
-                                        disabled={!selectedEmployee}
+                                        disabled={!selectedEmployee || !modelsLoaded}
                                     >
-                                        Start Camera
+                                        {!modelsLoaded ? "Loading Models..." : "Start Camera"}
                                     </Button>
                                 </Stack>
                             ) : (
@@ -396,10 +424,10 @@ export default function KioskRegisterPage() {
                                                 variant="contained"
                                                 color="primary"
                                                 onClick={handleCapture}
-                                                disabled={loading}
+                                                disabled={loading || !modelsLoaded}
                                                 startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CameraAlt />}
                                             >
-                                                {loading ? "Processing..." : "Capture"}
+                                                {!modelsLoaded ? "Loading Models..." : (loading ? "Processing..." : "Capture")}
                                             </Button>
                                             <Button
                                                 variant="outlined"

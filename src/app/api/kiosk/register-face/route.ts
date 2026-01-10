@@ -17,12 +17,12 @@ export async function POST(req: NextRequest) {
         // Validate session
         const session = await getServerSession(options);
         if (!session || !session.user) {
-            return ApiResponseUtils.sendError(new Error("Unauthorized"), 401);
+            return ApiResponseUtils.sendUnauthorized("Unauthorized");
         }
 
         // Role check
         if (session.user.role !== "employer" && session.user.role !== "admin") {
-            return ApiResponseUtils.sendError(new Error("Forbidden: Access restricted to employers"), 403);
+            return ApiResponseUtils.sendForbidden("Forbidden: Access restricted to employers");
         }
 
         // Validate request body
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
             const companyDoc = await Company.findById(company.companyId).select("user");
 
             if (!companyDoc || companyDoc.user.toString() !== session.user.id) {
-                return ApiResponseUtils.sendError(new Error("Forbidden: You do not own this company"), 403);
+                return ApiResponseUtils.sendForbidden("Forbidden: You do not own this company");
             }
         }
 
@@ -50,6 +50,6 @@ export async function POST(req: NextRequest) {
             return ApiResponseUtils.sendBadRequest(error.errors[0].message);
         }
 
-        return ApiResponseUtils.sendError(error);
+        return ApiResponseUtils.sendError((error as any).message || String(error));
     }
 }

@@ -23,6 +23,6 @@ export async function GET(req: NextRequest) {
             return ApiResponseUtils.sendBadRequest(error.errors[0].message);
         }
 
-        return ApiResponseUtils.sendError(error);
+        return ApiResponseUtils.sendError((error as any).message || String(error));
     }
 }
