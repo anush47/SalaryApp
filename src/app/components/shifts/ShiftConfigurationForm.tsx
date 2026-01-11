@@ -132,7 +132,7 @@ export const ShiftConfigurationForm = ({
     };
 
     return (
-        <Accordion defaultExpanded>
+        <Accordion>
             <AccordionSummary expandIcon={<ExpandMore />}>
                 <Typography variant="h5">Shifts Configuration</Typography>
             </AccordionSummary>
@@ -312,7 +312,10 @@ export const ShiftConfigurationForm = ({
                                     label="Duration (Hours)"
                                     type="number"
                                     value={currentShift?.duration || ""}
-                                    onChange={(e) => setCurrentShift(prev => prev ? ({ ...prev, duration: parseFloat(e.target.value) }) : null)}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        setCurrentShift(prev => prev ? ({ ...prev, duration: isNaN(val) ? 0 : val }) : null);
+                                    }}
                                     fullWidth
                                 />
                             )}
@@ -320,8 +323,11 @@ export const ShiftConfigurationForm = ({
                             <TextField
                                 label="Break Duration (Hours)"
                                 type="number"
-                                value={currentShift?.breakDuration || 0}
-                                onChange={(e) => setCurrentShift(prev => prev ? ({ ...prev, breakDuration: parseFloat(e.target.value) }) : null)}
+                                value={currentShift?.breakDuration ?? 0}
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    setCurrentShift(prev => prev ? ({ ...prev, breakDuration: isNaN(val) ? 0 : val }) : null);
+                                }}
                                 fullWidth
                             />
 

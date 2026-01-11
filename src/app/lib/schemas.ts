@@ -277,6 +277,20 @@ export const employeeUpdateSchema = z.object({
     )
     .optional(),
   shiftSettings: z.object({
+    mode: z.enum(["fixed", "dynamic", "roster", "manual"]).optional(),
+    shifts: z.array(z.object({
+      _id: z.string().optional(),
+      name: z.string(),
+      type: z.enum(["fixed", "dynamic"]),
+      startTime: z.string().optional(),
+      endTime: z.string().optional(),
+      breakDuration: z.number().optional().default(0),
+      duration: z.number().optional(),
+      minStartTime: z.string().optional(),
+      maxStartTime: z.string().optional(),
+      minEndTime: z.string().optional(),
+      maxEndTime: z.string().optional(),
+    })).optional(),
     defaultShiftId: z.string().optional(),
     autoSelect: z.boolean().optional(),
     useShiftStartForOT: z.boolean().optional(),
