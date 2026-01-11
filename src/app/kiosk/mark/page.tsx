@@ -16,6 +16,7 @@ import {
     alpha,
     Avatar,
     Divider,
+    LinearProgress,
 } from "@mui/material";
 import {
     ArrowBack,
@@ -24,6 +25,7 @@ import {
     AccessTime,
     Videocam,
     FaceRetouchingNatural,
+    Security,
 } from "@mui/icons-material";
 import { markAttendance, AttendanceResult, validateApiKey } from "@/app/lib/api/kioskApi";
 import dayjs from "dayjs";
@@ -61,6 +63,7 @@ export default function KioskMarkPage() {
     const [overlayData, setOverlayData] = useState<OverlayData | null>(null);
     const [overlayOpen, setOverlayOpen] = useState(false);
     const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [loadingProgress, setLoadingProgress] = useState(0);
 
     // Auto-hide overlay after 3 seconds
     useEffect(() => {
@@ -164,6 +167,7 @@ export default function KioskMarkPage() {
         setMounted(true);
     }, []);
 
+    // Initialize System (API + Models + Config)
     useEffect(() => {
         const storedKey = localStorage.getItem("kiosk_api_key");
         if (!storedKey) {
@@ -172,17 +176,49 @@ export default function KioskMarkPage() {
         }
         setApiKey(storedKey);
 
-        validateApiKey(storedKey).then(info => {
-            setCompanyName(info.companyName);
-            setCompanyInfo(info);
-        }).catch(() => {
-            console.warn("Could not validate key or fetch company name");
-        });
+        const initSystem = async () => {
+            try {
+                setLoadingProgress(10);
 
-        loadModels()
-            .then(() => setModelsLoaded(true))
-            .catch(console.error);
-        startCamera();
+                // 1. Fetch Company Config
+                const info = await validateApiKey(storedKey);
+                setCompanyName(info.companyName);
+                setCompanyInfo(info);
+                setLoadingProgress(30);
+
+                const promises: Promise<any>[] = [];
+
+                // 2. Load Face Models
+                promises.push(loadModels().then(() => {
+                    // Approximate progress bump
+                    setLoadingProgress(prev => Math.min(prev + 30, 90));
+                }));
+
+                // 3. Eager Load Anti-Spoofing if enabled
+                if (info.attendanceConfig?.livenessDetection) {
+                    console.log("[Mark] Pre-loading Anti-Spoofing Model...");
+                    // This will warm up the WASM backend
+                    promises.push(antiSpoofing.initialize().then(() => {
+                        console.log("[Mark] Anti-Spoofing Ready");
+                        setLoadingProgress(prev => Math.min(prev + 30, 90));
+                    }));
+                }
+
+                await Promise.all(promises);
+
+                setLoadingProgress(100);
+                setModelsLoaded(true);
+
+                // 4. Start Camera Automatically
+                startCamera();
+
+            } catch (err) {
+                console.error("Initialization failed:", err);
+                setError("Failed to initialize security systems. Please refresh.");
+            }
+        };
+
+        initSystem();
     }, []);
 
     useEffect(() => {
@@ -250,7 +286,6 @@ export default function KioskMarkPage() {
             const canvas = canvasRef.current;
             const video = videoRef.current;
 
-            // Ensure video dimensions are available
             if (video.videoWidth === 0 || video.videoHeight === 0) {
                 throw new Error("Video stream not ready yet");
             }
@@ -268,10 +303,9 @@ export default function KioskMarkPage() {
             img.src = imageData;
             await img.decode();
 
-            // 1. Client-Side Anti-Spoofing Check
-            // Do this BEFORE heavy face recognition to save time if it's a fake
+            // Client-Side Anti-Spoofing Check
             if (companyInfo?.attendanceConfig?.livenessDetection) {
-                console.log("[Mark] Liveness detection enabled, checking...");
+                console.log("[Mark] Checking liveness...");
                 try {
                     const spoofResult = await antiSpoofing.predict(img);
                     console.log("[Mark] Spoof result:", spoofResult);
@@ -280,15 +314,12 @@ export default function KioskMarkPage() {
                     }
                 } catch (spoofErr) {
                     console.error("[Mark] Anti-spoofing fatal error:", spoofErr);
-                    // FAIL CLOSED: If liveness is required but check fails (even technical error), block attendance.
                     if ((spoofErr as Error).message.includes("Fishy")) {
                         throw spoofErr;
                     } else {
                         throw new Error("Liveness Check Failed");
                     }
                 }
-            } else {
-                console.log("[Mark] Liveness detection disabled or missing config");
             }
 
             console.log("[Mark] Detecting faces...");
@@ -313,7 +344,6 @@ export default function KioskMarkPage() {
             }
 
             const detection = detections[0];
-
             const faceDescriptor = Array.from(detection.descriptor) as number[];
 
             console.log("[Mark] Requesting geolocation...");
@@ -325,7 +355,6 @@ export default function KioskMarkPage() {
             console.log("[Mark] Calling markAttendance API...");
             const result = await markAttendance(apiKey, {
                 descriptors: [faceDescriptor],
-                // image: imageData, // We no longer send the image to server!
             }, {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
@@ -336,7 +365,6 @@ export default function KioskMarkPage() {
             setLastResult(result);
             setRecentAttendance(prev => [result, ...prev].slice(0, 10));
 
-            // Show Overlay using the new trigger
             triggerOverlay(result.type as "in" | "out", {
                 name: result.employeeName,
                 shiftName: result.shiftName
@@ -497,7 +525,43 @@ export default function KioskMarkPage() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {!cameraActive ? (
+                                {!modelsLoaded ? (
+                                    // LOADING STATE
+                                    <Box
+                                        sx={{
+                                            height: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            flexDirection: "column",
+                                            bgcolor: "background.default",
+                                            p: 4
+                                        }}
+                                    >
+                                        <Security sx={{ fontSize: 64, color: "primary.main", mb: 2, opacity: 0.8 }} />
+                                        <Typography variant="h6" fontWeight="bold" gutterBottom>
+                                            Initializing Security System
+                                        </Typography>
+                                        <Box sx={{ width: '100%', maxWidth: 300, mt: 2 }}>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={loadingProgress}
+                                                sx={{
+                                                    height: 8,
+                                                    borderRadius: 4,
+                                                    bgcolor: "action.hover",
+                                                    "& .MuiLinearProgress-bar": {
+                                                        borderRadius: 4,
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                                            Loading Models ({loadingProgress}%)
+                                        </Typography>
+                                    </Box>
+                                ) : !cameraActive ? (
+                                    // STOPPED STATE
                                     <Box
                                         sx={{
                                             height: "100%",
@@ -512,6 +576,7 @@ export default function KioskMarkPage() {
                                         <Typography color="text.secondary">Camera Stopped</Typography>
                                     </Box>
                                 ) : (
+                                    // ACTIVE CAMERA STATE
                                     <>
                                         <video
                                             ref={videoRef}
@@ -571,7 +636,7 @@ export default function KioskMarkPage() {
                                         boxShadow: "none",
                                     }}
                                 >
-                                    {!modelsLoaded ? "Loading Models..." : (loading ? "Verifying..." : (cameraActive ? "Mark Attendance Now" : "Start Camera"))}
+                                    {!modelsLoaded ? "Please Wait..." : (loading ? "Verifying..." : (cameraActive ? "Mark Attendance Now" : "Start Camera"))}
                                 </Button>
                             </Stack>
 

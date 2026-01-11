@@ -17,6 +17,18 @@ export class ClientAntiSpoofing {
                     executionProviders: ['wasm'],
                     graphOptimizationLevel: 'all'
                 });
+
+                console.log("[ClientAntiSpoof] Session created. Warming up...");
+                // Warmup: Run a dummy inference to force WASM compilation
+                try {
+                    const dummyInput = new Float32Array(1 * 3 * 128 * 128).fill(0);
+                    const tensor = new ort.Tensor('float32', dummyInput, [1, 3, 128, 128]);
+                    await this.session.run({ input: tensor });
+                    console.log("[ClientAntiSpoof] Warmup complete. Model ready.");
+                } catch (warmupErr) {
+                    console.warn("[ClientAntiSpoof] Warmup failed (non-fatal):", warmupErr);
+                }
+
                 console.log('[ClientAntiSpoof] ✓ Model loaded successfully');
             } catch (err) {
                 console.error('[ClientAntiSpoof] ✗ Failed to load model:', err);
