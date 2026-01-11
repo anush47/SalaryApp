@@ -271,11 +271,36 @@ const EditEmployeeForm: React.FC<{
           paymentStructure: { employeeField: "paymentStructure", companyField: "paymentStructure" },
           calendar: { employeeField: "calendar", companyField: "calendar" },
           salaryPeriod: { employeeField: "salaryPeriod", companyField: "salaryPeriodDefaults" },
+          attendance: { employeeField: "attendanceOverrides", companyField: "attendanceConfig" },
         };
 
         const mapping = fieldMappings[overrideField];
         if (mapping) {
           const companyValue = (companyData as any)[mapping.companyField];
+
+          // Special handling for salaryPeriod - copy multiple fields
+          if (overrideField === "attendance") {
+            const compConfig = (companyData as any).attendanceConfig || {};
+            const compGeo = (companyData as any).geoFencing || {};
+
+            const newAttendanceOverrides = {
+              enabled: true, // Should we enable it? No, keep it matching company config enabled status usually, or default true? Schema says enabled is bool. 
+              // Actually companyConfig has enabled. 
+              ...compConfig,
+              geoFencing: compGeo,
+              isRemote: false, // Default
+            };
+
+            setFormFields((prevFields) => ({
+              ...prevFields,
+              overrides: {
+                ...prevFields.overrides,
+                [overrideField]: value,
+              },
+              attendanceOverrides: newAttendanceOverrides,
+            }));
+            return;
+          }
 
           // Special handling for salaryPeriod - copy multiple fields
           if (overrideField === "salaryPeriod" && companyValue) {

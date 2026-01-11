@@ -404,8 +404,10 @@ export class EmployeeService {
       unsetFields.customPeriodDays = 1;
       unsetFields.rateDivisor = 1;
       unsetFields.payPeriodConfig = 1;
+      unsetFields.payPeriodConfig = 1;
       unsetFields.calculationMethod = 1;
     }
+    if (!parsedBody.overrides?.attendance) unsetFields.attendanceOverrides = 1;
 
     // Explicitly unset faceData if passed as null
     if (parsedBody.faceData === null) {

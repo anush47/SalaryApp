@@ -60,8 +60,8 @@ export const getEffectiveAllowedZones = (
     enforceValidation: boolean;
     primaryZone: Zone | null;
 } => {
-    // Resolve Company-level GeoConfig (check root and attendanceConfig)
-    let companyGeo: GeoConfig | undefined = companyConfig?.geoFencing || companyConfig?.attendanceConfig?.geoFencing;
+    // Resolve Company-level GeoConfig (Prioritize nested attendanceConfig, fallback to legacy root)
+    let companyGeo: GeoConfig | undefined = companyConfig?.attendanceConfig?.geoFencing || companyConfig?.geoFencing;
 
     let geoConfig: GeoConfig | undefined = companyGeo;
     let additionalZones: any[] = [];

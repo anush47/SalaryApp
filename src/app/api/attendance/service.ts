@@ -203,7 +203,7 @@ export class AttendanceService {
 
         // 3. Geolocation Validation
         let isVerified = false;
-        let allowedRadius = company.geoFencing?.radiusMeters || 100;
+        let allowedRadius = company.attendanceConfig?.geoFencing?.radiusMeters || 100;
 
         // Check Overrides
         const overrides = employee.attendanceOverrides;
@@ -234,21 +234,21 @@ export class AttendanceService {
                 // FALLBACK TO COMPANY SETTINGS
 
                 // Add Company Default Location
-                if (company.geoFencing?.enabled &&
-                    company.geoFencing.latitude &&
-                    company.geoFencing.longitude) {
+                if (company.attendanceConfig?.geoFencing?.enabled &&
+                    company.attendanceConfig.geoFencing.latitude &&
+                    company.attendanceConfig.geoFencing.longitude) {
 
                     validLocations.push({
-                        lat: company.geoFencing.latitude,
-                        lng: company.geoFencing.longitude,
+                        lat: company.attendanceConfig.geoFencing.latitude,
+                        lng: company.attendanceConfig.geoFencing.longitude,
                         radius: allowedRadius,
                         name: "Company Primary"
                     });
                 }
 
                 // Add Company Multiple Locations
-                if (company.geoFencing?.allowedLocations && company.geoFencing.allowedLocations.length > 0) {
-                    validLocations.push(...company.geoFencing.allowedLocations);
+                if (company.attendanceConfig?.geoFencing?.allowedLocations && company.attendanceConfig.geoFencing.allowedLocations.length > 0) {
+                    validLocations.push(...company.attendanceConfig.geoFencing.allowedLocations);
                 }
             }
             // Note: Previously, logic was mixing them (Additive). Now it is Exclusive based on user request "if overriden then them or else company ones".
@@ -276,7 +276,7 @@ export class AttendanceService {
             // Enforcement
             const effectiveEnforce = (overrides?.enabled && overrides.geoFencing?.enabled)
                 ? overrides.geoFencing.enforceValidation
-                : company.geoFencing?.enforceValidation;
+                : company.attendanceConfig?.geoFencing?.enforceValidation;
 
             if (!isVerified && effectiveEnforce) {
                 // If location is missing AND enforcement is on, we should block

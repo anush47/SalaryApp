@@ -72,6 +72,41 @@ export interface Company {
     }[];
   };
   calendar: "default" | "other";
+  attendanceConfig: {
+    enabled: boolean;
+    pwaCheckIn: boolean;
+    hardwareIntegration: boolean;
+    salaryIntegration: boolean;
+    allowRemoteCheckIn: boolean;
+    requireApproval: boolean;
+    approvalMode?: "automatic" | "always" | "out_of_zone";
+    livenessDetection?: boolean;
+    geoFencing?: {
+      enabled: boolean;
+      latitude: number;
+      longitude: number;
+      radiusMeters: number;
+      enforceValidation: boolean;
+      allowedLocations?: {
+        lat: number;
+        lng: number;
+        radius: number;
+        name: string;
+      }[];
+    };
+    apiKey?: string;
+  };
+  salaryPeriodDefaults?: {
+    salaryPeriod: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
+    customPeriodDays?: number;
+    rateDivisor: number;
+    payPeriodConfig?: {
+      startDay?: number;
+      endDay?: number;
+      type?: "fixed_dates" | "start_to_end_of_month" | "end_to_end_of_month";
+    };
+    calculationMethod: "attendance" | "fixed_days" | "no_ot";
+  };
   [key: string]: any;
 }
 
@@ -98,6 +133,16 @@ export interface Employee {
     [key: string]: "full" | "half" | "off";
   };
   remark: string;
+  overrides?: {
+    shifts?: boolean;
+    workingDays?: boolean;
+    probabilities?: boolean;
+    paymentStructure?: boolean;
+    calendar?: boolean;
+    leaveTypes?: boolean;
+    attendance?: boolean;
+    salaryPeriod?: boolean;
+  };
   shifts: {
     start: string;
     end: string;

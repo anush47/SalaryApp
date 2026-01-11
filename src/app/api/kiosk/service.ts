@@ -52,8 +52,9 @@ export class KioskService {
     static async validateApiKey(apiKey: string) {
         await dbConnect();
 
-        const company = await Company.findOne({ apiKey, active: true })
-            .select("_id name timezone attendanceConfig geoFencing")
+        // Updated to use the nested path
+        const company = await Company.findOne({ "attendanceConfig.apiKey": apiKey, active: true })
+            .select("_id name timezone attendanceConfig")
             .lean();
 
         if (!company) {

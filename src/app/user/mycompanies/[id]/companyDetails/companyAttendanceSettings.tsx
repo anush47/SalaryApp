@@ -62,22 +62,20 @@ export const CompanyAttendanceSettings: React.FC<CompanyAttendanceSettingsProps>
     const config: AttendanceConfigData = {
         ...defaultConfig,
         ...(attendanceConfig as any), // Spread attendance flags
-        geoFencing: geoFencing || defaultConfig.geoFencing, // Override geoFencing
-        apiKey: apiKey, // Include apiKey from root level
+        // Prioritize nested, then root (legacy), then default
+        geoFencing: (attendanceConfig as any)?.geoFencing || geoFencing || defaultConfig.geoFencing,
+        apiKey: (attendanceConfig as any)?.apiKey || apiKey,
     };
 
     const handleConfigChange = (newConfig: AttendanceConfigData) => {
-        // Split back into separate updates
-        // 1. GeoFencing
-        const newGeoFencing = newConfig.geoFencing;
-
-        // 2. Attendance Config (extract flags, remove geoFencing and apiKey)
-        const { geoFencing: _, apiKey: extractedApiKey, ...newAttendanceConfig } = newConfig;
-
+        // Now we save everything under attendanceConfig
+        // We do NOT split them out anymore.
         onUpdate({
-            attendanceConfig: newAttendanceConfig as any,
-            geoFencing: newGeoFencing,
-            apiKey: extractedApiKey
+            attendanceConfig: newConfig as any,
+            // Explicitly unset root fields if migration is needed, but just updating attendanceConfig is enough for new schema
+            // Maybe passing undefined to root fields?
+            // geoFencing: undefined,
+            // apiKey: undefined
         });
     };
 

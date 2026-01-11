@@ -142,6 +142,25 @@ export class CompanyService {
       salary: true,
       paySlip: true,
     };
+
+    // Create default shift structure (without ID)
+    const defaultShift = {
+      name: "Standard Day",
+      type: "fixed",
+      startTime: "08:00",
+      endTime: "17:00",
+      breakDuration: 1,
+      duration: 540,
+    };
+
+    // Initialize shiftSettings
+    body.shiftSettings = {
+      mode: "fixed",
+      shifts: [defaultShift],
+      autoSelect: false,
+      useShiftStartForOT: false
+    };
+
     const parsedBody = companyCreateSchema.parse(body);
 
     // Create new company
@@ -149,6 +168,15 @@ export class CompanyService {
       ...parsedBody,
       user: context.user?.id,
     });
+
+    // Auto-link default shift ID
+    if (newCompany.shiftSettings?.shifts?.length > 0) {
+      // Mongoose auto-generates _id for subdocs. We convert it to string for the reference field.
+      const generatedId = newCompany.shiftSettings.shifts[0]._id;
+      if (generatedId) {
+        newCompany.shiftSettings.defaultShiftId = generatedId.toString();
+      }
+    }
 
     try {
       // Save the new company to the database
@@ -311,7 +339,11 @@ export class CompanyService {
     }
 
     // Update the company in the database
-    const updatedCompany = await company.updateOne(companyData);
+    // Use explicit $set and $unset to clean up legacy root fields (geoFencing, apiKey)
+    const updatedCompany = await company.updateOne({
+      $set: companyData,
+      $unset: { geoFencing: 1, apiKey: 1 }
+    });
 
     if (!updatedCompany) {
       throw new NotFoundError("Company Update Error");

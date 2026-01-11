@@ -5,6 +5,25 @@ export const objectIdSchema = z.string().length(24, "ID must be a valid ObjectId
 export const idSchema = z.string().min(1, "ID is required");
 export const userIdSchema = z.string().min(1, "User ID is required");
 
+// Common Geofencing Schema
+const geoFencingSchema = z.object({
+  enabled: z.boolean(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  radiusMeters: z.number().optional(),
+  enforceValidation: z.boolean().optional(),
+  allowedLocations: z
+    .array(
+      z.object({
+        lat: z.number(),
+        lng: z.number(),
+        radius: z.number(),
+        name: z.string(),
+      })
+    )
+    .optional(),
+});
+
 // User-related schemas
 export const userCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -209,6 +228,7 @@ export const employeeUpdateSchema = z.object({
       calendar: z.boolean().optional(),
       leaveTypes: z.boolean().optional(),
       salaryPeriod: z.boolean().optional(),
+      attendance: z.boolean().optional(),
     })
     .optional(),
   leaveTypes: z.array(z.object({
@@ -317,28 +337,22 @@ export const employeeUpdateSchema = z.object({
   taxType: z.enum(["company", "individual"]).optional(),
   autoAcknowledge: z.boolean().optional(),
   faceData: z.union([z.null(), z.undefined(), z.record(z.any())]).optional(),
+  attendanceOverrides: z.object({
+    enabled: z.boolean(),
+    pwaCheckIn: z.boolean().optional(),
+    hardwareIntegration: z.boolean().optional(),
+    salaryIntegration: z.boolean().optional(),
+    geoFencing: geoFencingSchema.optional(),
+    allowRemoteCheckIn: z.boolean().optional(),
+    requireApproval: z.boolean().optional(),
+    approvalMode: z.enum(["automatic", "always", "out_of_zone"]).optional(),
+    isRemote: z.boolean().optional(),
+    livenessDetection: z.boolean().optional(),
+  }).optional(),
 });
 
 export const employeeIdSchema = z.string().min(1, "Employee ID is required");
 
-// Common Geofencing Schema
-const geoFencingSchema = z.object({
-  enabled: z.boolean(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  radiusMeters: z.number().optional(),
-  enforceValidation: z.boolean().optional(),
-  allowedLocations: z
-    .array(
-      z.object({
-        lat: z.number(),
-        lng: z.number(),
-        radius: z.number(),
-        name: z.string(),
-      })
-    )
-    .optional(),
-});
 
 const attendanceConfigSchema = z.object({
   enabled: z.boolean(),
@@ -348,6 +362,7 @@ const attendanceConfigSchema = z.object({
   allowRemoteCheckIn: z.boolean().optional(),
   requireApproval: z.boolean().optional(),
   livenessDetection: z.boolean().optional(),
+  geoFencing: geoFencingSchema.optional(),
   apiKey: z.string().optional(),
 });
 
@@ -387,12 +402,25 @@ export const companyCreateSchema = z.object({
     end: z.string().optional(),
     allDay: z.boolean().optional(),
   }),
+  shiftSettings: z.object({
+    mode: z.enum(["fixed", "dynamic", "roster", "manual"]).default("fixed"),
+    shifts: z.array(z.object({
+      name: z.string(),
+      type: z.enum(["fixed", "dynamic"]),
+      startTime: z.string().optional(),
+      endTime: z.string().optional(),
+      breakDuration: z.number().optional().default(0),
+      duration: z.number().optional(),
+    })).optional(),
+    defaultShiftId: z.string().optional(),
+    autoSelect: z.boolean().optional(),
+    useShiftStartForOT: z.boolean().optional(),
+  }).optional(),
   attendanceConfig: attendanceConfigSchema.optional(),
-  geoFencing: geoFencingSchema.optional(),
   salaryPeriodDefaults: z.object({
     salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).default("monthly"),
-    customPeriodDays: z.number().optional(),
-    rateDivisor: z.number().default(30),
+    customPeriodDays: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
+    rateDivisor: z.union([z.number(), z.string()]).transform((val) => Number(val)).default(30),
     payPeriodConfig: z.object({
       startDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
       endDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
@@ -467,14 +495,10 @@ export const companyUpdateSchema = z.object({
     })
     .optional(),
   attendanceConfig: attendanceConfigSchema.optional(),
-  geoFencing: geoFencingSchema.optional(),
-  requireApproval: z.boolean().optional(),
-  allowRemoteCheckIn: z.boolean().optional(),
-  apiKey: z.string().optional(),
   salaryPeriodDefaults: z.object({
     salaryPeriod: z.enum(["daily", "weekly", "bi-weekly", "monthly", "custom"]).optional(),
-    customPeriodDays: z.number().optional(),
-    rateDivisor: z.number().optional(),
+    customPeriodDays: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
+    rateDivisor: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
     payPeriodConfig: z.object({
       startDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),
       endDay: z.union([z.number(), z.string()]).transform((val) => Number(val)).optional(),

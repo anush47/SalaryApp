@@ -17,8 +17,8 @@ export interface CompanyInfo {
         allowRemoteCheckIn: boolean;
         requireApproval: boolean;
         livenessDetection?: boolean;
+        geoFencing?: any;
     };
-    geoFencing: any;
 }
 
 export interface Employee {

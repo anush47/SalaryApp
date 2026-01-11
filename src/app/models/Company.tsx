@@ -86,21 +86,21 @@ export interface ICompany extends Document {
     requireApproval: boolean;
     approvalMode?: "automatic" | "always" | "out_of_zone";
     livenessDetection?: boolean;
+    geoFencing?: {
+      enabled: boolean;
+      latitude: number;
+      longitude: number;
+      radiusMeters: number;
+      enforceValidation: boolean;
+      allowedLocations?: {
+        lat: number;
+        lng: number;
+        radius: number;
+        name: string;
+      }[];
+    };
+    apiKey?: string;
   };
-  geoFencing: {
-    enabled: boolean;
-    latitude: number;
-    longitude: number;
-    radiusMeters: number;
-    enforceValidation: boolean;
-    allowedLocations?: {
-      lat: number;
-      lng: number;
-      radius: number;
-      name: string;
-    }[];
-  };
-  apiKey?: string;
   salaryPeriodDefaults?: SalaryPeriodDefaults;
 }
 
@@ -118,7 +118,7 @@ export interface SalaryPeriodDefaults {
 
 // Define Shift Schema separately to handle String _id
 const shiftSchema = new Schema({
-  _id: { type: String, required: true },
+  _id: { type: String, required: true, default: () => new Types.ObjectId().toString() },
   name: { type: String, required: true },
   type: { type: String, enum: ["fixed", "dynamic"], required: true },
   startTime: String,
@@ -380,24 +380,24 @@ const companySchema = new Schema<ICompany>(
         default: "automatic",
       },
       livenessDetection: { type: Boolean, default: false },
+      geoFencing: {
+        enabled: { type: Boolean, default: false },
+        latitude: Number,
+        longitude: Number,
+        radiusMeters: { type: Number, default: 100 },
+        enforceValidation: { type: Boolean, default: false },
+        allowedLocations: [
+          {
+            _id: false,
+            lat: Number,
+            lng: Number,
+            radius: Number,
+            name: String,
+          },
+        ],
+      },
+      apiKey: { type: String },
     },
-    geoFencing: {
-      enabled: { type: Boolean, default: false },
-      latitude: Number,
-      longitude: Number,
-      radiusMeters: { type: Number, default: 100 },
-      enforceValidation: { type: Boolean, default: false },
-      allowedLocations: [
-        {
-          _id: false,
-          lat: Number,
-          lng: Number,
-          radius: Number,
-          name: String,
-        },
-      ],
-    },
-    apiKey: { type: String },
     salaryPeriodDefaults: {
       salaryPeriod: {
         type: String,

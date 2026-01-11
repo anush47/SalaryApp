@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+        const errorDetails = error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
+        return ApiResponseUtils.sendBadRequest(errorDetails);
       }
       throw error; // Let the middleware handle the error
     }
@@ -47,7 +48,8 @@ export async function POST(req: NextRequest) {
       return ApiResponseUtils.sendSuccess(result, result.message);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+        const errorDetails = error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
+        return ApiResponseUtils.sendBadRequest(errorDetails);
       }
       throw error; // Let the middleware handle the error
     }
@@ -62,7 +64,8 @@ export async function PUT(req: NextRequest) {
       return ApiResponseUtils.sendSuccess(result, result.message);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return ApiResponseUtils.sendBadRequest(error.errors[0].message);
+        const errorDetails = error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
+        return ApiResponseUtils.sendBadRequest(errorDetails);
       }
       throw error; // Let the middleware handle the error
     }
