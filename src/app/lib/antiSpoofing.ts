@@ -1,5 +1,5 @@
 // import * as ort from 'onnxruntime-node'; // Removed top-level import
-import type * as ORT from 'onnxruntime-node'; // Type-only import
+import type * as ORT from 'onnxruntime-web'; // Type-only import
 import sharp from 'sharp';
 import path from 'path';
 
@@ -13,9 +13,15 @@ export class AntiSpoofingDetector {
         if (!this.session || !this.ort) {
             try {
                 // Dynamic import to prevent loading onnxruntime-node when not needed
-                this.ort = await import('onnxruntime-node');
+                // Using onnxruntime-web for Vercel serverless compatibility (WASM backend)
+                this.ort = await import('onnxruntime-web');
+
+                // Disable WASM multithreading if needed for serverless environment stability
+                // (optional, but safer for some lambda environments)
+                // this.ort.env.wasm.numThreads = 1; 
+
                 this.session = await this.ort.InferenceSession.create(this.MODEL_PATH);
-                console.log('[AntiSpoof] ✓ Model loaded successfully');
+                console.log('[AntiSpoof] ✓ Model loaded successfully (Web/WASM Backend)');
             } catch (err) {
                 console.error('[AntiSpoof] ✗ Failed to load model:', err);
                 throw new Error('Anti-spoofing model not found. Please ensure the ONNX model is placed in public/models/antispoofing.onnx');
