@@ -768,7 +768,7 @@ The Kiosk face registration process is optimized for speed and user experience.
 
 -   **3-Pose Capture**: Registration requires only **3 poses** (Center, Left, Right) to build a robust face profile.
 -   **Immediate Processing**: Images are processed client-side (or server-side ephemeral) to generate descriptors, which are then sent to the backend. The original images are discarded post-processing.
--   **Liveness Detection**: Anti-spoofing checks are performed on the live stream/captured frame before descriptor generation.
+-   **Liveness Detection**: **Client-Side** anti-spoofing checks are performed on the live stream/captured frame before descriptor generation.
 
 ### 13.4. Data Management UI
 Admins have full control over face data via the Employee Edit page:
@@ -777,3 +777,11 @@ Admins have full control over face data via the Employee Edit page:
 -   **Status Visibility**: Clear indicators show *when* face data was registered.
 -   **User Linking**: The UI also displays linked user account details ("Account created on...") to provide a complete view of digital identity.
 
+
+### 13.5. Client-Side Anti-Spoofing
+The system implements a high-performance, privacy-first **Client-Side Liveness Detection** system to prevent presentation attacks (e.g., holding up a photo or phone screen).
+
+-   **Architecture**: Runs entirely in the browser using `onnxruntime-web` and WebAssembly (WASM). This removes server dependencies and eliminates latency.
+-   **Model Loading**: Implements an **Eager Loading & Warmup** strategy. The model is loaded in parallel with face recognition modules upon page mount. A "warmup" inference is run immediately to compile the WASM graph, ensuring zero-delay for the first user interaction.
+-   **Fail-Closed Security**: If liveness detection is enabled but fails (due to spoofing or technical error), the system strictly blocks the attendance attempt.
+-   **Performance**: Optimized with multi-threaded WASM execution and Canvas-based image preprocessing.

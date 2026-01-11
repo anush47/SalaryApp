@@ -167,6 +167,18 @@ export default function KioskMarkPage() {
         setMounted(true);
     }, []);
 
+    // Warmup Geolocation to prevent timeouts on low-end devices
+    const warmupLocation = () => {
+        if ("geolocation" in navigator) {
+            console.log("[Mark] Warming up geolocation...");
+            navigator.geolocation.getCurrentPosition(
+                (pos) => console.log("[Mark] Geolocation warmup success:", pos.coords),
+                (err) => console.warn("[Mark] Geolocation warmup warning:", err),
+                { timeout: 10000, maximumAge: 3600000 } // Allow cached positions up to 1 hour
+            );
+        }
+    };
+
     // Initialize System (API + Models + Config)
     useEffect(() => {
         const storedKey = localStorage.getItem("kiosk_api_key");
@@ -179,6 +191,9 @@ export default function KioskMarkPage() {
         const initSystem = async () => {
             try {
                 setLoadingProgress(10);
+
+                // 0. Warmup Geolocation immediately
+                warmupLocation();
 
                 // 1. Fetch Company Config
                 const info = await validateApiKey(storedKey);
@@ -348,7 +363,12 @@ export default function KioskMarkPage() {
 
             console.log("[Mark] Requesting geolocation...");
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                // Use a slightly longer timeout for the critical check, but maximumAge allows cached result from warmup
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    timeout: 10000,
+                    maximumAge: 3600000, // Reuse warmup position if captured within last 1 hour
+                    enableHighAccuracy: true
+                });
             });
             console.log("[Mark] Geolocation obtained:", position.coords);
 
@@ -382,6 +402,14 @@ export default function KioskMarkPage() {
                 triggerOverlay("spoof");
             } else if (errorMessage.toLowerCase().includes("face not recognized")) {
                 triggerOverlay("unknown");
+            } else if (errorMessage.toLowerCase().includes("timeout") || errorMessage.toLowerCase().includes("location")) {
+                // Specific handler for location timeouts
+                triggerOverlay("info", {
+                    greeting: "Location Timeout 📍",
+                    name: "GPS signal weak. Please retry.",
+                    time: "Try Again",
+                    isError: true
+                });
             } else {
                 triggerOverlay("info", { greeting: errorMessage });
             }
