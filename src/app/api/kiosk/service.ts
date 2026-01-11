@@ -7,6 +7,8 @@ import { z } from "zod";
 
 import { getNextAttendanceType, getAttendanceTypeExplanation } from "@/app/lib/attendanceTypeLogic";
 import { ShiftService } from "@/app/lib/services/shiftService";
+import { getEffectiveAttendanceConfig } from "@/app/lib/utils/overrides";
+import { getEffectiveAllowedZones, calculateDistance } from "@/app/lib/utils/attendanceUtils";
 
 // Validation schemas
 export const validateApiKeySchema = z.object({
@@ -202,12 +204,59 @@ export class KioskService {
         ]);
         console.log(`[KIOSK] ⏱️ Parallel Multi-Checks: ${Date.now() - finalChecksStartTime}ms`);
 
+        if (!fullEmployee || !fullCompany) {
+            throw new NotFoundError("Employee or Company record not found during final checks");
+        }
+
+        // --- ATTENDANCE CONFIG & GEOFENCING START ---
+        const config = getEffectiveAttendanceConfig(fullCompany, fullEmployee);
+        console.log(`[KIOSK DEBUG] Employee: ${fullEmployee.name}, Overrides: ${fullEmployee?.overrides?.attendance}, requireApproval: ${config?.requireApproval}, approvalMode: ${config?.approvalMode}`);
+
         // Handle Cooldown
         if (recentAttendance) {
             const timeSinceLast = Date.now() - (recentAttendance.timestamp as Date).getTime();
             const timeRemaining = Math.ceil((300000 - timeSinceLast) / 60000);
             throw new BadRequestError(`Please wait ${timeRemaining} more minute(s) before marking attendance again.`);
         }
+
+        // Geofencing Validation
+        let isVerified = true; // Kiosk is generally trusted
+        const { zones: effectiveZones, isGeofencingEnabled, enforceValidation } = getEffectiveAllowedZones(fullCompany as any, fullEmployee?.attendanceOverrides);
+
+        if (isGeofencingEnabled && location) {
+            let inside = false;
+            if (effectiveZones.length === 0) {
+                inside = true; // No zones configured but enabled?
+            } else {
+                for (const zone of effectiveZones) {
+                    const dist = calculateDistance(location.latitude, location.longitude, zone.lat, zone.lng);
+                    if (dist <= zone.radius) {
+                        inside = true;
+                        break;
+                    }
+                }
+            }
+            isVerified = inside;
+
+            if (!inside && enforceValidation) {
+                throw new BadRequestError("You are not within the allowed clock-in range for this kiosk.");
+            }
+        } else if (isGeofencingEnabled && !location && enforceValidation) {
+            throw new BadRequestError("Location access is required for kiosk clock-in.");
+        }
+
+        // Approval Check
+        let status: "pending" | "approved" = "approved";
+
+        // Note: As per user request, for Kiosk, we ONLY consider 'out_of_zone' mode for triggering pending status.
+        // We ignore 'always' because Kiosk is considered a trusted physical entry point.
+        const approvalMode = config?.approvalMode || (config?.requireApproval ? "always" : "automatic");
+        console.log(`[KIOSK DEBUG] Calculated approvalMode: ${approvalMode}, isVerified: ${isVerified}`);
+
+        if (approvalMode === 'out_of_zone' && !isVerified) {
+            status = "pending";
+        }
+        // --- ATTENDANCE CONFIG & GEOFENCING END ---
 
         // 5. Determine attendance type (IN/OUT)
         const typeStartTime = Date.now();
@@ -246,12 +295,12 @@ export class KioskService {
             timestamp: eventTime,
             type: attendanceTypeResult.nextType,
             method: "kiosk",
-            status: "approved", // Kiosk is considered verified
+            status, // Use resolved status
             location: location ? {
                 lat: location.latitude,
                 lng: location.longitude,
                 radius: location.accuracy,
-                isVerified: true, // Kiosk location is trusted (or verified by deviceId)
+                isVerified: isVerified, // Use resolved verification
                 name: "Kiosk Device"
             } : undefined,
             deviceId: deviceId,
