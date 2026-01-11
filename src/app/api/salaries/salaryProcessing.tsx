@@ -14,6 +14,7 @@ import {
   calculateOT,
   calculateHolidayPay,
 } from "./salaryHelper";
+import { getEffectiveShiftSettings, getEffectiveCalendar, getEffectiveProbabilities } from "../../lib/utils/overrides";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -28,8 +29,9 @@ export const processSalaryWithInOut = async (
 ) => {
 
 
-  const shifts = employee.shiftSettings?.shifts || [];
-  const useShiftStartForOT = employee.shiftSettings?.useShiftStartForOT || employee.company?.shiftSettings?.useShiftStartForOT || false;
+  const shiftSettings = getEffectiveShiftSettings(employee.company, employee);
+  const shifts = shiftSettings?.shifts || [];
+  const useShiftStartForOT = shiftSettings?.useShiftStartForOT || false;
   const source = existingSalary || employee;
 
   // Determine if inOut contains already processed records (objects) or unprocessed Dates
@@ -94,7 +96,7 @@ export const processSalaryWithInOut = async (
       await getHolidays(
         (inOut as any[])[0].in,
         (inOut as any[])[inOut.length - 1].out,
-        employee.calendar
+        getEffectiveCalendar(employee.company, employee)
       )
     ).holidays;
     // Process the already processed records
@@ -122,7 +124,7 @@ export const processSalaryWithInOut = async (
       startDate,
       endDate,
       holidays: fetchedHolidays,
-    } = await startEndDates(period, inOut as Date[], employee.calendar);
+    } = await startEndDates(period, inOut as Date[], getEffectiveCalendar(employee.company, employee));
     holidays = fetchedHolidays;
 
     let day = new Date(startDate);
@@ -341,7 +343,8 @@ export const generateSalaryWithInOut = async (
   existingSalary: any = undefined,
   timezone: string = "Asia/Colombo"
 ) => {
-  const shifts = employee.shiftSettings?.shifts || [];
+  const shiftSettings = getEffectiveShiftSettings(employee.company, employee);
+  const shifts = shiftSettings?.shifts || [];
 
   const generateRandomRecord = (day: Date) => {
     const workingDayStatus = getWorkingDayStatus(day, employee, undefined);
@@ -420,7 +423,7 @@ export const generateSalaryWithInOut = async (
         }
       }
     }
-    const probabilities = employee.probabilities || {};
+    const probabilities = getEffectiveProbabilities(employee.company, employee) || {};
     const absentProb =
       probabilities.absent !== undefined ? probabilities.absent / 100 : 0.05; // 5% chance to be absent
     const workOnOffProb =
@@ -585,7 +588,7 @@ export const generateSalaryWithInOut = async (
   const { startDate, endDate, holidays } = await startEndDates(
     period,
     inOut as Date[],
-    employee.calendar
+    getEffectiveCalendar(employee.company, employee)
   );
   const day = new Date(startDate);
 

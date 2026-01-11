@@ -170,7 +170,7 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
                 open={!!selectedRecord}
                 onClose={() => setSelectedRecord(null)}
                 dailyRecord={selectedRecord}
-                employee={selectedEmployee || selectedRecord?.employee}
+                employee={selectedEmployee || (selectedRecord?.employee?._id && employees.find((e: any) => e._id === selectedRecord.employee?._id)) || selectedRecord?.employee}
                 companyConfig={companyData}
                 shifts={shifts}
                 userRole={userRole}

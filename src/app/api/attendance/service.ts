@@ -7,6 +7,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "@/app/lib/errorH
 import { RequestContext } from "@/app/lib/apiResponse";
 import { z } from "zod";
 import { ShiftService } from "@/app/lib/services/shiftService";
+import { getEffectiveAttendanceConfig, getEffectiveShiftSettings } from "@/app/lib/utils/overrides";
 
 // Schemas
 export const attendanceCreateSchema = z.object({
@@ -116,7 +117,7 @@ export class AttendanceService {
             const checkInTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: company.timezone || 'Asia/Colombo' });
 
             // Determine Settings to know Mode
-            const settings = ShiftService.getEffectiveSettings(employee, company);
+            const settings = getEffectiveShiftSettings(company, employee);
 
             // 12-Hour Session Expiry Check
             const lastRecord = await Attendance.findOne({ employee: employee._id }).sort({ timestamp: -1 });
@@ -203,55 +204,33 @@ export class AttendanceService {
 
         // 3. Geolocation Validation
         let isVerified = false;
-        let allowedRadius = company.attendanceConfig?.geoFencing?.radiusMeters || 100;
+        const config = getEffectiveAttendanceConfig(company, employee);
+        let allowedRadius = config?.geoFencing?.radiusMeters || 100;
 
-        // Check Overrides
-        const overrides = employee.attendanceOverrides;
-        if (overrides?.enabled && overrides.isRemote) {
+        if (config?.isRemote) {
             // Remote worker - Bypass check, but mark verified
             isVerified = true;
         } else {
             // Standard Validation
             let validLocations = [];
 
-            // STRICT OVERRIDE LOGIC: If overrides are enabled and geoFencing is set, use ONLY overrides.
-            if (overrides?.enabled && overrides.geoFencing?.enabled) {
-                const geo = overrides.geoFencing;
-                // Primary Override Zone
-                if (geo.latitude && geo.longitude) {
-                    validLocations.push({
-                        lat: geo.latitude,
-                        lng: geo.longitude,
-                        radius: geo.radiusMeters || 100,
-                        name: "Primary Override"
-                    });
-                }
-                // Multiple Override Zones
-                if (geo.allowedLocations && geo.allowedLocations.length > 0) {
-                    validLocations.push(...geo.allowedLocations);
-                }
-            } else {
-                // FALLBACK TO COMPANY SETTINGS
+            // Primary Zone
+            if (config?.geoFencing?.enabled &&
+                config.geoFencing.latitude &&
+                config.geoFencing.longitude) {
 
-                // Add Company Default Location
-                if (company.attendanceConfig?.geoFencing?.enabled &&
-                    company.attendanceConfig.geoFencing.latitude &&
-                    company.attendanceConfig.geoFencing.longitude) {
-
-                    validLocations.push({
-                        lat: company.attendanceConfig.geoFencing.latitude,
-                        lng: company.attendanceConfig.geoFencing.longitude,
-                        radius: allowedRadius,
-                        name: "Company Primary"
-                    });
-                }
-
-                // Add Company Multiple Locations
-                if (company.attendanceConfig?.geoFencing?.allowedLocations && company.attendanceConfig.geoFencing.allowedLocations.length > 0) {
-                    validLocations.push(...company.attendanceConfig.geoFencing.allowedLocations);
-                }
+                validLocations.push({
+                    lat: config.geoFencing.latitude,
+                    lng: config.geoFencing.longitude,
+                    radius: config.geoFencing.radiusMeters || 100,
+                    name: "Primary"
+                });
             }
-            // Note: Previously, logic was mixing them (Additive). Now it is Exclusive based on user request "if overriden then them or else company ones".
+
+            // Multiple Locations
+            if (config?.geoFencing?.allowedLocations && config.geoFencing.allowedLocations.length > 0) {
+                validLocations.push(...config.geoFencing.allowedLocations);
+            }
 
             if (!location) {
                 // No location provided (Failed to fetch on client)
@@ -274,9 +253,7 @@ export class AttendanceService {
             }
 
             // Enforcement
-            const effectiveEnforce = (overrides?.enabled && overrides.geoFencing?.enabled)
-                ? overrides.geoFencing.enforceValidation
-                : company.attendanceConfig?.geoFencing?.enforceValidation;
+            const effectiveEnforce = config?.geoFencing?.enforceValidation;
 
             if (!isVerified && effectiveEnforce) {
                 // If location is missing AND enforcement is on, we should block
@@ -293,10 +270,8 @@ export class AttendanceService {
         // 4. Approval Check
         let status: "pending" | "approved" = "approved";
 
-        // Determine effective settings (Employee override > Company config)
-        const approvalMode = overrides?.enabled
-            ? (overrides.approvalMode || (overrides.requireApproval ? "always" : "automatic"))
-            : (company.attendanceConfig?.approvalMode || (company.attendanceConfig?.requireApproval ? "always" : "automatic"));
+        // Determine effective settings
+        const approvalMode = config?.approvalMode || (config?.requireApproval ? "always" : "automatic");
 
         if (approvalMode === 'always') {
             status = "pending";

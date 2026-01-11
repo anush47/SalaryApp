@@ -2,6 +2,7 @@ import { IEmployee } from "@/app/models/Employee";
 import { ICompany } from "@/app/models/Company";
 import ShiftAssignment, { IShiftAssignment } from "@/app/models/ShiftAssignment";
 import dayjs from "dayjs";
+import { getEffectiveShiftSettings } from "../utils/overrides";
 import isBetween from "dayjs/plugin/isBetween";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
@@ -65,15 +66,14 @@ export class ShiftService {
         }
 
         // 2. Determine Configuration Source
-        const settings = this.getEffectiveSettings(employee, company);
+        const settings = getEffectiveShiftSettings(company, employee);
 
         if (!settings) return { shift: null, source: "none" };
 
         // 3. Handle Modes
         if (settings.mode === "fixed") {
-            // Return the default shift. Prioritize Employee Default if set (aligning with Aggregation View), otherwise Company Default.
-            const empDefaultId = employee.shiftSettings?.defaultShiftId;
-            const defId = empDefaultId || settings.defaultShiftId;
+            // Return the default shift.
+            const defId = settings?.defaultShiftId;
 
             // We need to find this ID in the available shifts (Company or Employee pool)
             // settings.shifts might only be Company shifts if overrides are off.
@@ -82,13 +82,7 @@ export class ShiftService {
             // But if we allow Employee Default usage, we might need to look in Employee shifts?
             // Safest: Search in `settings.shifts` (which is Company's if overrides off). 
             // If empDefaultId points to a shift NOT in Company list, we might miss it if we only check `settings.shifts`.
-            // Let's check `settings.shifts` first.
-            let shift = settings.shifts.find(s => s._id === defId);
-            if (!shift && empDefaultId) {
-                // Try finding it in employee shifts if not found in company settings
-                shift = employee.shiftSettings?.shifts?.find((s: any) => s._id === empDefaultId);
-            }
-
+            let shift = settings.shifts.find((s: any) => s._id === defId);
             return { shift: shift || settings.shifts[0] || null, source: "fixed_schedule" };
         }
 
@@ -100,25 +94,16 @@ export class ShiftService {
                 if (bestMatch) return { shift: bestMatch, source: "auto_select" };
             }
             // Fallback to default
-            const empDefaultId = employee.shiftSettings?.defaultShiftId;
-            const defId = empDefaultId || settings.defaultShiftId;
-
-            let shift = settings.shifts.find(s => s._id === defId);
-            if (!shift && empDefaultId) {
-                shift = employee.shiftSettings?.shifts?.find((s: any) => s._id === empDefaultId);
-            }
+            const defId = settings?.defaultShiftId;
+            let shift = settings.shifts.find((s: any) => s._id === defId);
 
             return { shift: shift || null, source: "default" };
         }
 
         if (settings.mode === "roster") {
             // If meant to be roster but no assignment found, return null or default fallback?
-            const empDefaultId = employee.shiftSettings?.defaultShiftId;
-            const defId = empDefaultId || settings.defaultShiftId;
-            let shift = settings.shifts.find(s => s._id === defId);
-            if (!shift && empDefaultId) {
-                shift = employee.shiftSettings?.shifts?.find((s: any) => s._id === empDefaultId);
-            }
+            const defId = settings?.defaultShiftId;
+            let shift = settings.shifts.find((s: any) => s._id === defId);
             return { shift: shift || null, source: "default" };
         }
 
@@ -132,9 +117,7 @@ export class ShiftService {
     }
 
     static getEffectiveSettings(employee: IEmployee, company: ICompany) {
-        return employee.overrides?.shifts && employee.shiftSettings?.mode
-            ? employee.shiftSettings
-            : company.shiftSettings;
+        return getEffectiveShiftSettings(company, employee);
     }
 
     static findShiftById(shiftId: string, company: ICompany, employee: IEmployee): Shift | undefined {

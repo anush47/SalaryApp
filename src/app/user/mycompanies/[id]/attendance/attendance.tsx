@@ -566,7 +566,7 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                     isOffDay: false,
                     isHoliday: false,
                 } as any : null}
-                employee={viewLog?.employee}
+                employee={viewLog?.employee ? (employees.find(e => e._id === (viewLog.employee._id || viewLog.employee)) || viewLog.employee) : null}
                 companyConfig={companyData}
                 shifts={shifts}
                 disableShiftChange={true}

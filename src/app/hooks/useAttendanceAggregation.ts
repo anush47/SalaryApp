@@ -9,6 +9,7 @@ import { getHolidays } from "@/app/lib/api/holidaysApi";
 import { fetchEmployee, fetchEmployees } from "@/app/lib/api/employeeApi";
 import { fetchCompany } from "@/app/lib/api/companyApi";
 import { calculateOT, calculateEffectiveDuration } from "@/app/lib/utils/attendanceUtils";
+import { getEffectiveShiftSettings, getEffectiveWorkingDays } from "@/app/lib/utils/overrides";
 
 dayjs.extend(isBetween);
 
@@ -119,9 +120,8 @@ export const calculateAttendanceForEmployee = (
     let currentDate = dayjs(startDate);
     const end = dayjs(endDate);
 
-    const companyShifts = company.shiftSettings?.shifts || [];
-    const employeeShifts = employee.shiftSettings?.shifts || [];
-    const allShifts = [...companyShifts, ...employeeShifts];
+    const shiftSettings = getEffectiveShiftSettings(company, employee);
+    const allShifts = shiftSettings?.shifts || [];
 
     while (currentDate.isBefore(end) || currentDate.isSame(end, 'day')) {
         const dateStr = currentDate.format("YYYY-MM-DD");
@@ -146,15 +146,17 @@ export const calculateAttendanceForEmployee = (
         });
 
         if (activeShiftIds.size === 0 && dailyAssignments.length === 0) {
-            const workDayConfig = employee.workingDays?.[dayOfWeek] || company.workingDays?.[dayOfWeek] || "full";
+            const effectiveWorkingDays = getEffectiveWorkingDays(company, employee);
+            const workDayConfig = effectiveWorkingDays?.[dayOfWeek] || "full";
             if (workDayConfig !== "off") {
-                const defaultShiftId = employee.shiftSettings?.defaultShiftId || company.shiftSettings?.defaultShiftId;
+                const defaultShiftId = shiftSettings?.defaultShiftId;
                 if (defaultShiftId) activeShiftIds.add(defaultShiftId);
             }
         }
 
         const isExplicitOff = dailyAssignments.some((a: any) => a.isOffDay);
-        const workDayConfig = employee.workingDays?.[dayOfWeek] || company.workingDays?.[dayOfWeek] || "full";
+        const effectiveWorkingDays = getEffectiveWorkingDays(company, employee);
+        const workDayConfig = effectiveWorkingDays?.[dayOfWeek] || "full";
         const isDefaultOff = workDayConfig === "off";
 
         let shiftsToProcess = Array.from(activeShiftIds);
@@ -284,7 +286,7 @@ export const calculateAttendanceForEmployee = (
             }
 
             const totalDuration = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-            const useShiftStartForOT = employee.shiftSettings?.useShiftStartForOT ?? company.shiftSettings?.useShiftStartForOT ?? false;
+            const useShiftStartForOT = shiftSettings?.useShiftStartForOT ?? false;
 
             const utilSessions = sessions.map(s => {
                 let outTime = s.checkOutTime ? new Date(s.checkOutTime) : undefined;

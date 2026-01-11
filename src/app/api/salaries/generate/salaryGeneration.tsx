@@ -4,6 +4,7 @@ import {
 } from "../salaryProcessing";
 import { calculateLeaveDeductions } from "@/app/lib/leaveDeductionCalculation";
 import { calculateTax } from "@/app/lib/taxCalculation";
+import { getEffectivePaymentStructure, getEffectiveSalaryPeriod } from "@/app/lib/utils/overrides";
 
 // Types for InOut
 export type RawInOut = Date[]; // Unprocessed in/out records
@@ -241,19 +242,21 @@ function calculateSalaryDetails(
     noPay: { amount: number };
   },
   ot: number,
-  holidayPay: number
+  holidayPay: number,
+  employee: any
 ) {
 
 
-  const parsedAdditions = (source.paymentStructure?.additions || []).map((addition) => ({
+  const effectivePaymentStructure = getEffectivePaymentStructure(employee.company, employee);
+  const parsedAdditions = (effectivePaymentStructure?.additions || []).map((addition: any) => ({
     name: addition.name,
     amount: parseValue(addition.name, addition.amount, source.basic),
     affectTotalEarnings: addition.affectTotalEarnings,
   }));
 
-  const parsedDeductions = (source.paymentStructure?.deductions || [])
-    .filter((deduction) => deduction.name !== "EPF 8%")
-    .map((deduction) => ({
+  const parsedDeductions = (effectivePaymentStructure?.deductions || [])
+    .filter((deduction: any) => deduction.name !== "EPF 8%")
+    .map((deduction: any) => ({
       name: deduction.name,
       amount: parseValue(deduction.name, deduction.amount, source.basic),
       affectTotalEarnings: deduction.affectTotalEarnings,
@@ -265,7 +268,7 @@ function calculateSalaryDetails(
       additionsWithNull,
       deductionsWithRanges,
       deductionsWithNull,
-    } = getFilteredAdditionsAndDeductions(source.paymentStructure);
+    } = getFilteredAdditionsAndDeductions(effectivePaymentStructure);
 
     const amountNeeded =
       Number(source.totalSalary) -
@@ -275,29 +278,29 @@ function calculateSalaryDetails(
       (source.basic + holidayPay) * 0.08;
 
     // Reset amounts for ranged and null additions/deductions
-    parsedAdditions.forEach((addition) => {
+    parsedAdditions.forEach((addition: any) => {
       if (
-        additionsWithRanges.some((range) => range.name === addition.name) ||
-        additionsWithNull.some((nullAdd) => nullAdd.name === addition.name)
+        additionsWithRanges.some((range: any) => range.name === addition.name) ||
+        additionsWithNull.some((nullAdd: any) => nullAdd.name === addition.name)
       ) {
         addition.amount = 0;
       }
     });
-    parsedDeductions.forEach((deduction) => {
+    parsedDeductions.forEach((deduction: any) => {
       if (
-        deductionsWithRanges.some((range) => range.name === deduction.name) ||
-        deductionsWithNull.some((nullDed) => nullDed.name === deduction.name)
+        deductionsWithRanges.some((range: any) => range.name === deduction.name) ||
+        deductionsWithNull.some((nullDed: any) => nullDed.name === deduction.name)
       ) {
         deduction.amount = 0;
       }
     });
 
     const totalAdditions = parsedAdditions.reduce(
-      (total, addition) => total + addition.amount,
+      (total: number, addition: any) => total + addition.amount,
       0
     );
     const totalDeductions = parsedDeductions.reduce(
-      (total, deduction) => total + deduction.amount,
+      (total: number, deduction: any) => total + deduction.amount,
       0
     );
 
@@ -355,11 +358,11 @@ function calculateSalaryDetails(
   });
 
   const totalAdditions = parsedAdditions.reduce(
-    (total, addition) => total + addition.amount,
+    (total: number, addition: any) => total + addition.amount,
     0
   );
   const totalDeductions = parsedDeductions.reduce(
-    (total, deduction) => total + deduction.amount,
+    (total: number, deduction: any) => total + deduction.amount,
     0
   );
 
@@ -432,8 +435,8 @@ export async function generateSalaryForOneEmployee(
 
     // Prorate basic salary if not monthly
     // Resolve rate divisor: Employee Override -> Company Default -> 30
-    const companyDefaults = employee.company?.salaryPeriodDefaults;
-    const rateDivisor = employee.rateDivisor || companyDefaults?.rateDivisor || 30;
+    const salaryPeriod = getEffectiveSalaryPeriod(employee.company, employee);
+    const rateDivisor = salaryPeriod?.rateDivisor || 30;
 
     // Check if period is standard monthly (YYYY-MM)
     const isMonthly = /^\d{4}-\d{2}$/.test(period);
@@ -448,7 +451,7 @@ export async function generateSalaryForOneEmployee(
     // User request: "basic is always monthly" -> This implies source.basic coming from employee is monthly. 
     // And "shoud be devided and used per day correctly" -> We just did that with effectiveBasic.
 
-    source.divideBy = employee.divideBy || 240;
+    source.divideBy = salaryPeriod?.divideBy || 240;
     source.totalSalary = parseValue("totalSalary", employee.totalSalary, 0);
 
     //if totalSalary then parse totalSalary to number
@@ -500,7 +503,7 @@ export async function generateSalaryForOneEmployee(
       parsedDeductions,
       totalAdditions,
       totalDeductions,
-    } = calculateSalaryDetails({ ...source, basic: effectiveBasic }, salary, ot, holidayPay);
+    } = calculateSalaryDetails({ ...source, basic: effectiveBasic }, salary, ot, holidayPay, employee);
 
     // Calculate leave deductions for no-pay leaves (only for non-attendance method to avoid double counting)
     let totalLeaveDeduction = 0;

@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { CheckCircle, Cancel, LocationOn, Delete, AddCircle, Warning, Smartphone } from "@mui/icons-material";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { getEffectiveShifts, getEffectiveAttendanceConfig } from "@/app/lib/utils/overrides";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from "dayjs";
@@ -204,9 +205,19 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     // Virtual sessions (newly created but not saved)
     const [newSessionCount, setNewSessionCount] = useState(0);
 
+    // Compute Effective Shifts (Employee Overrides vs Company Defaults)
+    const effectiveShifts = useMemo(() => {
+        return getEffectiveShifts(companyConfig, employee);
+    }, [employee, companyConfig]);
+
+    // Compute Effective Zone Overrides
+    const effectiveAttendanceOverrides = useMemo(() => {
+        return getEffectiveAttendanceConfig(companyConfig, employee);
+    }, [employee, companyConfig]);
+
     // Helper to get defaults based on shift
     const getShiftDefaults = (shiftId: string, type: 'in' | 'out', dateStr: string) => {
-        const shift = shifts.find((s: any) => (s._id || s.shiftId) === shiftId);
+        const shift = effectiveShifts.find((s: any) => (s._id || s.shiftId) === shiftId);
         let defaultTime = null;
 
         if (shift) {
@@ -452,7 +463,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
         // Find the selected shift
         const selectedShift = currentFormData.shiftId
-            ? shifts.find((s: any) => (s._id || s.shiftId) === currentFormData.shiftId)
+            ? effectiveShifts.find((s: any) => (s._id || s.shiftId) === currentFormData.shiftId)
             : null;
 
         // If shift found, format it correctly for the API
@@ -823,8 +834,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             disabled={readOnly || disableShiftChange || userRole === 'manager'}
                                         >
                                             <option value="">No Shift</option>
-                                            {shifts && shifts.length > 0 ? (
-                                                shifts.map((shift: any, index: number) => {
+                                            {effectiveShifts && effectiveShifts.length > 0 ? (
+                                                effectiveShifts.map((shift: any, index: number) => {
                                                     // Shifts use _id and name, not shiftId and shiftName
                                                     const id = shift._id || shift.shiftId;
                                                     const name = shift.name || shift.shiftName;
@@ -892,6 +903,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             <Box height={200} mt={1} border="1px solid #eee">
                                                 <AttendanceZonesMap
                                                     companyConfig={companyConfig}
+                                                    employeeOverrides={effectiveAttendanceOverrides}
                                                     markerLocation={{ lat: currentLog.location.lat, lng: currentLog.location.lng }}
                                                     interactive={false}
                                                     height={200}

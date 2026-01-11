@@ -66,7 +66,7 @@ export class KioskService {
             companyName: company.name,
             timezone: company.timezone || "Asia/Colombo",
             attendanceConfig: company.attendanceConfig,
-            geoFencing: company.geoFencing,
+            geoFencing: company.attendanceConfig?.geoFencing,
         };
     }
 

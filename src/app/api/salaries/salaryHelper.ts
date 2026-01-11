@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { getEffectiveWorkingDays } from "../../lib/utils/overrides";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 
@@ -47,21 +48,12 @@ export const getWorkingDayStatus = (
     // Use UTC methods to avoid timezone issues
     const dayOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getUTCDay()];
 
-    // Determine if dynamic holidays are enabled
-    const isDynamicHolidays = employee.overrides?.workingDays
-        ? employee.workingDays?.isDynamicHolidays
-        : employee.company?.workingDays?.isDynamicHolidays;
+    const effectiveWorkingDays = getEffectiveWorkingDays(employee.company, employee);
+    const isDynamicHolidays = effectiveWorkingDays?.isDynamicHolidays;
 
     // If day_status is undefined, populate it based on employee or company working days
     if (inOutRecord?.day_status === undefined) {
-        // If employee has working days override, use employee's working days
-        if (employee.overrides?.workingDays && employee.workingDays) {
-            return employee.workingDays[dayOfWeek] || "full";
-        }
-        // Otherwise, use company's working days
-        else if (employee.company?.workingDays) {
-            return employee.company.workingDays[dayOfWeek] || "full";
-        }
+        return effectiveWorkingDays?.[dayOfWeek] || "full";
     }
 
     // If dynamic holidays are enabled and a day_status is available in the record, use it
@@ -70,11 +62,7 @@ export const getWorkingDayStatus = (
     }
 
     // Default behavior
-    const workingDayStatus = employee.overrides?.workingDays
-        ? employee.workingDays?.[dayOfWeek] || "full"
-        : employee.company?.workingDays?.[dayOfWeek] || "full";
-
-    return workingDayStatus;
+    return effectiveWorkingDays?.[dayOfWeek] || "full";
 };
 
 export const getHoliday = (
