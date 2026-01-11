@@ -14,11 +14,8 @@ import {
     IconButton,
     useTheme,
     alpha,
-    Chip,
     Avatar,
     Divider,
-    Backdrop,
-    Zoom,
 } from "@mui/material";
 import {
     ArrowBack,
@@ -26,14 +23,7 @@ import {
     Error as ErrorIcon,
     AccessTime,
     Videocam,
-    VideocamOff,
     FaceRetouchingNatural,
-    Coffee,
-    Warning as WarningIcon,
-    Business,
-    Security as GuardIcon,
-    People as PeopleIcon,
-    Help as HelpIcon,
 } from "@mui/icons-material";
 import { markAttendance, AttendanceResult, validateApiKey } from "@/app/lib/api/kioskApi";
 import dayjs from "dayjs";
@@ -41,8 +31,9 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { ThemeSwitch } from "@/app/theme-provider";
-import { detectFace, getAllFaces, loadModels } from "@/app/lib/faceRecognition";
+import { getAllFaces, loadModels } from "@/app/lib/faceRecognition";
 import { KioskOverlay, OverlayData, OverlayType } from "../components/KioskOverlay";
+import { antiSpoofing } from "../utils/antiSpoofingClient";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -76,7 +67,6 @@ export default function KioskMarkPage() {
         if (overlayOpen) {
             const timer = setTimeout(() => {
                 setOverlayOpen(false);
-                // Don't clear overlayData immediately to allow exit animation
                 setLastResult(null); // Clear the small alert too
             }, 3000);
             return () => clearTimeout(timer);
@@ -92,7 +82,6 @@ export default function KioskMarkPage() {
 
     /**
      * Unified Overlay Handler
-     * Manages all kiosk feedback states (success, errors, security)
      */
     const triggerOverlay = (
         type: OverlayType,
@@ -175,7 +164,6 @@ export default function KioskMarkPage() {
         setMounted(true);
     }, []);
 
-    // Check API key and load models
     useEffect(() => {
         const storedKey = localStorage.getItem("kiosk_api_key");
         if (!storedKey) {
@@ -184,12 +172,10 @@ export default function KioskMarkPage() {
         }
         setApiKey(storedKey);
 
-        // Load Company Info
         validateApiKey(storedKey).then(info => {
             setCompanyName(info.companyName);
             setCompanyInfo(info);
         }).catch(() => {
-            // If validation fails, maybe just keep default or redirect
             console.warn("Could not validate key or fetch company name");
         });
 
@@ -199,24 +185,19 @@ export default function KioskMarkPage() {
         startCamera();
     }, []);
 
-    // Attach stream to video with safe play handling
     useEffect(() => {
         if (stream && videoRef.current && cameraActive) {
             const video = videoRef.current;
             video.srcObject = stream;
-
             const playPromise = video.play();
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
-                    // Auto-play was prevented
-                    // Show a UI element to let the user manually start playback
                     console.log("Video play failed:", error);
                 });
             }
         }
     }, [stream, cameraActive]);
 
-    // Cleanup stream on unmount
     useEffect(() => {
         return () => {
             if (stream) {
@@ -225,7 +206,6 @@ export default function KioskMarkPage() {
         };
     }, [stream]);
 
-    // Update clock
     useEffect(() => {
         const interval = setInterval(() => setCurrentTime(dayjs()), 1000);
         return () => clearInterval(interval);
@@ -256,7 +236,11 @@ export default function KioskMarkPage() {
     };
 
     const captureAndMark = async () => {
-        if (!videoRef.current || !canvasRef.current) return;
+        console.log("[Mark] Starting captureAndMark...");
+        if (!videoRef.current || !canvasRef.current) {
+            console.log("[Mark] Missing video or canvas ref");
+            return;
+        }
 
         setLoading(true);
         setError("");
@@ -278,12 +262,38 @@ export default function KioskMarkPage() {
 
             ctx.drawImage(video, 0, 0);
             const imageData = canvas.toDataURL("image/jpeg", 0.95);
+            console.log("[Mark] Image captured, length:", imageData.length);
 
             const img = new Image();
             img.src = imageData;
             await img.decode();
 
+            // 1. Client-Side Anti-Spoofing Check
+            // Do this BEFORE heavy face recognition to save time if it's a fake
+            if (companyInfo?.attendanceConfig?.livenessDetection) {
+                console.log("[Mark] Liveness detection enabled, checking...");
+                try {
+                    const spoofResult = await antiSpoofing.predict(img);
+                    console.log("[Mark] Spoof result:", spoofResult);
+                    if (!spoofResult.isReal) {
+                        throw new Error("Something's Fishy! 🎣 The camera might be playing tricks. Try again in better light.");
+                    }
+                } catch (spoofErr) {
+                    console.error("[Mark] Anti-spoofing fatal error:", spoofErr);
+                    // FAIL CLOSED: If liveness is required but check fails (even technical error), block attendance.
+                    if ((spoofErr as Error).message.includes("Fishy")) {
+                        throw spoofErr;
+                    } else {
+                        throw new Error("Liveness Check Failed");
+                    }
+                }
+            } else {
+                console.log("[Mark] Liveness detection disabled or missing config");
+            }
+
+            console.log("[Mark] Detecting faces...");
             const detections = await getAllFaces(img);
+            console.log("[Mark] Detections found:", detections.length);
 
             if (detections.length === 0) {
                 triggerOverlay("info", {
@@ -306,18 +316,22 @@ export default function KioskMarkPage() {
 
             const faceDescriptor = Array.from(detection.descriptor) as number[];
 
+            console.log("[Mark] Requesting geolocation...");
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
             });
+            console.log("[Mark] Geolocation obtained:", position.coords);
 
+            console.log("[Mark] Calling markAttendance API...");
             const result = await markAttendance(apiKey, {
                 descriptors: [faceDescriptor],
-                image: imageData,
+                // image: imageData, // We no longer send the image to server!
             }, {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
                 accuracy: position.coords.accuracy,
             });
+            console.log("[Mark] API Result:", result);
 
             setLastResult(result);
             setRecentAttendance(prev => [result, ...prev].slice(0, 10));
@@ -329,9 +343,9 @@ export default function KioskMarkPage() {
             });
 
         } catch (err: any) {
+            console.error("[Mark] Error in captureAndMark:", err);
             const errorMessage = err.message || "Failed to mark attendance";
 
-            // Check for "wait" message (Cooldown)
             if (errorMessage.toLowerCase().includes("wait") && errorMessage.toLowerCase().includes("minute")) {
                 const match = errorMessage.match(/(\d+)\s*more minute/);
                 const minutes = match ? match[1] : "?";
@@ -368,8 +382,6 @@ export default function KioskMarkPage() {
             </Box>
 
             <Container maxWidth={false}>
-                {/* Header */}
-                {/* Header */}
                 <Box sx={{ position: "relative", mb: { xs: 1, md: 3 }, minHeight: { xs: 40, md: 48 }, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <IconButton
                         onClick={() => router.push("/kiosk")}
@@ -419,12 +431,7 @@ export default function KioskMarkPage() {
                     </Box>
                 </Box>
 
-                {/* Main Content */}
-                {/* Main Content */}
-                {/* Main Content */}
-                {/* Main Content */}
                 <Box sx={{ position: "relative", display: "flex", flexDirection: { xs: "column", lg: "row" }, justifyContent: "center", alignItems: "center" }}>
-                    {/* Centered Camera Section */}
                     <Box sx={{ width: "100%", maxWidth: "600px", zIndex: 2 }}>
                         <Paper
                             elevation={0}
@@ -480,7 +487,6 @@ export default function KioskMarkPage() {
 
                             <Divider />
 
-                            {/* Camera Section */}
                             <Box
                                 sx={{
                                     position: "relative",
@@ -542,9 +548,6 @@ export default function KioskMarkPage() {
                             <canvas ref={canvasRef} style={{ display: "none" }} />
 
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: "100%" }}>
-                                {cameraActive && (
-                                    null
-                                )}
                                 <Button
                                     fullWidth
                                     variant="contained"
@@ -592,7 +595,6 @@ export default function KioskMarkPage() {
                         </Paper>
                     </Box>
 
-                    {/* Recent Activity - Absolute Right on Desktop */}
                     {recentAttendance.length > 0 && (
                         <Box
                             sx={{

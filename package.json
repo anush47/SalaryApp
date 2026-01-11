@@ -55,6 +55,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^9.0.8",
     "baseline-browser-mapping": "^2.9.11",
+    "copy-webpack-plugin": "^13.0.1",
     "eslint": "^8",
     "eslint-config-next": "16.1.1",
     "postcss": "^8",

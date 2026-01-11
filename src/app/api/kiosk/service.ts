@@ -7,7 +7,6 @@ import { z } from "zod";
 
 import { getNextAttendanceType, getAttendanceTypeExplanation } from "@/app/lib/attendanceTypeLogic";
 import { ShiftService } from "@/app/lib/services/shiftService";
-import { detectSpoofing } from "@/app/lib/antiSpoofing";
 
 // Validation schemas
 export const validateApiKeySchema = z.object({
@@ -151,20 +150,15 @@ export class KioskService {
         const { companyId, attendanceConfig } = companyInfo;
         console.log(`[KIOSK] ⏱️ API Key Validation & DB Connect: ${Date.now() - validateStartTime}ms`);
 
-        // 2. Start Parallel Tasks: Employee fetching & Anti-spoofing
+        // 2. Start Parallel Tasks: Employee fetching
         const parallelStartTime = Date.now();
         const employeesPromise = Employee.find({
             company: companyId,
             active: true,
-            "faceData.descriptors": { $exists: true },
+            "faceData.descriptors": { $exists: true }, // Only index-covered query
         })
             .select("_id name memberNo +faceData.descriptors")
             .lean();
-
-        let spoofPromise = null;
-        if (attendanceConfig?.livenessDetection && faceData.image) {
-            spoofPromise = detectSpoofing(faceData.image);
-        }
 
         // 3. Await employees and run face matching
         const employees = await employeesPromise;
@@ -185,11 +179,11 @@ export class KioskService {
 
         const { employee: matchedEmployee, confidence, distance } = matchResult;
 
-        // 4. Parallelize the remaining DB checks and await spoofing if it hasn't finished
+        // 4. Parallelize the remaining DB checks
         const finalChecksStartTime = Date.now();
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-        const [recentAttendance, lastAttendance, fullEmployee, fullCompany, spoofResult] = await Promise.all([
+        const [recentAttendance, lastAttendance, fullEmployee, fullCompany] = await Promise.all([
             // 4a. Cooldown check
             Attendance.findOne({
                 employee: matchedEmployee._id as any,
@@ -204,19 +198,8 @@ export class KioskService {
             // 4c. Fetch full documents for ShiftService logic
             Employee.findById(matchedEmployee._id).lean(),
             Company.findById(companyId).lean(),
-
-            // 4d. Anti-spoofing result (if running)
-            spoofPromise
         ]);
         console.log(`[KIOSK] ⏱️ Parallel Multi-Checks: ${Date.now() - finalChecksStartTime}ms`);
-
-        // Handle Anti-spoofing
-        if (spoofResult && !spoofResult.isReal) {
-            console.warn(`[KIOSK] ⚠️ SPOOF REJECTED: ${matchedEmployee.name} | Conf: ${spoofResult.confidence.toFixed(3)}`);
-            throw new BadRequestError(
-                `Something's Fishy! 🎣 The camera might be playing tricks. Try again in better light.`
-            );
-        }
 
         // Handle Cooldown
         if (recentAttendance) {
