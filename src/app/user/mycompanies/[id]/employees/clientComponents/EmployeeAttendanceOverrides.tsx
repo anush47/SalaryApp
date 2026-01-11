@@ -26,18 +26,18 @@ interface AttendanceOverrides {
         longitude: number;
         radiusMeters: number;
         enforceValidation: boolean;
+        allowedLocations?: {
+            lat: number;
+            lng: number;
+            radius: number;
+            name: string;
+            _id?: string;
+        }[];
     };
     allowRemoteCheckIn: boolean;
     requireApproval: boolean;
     approvalMode?: "automatic" | "always" | "out_of_zone";
     isRemote: boolean;
-    allowedLocations: {
-        lat: number;
-        lng: number;
-        radius: number;
-        name: string;
-        _id?: string;
-    }[];
 }
 
 
@@ -149,7 +149,7 @@ export const EmployeeAttendanceOverrides: React.FC<EmployeeAttendanceOverridesPr
                                             longitude: config.geoFencing?.longitude || 0,
                                             radiusMeters: config.geoFencing?.radiusMeters || 100,
                                             enforceValidation: config.geoFencing?.enforceValidation || false,
-                                            allowedLocations: config.allowedLocations || []
+                                            allowedLocations: config.geoFencing?.allowedLocations || []
                                         },
                                         isRemote: config.isRemote || false
                                     }}

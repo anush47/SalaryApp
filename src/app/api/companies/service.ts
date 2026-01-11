@@ -32,7 +32,7 @@ export class CompanyService {
     }
 
     // Fetch company from the database
-    let company = await Company.findOne(filter).lean();
+    let company = await Company.findOne(filter).select("+attendanceConfig.apiKey").lean();
 
     // If company not found by ownership, check if user is an employee of the company
     if (!company && context.user?.role !== "admin") {

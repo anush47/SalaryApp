@@ -258,10 +258,12 @@ const EditEmployeeForm: React.FC<{
     ) {
       // Handle checkbox state changes
       value = event.target.checked;
+      console.log(`[DEBUG] handleChange: ${name} = ${value}`, { companyData });
 
       // Initialize with company defaults when enabling an override
       if (name.startsWith("overrides.") && value === true && companyData) {
         const overrideField = name.split(".")[1]; // e.g., "shifts", "workingDays", etc.
+        console.log(`[DEBUG] Enabling override for: ${overrideField}`);
 
         // Map override field names to their corresponding data fields and company sources
         const fieldMappings: Record<string, { employeeField: string; companyField: string }> = {
@@ -277,55 +279,88 @@ const EditEmployeeForm: React.FC<{
         const mapping = fieldMappings[overrideField];
         if (mapping) {
           const companyValue = (companyData as any)[mapping.companyField];
+          console.log(`[DEBUG] Found mapping for ${overrideField}`, { mapping, companyValue });
 
-          // Special handling for salaryPeriod - copy multiple fields
+          // Special handling for attendance - copy multiple fields
           if (overrideField === "attendance") {
-            const compConfig = (companyData as any).attendanceConfig || {};
-            const compGeo = (companyData as any).geoFencing || {};
+            const compConfig = (companyData as any).attendanceConfig;
+            console.log(`[DEBUG] Attendance config from company:`, compConfig);
 
-            const newAttendanceOverrides = {
-              enabled: true, // Should we enable it? No, keep it matching company config enabled status usually, or default true? Schema says enabled is bool. 
-              // Actually companyConfig has enabled. 
-              ...compConfig,
-              geoFencing: compGeo,
-              isRemote: false, // Default
-            };
+            if (compConfig) {
+              // Deep clone to avoid mutating reference
+              const { apiKey, ...restCompConfig } = JSON.parse(JSON.stringify(compConfig));
 
-            setFormFields((prevFields) => ({
-              ...prevFields,
-              overrides: {
-                ...prevFields.overrides,
-                [overrideField]: value,
-              },
-              attendanceOverrides: newAttendanceOverrides,
-            }));
-            return;
+              // Ensure geoFencing is properly structured
+              const compGeo = restCompConfig.geoFencing || {
+                enabled: false,
+                latitude: 0,
+                longitude: 0,
+                radiusMeters: 100,
+                enforceValidation: false,
+                allowedLocations: []
+              };
+
+              const newAttendanceOverrides = {
+                enabled: true,
+                ...restCompConfig,
+                geoFencing: compGeo,
+                isRemote: restCompConfig.isRemote || false,
+                // preserve existing override ID if present, though likely undefined for new override
+                _id: (formFields.attendanceOverrides as any)?._id
+              };
+
+              console.log(`[DEBUG] New attendance overrides to set:`, newAttendanceOverrides);
+
+              setFormFields((prevFields) => ({
+                ...prevFields,
+                // Spread attendance config to root as well since UI reads from root props
+                // ...newAttendanceOverrides,  <-- REVERTED per user instruction
+                overrides: {
+                  ...prevFields.overrides,
+                  [overrideField]: value,
+                },
+                attendanceOverrides: newAttendanceOverrides,
+              }));
+              return;
+            } else {
+              console.warn("[DEBUG] No attendanceConfig found in companyData");
+            }
           }
 
           // Special handling for salaryPeriod - copy multiple fields
           if (overrideField === "salaryPeriod" && companyValue) {
+            const clonedValue = JSON.parse(JSON.stringify(companyValue));
             setFormFields((prevFields) => ({
               ...prevFields,
               overrides: {
                 ...prevFields.overrides,
                 [overrideField]: value,
               },
-              salaryPeriod: companyValue.salaryPeriod || "monthly",
-              calculationMethod: companyValue.calculationMethod || "fixed_days",
-              rateDivisor: companyValue.rateDivisor || 30,
-              payPeriodConfig: companyValue.payPeriodConfig,
-              customPeriodDays: companyValue.customPeriodDays,
+              salaryPeriod: clonedValue.salaryPeriod || "monthly",
+              calculationMethod: clonedValue.calculationMethod || "fixed_days",
+              rateDivisor: clonedValue.rateDivisor || 30,
+              payPeriodConfig: clonedValue.payPeriodConfig,
+              customPeriodDays: clonedValue.customPeriodDays,
             }));
             return;
           } else if (companyValue) {
             // For other overrides, copy the company value to the employee field
+            // Deep copy to prevent mutation of cached company data
+            const clonedValue = JSON.parse(JSON.stringify(companyValue));
+
+            // If copying shifts, ensure we strip _id from shifts to treat them as new copies for the employee?
+            // Or keep them? User said "copy". If we keep IDs, they point to company Shifts.
+            // If employee modifies them, it might be confusing.
+            // But schema allows _id. If we strip _id, they are new shifts.
+            // Let's keep strict copy for now unless problematic.
+
             setFormFields((prevFields) => ({
               ...prevFields,
               overrides: {
                 ...prevFields.overrides,
                 [overrideField]: value,
               },
-              [mapping.employeeField]: companyValue,
+              [mapping.employeeField]: clonedValue,
             }));
             return;
           }
@@ -1714,60 +1749,28 @@ const EditEmployeeForm: React.FC<{
                   isEditing={isEditing}
                   attendanceOverrideEnabled={formFields.overrides?.attendance || false}
                   onToggleOverride={(enabled) => {
-                    setFormFields((prev) => ({
-                      ...prev,
-                      overrides: {
-                        ...prev.overrides,
-                        attendance: enabled
+                    handleChange({
+                      target: {
+                        name: "overrides.attendance",
+                        checked: enabled,
+                        value: enabled // ensure value is set for checkbox logic
                       }
-                    }));
+                    });
                   }}
-                  attendanceOverrides={{
-                    ...formFields.attendanceOverrides,
-                    geoFencing: {
-                      ...formFields.geoFencing,
-                      enabled: formFields.geoFencing?.enabled || false,
-                      latitude: formFields.geoFencing?.latitude || 0,
-                      longitude: formFields.geoFencing?.longitude || 0,
-                      radiusMeters: formFields.geoFencing?.radiusMeters || 100,
-                      enforceValidation: formFields.geoFencing?.enforceValidation || false,
-                    },
-                    allowRemoteCheckIn: formFields.allowRemoteCheckIn,
-                    requireApproval: formFields.requireApproval,
-                    isRemote: formFields.isRemote,
-                    allowedLocations: formFields.allowedLocations || [],
-                    pwaCheckIn: (formFields.attendanceOverrides as any)?.features?.pwaCheckIn || false,
-                    hardwareIntegration: (formFields.attendanceOverrides as any)?.features?.hardwareIntegration || false,
-                    salaryIntegration: (formFields.attendanceOverrides as any)?.features?.salaryIntegration || false,
-                  }}
+                  attendanceOverrides={formFields.attendanceOverrides}
                   onUpdateOverrides={(newOverrides) => {
-                    const {
-                      pwaCheckIn,
-                      hardwareIntegration,
-                      salaryIntegration,
-                      enabled,
-                      geoFencing,
-                      allowRemoteCheckIn,
-                      requireApproval,
-                      isRemote,
-                      allowedLocations,
-                    } = newOverrides;
-
                     setFormFields((prev) => ({
                       ...prev,
                       attendanceOverrides: {
-                        enabled,
-                        features: {
-                          pwaCheckIn,
-                          hardwareIntegration,
-                          salaryIntegration,
-                        },
-                      },
-                      geoFencing,
-                      allowRemoteCheckIn,
-                      requireApproval,
-                      isRemote,
-                      allowedLocations,
+                        ...prev.attendanceOverrides,
+                        ...newOverrides,
+                        // Ensure nested objects are merged correctly if newOverrides is partial, 
+                        // but looking at usage newOverrides usually comes full or we assume replace.
+                        // The component usually sends specific updates. 
+                        // Let's assume newOverrides is the full new shape or partial update.
+                        // Based on previous code, it destructured everything. 
+                        // Safe to just merge.
+                      }
                     }));
                   }}
                 />

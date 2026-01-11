@@ -396,7 +396,7 @@ const companySchema = new Schema<ICompany>(
           },
         ],
       },
-      apiKey: { type: String },
+      apiKey: { type: String, select: false },
     },
     salaryPeriodDefaults: {
       salaryPeriod: {

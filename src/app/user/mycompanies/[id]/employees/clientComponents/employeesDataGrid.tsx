@@ -173,29 +173,34 @@ export interface Employee {
   }[];
   attendanceOverrides: {
     enabled: boolean;
-    features: {
-      pwaCheckIn: boolean;
-      hardwareIntegration: boolean;
-      salaryIntegration: boolean;
+    pwaCheckIn: boolean;
+    hardwareIntegration: boolean;
+    salaryIntegration: boolean;
+    geoFencing?: {
+      enabled: boolean;
+      latitude: number;
+      longitude: number;
+      radiusMeters: number;
+      enforceValidation: boolean;
+      allowedLocations?: {
+        lat: number;
+        lng: number;
+        radius: number;
+        name: string;
+        _id?: string;
+      }[];
     };
+    allowRemoteCheckIn: boolean;
+    requireApproval: boolean;
+    approvalMode?: "automatic" | "always" | "out_of_zone";
+    isRemote: boolean;
+    // features: {}  <-- removing this artificial nesting if it doesn't match backend, backend key is flat inside attendanceOverrides?
+    // Checking Mongoose model again:
+    // attendanceOverrides: { enabled, pwaCheckIn, hardwareIntegration, ... }
+    // Yes, they are flat in attendanceOverrides.
   };
-  geoFencing?: {
-    enabled: boolean;
-    latitude: number;
-    longitude: number;
-    radiusMeters: number;
-    enforceValidation: boolean;
-  };
-  allowRemoteCheckIn: boolean;
-  requireApproval: boolean;
-  isRemote: boolean;
-  allowedLocations: {
-    lat: number;
-    lng: number;
-    radius: number;
-    name: string;
-    _id?: string;
-  }[];
+  // Removed root level fields that are now in attendanceOverrides
+  // geoFencing, allowRemoteCheckIn, etc.
   // Salary Period Configuration
   salaryPeriod?: "daily" | "weekly" | "bi-weekly" | "monthly" | "custom";
   customPeriodDays?: number;
@@ -255,23 +260,23 @@ export const defaultEmployee: Employee = {
   },
   attendanceOverrides: {
     enabled: false,
-    features: {
-      pwaCheckIn: false,
-      hardwareIntegration: false,
-      salaryIntegration: false,
+    pwaCheckIn: false,
+    hardwareIntegration: false,
+    salaryIntegration: false,
+    geoFencing: {
+      enabled: false,
+      latitude: 0,
+      longitude: 0,
+      radiusMeters: 100,
+      enforceValidation: false,
+      allowedLocations: []
     },
+    allowRemoteCheckIn: false,
+    requireApproval: false,
+    approvalMode: "automatic",
+    isRemote: false,
   },
-  geoFencing: {
-    enabled: false,
-    latitude: 0,
-    longitude: 0,
-    radiusMeters: 100,
-    enforceValidation: false,
-  },
-  allowRemoteCheckIn: false,
-  requireApproval: false,
-  isRemote: false,
-  allowedLocations: [],
+  // Removed root fields
   leaveTypes: [],
   shiftSettings: {
     mode: "fixed",
