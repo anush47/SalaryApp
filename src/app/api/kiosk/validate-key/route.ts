@@ -4,29 +4,15 @@ import { KioskService, validateApiKeySchema } from "../service";
 import { z } from "zod";
 
 /**
- * GET /api/kiosk/validate-key
- * Debug method to check if route is active
- */
-export async function GET() {
-    return ApiResponseUtils.sendSuccess(null, "Kiosk API is active. Use POST to validate keys.");
-}
-
-/**
  * POST /api/kiosk/validate-key
  * Validates the API key and returns company information
  */
 export async function POST(req: NextRequest) {
-    console.log(`[KIOSK-API] POST request received at ${req.nextUrl.pathname}`);
-    console.log(`[KIOSK-API] Method: ${req.method}`);
-
     try {
         let body;
         try {
-            const rawBody = await req.text();
-            console.log(`[KIOSK-API] Raw body length: ${rawBody.length}`);
-            body = JSON.parse(rawBody);
+            body = await req.json();
         } catch (e) {
-            console.error("[KIOSK-API] JSON Parse Error:", e);
             return ApiResponseUtils.sendBadRequest("Invalid JSON body");
         }
 

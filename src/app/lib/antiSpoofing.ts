@@ -1,16 +1,20 @@
-import * as ort from 'onnxruntime-node';
+// import * as ort from 'onnxruntime-node'; // Removed top-level import
+import type * as ORT from 'onnxruntime-node'; // Type-only import
 import sharp from 'sharp';
 import path from 'path';
 
 export class AntiSpoofingDetector {
-    private session: ort.InferenceSession | null = null;
+    private session: ORT.InferenceSession | null = null;
+    private ort: typeof ORT | null = null;
     private readonly MODEL_PATH = path.join(process.cwd(), 'public/models/antispoofing.onnx');
     private readonly INPUT_SIZE = 128; // Model expects 128x128 input
 
     async initialize() {
-        if (!this.session) {
+        if (!this.session || !this.ort) {
             try {
-                this.session = await ort.InferenceSession.create(this.MODEL_PATH);
+                // Dynamic import to prevent loading onnxruntime-node when not needed
+                this.ort = await import('onnxruntime-node');
+                this.session = await this.ort.InferenceSession.create(this.MODEL_PATH);
                 console.log('[AntiSpoof] ✓ Model loaded successfully');
             } catch (err) {
                 console.error('[AntiSpoof] ✗ Failed to load model:', err);
@@ -26,6 +30,10 @@ export class AntiSpoofingDetector {
     }> {
         await this.initialize();
 
+        if (!this.ort || !this.session) {
+            throw new Error("Anti-spoofing model not initialized");
+        }
+
         try {
             // 1. Decode base64 image
             const imageBuffer = Buffer.from(
@@ -38,9 +46,9 @@ export class AntiSpoofingDetector {
 
             // 3. Run inference
             const feeds = {
-                input: new ort.Tensor('float32', preprocessed, [1, 3, this.INPUT_SIZE, this.INPUT_SIZE])
+                input: new this.ort.Tensor('float32', preprocessed, [1, 3, this.INPUT_SIZE, this.INPUT_SIZE])
             };
-            const results = await this.session!.run(feeds);
+            const results = await this.session.run(feeds);
 
             // 4. Parse output - Model outputs [fake_score, real_score]
             const output = results.output.data as Float32Array;
