@@ -209,7 +209,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     const [sessionFormData, setSessionFormData] = useState<Record<string, any>>({});
 
     // Virtual sessions (newly created but not saved)
-    const [newSessionCount, setNewSessionCount] = useState(0);
+    const [manualSessions, setManualSessions] = useState<any[]>([]);
 
     // Helper to get defaults based on shift
     const getShiftDefaults = (shiftId: string, type: 'in' | 'out', dateStr: string) => {
@@ -338,10 +338,10 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         }
     }, [open, dailyRecord]);
 
-    // Reset newSessionCount when dialog opens to prevent stale virtual sessions
+    // Reset manualSessions when dialog opens to prevent stale virtual sessions
     useEffect(() => {
         if (open) {
-            setNewSessionCount(0);
+            setManualSessions([]);
         }
     }, [open]);
 
@@ -357,17 +357,17 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 durationMinutes: dailyRecord.durationMinutes || 0
             }];
         }
-        return s;
+        // Ensure regular sessions have a stable ID (use inLogId or outLogId)
+        return s.map((session: any) => ({
+            ...session,
+            id: session.inLogId || session.outLogId || `legacy-${Math.random()}`
+        }));
     }, [dailyRecord]);
 
     // Combined sessions: Existing + New
     const allSessions = useMemo(() => {
-        const base: any[] = [...sessions];
-        for (let i = 0; i < newSessionCount; i++) {
-            base.push({}); // Empty object for new session
-        }
-        return base;
-    }, [sessions, newSessionCount]);
+        return [...sessions, ...manualSessions];
+    }, [sessions, manualSessions]);
 
     const currentSession = allSessions[selectedSessionIdx] || null;
     const currentLogId = activeSubTab === 0 ? currentSession?.inLogId : currentSession?.outLogId;
@@ -377,10 +377,16 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     // Initialize or Update Form Data on Tab/Log Change
     useEffect(() => {
         const type = activeSubTab === 0 ? 'in' : 'out';
-        const formKey = `${selectedSessionIdx}-${type}`;
+        // Use Stable Session ID
+        const formKey = currentSession?.id ? `${currentSession.id}-${type}` : '';
+        if (!formKey) return;
 
-        // Priority: dailyRecord.shiftId (existing) > employee.shift (assigned) > empty
-        const shiftIdToUse = dailyRecord?.shiftId
+        // Priority: IN Log Shift (if exists and matching session) > dailyRecord.shiftId > employee.shift > empty
+        const inLogShift = (currentSession?.inLogId && Array.isArray(fetchedLogs)) ? fetchedLogs.find((l: any) => l._id === currentSession.inLogId)?.shift : null;
+        const inLogShiftId = inLogShift?.shiftId || inLogShift?._id || (typeof inLogShift === 'string' ? inLogShift : undefined);
+
+        const shiftIdToUse = inLogShiftId
+            || dailyRecord?.shiftId
             || employee?.shift?._id
             || employee?.shift?.shiftId
             || (typeof employee?.shift === 'string' ? employee?.shift : '')
@@ -391,6 +397,12 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
             if (currentLog) {
                 // Edit Mode: Sync with DB Log always, but ensure shift is set
+
+                // If we already have dirty data for this edit session, preserve it!
+                if (currentData && currentData.mode === 'edit') {
+                    return { ...prev, [formKey]: currentData };
+                }
+
                 const shiftId = currentLog.shift?.shiftId
                     || currentLog.shift?._id
                     || (typeof currentLog.shift === 'string' ? currentLog.shift : '')
@@ -411,12 +423,20 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                 // Initialize Defaults
                 const defaultTimestamp = getShiftDefaults(shiftIdToUse, type, dailyRecord?.date || dayjs().format('YYYY-MM-DD'));
 
+                // Check if we already have data for this form key to avoid overwriting user input
+                if (currentData && currentData.mode === 'create') {
+                    return {
+                        ...prev,
+                        [formKey]: currentData
+                    };
+                }
+
                 return {
                     ...prev,
                     [formKey]: {
                         timestamp: defaultTimestamp,
                         status: 'approved',
-                        remarks: currentData?.remarks || '', // Preserve remarks if user typed something
+                        remarks: '',
                         shiftId: shiftIdToUse,
                         dayStatus: dailyRecord?.isOffDay || dailyRecord?.isHoliday ? 'off' : 'full',
                         mode: 'create'
@@ -434,7 +454,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     }, [selectedSessionIdx, activeSubTab, fetchedLogs, dailyRecord, allSessions]);
 
     // Current Form Data Accessor
-    const activeFormKey = `${selectedSessionIdx}-${activeSubTab === 0 ? 'in' : 'out'}`;
+    const activeFormKey = currentSession?.id ? `${currentSession.id}-${activeSubTab === 0 ? 'in' : 'out'}` : '';
     const formData = sessionFormData[activeFormKey] || {
         timestamp: null,
         status: 'approved',
@@ -444,124 +464,199 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
     };
 
     const handleFormChange = (field: string, value: any) => {
-        setSessionFormData(prev => ({
-            ...prev,
-            [activeFormKey]: {
-                ...prev[activeFormKey],
-                [field]: value
+        setSessionFormData(prev => {
+            const newState = {
+                ...prev,
+                [activeFormKey]: {
+                    ...prev[activeFormKey],
+                    [field]: value
+                }
+            };
+
+            // If Shift ID or Day Status changed, sync it to the paired tab (IN <-> OUT) to keep session consistent
+            if (field === 'shiftId' || field === 'dayStatus') {
+                const type = activeSubTab === 0 ? 'in' : 'out';
+                const otherType = type === 'in' ? 'out' : 'in';
+                const otherKey = currentSession?.id ? `${currentSession.id}-${otherType}` : '';
+
+                // Only update if the other form data already exists (initialized)
+                if (newState[otherKey]) {
+                    newState[otherKey] = {
+                        ...newState[otherKey],
+                        [field]: value  // Sync the changed field
+                    };
+                }
             }
-        }));
+
+            return newState;
+        });
     };
 
 
     const handleSave = async () => {
-        if (!dailyRecord) return;
         setIsUpdating(true);
-        const type = activeSubTab === 0 ? 'in' : 'out';
-        const targetLog = currentLog;
-
-        // Get data strictly from state to ensure latest
-        const currentFormData = sessionFormData[activeFormKey] || {
-            timestamp: null,
-            status: 'approved',
-            remarks: '',
-            shiftId: '',
-            dayStatus: 'full'
-        };
-
-        // Find the selected shift
-        const selectedShift = currentFormData.shiftId
-            ? shifts.find((s: any) => (s._id || s.shiftId) === currentFormData.shiftId)
-            : null;
-
-        // If shift found, format it correctly for the API
-        const shiftForAPI = selectedShift ? {
-            shiftId: selectedShift._id || selectedShift.shiftId,
-            name: selectedShift.name || selectedShift.shiftName,
-            startTime: selectedShift.startTime,
-            endTime: selectedShift.endTime,
-            type: selectedShift.type
-        } : null;
-
         try {
-            if (targetLog) {
-                // Update
-                const timestampStr = currentFormData.timestamp?.format('YYYY-MM-DD HH:mm:ss');
+            const promises: Promise<any>[] = [];
 
-                const res = await updateAttendanceStatus(
-                    targetLog._id,
-                    currentFormData.status as any,
-                    currentFormData.timestamp?.toISOString(),
-                    currentFormData.shiftId,
-                    currentFormData.remarks,
-                    currentFormData.dayStatus,
-                    shiftForAPI // Pass formatted shift object
-                );
-                if (res.success) {
-                    // If shift was changed, also update the paired record
-                    const shiftChanged = currentFormData.shiftId !== originalShiftId;
+            // Iterate ALL sessions to ensure we capture everything (even untouched defaults)
+            for (const session of allSessions) {
+                const types: ('in' | 'out')[] = ['in', 'out'];
 
-                    // Determine the paired record
-                    const otherLogId = type === 'out' ? currentSession?.inLogId : currentSession?.outLogId;
-                    const otherLog = otherLogId ? fetchedLogs[otherLogId] : null;
+                // Track if we are creating a new session pair
+                const isNewSession = !session.inLogId && !session.outLogId;
 
-                    if (shiftChanged && otherLog) {
-                        try {
-                            await updateAttendanceStatus(
-                                otherLog._id,
-                                otherLog.status,
-                                otherLog.resolutionMode === 'status_only' ? undefined : otherLog.timestamp,
-                                currentFormData.shiftId,
-                                otherLog.remarks,
-                                otherLog.dayStatus,
-                                shiftForAPI
-                            );
-                        } catch (e) {
-                            console.error('Failed to update paired record:', e);
+                for (const type of types) {
+                    const formKey = session.id ? `${session.id}-${type}` : '';
+                    if (!formKey) continue;
+
+                    let currentFormData = sessionFormData[formKey];
+
+                    // Determine target log
+                    const targetLogId = type === 'in' ? session.inLogId : session.outLogId;
+                    // FIX: fetchedLogs is a MAP (Record<string, any>), not an array!
+                    const targetLog = targetLogId ? fetchedLogs[targetLogId] : null;
+
+                    // If no form data, but we need to create a pair (New Session), generate defaults
+                    if (!currentFormData && isNewSession) {
+                        // Inherit shift from IN form data if processing OUT
+                        let shiftId = '';
+                        if (type === 'out') {
+                            const inKey = `${session.id}-in`;
+                            // Use IN shift if available
+                            shiftId = sessionFormData[inKey]?.shiftId || '';
                         }
+
+                        // Fallback shift sources
+                        if (!shiftId) {
+                            shiftId = dailyRecord?.shiftId || employee?.shift?._id || employee?.shift?.shiftId || "";
+                        }
+
+                        const defaultTime = getShiftDefaults(shiftId, type, dailyRecord?.date || dayjs().format('YYYY-MM-DD'));
+
+                        currentFormData = {
+                            timestamp: defaultTime,
+                            status: 'approved',
+                            remarks: '',
+                            shiftId: shiftId,
+                            dayStatus: 'full',
+                            mode: 'create'
+                        };
+                    } else if (!currentFormData && targetLog) {
+                        // Existing log, untouched - Skip unless we want to enforce updates? 
+                        // For now skip untouched existing logs to save bandwidth (dirty check implicit)
+                        continue;
                     }
 
-                    showSnackbar({
-                        message: `${type.toUpperCase()} Record updated${shiftChanged && otherLog ? ' (both IN/OUT updated)' : ''}`,
-                        severity: "success"
-                    });
-                    onSaveSuccess?.();
-                    // Don't close immediately if we have multiple sessions to edit? 
-                    // For now, close as per original design.
-                    onClose();
-                } else {
-                    showSnackbar({ message: res.error?.message || "Failed to update", severity: "error" });
-                }
-            } else {
-                // Create New - Manual Entry (no location or device data)
-                // Ensure we have a valid employee ID
-                const employeeId = employee?._id || (dailyRecord as any).employeeId;
-                if (!employeeId) {
-                    showSnackbar({ message: "Employee ID missing. Cannot create record.", severity: "error" });
-                    return;
-                }
+                    // If still no form data (e.g. Empty session slot that wasn't touched and isn't new?), skip
+                    if (!currentFormData) continue;
 
-                const res = await createAttendance({
-                    type,
-                    employeeId: employeeId,
-                    timestamp: currentFormData.timestamp ? currentFormData.timestamp.toISOString() : dayjs(dailyRecord.date).startOf('day').toISOString(),
-                    remarks: currentFormData.remarks,
-                    status: currentFormData.status,
-                    dayStatus: currentFormData.dayStatus,
-                    resolutionMode: currentFormData.timestamp ? undefined : 'status_only',
-                    shiftId: currentFormData.shiftId // Pass shiftId string, not shift object
-                });
 
-                if (res.success) {
-                    showSnackbar({ message: "Record created successfully", severity: "success" });
-                    onSaveSuccess?.();
-                    onClose();
-                } else {
-                    showSnackbar({ message: res.error?.message || "Creation failed", severity: "error" });
+                    if (targetLogId && targetLog) {
+                        // Update Existing
+                        const originalShiftId = targetLog.shift?.shiftId || targetLog.shift?._id || (typeof targetLog.shift === 'string' ? targetLog.shift : '') || "";
+                        const shiftForAPI = currentFormData.shiftId;
+
+                        // Dirty Check
+                        const isDirty =
+                            (currentFormData.timestamp?.toISOString() !== (targetLog.timestamp ? new Date(targetLog.timestamp).toISOString() : undefined)) ||
+                            (currentFormData.status !== targetLog.status) ||
+                            (currentFormData.remarks !== (targetLog.remarks || '')) ||
+                            (currentFormData.dayStatus !== (targetLog.dayStatus || 'full')) ||
+                            (shiftForAPI !== originalShiftId);
+
+                        if (!isDirty) continue;
+
+                        console.log(`[Attendance] Updating log ${targetLogId}`);
+
+                        // Build shift object from shifts array (backend expects full object)
+                        let shiftObject = null;
+                        if (currentFormData.shiftId && shifts && shifts.length > 0) {
+                            const foundShift = shifts.find((s: any) =>
+                                (s._id === currentFormData.shiftId) || (s.shiftId === currentFormData.shiftId)
+                            );
+                            if (foundShift) {
+                                shiftObject = {
+                                    shiftId: foundShift._id || foundShift.shiftId,
+                                    name: foundShift.name,
+                                    startTime: foundShift.startTime,
+                                    endTime: foundShift.endTime,
+                                    type: foundShift.type
+                                };
+                            }
+                        }
+
+                        // Call backend PUT /api/attendance with correct structure
+                        promises.push(
+                            fetch('/api/attendance', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: targetLogId,
+                                    status: currentFormData.status,
+                                    timestamp: currentFormData.timestamp?.toISOString(),
+                                    shiftId: currentFormData.shiftId,
+                                    shift: shiftObject,  // Send full shift object
+                                    remarks: currentFormData.remarks,
+                                    dayStatus: currentFormData.dayStatus
+                                })
+                            }).then(r => r.json())
+                        );
+
+                    } else if (targetLogId && !targetLog) {
+                        // Log ID exists but data not in cache - skip to avoid issues
+                        console.warn(`[Attendance] Log ${targetLogId} exists but not in fetchedLogs. Skipping to prevent duplicate.`);
+                        continue;
+
+                    } else {
+                        // Create New
+                        // Skip if timestamp is null (don't create empty records unless status_only... but here we rely on defaults)
+                        if (!currentFormData.timestamp) continue;
+
+                        const employeeId = employee?._id || (dailyRecord as any).employeeId;
+                        if (!employeeId) continue;
+
+                        // Use shift from IN if this is OUT
+                        let shiftIdToUse = currentFormData.shiftId;
+                        if (type === 'out' && !shiftIdToUse) {
+                            // Try to find sync from IN
+                            // (Handled by form sync or defaults above, but double check)
+                            // This is redundant if defaults logic worked, but safe.
+                        }
+
+                        promises.push(createAttendance({
+                            type,
+                            employeeId: employeeId,
+                            timestamp: currentFormData.timestamp.toISOString(),
+                            remarks: currentFormData.remarks,
+                            status: currentFormData.status,
+                            dayStatus: currentFormData.dayStatus,
+                            // resolutionMode: 'status_only', // We skip if no timestamp, so undefined is fine?
+                            // backend expects shiftId
+                            shiftId: shiftIdToUse || ""
+                        }));
+                    }
                 }
             }
+
+
+            console.log(`[Attendance] Executing ${promises.length} API calls...`);
+            const results = await Promise.all(promises);
+            console.log('[Attendance] Save results:', results);
+
+            // Check for failures
+            const failures = results.filter(r => r && !r.success);
+            if (failures.length > 0) {
+                console.error('[Attendance] API Failures:', failures);
+                throw new Error(`Failed to save ${failures.length} record(s).`);
+            }
+
+            showSnackbar({ message: "All changes saved successfully", severity: "success" });
+            onSaveSuccess?.();
+            onClose();
+
         } catch (e) {
-            showSnackbar({ message: "An error occurred", severity: "error" });
+            console.error('[AttendanceDialog] Save exception:', e);
+            showSnackbar({ message: e instanceof Error ? e.message : "An error occurred while saving", severity: "error" });
         } finally {
             setIsUpdating(false);
         }
@@ -576,10 +671,16 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
 
         const session = allSessions[sessionToDelete];
         // If it's a new virtual session (no IDs), just remove it from state by effectively ignoring it
-        if (!session.inLogId && !session.outLogId) {
-            setNewSessionCount(Math.max(0, newSessionCount - 1));
+        // If it's a new virtual session (no inLogId/outLogId means likely manual)
+        // Check if it's in the manual sessions range
+        if (sessionToDelete >= sessions.length) {
+            const manualIdx = sessionToDelete - sessions.length;
+            setManualSessions(prev => prev.filter((_, i) => i !== manualIdx));
             setSessionToDelete(null);
             setDeletingSession(false);
+
+            // Adjust selection logic - switch to previous or 0
+            setSelectedSessionIdx(prev => Math.max(0, prev - 1));
             return;
         }
 
@@ -743,37 +844,39 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                 }}
                             >
                                 {allSessions.map((s, idx) => (
-                                    <Box key={idx} component="div" sx={{ position: 'relative', display: 'flex', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
-                                        <Tab
-                                            label={
+                                    <Tab
+                                        component="div"
+                                        key={idx}
+                                        label={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                                                 <Box>
                                                     <Typography variant="body2" fontWeight="bold">Session {idx + 1}</Typography>
                                                     <Typography variant="caption" color="text.secondary" display="block">
                                                         {s.checkInTime ? dayjs(s.checkInTime).format("hh:mm A") : "No IN"} - {s.checkOutTime ? dayjs(s.checkOutTime).format("hh:mm A") : "No OUT"}
                                                     </Typography>
                                                 </Box>
-                                            }
-                                            value={idx}
-                                            onClick={() => {
-                                                setSelectedSessionIdx(idx);
-                                                setActiveSubTab(0);
-                                            }}
-                                            sx={{ flexGrow: 1, alignItems: 'flex-start', textAlign: 'left', maxWidth: '100%' }}
-                                        />
-                                        {!readOnly && userRole !== 'manager' && !disableTabSwitch && (
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSessionToDelete(idx);
-                                                }}
-                                                sx={{ mr: 1, opacity: 0.6, '&:hover': { opacity: 1 } }}
-                                            >
-                                                <Delete fontSize="small" />
-                                            </IconButton>
-                                        )}
-                                    </Box>
+                                                {!readOnly && userRole !== 'manager' && !disableTabSwitch && (
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSessionToDelete(idx);
+                                                        }}
+                                                        sx={{ ml: 1, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                                    >
+                                                        <Delete fontSize="small" />
+                                                    </IconButton>
+                                                )}
+                                            </Box>
+                                        }
+                                        value={idx}
+                                        onClick={() => {
+                                            setSelectedSessionIdx(idx);
+                                            setActiveSubTab(0);
+                                        }}
+                                        sx={{ flexGrow: 1, alignItems: 'flex-start', textAlign: 'left', maxWidth: '100%', cursor: 'pointer' }}
+                                    />
                                 ))}
                             </Tabs>
                             <Box p={1} borderTop="1px solid" borderColor="divider">
@@ -783,8 +886,17 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                     startIcon={<AddCircle />}
                                     size="small"
                                     onClick={() => {
-
-                                        setNewSessionCount(prev => prev + 1);
+                                        const newId = crypto.randomUUID();
+                                        setManualSessions(prev => [...prev, {
+                                            id: newId,
+                                            inLogId: null,
+                                            outLogId: null,
+                                            checkInTime: null,
+                                            checkOutTime: null,
+                                            inDeviceChange: false,
+                                            outDeviceChange: false
+                                        }]);
+                                        // setNewSessionCount removed
                                         // Auto-select the new session (index = length of existing + new count - 1, which becomes length + count after update)
                                         // But state update is async, wait for it or just set index.
                                         setTimeout(() => {
@@ -848,8 +960,17 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             variant="contained"
                                             startIcon={<AddCircle />}
                                             onClick={() => {
-
-                                                setNewSessionCount(1);
+                                                const newId = crypto.randomUUID();
+                                                setManualSessions([{
+                                                    id: newId,
+                                                    inLogId: null,
+                                                    outLogId: null,
+                                                    checkInTime: null,
+                                                    checkOutTime: null,
+                                                    inDeviceChange: false,
+                                                    outDeviceChange: false
+                                                }]);
+                                                // setNewSessionCount removed
                                                 setTimeout(() => {
                                                     setSelectedSessionIdx(0);
                                                     setActiveSubTab(0);
@@ -962,9 +1083,13 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                         handleFormChange('shiftId', e.target.value);
                                                     }}
                                                     SelectProps={{ native: true }}
-                                                    helperText={disableShiftChange || userRole === 'manager' ? "Shift editing disabled" : (sessionFormData[activeFormKey]?.shiftId ? "Select the shift for this attendance" : "⚠️ Please select a shift")}
-                                                    disabled={readOnly || disableShiftChange || userRole === 'manager'}
-                                                    error={!sessionFormData[activeFormKey]?.shiftId && !readOnly}
+                                                    helperText={
+                                                        activeSubTab === 1
+                                                            ? "Shift inherited from Check-In"
+                                                            : (disableShiftChange || userRole === 'manager' ? "Shift editing disabled" : (sessionFormData[activeFormKey]?.shiftId ? "Select the shift for this attendance" : "⚠️ Please select a shift"))
+                                                    }
+                                                    disabled={readOnly || disableShiftChange || userRole === 'manager' || activeSubTab === 1}
+                                                    error={!sessionFormData[activeFormKey]?.shiftId && !readOnly && activeSubTab === 0}
                                                 >
                                                     <option value="">No Shift</option>
                                                     {shifts && shifts.length > 0 ? (
@@ -994,8 +1119,12 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                     value={sessionFormData[activeFormKey]?.dayStatus}
                                                     onChange={(e) => handleFormChange('dayStatus', e.target.value)}
                                                     SelectProps={{ native: true }}
-                                                    helperText={userRole === 'manager' || disableTabSwitch ? "Override disabled" : "Overrides calculated status"}
-                                                    disabled={readOnly || userRole === 'manager' || disableTabSwitch}
+                                                    helperText={
+                                                        activeSubTab === 1
+                                                            ? "Inherited from IN punch"
+                                                            : (userRole === 'manager' || disableTabSwitch ? "Override disabled" : "Overrides calculated status")
+                                                    }
+                                                    disabled={readOnly || userRole === 'manager' || disableTabSwitch || activeSubTab === 1}
                                                 >
                                                     <option value="full">Full Day</option>
                                                     <option value="half">Half Day</option>

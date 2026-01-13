@@ -242,6 +242,7 @@ export const calculateAttendanceForEmployee = (
                 }
 
                 sessions.push({
+                    id: inLog._id, // Stable ID
                     inLogId: inLog._id,
                     outLogId: nextOut?._id,
                     checkInTime: inLog.timestamp,
