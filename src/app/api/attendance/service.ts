@@ -438,23 +438,49 @@ export class AttendanceService {
             }
         }
 
-        // Date Range Logic
+        // Fetch company to get timezone setting
+        const company = await Company.findById(companyId);
+
+        // Helper function to get timezone offset in milliseconds
+        const getTimezoneOffsetMs = (timezone: string = 'Asia/Colombo'): number => {
+            const timezoneOffsets: Record<string, number> = {
+                'Asia/Colombo': 5.5 * 60 * 60 * 1000,
+                'Asia/Kolkata': 5.5 * 60 * 60 * 1000,
+                'UTC': 0,
+                'America/New_York': -5 * 60 * 60 * 1000,
+                'Europe/London': 0,
+            };
+            return timezoneOffsets[timezone] || 0;
+        };
+
+        const timezoneOffsetMs = getTimezoneOffsetMs(company?.timezone);
+
+        // Date Range Logic - Account for timezone
         if (startDateParam || endDateParam) {
             filter.timestamp = {};
-            if (startDateParam) filter.timestamp.$gte = new Date(startDateParam);
+            if (startDateParam) {
+                const startDate = new Date(startDateParam);
+                startDate.setTime(startDate.getTime() - timezoneOffsetMs);
+                filter.timestamp.$gte = startDate;
+            }
             if (endDateParam) {
                 const end = new Date(endDateParam);
                 // If the end date is just a date (no time), set it to the end of that day
                 if (endDateParam.length <= 10) {
                     end.setHours(23, 59, 59, 999);
                 }
+                end.setTime(end.getTime() - timezoneOffsetMs);
                 filter.timestamp.$lte = end;
             }
         } else if (date) {
             const startOfDay = new Date(date);
             startOfDay.setHours(0, 0, 0, 0);
+            startOfDay.setTime(startOfDay.getTime() - timezoneOffsetMs);
+
             const endOfDay = new Date(date);
             endOfDay.setHours(23, 59, 59, 999);
+            endOfDay.setTime(endOfDay.getTime() - timezoneOffsetMs);
+
             filter.timestamp = { $gte: startOfDay, $lte: endOfDay };
         }
 
@@ -528,7 +554,20 @@ export class AttendanceService {
 
         // Logic check: New timestamp cannot be earlier than the previous record of the employee
         if (timestamp) {
+            console.log('[recordApproval] Processing timestamp:', {
+                attendanceId,
+                originalTimestamp: attendance.timestamp,
+                newTimestampString: timestamp,
+                employeeId: attendance.employee
+            });
+
             const newDate = new Date(timestamp);
+            console.log('[recordApproval] Parsed new date:', {
+                newDate: newDate.toISOString(),
+                newDateLocal: newDate.toLocaleString(),
+                isValid: !isNaN(newDate.getTime())
+            });
+
             const prevRecord = await Attendance.findOne({
                 employee: attendance.employee,
                 timestamp: { $lt: attendance.timestamp },
@@ -572,7 +611,6 @@ export class AttendanceService {
             attendance.dayStatus = dayStatus;
         }
         await attendance.save();
-
 
         return attendance;
     }

@@ -486,6 +486,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
         try {
             if (targetLog) {
                 // Update
+                const timestampStr = currentFormData.timestamp?.format('YYYY-MM-DD HH:mm:ss');
+
                 const res = await updateAttendanceStatus(
                     targetLog._id,
                     currentFormData.status as any,
@@ -741,7 +743,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                 }}
                             >
                                 {allSessions.map((s, idx) => (
-                                    <Box key={idx} sx={{ position: 'relative', display: 'flex', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+                                    <Box key={idx} component="div" sx={{ position: 'relative', display: 'flex', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
                                         <Tab
                                             label={
                                                 <Box>
@@ -886,12 +888,15 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                         onChange={(v) => {
                                                             // Lock to the selected day - only allow time changes
                                                             if (v && dailyRecord?.date) {
-                                                                const lockedDate = dayjs(dailyRecord.date)
-                                                                    .hour(v.hour())
-                                                                    .minute(v.minute())
-                                                                    .second(0);
+                                                                // Get the original date components from dailyRecord.date (YYYY-MM-DD)
+                                                                const [year, month, day] = dailyRecord.date.split('-').map(Number);
+                                                                // Create a new date with the selected time but locked date
+                                                                // Use set() to avoid timezone issues
+                                                                const lockedDate = v
+                                                                    .year(year)
+                                                                    .month(month - 1) // month is 0-indexed
+                                                                    .date(day);
                                                                 handleFormChange('timestamp', lockedDate);
-
                                                             } else {
                                                                 handleFormChange('timestamp', v);
                                                             }
