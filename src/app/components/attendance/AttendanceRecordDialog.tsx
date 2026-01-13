@@ -758,7 +758,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             }}
                                             sx={{ flexGrow: 1, alignItems: 'flex-start', textAlign: 'left', maxWidth: '100%' }}
                                         />
-                                        {!readOnly && userRole !== 'manager' && (
+                                        {!readOnly && userRole !== 'manager' && !disableTabSwitch && (
                                             <IconButton
                                                 size="small"
                                                 color="error"
@@ -781,6 +781,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                     startIcon={<AddCircle />}
                                     size="small"
                                     onClick={() => {
+
                                         setNewSessionCount(prev => prev + 1);
                                         // Auto-select the new session (index = length of existing + new count - 1, which becomes length + count after update)
                                         // But state update is async, wait for it or just set index.
@@ -789,6 +790,7 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                             setActiveSubTab(0);
                                         }, 0);
                                     }}
+                                    disabled={disableTabSwitch} // Disable in logs view
                                 >
                                     Add Session
                                 </Button>
@@ -987,8 +989,8 @@ export const AttendanceRecordDialog: React.FC<AttendanceRecordDialogProps> = ({
                                                     value={sessionFormData[activeFormKey]?.dayStatus}
                                                     onChange={(e) => handleFormChange('dayStatus', e.target.value)}
                                                     SelectProps={{ native: true }}
-                                                    helperText={userRole === 'manager' ? "Override disabled" : "Overrides calculated status"}
-                                                    disabled={readOnly || userRole === 'manager'}
+                                                    helperText={userRole === 'manager' || disableTabSwitch ? "Override disabled" : "Overrides calculated status"}
+                                                    disabled={readOnly || userRole === 'manager' || disableTabSwitch}
                                                 >
                                                     <option value="full">Full Day</option>
                                                     <option value="half">Half Day</option>
