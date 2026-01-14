@@ -403,6 +403,8 @@ export const calculateAttendanceForEmployee = (
     return records;
 };
 
+
+
 export const useAttendanceAggregation = (
     employeeId: string,
     companyId: string,
@@ -410,7 +412,7 @@ export const useAttendanceAggregation = (
     endDate: string,
     enabled: boolean = true
 ) => {
-    const { data: logsData, isLoading: loadingLogs } = useQuery({
+    const { data: logsData, isLoading: loadingLogs, refetch: logsDataRefetch } = useQuery({
         queryKey: ["attendanceLogs", companyId, startDate, endDate],
         queryFn: () => getAttendanceLogs(companyId, undefined, startDate, endDate),
         enabled: enabled && !!companyId && !!startDate && !!endDate
@@ -480,7 +482,8 @@ export const useAttendanceAggregation = (
     return {
         records,
         stats,
-        loading: loadingLogs || loadingLeaves || loadingShifts || loadingHolidays || loadingEmployee || loadingCompany
+        loading: loadingLogs || loadingLeaves || loadingShifts || loadingHolidays || loadingEmployee || loadingCompany,
+        refetch: () => logsDataRefetch()
     };
 };
 
@@ -503,7 +506,7 @@ export const useAllEmployeesAttendanceAggregation = (
         enabled: enabled && !!companyId
     });
 
-    const { data: logsData, isLoading: loadingLogs } = useQuery({
+    const { data: logsData, isLoading: loadingLogs, refetch: logsDataRefetch } = useQuery({
         queryKey: ["attendanceLogs", companyId, startDate, endDate],
         queryFn: () => getAttendanceLogs(companyId, undefined, startDate, endDate),
         enabled: enabled && !!companyId && !!startDate && !!endDate
@@ -573,6 +576,9 @@ export const useAllEmployeesAttendanceAggregation = (
 
     return {
         records: allRecords,
-        loading: loadingCompany || loadingEmployees || loadingLogs || loadingLeaves || loadingShifts || loadingHolidays
+        loading: loadingCompany || loadingEmployees || loadingLogs || loadingLeaves || loadingShifts || loadingHolidays,
+        refetch: () => logsDataRefetch()
     };
 };
+
+// End of file

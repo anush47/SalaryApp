@@ -19,9 +19,25 @@ export async function POST(req: NextRequest) {
     return ApiMiddleware.authenticated(req, async (req, context) => {
         try {
             const body = await req.json();
+            console.log('[Backend POST] Received attendance:', {
+                type: body.type,
+                employeeId: body.employeeId,
+                timestamp: body.timestamp,
+                shiftId: body.shiftId,
+                dayStatus: body.dayStatus
+            });
+
             const data = await AttendanceService.createAttendance(body, context);
+
+            console.log('[Backend POST] Created:', {
+                type: body.type,
+                success: !!data,
+                id: data?._id
+            });
+
             return ApiResponseUtils.sendSuccess(data, "Attendance recorded successfully");
         } catch (error) {
+            console.error('[Backend POST] Error:', error);
             if (error instanceof z.ZodError) {
                 return ApiResponseUtils.sendBadRequest(error.errors[0].message);
             }
