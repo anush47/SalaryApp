@@ -73,7 +73,12 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
     }, [employeesData, filterEmployeeIds]);
 
     // Aggregation Hooks
-    const { records: singleRecords, stats, loading: loadingSingle } = useAttendanceAggregation(
+    const {
+        records: singleRecords,
+        stats,
+        loading: loadingSingle,
+        refetch: refetchSingle
+    } = useAttendanceAggregation(
         selectedEmployee?._id || "",
         companyId,
         startDate.format('YYYY-MM-DD'),
@@ -81,7 +86,11 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
         !!selectedEmployee
     );
 
-    const { records: allRecords, loading: loadingAll } = useAllEmployeesAttendanceAggregation(
+    const {
+        records: allRecords,
+        loading: loadingAll,
+        refetch: refetchAll
+    } = useAllEmployeesAttendanceAggregation(
         companyId,
         startDate.format('YYYY-MM-DD'),
         endDate.format('YYYY-MM-DD'),
@@ -175,11 +184,15 @@ export const UnifiedAttendancePanel: React.FC<UnifiedAttendancePanelProps> = ({
                 shifts={shifts}
                 userRole={userRole}
                 onSaveSuccess={() => {
-                    // Invalidate keys used by useAttendanceAggregation and other panels
+                    // Manual refetch ensures fresh data immediately
+                    refetchSingle?.();
+                    refetchAll?.();
+
+                    // Invalidate keys used by other panels
                     queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
                     queryClient.invalidateQueries({ queryKey: ['companyAttendanceLatest'] });
                     queryClient.invalidateQueries({ queryKey: ['companyAttendanceLogs'] });
-                    setSelectedRecord(null);
+                    // Don't close dialog automatically - user continues editing
                 }}
             />
 
