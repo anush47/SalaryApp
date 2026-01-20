@@ -160,7 +160,7 @@ const GenerateSalaryAll = ({
             )
           )
           .map(
-            (employeeId) => employees?.find((e) => e.id === employeeId)?.name
+            (employeeId) => (Array.isArray(employees) ? employees : []).find((e) => e.id === employeeId)?.name
           )
           .filter(Boolean)
           .join(", ");
@@ -172,8 +172,9 @@ const GenerateSalaryAll = ({
         return;
       }
 
+      const safeEmployees = Array.isArray(employees) ? employees : [];
       const calcEmployees =
-        employees?.filter(
+        safeEmployees.filter(
           (employee) =>
             employee.calculationMethod === "attendance" && employeeIds.includes(employee.id)
         ) ?? [];
@@ -202,7 +203,7 @@ const GenerateSalaryAll = ({
         msg += data.exists
           .map(
             (employeeId: string) =>
-              employees?.find((e) => e.id === employeeId)?.name
+              (Array.isArray(employees) ? employees : []).find((e) => e.id === employeeId)?.name
           )
           .filter(Boolean)
           .join(", ");
@@ -235,7 +236,8 @@ const GenerateSalaryAll = ({
           }[]
           | undefined;
         }) => {
-          const employee = employees?.find((e) => e.id === salary.employee);
+          const safeEmployees = Array.isArray(employees) ? employees : [];
+          const employee = safeEmployees.find((e) => e.id === salary.employee);
 
           salary.id = salary._id;
           salary.otReason = salary.ot.reason;
@@ -269,7 +271,8 @@ const GenerateSalaryAll = ({
     }
   };
 
-  const attendanceBasedEmployees = employees?.filter(
+  const safeEmployeesForRender = Array.isArray(employees) ? employees : [];
+  const attendanceBasedEmployees = safeEmployeesForRender.filter(
     (employee) => employee.calculationMethod === "attendance" && employeeIds.includes(employee.id)
   ) ?? [];
 
