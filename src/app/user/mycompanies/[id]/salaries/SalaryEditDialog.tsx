@@ -44,9 +44,23 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
             console.log("SalaryEditDialog received salary:", salary);
             console.log("Salary dailyRecords:", salary.dailyRecords);
             console.log("Salary dailyRecords length:", salary.dailyRecords?.length);
+            console.log("Salary OT data:", salary.ot);
+            console.log("Salary OT amount:", salary.ot?.amount);
+
+            // Normalize OT and noPay data structure
+            // Backend returns ot as number and otReason separately, but dialog expects {amount, reason}
+            const normalizedOt = typeof salary.ot === 'number'
+                ? { amount: salary.ot, reason: (salary as any).otReason || '' }
+                : salary.ot || { amount: 0, reason: '' };
+
+            const normalizedNoPay = typeof salary.noPay === 'number'
+                ? { amount: salary.noPay, reason: (salary as any).noPayReason || '' }
+                : salary.noPay || { amount: 0, reason: '' };
             // Initialize paymentStructure if missing and create a shallow copy
             setFormData({
                 ...salary,
+                ot: normalizedOt,
+                noPay: normalizedNoPay,
                 paymentStructure: salary.paymentStructure || { additions: [], deductions: [] }
             });
         }
@@ -362,7 +376,7 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                         <Typography variant="subtitle2" color="primary">Final Calculation</Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={4}>
+                    <Grid item xs={12} sm={3}>
                         <TextField
                             label="Gross Earnings"
                             type="number"
@@ -370,11 +384,28 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                             size="small"
                             disabled
                             value={((Number(formData.basic) || 0) + (Number(formData.holidayPay) || 0) - (Number(formData.noPay.amount) || 0)).toFixed(2)}
-                            helperText="Basic + Holiday Pay - No Pay"
+                            helperText="Basic + Holiday - No Pay"
                         />
                     </Grid>
 
-                    <Grid item xs={12} sm={4}>
+                    <Grid item xs={12} sm={3}>
+                        <TextField
+                            label="OT Payment"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            disabled
+                            value={(Number(formData.ot.amount) || 0).toFixed(2)}
+                            helperText="Overtime payment"
+                            sx={{
+                                '& .MuiInputBase-input': {
+                                    color: 'success.main',
+                                }
+                            }}
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={3}>
                         <TextField
                             label="Advance Deduction"
                             type="number"
@@ -385,9 +416,28 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                         />
                     </Grid>
 
-                    <Grid item xs={12} sm={4}>
+                    <Grid item xs={12} sm={3}>
                         <TextField
-                            label="Final Net Salary"
+                            label="Final Before Advance"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            disabled
+                            value={((Number(formData.basic) || 0) + (Number(formData.holidayPay) || 0) + (Number(formData.ot.amount) || 0) + ((formData.paymentStructure?.additions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)) - ((formData.paymentStructure?.deductions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)) - (Number(formData.noPay.amount) || 0)).toFixed(2)}
+                            sx={{
+                                '& .MuiInputBase-input': {
+                                    fontWeight: 'bold',
+                                    color: 'primary.main',
+                                    fontSize: '1.1rem'
+                                }
+                            }}
+                            helperText="Before advance"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={12}>
+                        <TextField
+                            label="Final Net Salary (After Advance)"
                             type="number"
                             fullWidth
                             size="small"
@@ -397,10 +447,11 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
                                 '& .MuiInputBase-input': {
                                     fontWeight: 'bold',
                                     color: 'success.main',
-                                    fontSize: '1.2rem'
+                                    fontSize: '1.3rem',
+                                    textAlign: 'center'
                                 }
                             }}
-                            helperText="Final payout"
+                            helperText="Final payout to employee"
                         />
                     </Grid>
 

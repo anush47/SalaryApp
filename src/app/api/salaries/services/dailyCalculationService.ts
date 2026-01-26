@@ -134,6 +134,8 @@ export class DailyCalculationService {
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
+        console.log(`[DailyCalculation] Processing ${sortedRecords.length} attendance records for ${date.toISOString().split('T')[0]}`);
+
         for (let i = 0; i < sortedRecords.length; i += 2) {
             const inRecord = sortedRecords[i];
             const outRecord = sortedRecords[i + 1];
@@ -141,18 +143,28 @@ export class DailyCalculationService {
             if (inRecord && outRecord && inRecord.type === "in" && outRecord.type === "out") {
                 const inTime = new Date(inRecord.timestamp).getTime();
                 const outTime = new Date(outRecord.timestamp).getTime();
-                totalWorkingMinutes += (outTime - inTime) / (1000 * 60);
+                const pairMinutes = (outTime - inTime) / (1000 * 60);
+                totalWorkingMinutes += pairMinutes;
+                console.log(`[DailyCalculation] Pair ${i / 2 + 1}: IN ${new Date(inTime).toISOString()} -> OUT ${new Date(outTime).toISOString()} = ${pairMinutes.toFixed(2)} mins`);
+            } else {
+                console.warn(`[DailyCalculation] Unpaired record at index ${i}: ${inRecord?.type || 'missing'} / ${outRecord?.type || 'missing'}`);
             }
         }
 
         let workingHours = totalWorkingMinutes / 60;
+        console.log(`[DailyCalculation] Total working minutes: ${totalWorkingMinutes.toFixed(2)}, hours: ${workingHours.toFixed(2)}`);
 
-        // Subtract break hours
+        // Subtract break hours ONLY if there's no detected break (single continuous session)
+        // If detectedBreakHours > 0, the break is already naturally excluded from totalWorkingMinutes
         const workingHoursTreshold = 8;
         const halfDayTreshold = 6;
-        if (workingHours > halfDayTreshold) {
-            console.log(`[DailyCalculation] WorkingHours ${workingHours.toFixed(2)}h > threshold, subtracting breakHours: ${breakHours}h`);
+        const shouldSubtractBreak = detectedBreakHours === 0 && workingHours > halfDayTreshold;
+
+        if (shouldSubtractBreak) {
+            console.log(`[DailyCalculation] Single session detected. WorkingHours ${workingHours.toFixed(2)}h > threshold, subtracting breakHours: ${breakHours}h`);
             workingHours -= breakHours;
+        } else if (detectedBreakHours > 0) {
+            console.log(`[DailyCalculation] Multiple punches detected with ${detectedBreakHours.toFixed(2)}h break already excluded. WorkingHours: ${workingHours.toFixed(2)}h`);
         } else {
             console.log(`[DailyCalculation] WorkingHours ${workingHours.toFixed(2)}h <= threshold, NOT subtracting break`);
         }
@@ -210,48 +222,42 @@ export class DailyCalculationService {
         );
 
         // Calculate noPay if applicable (Absent logic)
-        // If NO leave was applied for deduction, we check for absent/late.
-        // Or should we add to existing noPay? 
-        // Logic: if workingHours=0 and NO leave, it is absent.
-        // My previous logic added noPay from leaves.
+        // DISABLED: No automatic no-pay deductions for absences/early departures
+        // Only leave-based no-pay is calculated automatically
+        // Manual no-pay can be added during salary editing if needed
 
         let absentNoPay = 0;
         let absentReason = "";
 
+        // Automatic no-pay for absences and early departures is DISABLED per user request
+        /*
         if (workingHours === 0 && workingDayStatus === "full" && !isMercantileHoliday && !isPublicHoliday) {
-            // Only mark as Absent if we haven't already deducted for Leave?
-            // If appliedLeaves exist and we deducted full day, we shouldn't double deduct.
-            // Check if noPay is already > 0 (from leaves)?
-            // If leave covered the day, workingHours is 0, noPay is added.
-            // BUT we might add "Absent" again?
-            // If `appliedLeaves` is passed, we assume it explains the absence.
-            // So if `appliedLeaves.length > 0`, skip Absent logic?
             if (!appliedLeaves || appliedLeaves.length === 0) {
                 absentNoPay = employee.basic / employee.divideBy;
                 absentReason = "Absent";
             }
         } else if (workingHours < workingHoursTreshold && workingDayStatus === "full") {
             const shortHours = workingHoursTreshold - workingHours;
-            // Only add late deduction if not covered by Short Leave?
-            // Short Leave deduction is already in `noPay`.
-            // If Short Leave: `noPay` has amount.
-            // Should we add `Left Early`?
-            // Usually if Short Leave is approved, we don't mark "Left Early" penalty unless it exceeds leave time?
-            // Validating this is complex.
-            // User said: "deductions for short leave... keep modular".
-            // Let's blindly ADD late deduction if present? Or skip if Short Leave?
-            // Simplest safe approach: Check if `appliedLeaves` has short leave.
-            const hasShortLeave = appliedLeaves?.some(l => l.leaveType?.isShortLeave || l.totalMinutes);
-            if (!hasShortLeave) {
-                absentNoPay = (shortHours * employee.basic) / employee.divideBy / workingHoursTreshold;
-                absentReason = `Left ${shortHours.toFixed(2)}h early`;
+            let shortLeaveCoveredHours = 0;
+            if (appliedLeaves && appliedLeaves.length > 0) {
+                for (const leave of appliedLeaves) {
+                    if (leave.leaveType?.isShortLeave || leave.totalMinutes) {
+                        const mins = leave.totalMinutes || 0;
+                        shortLeaveCoveredHours += mins / 60;
+                    }
+                }
+            }
+            const uncoveredHours = Math.max(0, shortHours - shortLeaveCoveredHours);
+            if (uncoveredHours > 0) {
+                absentNoPay = (uncoveredHours * employee.basic) / employee.divideBy / workingHoursTreshold;
+                absentReason = `Left ${uncoveredHours.toFixed(2)}h early (uncovered)`;
             }
         }
-
         noPay += absentNoPay;
         if (absentReason) {
             noPayReason = noPayReason ? `${noPayReason}, ${absentReason}` : absentReason;
         }
+        */
 
         return {
             date,

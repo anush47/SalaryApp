@@ -172,11 +172,12 @@ const GenerateSalaryAll = ({
         return;
       }
 
-      const calcEmployees =
-        employees?.filter(
+      const calcEmployees = Array.isArray(employees)
+        ? employees.filter(
           (employee) =>
             employee.calculationMethod === "attendance" && employeeIds.includes(employee.id)
-        ) ?? [];
+        )
+        : [];
 
       const data = await generateSalaries({
         companyId,
@@ -269,9 +270,11 @@ const GenerateSalaryAll = ({
     }
   };
 
-  const attendanceBasedEmployees = employees?.filter(
-    (employee) => employee.calculationMethod === "attendance" && employeeIds.includes(employee.id)
-  ) ?? [];
+  const attendanceBasedEmployees = Array.isArray(employees)
+    ? employees.filter(
+      (employee) => employee.calculationMethod === "attendance" && employeeIds.includes(employee.id)
+    )
+    : [];
 
   return (
     <>

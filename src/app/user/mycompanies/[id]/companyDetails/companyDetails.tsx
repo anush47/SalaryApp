@@ -206,6 +206,10 @@ const CompanyDetails = ({
     } else if (name.startsWith("salaryPeriodDefaults")) {
       const parts = name.split(".");
       if (parts.length === 2) {
+        // Convert to number for numeric fields
+        const numericFields = ['rateDivisor', 'customPeriodDays'];
+        const finalValue = numericFields.includes(parts[1]) ? Number(value) : value;
+
         setFormFields(
           (prevFields) =>
           ({
@@ -215,11 +219,15 @@ const CompanyDetails = ({
               salaryPeriod: prevFields?.salaryPeriodDefaults?.salaryPeriod || "monthly",
               rateDivisor: prevFields?.salaryPeriodDefaults?.rateDivisor || 30,
               calculationMethod: prevFields?.salaryPeriodDefaults?.calculationMethod || "fixed_days",
-              [parts[1]]: value,
+              [parts[1]]: finalValue,
             },
           } as Company)
         );
       } else if (parts.length === 3) {
+        // Convert to number for numeric fields in payPeriodConfig
+        const numericFields = ['startDay', 'endDay'];
+        const finalValue = numericFields.includes(parts[2]) ? Number(value) : value;
+
         setFormFields(
           (prevFields) =>
           ({
@@ -231,7 +239,7 @@ const CompanyDetails = ({
               calculationMethod: prevFields?.salaryPeriodDefaults?.calculationMethod || "fixed_days",
               payPeriodConfig: {
                 ...prevFields?.salaryPeriodDefaults?.payPeriodConfig,
-                [parts[2]]: value,
+                [parts[2]]: finalValue,
               },
             },
           } as Company)

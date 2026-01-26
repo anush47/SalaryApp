@@ -43,7 +43,14 @@ export class AttendanceAggregator {
             .sort({ timestamp: 1 })
             .lean();
 
-
+        console.log(`[AttendanceAggregator] Found ${attendanceRecords.length} attendance records for employee ${employeeId} between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+        if (attendanceRecords.length > 0) {
+            console.log(`[AttendanceAggregator] Sample record:`, JSON.stringify({
+                type: attendanceRecords[0].type,
+                timestamp: attendanceRecords[0].timestamp,
+                shift: attendanceRecords[0].shift?.name || 'No shift'
+            }));
+        }
 
         // Group by Date + Shift
         const dailyGroups = new Map<string, AttendanceRecord[]>();
@@ -68,6 +75,8 @@ export class AttendanceAggregator {
             });
         });
 
+        console.log(`[AttendanceAggregator] Grouped into ${dailyGroups.size} daily groups`);
+
         // Convert to array and detect breaks
         const result: DailyAttendanceGroup[] = [];
         for (const [key, records] of dailyGroups.entries()) {
@@ -76,6 +85,8 @@ export class AttendanceAggregator {
             const detectedBreakHours = this.detectBreaks(records);
             // Use the shift from the first record (all in group share shiftId)
             const shift = records.find((r) => r.shift)?.shift;
+
+            console.log(`[AttendanceAggregator] ${dateStr}: ${records.length} records, detected break: ${detectedBreakHours}h, shift: ${shift?.name || 'None'}`);
 
             result.push({
                 date: dateStr,

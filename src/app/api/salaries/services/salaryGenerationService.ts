@@ -243,6 +243,11 @@ export class SalaryGenerationService {
         const tripleOTAmount = (totalTripleOT * employee.basic * 3) / employee.divideBy;
         const totalOTAmount = normalOTAmount + doubleOTAmount + tripleOTAmount;
 
+        console.log(`[OT Calculation] Employee: ${employee.name || employeeId}, Basic: ${employee.basic}, DivideBy: ${employee.divideBy}`);
+        console.log(`[OT Calculation] Normal: ${totalNormalOT.toFixed(2)}h = ${normalOTAmount.toFixed(2)}, Double: ${totalDoubleOT.toFixed(2)}h = ${doubleOTAmount.toFixed(2)}, Triple: ${totalTripleOT.toFixed(2)}h = ${tripleOTAmount.toFixed(2)}`);
+        console.log(`[OT Calculation] Total OT Amount: ${totalOTAmount.toFixed(2)}`);
+
+
         // Calculate holiday pay (if any days worked on holidays)
         const holidayPay = dailyRecords
             .filter(r => (r.isMercantileHoliday || r.isPublicHoliday) && r.workingHours > 0)
@@ -261,6 +266,20 @@ export class SalaryGenerationService {
         } else {
             paymentStructure = company.paymentStructure || { additions: [], deductions: [] };
         }
+
+        // Calculate payment structure totals
+        const totalAdditions = (paymentStructure.additions || []).reduce((sum: number, add: any) => {
+            const amount = parseFloat(add.amount) || 0;
+            return sum + amount;
+        }, 0);
+
+        const totalDeductions = (paymentStructure.deductions || []).reduce((sum: number, ded: any) => {
+            const amount = parseFloat(ded.amount) || 0;
+            return sum + amount;
+        }, 0);
+
+        // Calculate final salary: basic + holidayPay + additions + OT - deductions - noPay
+        const finalSalary = employee.basic + holidayPay + totalAdditions + totalOTAmount - totalDeductions - totalNoPay;
 
         return {
             employee: employeeId,
@@ -282,7 +301,7 @@ export class SalaryGenerationService {
             },
             paymentStructure,
             advanceAmount: 0, // Will be set by main service
-            finalSalary: 0, // Will be calculated by main service
+            finalSalary, // Now properly calculated
             remark: "",
             // Period fields
             salaryPeriod: employee.salaryPeriod || "monthly",

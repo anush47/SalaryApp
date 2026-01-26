@@ -259,6 +259,7 @@ const employeeSchema = new Schema<IEmployee>(
     calculationMethod: {
       type: String,
       enum: ["attendance", "fixed_days", "no_ot"],
+      default: "attendance",
     },
     overrides: {
       type: {

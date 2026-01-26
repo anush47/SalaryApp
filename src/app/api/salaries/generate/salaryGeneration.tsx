@@ -443,6 +443,9 @@ export async function generateSalaryForOneEmployee(
       effectiveBasic = (source.basic / rateDivisor) * periodDays;
       // Round to 2 decimals
       effectiveBasic = Math.round(effectiveBasic * 100) / 100;
+      console.log(`[SalaryGeneration] Prorating basic salary: ${source.basic} / ${rateDivisor} * ${periodDays} = ${effectiveBasic}`);
+    } else {
+      console.log(`[SalaryGeneration] Using full monthly basic: ${effectiveBasic} (period: ${period}, isMonthly: ${isMonthly})`);
     }
 
     // User request: "basic is always monthly" -> This implies source.basic coming from employee is monthly. 
