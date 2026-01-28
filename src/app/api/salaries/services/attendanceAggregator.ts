@@ -2,6 +2,12 @@ import { AttendanceService } from "../../attendance/service";
 import { getHolidays } from "../../calendar/holidays/holidayHelper";
 import Attendance from "@/app/models/Attendance";
 import LeaveRequest from "@/app/models/LeaveRequest";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface AttendanceRecord {
     _id: string;
@@ -31,51 +37,89 @@ export class AttendanceAggregator {
         endDate: Date,
         timezone: string
     ): Promise<DailyAttendanceGroup[]> {
-        // Fetch attendance records from database
-        const attendanceRecords = await Attendance.find({
+        // Fetch a bit wider to pick up matching OUTs for sessions starting on the last day
+        // and INs for sessions ending on the first day (though we group by IN)
+        const queryStart = dayjs(startDate).subtract(2, 'day').toDate();
+        const queryEnd = dayjs(endDate).add(2, 'day').toDate();
+
+        const allRecords = await Attendance.find({
             employee: employeeId,
             timestamp: {
-                $gte: startDate,
-                $lte: endDate,
+                $gte: queryStart,
+                $lte: queryEnd,
             },
         })
             .populate("shift")
             .sort({ timestamp: 1 })
             .lean();
 
-        console.log(`[AttendanceAggregator] Found ${attendanceRecords.length} attendance records for employee ${employeeId} between ${startDate.toISOString()} and ${endDate.toISOString()}`);
-        if (attendanceRecords.length > 0) {
-            console.log(`[AttendanceAggregator] Sample record:`, JSON.stringify({
-                type: attendanceRecords[0].type,
-                timestamp: attendanceRecords[0].timestamp,
-                shift: attendanceRecords[0].shift?.name || 'No shift'
-            }));
+
+        // Perform Global Pairing (Same logic as frontend)
+        const usedIds = new Set<string>();
+        const pairedSessions: { in: any; out?: any }[] = [];
+
+        for (let i = 0; i < allRecords.length; i++) {
+            const rec = allRecords[i];
+            const recId = rec._id.toString();
+            if (rec.type !== 'in' || usedIds.has(recId)) continue;
+
+            const nextOut = allRecords.find((l: any) =>
+                l.type === 'out' &&
+                !usedIds.has(l._id.toString()) &&
+                dayjs(l.timestamp).isAfter(dayjs(rec.timestamp)) &&
+                dayjs(l.timestamp).diff(dayjs(rec.timestamp), 'hour') < 36
+            );
+
+            usedIds.add(recId);
+            if (nextOut) {
+                usedIds.add(nextOut._id.toString());
+                pairedSessions.push({ in: rec, out: nextOut });
+            } else {
+                pairedSessions.push({ in: rec });
+            }
         }
 
-        // Group by Date + Shift
+        // Group sessions by the "IN" date (within the requested period)
         const dailyGroups = new Map<string, AttendanceRecord[]>();
 
-        attendanceRecords.forEach((record: any) => {
-            const dateStr = new Date(record.timestamp).toISOString().split("T")[0];
-            // Use shiftId if available, otherwise 'default'
-            // Ensure we handle cases where shift might be missing (legacy/error)
-            const shiftId = record.shift?.shiftId || record.shift?._id || "default";
-            const key = `${dateStr}|${shiftId}`;
+        pairedSessions.forEach(session => {
+            const dateStr = dayjs(session.in.timestamp).tz(timezone).format("YYYY-MM-DD");
 
-            if (!dailyGroups.has(key)) {
-                dailyGroups.set(key, []);
+            // Inclusion check: Does the session START within the requested period?
+            // Use dayjs.isBetween for clean range check (inclusive of boundaries)
+            const isInRange = dayjs(session.in.timestamp).isBetween(dayjs(startDate), dayjs(endDate), 'millisecond', '[]');
+
+            if (isInRange) {
+                const shiftId = session.in.shift?.shiftId || session.in.shift?._id || "default";
+                const key = `${dateStr}|${shiftId}`;
+
+                if (!dailyGroups.has(key)) {
+                    dailyGroups.set(key, []);
+                }
+
+                const recs = dailyGroups.get(key)!;
+                recs.push({
+                    _id: session.in._id.toString(),
+                    employee: session.in.employee.toString(),
+                    type: "in",
+                    timestamp: new Date(session.in.timestamp),
+                    shift: session.in.shift,
+                    date: dateStr,
+                });
+
+                if (session.out) {
+                    recs.push({
+                        _id: session.out._id.toString(),
+                        employee: session.out.employee.toString(),
+                        type: "out",
+                        timestamp: new Date(session.out.timestamp),
+                        shift: session.out.shift,
+                        date: dateStr, // Associate OUT with its IN's day
+                    });
+                }
             }
-            dailyGroups.get(key)!.push({
-                _id: record._id.toString(),
-                employee: record.employee.toString(),
-                type: record.type,
-                timestamp: new Date(record.timestamp),
-                shift: record.shift,
-                date: dateStr,
-            });
         });
 
-        console.log(`[AttendanceAggregator] Grouped into ${dailyGroups.size} daily groups`);
 
         // Convert to array and detect breaks
         const result: DailyAttendanceGroup[] = [];
@@ -86,7 +130,6 @@ export class AttendanceAggregator {
             // Use the shift from the first record (all in group share shiftId)
             const shift = records.find((r) => r.shift)?.shift;
 
-            console.log(`[AttendanceAggregator] ${dateStr}: ${records.length} records, detected break: ${detectedBreakHours}h, shift: ${shift?.name || 'None'}`);
 
             result.push({
                 date: dateStr,
@@ -190,13 +233,14 @@ export class AttendanceAggregator {
      */
     static async getHolidayInfo(
         date: Date,
-        calendar: string = "default"
+        calendar: string = "default",
+        timezone: string = "Asia/Colombo"
     ): Promise<{
         isMercantileHoliday: boolean;
         isPublicHoliday: boolean;
         holidayName: string;
     }> {
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = dayjs(date).tz(timezone).format("YYYY-MM-DD");
         const { holidays } = await getHolidays(dateStr, dateStr, calendar);
 
         const holiday = holidays.find((h: any) => h.date === dateStr);

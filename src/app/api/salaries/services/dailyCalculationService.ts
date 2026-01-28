@@ -134,25 +134,61 @@ export class DailyCalculationService {
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
-        console.log(`[DailyCalculation] Processing ${sortedRecords.length} attendance records for ${date.toISOString().split('T')[0]}`);
 
-        for (let i = 0; i < sortedRecords.length; i += 2) {
+        for (let i = 0; i < sortedRecords.length; i++) {
             const inRecord = sortedRecords[i];
-            const outRecord = sortedRecords[i + 1];
 
-            if (inRecord && outRecord && inRecord.type === "in" && outRecord.type === "out") {
-                const inTime = new Date(inRecord.timestamp).getTime();
-                const outTime = new Date(outRecord.timestamp).getTime();
-                const pairMinutes = (outTime - inTime) / (1000 * 60);
-                totalWorkingMinutes += pairMinutes;
-                console.log(`[DailyCalculation] Pair ${i / 2 + 1}: IN ${new Date(inTime).toISOString()} -> OUT ${new Date(outTime).toISOString()} = ${pairMinutes.toFixed(2)} mins`);
+            // For every 'in' record, find the NEXT 'out' record
+            if (inRecord.type === "in") {
+                const outRecord = sortedRecords.slice(i + 1).find(r => r.type === "out");
+
+                if (outRecord) {
+                    const inTime = new Date(inRecord.timestamp).getTime();
+                    const outTime = new Date(outRecord.timestamp).getTime();
+
+                    // Skip if out is before in (shouldn't happen with sort, but for safety)
+                    if (outTime > inTime) {
+                        const pairMinutes = (outTime - inTime) / (1000 * 60);
+                        totalWorkingMinutes += pairMinutes;
+
+                        // Increment i to the index of the outRecord to skip it in the next iteration
+                        const outIndex = sortedRecords.indexOf(outRecord);
+                        if (outIndex > i) {
+                            i = outIndex;
+                        }
+                    }
+                } else {
+
+                    // AUTO-OUT LOGIC: If missing for > 24 hours, assume OUT at shift end
+                    const inTimestamp = new Date(inRecord.timestamp);
+                    const now = new Date();
+                    const hoursSinceIn = (now.getTime() - inTimestamp.getTime()) / (1000 * 60 * 60);
+
+                    if (hoursSinceIn > 24 && shift && shift.endTime) {
+                        const [eh, em] = shift.endTime.split(':').map(Number);
+                        const [sh, sm] = (shift.startTime || "00:00").split(':').map(Number);
+
+                        // Calculate shift end on the relevant day
+                        let autoOut = dayjs(inTimestamp).hour(eh).minute(em).second(0).millisecond(0);
+
+                        // If it's an overnight shift, handle next-day exit
+                        if (eh < sh || (eh === sh && em < sm)) {
+                            autoOut = autoOut.add(1, 'day');
+                        }
+
+                        const finalAutoOut = autoOut.toDate();
+
+                        if (finalAutoOut > inTimestamp) {
+                            const pairMinutes = (finalAutoOut.getTime() - inTimestamp.getTime()) / (1000 * 60);
+                            totalWorkingMinutes += pairMinutes;
+                        }
+                    }
+                }
             } else {
-                console.warn(`[DailyCalculation] Unpaired record at index ${i}: ${inRecord?.type || 'missing'} / ${outRecord?.type || 'missing'}`);
             }
         }
 
         let workingHours = totalWorkingMinutes / 60;
-        console.log(`[DailyCalculation] Total working minutes: ${totalWorkingMinutes.toFixed(2)}, hours: ${workingHours.toFixed(2)}`);
 
         // Subtract break hours ONLY if there's no detected break (single continuous session)
         // If detectedBreakHours > 0, the break is already naturally excluded from totalWorkingMinutes
@@ -161,12 +197,9 @@ export class DailyCalculationService {
         const shouldSubtractBreak = detectedBreakHours === 0 && workingHours > halfDayTreshold;
 
         if (shouldSubtractBreak) {
-            console.log(`[DailyCalculation] Single session detected. WorkingHours ${workingHours.toFixed(2)}h > threshold, subtracting breakHours: ${breakHours}h`);
             workingHours -= breakHours;
         } else if (detectedBreakHours > 0) {
-            console.log(`[DailyCalculation] Multiple punches detected with ${detectedBreakHours.toFixed(2)}h break already excluded. WorkingHours: ${workingHours.toFixed(2)}h`);
         } else {
-            console.log(`[DailyCalculation] WorkingHours ${workingHours.toFixed(2)}h <= threshold, NOT subtracting break`);
         }
         workingHours = Math.max(workingHours, 0);
 

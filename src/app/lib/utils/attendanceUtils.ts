@@ -176,7 +176,7 @@ export const calculateOT = (
     const statusLower = dayStatus?.toLowerCase() || "";
 
     if (statusLower.includes('half')) {
-        thresholdMinutes = 300; // 5 hours
+        thresholdMinutes = 360; // 6 hours
     } else if (statusLower === 'off' || statusLower === 'holiday' || statusLower.includes('weekend')) {
         thresholdMinutes = 0; // All worked time is OT
     }

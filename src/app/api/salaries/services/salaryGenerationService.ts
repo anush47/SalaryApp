@@ -97,7 +97,8 @@ export class SalaryGenerationService {
                     // Holiday Info
                     const holidayInfo = await AttendanceAggregator.getHolidayInfo(
                         dateObj,
-                        employee.calendar || company.calendar || "default"
+                        employee.calendar || company.calendar || "default",
+                        timezone
                     );
                     const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
 
@@ -111,7 +112,6 @@ export class SalaryGenerationService {
                             company.shiftSettings?.shifts?.find((s: any) => s._id?.toString() === shiftId || s.shiftId === shiftId);
 
                         if (fullShift) {
-                            console.log(`[SalaryGeneration] ${dateStr}: Resolved full shift for missing breakDuration: ${fullShift.name}`);
                             attendanceShift = {
                                 ...attendanceShift,
                                 breakDuration: fullShift.breakDuration ?? (fullShift as any).break ?? 0
@@ -119,7 +119,6 @@ export class SalaryGenerationService {
                         }
                     }
 
-                    console.log(`[SalaryGeneration] ${dateStr}: Using shift from attendance log: ${attendanceShift?.name || 'Unknown'} (ID: ${attendanceShift?.shiftId || attendanceShift?._id}), BreakDuration: ${attendanceShift?.breakDuration}h`);
 
                     // Shift Start Clamping Logic
                     let recordsForCalc = [...group.records];
@@ -137,7 +136,6 @@ export class SalaryGenerationService {
                                     const recordIn = dayjs(firstRec.timestamp);
 
                                     if (recordIn.isBefore(shiftStart)) {
-                                        console.log(`[SalaryGeneration] ${dateStr}: Clamping Early Check-in. Actual: ${recordIn.format("HH:mm")}, Shift Start: ${shiftStart.format("HH:mm")}`);
                                         // Create a clone with modified timestamp
                                         // Note: timestamp field should be Date or string compatible with Date constructor
                                         recordsForCalc[0] = {
@@ -164,7 +162,6 @@ export class SalaryGenerationService {
                         detectedBreakHours: group.detectedBreakHours,
                         appliedLeaves: dayLeaves, // Pass applicable leaves
                     });
-                    console.log(`[SalaryGeneration] ${dateStr}: DailyRecord result -> Working: ${dailyRecord.workingHours}h, Break: ${dailyRecord.breakHours}h, OT: ${dailyRecord.normalOT + dailyRecord.doubleOT + dailyRecord.tripleOT}h`);
 
                     dailyRecords.push(dailyRecord);
                     totalNormalOT += dailyRecord.normalOT;
@@ -177,13 +174,13 @@ export class SalaryGenerationService {
             else if (dayLeaves.length > 0) {
                 const holidayInfo = await AttendanceAggregator.getHolidayInfo(
                     dateObj,
-                    employee.calendar || company.calendar || "default"
+                    employee.calendar || company.calendar || "default",
+                    timezone
                 );
-                const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
+                const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined, timezone);
 
                 // For leave days with no attendance, we can use a default shift if needed for calculations
                 const defaultShift = employee.shiftSettings?.shifts?.[0] || company.shiftSettings?.shifts?.[0];
-                console.log(`[SalaryGeneration] ${dateStr}: No attendance, using default shift for leave: ${defaultShift?.name || 'Standard'}`);
 
                 const dailyRecord = DailyCalculationService.processDailyRecordNew({
                     date: dateObj,
@@ -206,14 +203,15 @@ export class SalaryGenerationService {
             // Case 3: No Attendance, No Leave (Absent or Off Day)
             else {
                 // Determine if it should be an Absent record
-                const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
+                const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined, timezone);
                 // If it's a working day and no record/leave, mark absent?
                 // logic typically handled in processDailyRecordNew if empty attendance passed?
                 // processDailyRecordNew handles empty records -> 0 working hours.
 
                 const holidayInfo = await AttendanceAggregator.getHolidayInfo(
                     dateObj,
-                    employee.calendar || company.calendar || "default"
+                    employee.calendar || company.calendar || "default",
+                    timezone
                 );
 
                 const dailyRecord = DailyCalculationService.processDailyRecordNew({
@@ -243,9 +241,6 @@ export class SalaryGenerationService {
         const tripleOTAmount = (totalTripleOT * employee.basic * 3) / employee.divideBy;
         const totalOTAmount = normalOTAmount + doubleOTAmount + tripleOTAmount;
 
-        console.log(`[OT Calculation] Employee: ${employee.name || employeeId}, Basic: ${employee.basic}, DivideBy: ${employee.divideBy}`);
-        console.log(`[OT Calculation] Normal: ${totalNormalOT.toFixed(2)}h = ${normalOTAmount.toFixed(2)}, Double: ${totalDoubleOT.toFixed(2)}h = ${doubleOTAmount.toFixed(2)}, Triple: ${totalTripleOT.toFixed(2)}h = ${tripleOTAmount.toFixed(2)}`);
-        console.log(`[OT Calculation] Total OT Amount: ${totalOTAmount.toFixed(2)}`);
 
 
         // Calculate holiday pay (if any days worked on holidays)

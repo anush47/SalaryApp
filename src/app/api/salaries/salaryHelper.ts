@@ -36,10 +36,11 @@ export const getShiftStart = (shift: string, inDate: Date): Date => {
 export const getWorkingDayStatus = (
     day: Date,
     employee: any,
-    inOutRecord: { day_status?: "full" | "half" | "off" } | undefined
+    inOutRecord: { day_status?: "full" | "half" | "off" } | undefined,
+    timezone: string = "Asia/Colombo"
 ): "full" | "half" | "off" => {
-    // Use UTC methods to avoid timezone issues
-    const dayOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getUTCDay()];
+    // Use dayjs with timezone to get the correct day of week
+    const dayOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][dayjs(day).tz(timezone).day()];
 
     // Determine if dynamic holidays are enabled
     const isDynamicHolidays = employee.overrides?.workingDays
@@ -77,9 +78,10 @@ export const getHoliday = (
         date: string;
         categories: { public: boolean; bank: boolean; mercantile: boolean };
         summary: string;
-    }[]
+    }[],
+    timezone: string = "Asia/Colombo"
 ) => {
-    const dateString = date.toISOString().split("T")[0];
+    const dateString = dayjs(date).tz(timezone).format("YYYY-MM-DD");
     const holiDay = holidays.find((h) => h.date === dateString) || {
         date: dateString,
         categories: { public: false, bank: false, mercantile: false },

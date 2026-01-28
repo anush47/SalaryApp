@@ -1189,7 +1189,6 @@ export class SalaryService {
         // Generate salary - always use new dailyRecords structure for attendance-based employees
         let generatedSalary;
 
-        console.log(`[SalaryGen] Employee ${employee._id} calculationMethod: ${employee.calculationMethod || 'NOT SET (will use default)'}, name: ${employee.name}`);
 
         if (employee.calculationMethod === "attendance") {
             // Use new dailyRecords structure
@@ -1255,7 +1254,6 @@ export class SalaryService {
         // Calculate final salary (Net Earnings BEFORE advances)
         const finalSalary = generatedSalary.finalSalary || 0;
 
-        console.log(`[Salary Service] Employee OT data:`, generatedSalary.ot);
         // Prepare enhanced salary data
         const enhancedSalaryData = {
             ...generatedSalary,

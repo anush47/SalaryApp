@@ -286,23 +286,26 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
                                             if (newValue?._id === 'all') setSelectedEmployee(null);
                                             else setSelectedEmployee(newValue);
                                         }}
-                                        renderOption={(props, option) => (
-                                            <li {...props}>
-                                                <Box sx={{ color: option.active === false ? 'text.disabled' : 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <Typography sx={{ fontWeight: option.active === false ? 'normal' : '500', fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                                        {option.name}
-                                                    </Typography>
-                                                    {option.memberNo && (
-                                                        <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                                                            ({option.memberNo})
+                                        renderOption={(props, option) => {
+                                            const { key, ...optionProps } = props;
+                                            return (
+                                                <li key={key} {...optionProps}>
+                                                    <Box sx={{ color: option.active === false ? 'text.disabled' : 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <Typography sx={{ fontWeight: option.active === false ? 'normal' : '500', fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                                                            {option.name}
                                                         </Typography>
-                                                    )}
-                                                    {option.active === false && (
-                                                        <Chip label="Inactive" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
-                                                    )}
-                                                </Box>
-                                            </li>
-                                        )}
+                                                        {option.memberNo && (
+                                                            <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                                                ({option.memberNo})
+                                                            </Typography>
+                                                        )}
+                                                        {option.active === false && (
+                                                            <Chip label="Inactive" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                                                        )}
+                                                    </Box>
+                                                </li>
+                                            );
+                                        }}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}

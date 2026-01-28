@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { getAttendanceLogs } from "@/app/lib/api/attendanceApi";
 import { fetchLeaveRequests } from "@/app/lib/api/leaveRequestApi";
 import { getShiftAssignments } from "@/app/lib/api/shiftsApi";
@@ -11,6 +13,8 @@ import { fetchCompany } from "@/app/lib/api/companyApi";
 import { calculateOT, calculateEffectiveDuration } from "@/app/lib/utils/attendanceUtils";
 
 dayjs.extend(isBetween);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export interface DailyAttendanceRecord {
     date: string; // YYYY-MM-DD
@@ -125,7 +129,6 @@ export const calculateAttendanceForEmployee = (
 
     while (currentDate.isBefore(end) || currentDate.isSame(end, 'day')) {
         const dateStr = currentDate.format("YYYY-MM-DD");
-        const dayOfWeek = currentDate.format("ddd").toLowerCase();
 
         const activeShiftIds = new Set<string>();
         const dailyAssignments = shiftAssignments.filter((s: any) => normalizeId(s.employee) === targetEmpId && s.date === dateStr);
@@ -136,14 +139,21 @@ export const calculateAttendanceForEmployee = (
             });
         }
 
-        const dayLogsGeneric = employeeLogs.filter((l: any) => dayjs(l.timestamp).isSame(currentDate, 'day'));
+        const tz = company.timezone || "Asia/Colombo";
+        const dayLogsGeneric = employeeLogs.filter((l: any) =>
+            dayjs(l.timestamp).tz(tz).format("YYYY-MM-DD") === dateStr
+        );
 
+        // ESSENTIAL: Detect shifts from logs to handle days without explicit assignments
         dayLogsGeneric.forEach((l: any) => {
             const sId = l.shift?.shiftId || l.shift?._id || l.shift;
             if (sId && typeof sId === 'string') {
                 activeShiftIds.add(sId);
             }
         });
+
+        // Use Colombo timezone for day of week to align with Salary Generation
+        const dayOfWeek = dayjs(dateStr).tz(tz).format("ddd").toLowerCase();
 
         if (activeShiftIds.size === 0 && dailyAssignments.length === 0) {
             const workDayConfig = employee.workingDays?.[dayOfWeek] || company.workingDays?.[dayOfWeek] || "full";
@@ -204,63 +214,115 @@ export const calculateAttendanceForEmployee = (
                 isOvernight = true;
             }
 
-            if (isExplicitOff || (shiftsToProcess.length === 1 && shiftsToProcess[0] === "default" && isDefaultOff)) {
-                shiftExpected.off = true;
-                shiftExpected.name = isExplicitOff ? "Off Day (Assigned)" : "Off Day";
-            }
-
             const safeHolidays = holidays || [];
             const holiday = safeHolidays.find((h: any) => h.date === dateStr);
             const isHoliday = !!holiday;
-            if (isHoliday) {
+            const isOff = isExplicitOff || isDefaultOff || isHoliday;
+
+            if (isOff) {
                 shiftExpected.off = true;
+                if (isHoliday) {
+                    shiftExpected.name = (holiday as any).summary;
+                } else if (isExplicitOff) {
+                    shiftExpected.name = "Off Day (Assigned)";
+                } else {
+                    shiftExpected.name = "Off Day";
+                }
             }
 
-            const shiftInLogs = dayLogsGeneric.filter((l: any) => {
-                const logShiftId = l.shift?.shiftId || l.shift?._id || l.shift;
-                const matchesShift = typeof logShiftId === 'string' && logShiftId === shiftId;
-                const matchesDefault = !l.shift && (shiftsToProcess.length === 1 || shiftId === shiftsToProcess[0]);
-                return l.type === 'in' && (matchesShift || matchesDefault);
-            });
-
             const sessions: any[] = [];
-            shiftInLogs.forEach((inLog: any) => {
-                const nextOut = employeeLogs.find((l: any) => {
-                    const logShiftId = l.shift?.shiftId || l.shift?._id || l.shift;
-                    return l.type === 'out' &&
-                        dayjs(l.timestamp).isAfter(dayjs(inLog.timestamp)) &&
-                        (
-                            (!l.shift && (shiftsToProcess.length === 1 || shiftId === shiftsToProcess[0])) ||
-                            (logShiftId === shiftId)
-                        ) &&
-                        dayjs(l.timestamp).diff(dayjs(inLog.timestamp), 'hour') < 20;
-                });
-
-                let duration = 0;
-                if (nextOut) {
-                    duration = dayjs(nextOut.timestamp).diff(dayjs(inLog.timestamp), 'minute');
+            // Filter logs that belong to THIS shift
+            const logsForThisShift = dayLogsGeneric.filter((l: any) => {
+                const logShiftId = l.shift?.shiftId || l.shift?._id || l.shift;
+                if (!logShiftId || logShiftId === "default") {
+                    // Match if current shift is 'default' OR it's the first shift being processed
+                    // This handles logs without an explicit shift property.
+                    return shiftId === "default" || shiftId === (shiftsToProcess[0] || "default");
                 }
-
-                sessions.push({
-                    id: inLog._id, // Stable ID
-                    inLogId: inLog._id,
-                    outLogId: nextOut?._id,
-                    checkInTime: inLog.timestamp,
-                    checkOutTime: nextOut?.timestamp,
-                    inDeviceChange: deviceChangeMap[inLog._id],
-                    outDeviceChange: nextOut ? deviceChangeMap[nextOut._id] : false,
-                    inVerified: inLog.location?.isVerified,
-                    outVerified: nextOut?.location?.isVerified,
-                    inStatus: inLog.status,
-                    outStatus: nextOut?.status,
-                    durationMinutes: duration
-                });
+                return logShiftId === shiftId;
             });
+
+            const sortedDayLogs = [...logsForThisShift].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+            // Robust Pairing Logic (Matches Backend)
+            const usedLogIds = new Set<string>();
+
+            for (let i = 0; i < sortedDayLogs.length; i++) {
+                const inLog = sortedDayLogs[i];
+                if (inLog.type !== 'in' || usedLogIds.has(inLog._id)) continue;
+
+                // For this IN, find the NEXT OUT (either in this day or upcoming logs)
+                const nextOut = employeeLogs.find((l: any) =>
+                    l.type === 'out' &&
+                    !usedLogIds.has(l._id) &&
+                    dayjs(l.timestamp).isAfter(dayjs(inLog.timestamp)) &&
+                    dayjs(l.timestamp).diff(dayjs(inLog.timestamp), 'hour') < 36
+                );
+
+                if (nextOut) {
+                    usedLogIds.add(inLog._id);
+                    usedLogIds.add(nextOut._id);
+
+                    sessions.push({
+                        id: inLog._id,
+                        inLogId: inLog._id,
+                        outLogId: nextOut._id,
+                        checkInTime: inLog.timestamp,
+                        checkOutTime: nextOut.timestamp,
+                        inDeviceChange: deviceChangeMap[inLog._id],
+                        outDeviceChange: deviceChangeMap[nextOut._id],
+                        inVerified: inLog.location?.isVerified,
+                        outVerified: nextOut.location?.isVerified,
+                        inStatus: inLog.status,
+                        outStatus: nextOut.status,
+                        durationMinutes: dayjs(nextOut.timestamp).diff(dayjs(inLog.timestamp), 'minute')
+                    });
+                } else {
+                    // Unpaired IN
+                    usedLogIds.add(inLog._id);
+
+                    // AUTO-OUT LOGIC: If missing for > 24 hours, assume OUT at shift end
+                    const inTimestamp = new Date(inLog.timestamp);
+                    const now = new Date();
+                    const hoursSinceIn = (now.getTime() - inTimestamp.getTime()) / (1000 * 60 * 60);
+
+                    let estimatedDuration = 0;
+                    let estimatedOutTime: string | undefined = undefined;
+
+                    if (hoursSinceIn > 24 && shiftExpected && shiftExpected.end) {
+                        const [eh, em] = shiftExpected.end.split(':').map(Number);
+                        const [sh, sm] = (shiftExpected.start || "00:00").split(':').map(Number);
+
+                        let autoOut = dayjs(inTimestamp).hour(eh).minute(em).second(0).millisecond(0);
+                        if (eh < sh || (eh === sh && em < sm)) {
+                            autoOut = autoOut.add(1, 'day');
+                        }
+
+                        const finalAutoOut = autoOut.toDate();
+                        if (finalAutoOut > inTimestamp) {
+                            estimatedDuration = (finalAutoOut.getTime() - inTimestamp.getTime()) / (1000 * 60);
+                            estimatedOutTime = finalAutoOut.toISOString();
+                        }
+                    }
+
+                    sessions.push({
+                        id: inLog._id,
+                        inLogId: inLog._id,
+                        checkInTime: inLog.timestamp,
+                        checkOutTime: estimatedOutTime, // Provide estimated OUT
+                        inDeviceChange: deviceChangeMap[inLog._id],
+                        inVerified: inLog.location?.isVerified,
+                        inStatus: inLog.status,
+                        durationMinutes: estimatedDuration,
+                        isEstimated: !!estimatedOutTime
+                    });
+                }
+            }
 
             const relevantLeave = leaves.find((l: any) => {
                 const start = dayjs(l.startDate).startOf('day');
                 const end = dayjs(l.endDate).endOf('day');
-                return normalizeId(l.employee) === targetEmpId && currentDate.isBetween(start, end, 'day', '[]');
+                return normalizeId(l.employee) === targetEmpId && dayjs(dateStr).isBetween(start, end, 'day', '[]');
             });
 
             let status: DailyAttendanceRecord['status'] = 'Absent';
@@ -317,9 +379,21 @@ export const calculateAttendanceForEmployee = (
             else if (shiftExpected.off) currentStatus = "Off";
             else if (isHoliday) currentStatus = "Holiday";
 
+            let netDurationForOT = effectiveDurationForOT;
+            let breakMinutesSubtracted = 0;
+
+            // Smart Break Subtraction (Matches Backend)
+            // 1. Only if single session
+            // 2. AND session > 6 hours (360 mins)
+            // 3. AND no manual gap detected between multiple sessions
+            if (sessions.length === 1 && netDurationForOT > 360) {
+                breakMinutesSubtracted = shiftExpected.breakDuration || 60;
+                netDurationForOT = Math.max(0, netDurationForOT - breakMinutesSubtracted);
+            }
+
             const otMinutes = calculateOT(
-                effectiveDurationForOT,
-                shiftExpected.breakDuration || 60,
+                netDurationForOT,
+                0, // Pass 0 as we handled break subtraction already
                 currentStatus
             );
 

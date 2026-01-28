@@ -35,11 +35,15 @@ const GenerateSalaryAll = ({
   companyId,
   user,
   selectedEmployeeId,
+  employees: employeesProp,
+  isLoading: isLoadingProp,
 }: {
   period: string;
   companyId: string;
   user: { id: string; name: string; email: string; role: string };
   selectedEmployeeId?: string;
+  employees?: Employee[];
+  isLoading?: boolean;
 }) => {
   const [loading, setLoading] = useState(false);
   const { showSnackbar } = useSnackbar();
@@ -51,28 +55,19 @@ const GenerateSalaryAll = ({
   const [openDialog, setOpenDialog] = useState(false);
   const [useLiveAttendance, setUseLiveAttendance] = useState(true);
 
-  const fetchEmployeesData = async (companyId: string): Promise<Employee[]> => {
-    const response: any = await fetchEmployees({ companyId });
-    const employeesData = Array.isArray(response) ? response : (response.employees || response.data || []);
-    return employeesData.map((employee: any) => ({
-      ...employee,
-      id: employee._id,
-      active: employee.active !== false,
-      include: employee.active !== false,
+  // Transform props to match local Employee type expectations if needed
+  const employees = React.useMemo(() => {
+    if (!employeesProp) return [];
+    return employeesProp.map(e => ({
+      ...e,
+      id: e._id || (e as any).id,
+      active: e.active !== false,
+      include: e.active !== false
     }));
-  };
+  }, [employeesProp]);
 
-  const {
-    data: employees,
-    isLoading,
-    isError,
-    error,
-  } = useQuery<Employee[], Error>({
-    queryKey: ["employees", companyId],
-    queryFn: () => fetchEmployeesData(companyId),
-    staleTime: STALE_TIME,
-    gcTime: GC_TIME,
-  });
+  const isLoading = isLoadingProp || false;
+  const isError = false; // Error handled by parent or simplified here
 
   useEffect(() => {
     if (employees) {

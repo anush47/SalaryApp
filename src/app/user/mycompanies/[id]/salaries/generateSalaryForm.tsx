@@ -19,6 +19,7 @@ import {
   FormLabel,
   Paper,
   Divider,
+  Chip,
 } from "@mui/material";
 import { ArrowBack, ShoppingBag } from "@mui/icons-material";
 import dayjs from "dayjs";
@@ -34,6 +35,7 @@ import { fetchEmployee } from "@/app/lib/api/employeeApi";
 import { fetchCompany } from "@/app/lib/api/companyApi";
 import { useQuery } from "@tanstack/react-query";
 import { GC_TIME, STALE_TIME } from "@/app/lib/consts";
+import { fetchEmployees } from "@/app/lib/api";
 
 export interface Salary {
   employee: string;
@@ -77,14 +79,6 @@ const AddSalaryForm: React.FC<{
   });
 
   const [loading, setLoading] = useState<boolean>(false);
-  const [employees, setEmployees] = useState<
-    {
-      _id: string;
-      memberNo: string;
-      name: string;
-      nic: string;
-    }[]
-  >([]);
   const [employeeSelection, setEmployeeSelection] = useState<string>("all");
   const [period, setPeriod] = useState<string>(
     dayjs().subtract(1, "month").format("YYYY-MM")
@@ -119,53 +113,35 @@ const AddSalaryForm: React.FC<{
     return period;
   };
 
-  const fetchEmployees = async (): Promise<
-    {
-      _id: string;
-      memberNo: string;
-      name: string;
-      nic: string;
-    }[]
-  > => {
-    const response = await fetch(`/api/employees?companyId=${companyId}`, {
-      method: "GET",
-    });
-    if (!response.ok) {
-      throw new Error("Failed to fetch employees");
-    }
-    const result = await response.json();
-    return [
-      ...result.employees.map(
-        (employee: {
-          _id: string;
-          memberNo: string;
-          name: string;
-          nic: string;
-        }) => ({
-          _id: employee._id,
-          memberNo: employee.memberNo,
-          name: employee.name,
-          nic: employee.nic,
-        })
-      ),
-    ];
+  const fetchEmployeesData = async (): Promise<any[]> => {
+    const response: any = await fetchEmployees({ companyId });
+    const employeesData = Array.isArray(response) ? response : (response.employees || response.data || []);
+    return employeesData.map((employee: any) => ({
+      ...employee,
+      active: employee.active !== false
+    }));
   };
 
   const { data: employeesData, isLoading: isLoadingEmployees } = useQuery({
     queryKey: ["employees", companyId],
-    queryFn: fetchEmployees,
+    queryFn: fetchEmployeesData,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
   });
 
-  useEffect(() => {
-    if (Array.isArray(employeesData)) {
-      setEmployees([
-        ...employeesData,
-        { memberNo: "all", _id: "all", name: "ALL", nic: "all" },
-      ]);
-    }
+  const sortedEmployeesData = React.useMemo(() => {
+    if (!employeesData) return [];
+    return [...employeesData].sort((a, b) => {
+      if (a.active === b.active) return a.name.localeCompare(b.name);
+      return a.active ? -1 : 1;
+    });
   }, [employeesData]);
+
+  const employees = React.useMemo(() => {
+    const allOption = { _id: "all", memberNo: "ALL", name: "ALL Employees", nic: "all", active: true };
+    return [allOption, ...sortedEmployeesData];
+  }, [sortedEmployeesData]);
+
 
   const checkPurchasedStatus = async (): Promise<boolean> => {
     const response = await fetch(
@@ -238,11 +214,32 @@ const AddSalaryForm: React.FC<{
               <FormControl fullWidth error={!!errors.employee}>
                 <Autocomplete
                   options={employees}
-                  getOptionLabel={(option) =>
-                    option._id === "all"
-                      ? `${option.name}`
-                      : `${option.memberNo} - ${option.name} - ${option.nic}`
-                  }
+                  groupBy={(option) => option._id === 'all' ? '' : (option.active ? 'Active Employees' : 'Inactive Employees')}
+                  getOptionLabel={(option) => {
+                    const statusText = option.active === false ? ' (Inactive)' : '';
+                    if (option._id === "all") return option.name;
+                    return `${option.memberNo} - ${option.name}${statusText}`;
+                  }}
+                  renderOption={(props, option) => {
+                    const { key, ...optionProps } = props;
+                    return (
+                      <li key={key} {...optionProps}>
+                        <Box sx={{ color: option.active === false ? 'text.disabled' : 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography sx={{ fontWeight: option.active === false ? 'normal' : '500', fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                            {option.name}
+                          </Typography>
+                          {option._id !== 'all' && (
+                            <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                              ({option.memberNo})
+                            </Typography>
+                          )}
+                          {option.active === false && (
+                            <Chip label="Inactive" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                          )}
+                        </Box>
+                      </li>
+                    );
+                  }}
                   onChange={async (_, newValue) => {
                     if (newValue) {
                       setFormFields((prevFields) => ({
@@ -433,6 +430,8 @@ const AddSalaryForm: React.FC<{
               period={getFormattedPeriod()}
               user={user}
               selectedEmployeeId={employeeSelection !== "all" ? employeeSelection : undefined}
+              employees={sortedEmployeesData}
+              isLoading={isLoadingEmployees}
             />
           </Grid>
         </Grid>
