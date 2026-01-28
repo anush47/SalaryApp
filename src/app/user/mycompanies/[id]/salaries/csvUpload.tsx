@@ -226,24 +226,27 @@ export const ViewUploadedInOutDialog = (props: {
     [inOutFetched]
   );
 
-  const mappedInOutData = parsedInOutFetched.map((entry) => {
-    const employee = employees?.find((emp) => {
-      if (entry.type === "employeeId") {
-        return emp.id === entry.employeeIdentifier;
-      } else {
-        return emp.memberNo === Number(entry.employeeIdentifier);
-      }
+  const mappedInOutData = useMemo(() => {
+    const list = Array.isArray(employees) ? employees : (employees as any)?.employees || [];
+    return parsedInOutFetched.map((entry) => {
+      const employee = list.find((emp: any) => {
+        if (entry.type === "employeeId") {
+          return emp.id === entry.employeeIdentifier;
+        } else {
+          return emp.memberNo === Number(entry.employeeIdentifier);
+        }
+      });
+      return {
+        employeeId: employee?.id || "N/A",
+        memberNo: employee?.memberNo || "N/A",
+        name: employee?.name || "N/A",
+        nic: employee?.nic || "N/A",
+        timestamp: entry.timestamp,
+        date: dayjs(entry.timestamp).format("YYYY-MM-DD"),
+        time: dayjs(entry.timestamp).format("HH:mm:ss"),
+      };
     });
-    return {
-      employeeId: employee?.id || "N/A",
-      memberNo: employee?.memberNo || "N/A",
-      name: employee?.name || "N/A",
-      nic: employee?.nic || "N/A",
-      timestamp: entry.timestamp,
-      date: dayjs(entry.timestamp).format("YYYY-MM-DD"),
-      time: dayjs(entry.timestamp).format("HH:mm:ss"),
-    };
-  });
+  }, [parsedInOutFetched, employees]);
 
   const groupedInOutData = mappedInOutData.reduce((acc, curr) => {
     if (!acc[curr.employeeId]) {

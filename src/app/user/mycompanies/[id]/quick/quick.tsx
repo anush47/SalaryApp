@@ -66,8 +66,9 @@ const fetchCompanyData = async (companyId: string) => {
 };
 
 const fetchEmployeesData = async (companyId: string) => {
-  const employees = await fetchEmployees({ companyId });
-  return employees.map((employee: { _id: string }) => ({
+  const response = await fetchEmployees({ companyId });
+  const list = Array.isArray(response) ? response : (response.employees || response.data || []);
+  return list.map((employee: { _id: string }) => ({
     ...employee,
     id: employee._id,
   }));

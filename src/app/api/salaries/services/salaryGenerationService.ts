@@ -20,7 +20,8 @@ export class SalaryGenerationService {
         employeeId: string,
         period: string,
         companyId: string,
-        timezone: string
+        timezone: string,
+        cachedHolidays?: any[]
     ) {
         // Fetch employee and company
         const employee = await Employee.findById(employeeId).populate("company").lean();
@@ -98,9 +99,10 @@ export class SalaryGenerationService {
                     const holidayInfo = await AttendanceAggregator.getHolidayInfo(
                         dateObj,
                         employee.calendar || company.calendar || "default",
-                        timezone
+                        timezone,
+                        cachedHolidays
                     );
-                    const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined);
+                    const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined, timezone);
 
                     // Use shift directly from attendance log as requested
                     let attendanceShift = group.shift;
@@ -175,7 +177,8 @@ export class SalaryGenerationService {
                 const holidayInfo = await AttendanceAggregator.getHolidayInfo(
                     dateObj,
                     employee.calendar || company.calendar || "default",
-                    timezone
+                    timezone,
+                    cachedHolidays
                 );
                 const workingDayStatus = getWorkingDayStatus(dateObj, employee, undefined, timezone);
 
@@ -211,7 +214,8 @@ export class SalaryGenerationService {
                 const holidayInfo = await AttendanceAggregator.getHolidayInfo(
                     dateObj,
                     employee.calendar || company.calendar || "default",
-                    timezone
+                    timezone,
+                    cachedHolidays
                 );
 
                 const dailyRecord = DailyCalculationService.processDailyRecordNew({
@@ -327,7 +331,7 @@ export class SalaryGenerationService {
     /**
      * Parse period string to date range
      */
-    private static parsePeriod(period: string, timezone: string): { startDate: Date; endDate: Date } {
+    public static parsePeriod(period: string, timezone: string): { startDate: Date; endDate: Date } {
         // Handle different period formats
         if (period.includes(" to ")) {
             // Range format: "2024-01-01 to 2024-01-31"

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import dayjs from "dayjs";
 import dbConnect from "@/app/lib/db";
 import Company from "@/app/models/Company";
 import Employee from "@/app/models/Employee";
@@ -37,6 +38,7 @@ import {
     AdvanceDeduction
 } from "./utils/advanceDeduction";
 import { expandPeriodForSalaryType } from "./utils/periodExpansion";
+import { getHolidays } from "../calendar/holidays/holidayHelper";
 
 export class SalaryService {
     static async getSalary(salaryId: string, context: RequestContext) {
@@ -1002,6 +1004,24 @@ export class SalaryService {
             ])
         );
 
+        // --- PRE-FETCH HOLIDAYS FOR BATCH ---
+        // Calculate the overall date range for all expanded periods
+        let minDate: string | null = null;
+        let maxDate: string | null = null;
+
+        allExpandedPeriods.forEach(p => {
+            const { startDate, endDate } = SalaryGenerationService.parsePeriod(p, companyTimezone);
+            const startStr = dayjs(startDate).format("YYYY-MM-DD");
+            const endStr = dayjs(endDate).format("YYYY-MM-DD");
+            if (!minDate || startStr < minDate) minDate = startStr;
+            if (!maxDate || endStr > maxDate) maxDate = endStr;
+        });
+
+        const holidayFetchResult = minDate && maxDate
+            ? await getHolidays(minDate, maxDate, company.calendar || "default")
+            : { holidays: [] };
+        const cachedHolidays = holidayFetchResult.holidays;
+
 
 
         // Group tasks by employee ID for sequential processing
@@ -1106,7 +1126,8 @@ export class SalaryService {
                         company,
                         existingSalary,
                         shouldSave,
-                        currentAdvanceState
+                        currentAdvanceState,
+                        cachedHolidays
                     );
                     salaryResult = { salary: generatedSalary, exists: null, period: taskPeriod };
                 }
@@ -1164,7 +1185,8 @@ export class SalaryService {
         company: any,
         existingSalary?: any,
         shouldSave: boolean = true,
-        providedAdvances?: any[] // Optional: Passed cumulative state for sequential generation
+        providedAdvances?: any[], // Optional: Passed cumulative state for sequential generation
+        cachedHolidays?: any[]
     ) {
         // Calculate period dates based on employee's salary period configuration
         const { startDate, endDate, periodDays } = calculatePeriodDates(employee, period, company);
@@ -1196,7 +1218,8 @@ export class SalaryService {
                 employee._id.toString(),
                 period,
                 company._id.toString(),
-                company.timezone || "Asia/Colombo"
+                company.timezone || "Asia/Colombo",
+                cachedHolidays
             );
 
             // Add advance deductions and other fields

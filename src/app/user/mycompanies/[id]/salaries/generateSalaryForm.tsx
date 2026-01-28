@@ -131,7 +131,8 @@ const AddSalaryForm: React.FC<{
 
   const sortedEmployeesData = React.useMemo(() => {
     if (!employeesData) return [];
-    return [...employeesData].sort((a, b) => {
+    const list = Array.isArray(employeesData) ? employeesData : (employeesData.employees || employeesData.data || []);
+    return [...list].sort((a: any, b: any) => {
       if (a.active === b.active) return a.name.localeCompare(b.name);
       return a.active ? -1 : 1;
     });

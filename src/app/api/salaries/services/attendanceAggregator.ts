@@ -234,16 +234,23 @@ export class AttendanceAggregator {
     static async getHolidayInfo(
         date: Date,
         calendar: string = "default",
-        timezone: string = "Asia/Colombo"
+        timezone: string = "Asia/Colombo",
+        cachedHolidays?: any[]
     ): Promise<{
         isMercantileHoliday: boolean;
         isPublicHoliday: boolean;
         holidayName: string;
     }> {
         const dateStr = dayjs(date).tz(timezone).format("YYYY-MM-DD");
-        const { holidays } = await getHolidays(dateStr, dateStr, calendar);
 
-        const holiday = holidays.find((h: any) => h.date === dateStr);
+        // Use cached holidays if provided to avoid DB hits
+        let holiday;
+        if (cachedHolidays) {
+            holiday = cachedHolidays.find((h: any) => h.date === dateStr);
+        } else {
+            const { holidays } = await getHolidays(dateStr, dateStr, calendar);
+            holiday = holidays.find((h: any) => h.date === dateStr);
+        }
 
         return {
             isMercantileHoliday: holiday?.categories?.mercantile || false,

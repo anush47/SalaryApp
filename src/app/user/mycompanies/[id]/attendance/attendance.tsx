@@ -176,12 +176,15 @@ const CompanyAttendance: React.FC<CompanyAttendanceProps> = ({ user, companyId }
 
     const { data: employeesData, isLoading: loadingEmployees } = useQuery({
         queryKey: ['employees', companyId],
-        queryFn: () => fetchEmployees({ companyId, limit: 1000 })
+        queryFn: async () => {
+            const response = await fetchEmployees({ companyId, limit: 1000 });
+            return Array.isArray(response) ? response : (response.employees || response.data || []);
+        }
     });
 
     const employees = React.useMemo(() => {
-        const list = employeesData?.employees || [];
-        return [...list].sort((a, b) => {
+        const list = Array.isArray(employeesData) ? employeesData : (employeesData?.employees || []);
+        return [...list].sort((a: any, b: any) => {
             if (a.active === b.active) return a.name.localeCompare(b.name);
             return a.active ? -1 : 1;
         });
