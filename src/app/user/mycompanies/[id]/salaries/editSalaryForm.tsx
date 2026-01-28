@@ -578,7 +578,7 @@ const EditSalaryForm: React.FC<{
                 {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <FormControl fullWidth>
                 <TextField
                   label="Gross Earnings"
@@ -589,11 +589,26 @@ const EditSalaryForm: React.FC<{
                     readOnly: true,
                     style: { fontWeight: 'bold' }
                   }}
-                  helperText="Basic + Holiday Pay - No Pay"
+                  helperText="Basic + Holiday - No Pay"
                 />
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <TextField
+                  label="Final before advance"
+                  type="number"
+                  value={((Number(formFields.basic) || 0) + (Number(formFields.holidayPay) || 0) + (Number(formFields.ot.amount) || 0) + ((formFields.paymentStructure?.additions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)) - ((formFields.paymentStructure?.deductions || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)) - (Number(formFields.noPay.amount) || 0)).toFixed(2)}
+                  variant="filled"
+                  InputProps={{
+                    readOnly: true,
+                    style: { fontWeight: 'bold', color: 'primary.main' }
+                  }}
+                  helperText="Total before advance deduction"
+                />
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={3}>
               <FormControl fullWidth error={!!errors.advanceAmount}>
                 <TextField
                   label="Advance Deduction"
@@ -611,10 +626,10 @@ const EditSalaryForm: React.FC<{
                 )}
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <FormControl fullWidth error={!!errors.finalSalary}>
                 <TextField
-                  label="Final Net Salary"
+                  label="Net Salary"
                   name="finalSalary"
                   type="number"
                   value={formFields.finalSalary?.toFixed(2) || 0}
@@ -624,7 +639,7 @@ const EditSalaryForm: React.FC<{
                     readOnly: true,
                     style: { fontWeight: 'bold', color: '#2e7d32', fontSize: '1.2rem' }
                   }}
-                  helperText="Final payout"
+                  helperText="Actual payout"
                 />
                 {errors.finalSalary && (
                   <FormHelperText>{errors.finalSalary}</FormHelperText>

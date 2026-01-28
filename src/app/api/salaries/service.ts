@@ -350,23 +350,49 @@ export class SalaryService {
             if ('preview' in salary) delete salary.preview;
             if ('_id' in salary) delete salary._id; // Remove generated preview ID to allow fresh insertion
 
-            salary.basic = Number(salary.basic);
-            salary.advanceAmount = Number(salary.advanceAmount);
-            salary.finalSalary = Number(salary.finalSalary);
-            salary.noPay.amount = Number(salary.noPay.amount);
-            salary.ot.amount = Number(salary.ot.amount);
-            salary.holidayPay = Number(salary.holidayPay);
+            // Safe conversion to numbers with fallback to 0 to prevent NaN validation errors
+            salary.basic = Number(salary.basic) || 0;
+            salary.holidayPay = Number(salary.holidayPay) || 0;
+            salary.advanceAmount = Number(salary.advanceAmount) || 0;
+            salary.finalSalary = Number(salary.finalSalary) || 0;
 
-            // Convert amounts in payment structure
-            salary.paymentStructure.additions.forEach((addition: any) => {
-                addition.amount = Number(addition.amount);
-            });
-            salary.paymentStructure.deductions.forEach((deduction: any) => {
-                deduction.amount = Number(deduction.amount);
-            });
+            if (salary.noPay) {
+                salary.noPay.amount = Number(salary.noPay.amount) || 0;
+            } else {
+                salary.noPay = { amount: 0, reason: "" };
+            }
+
+            if (salary.ot) {
+                salary.ot.amount = Number(salary.ot.amount) || 0;
+            } else {
+                salary.ot = { amount: 0, reason: "" };
+            }
+
+            if (salary.paymentStructure) {
+                salary.paymentStructure.additions = (salary.paymentStructure.additions || []).map((addition: any) => ({
+                    ...addition,
+                    amount: Number(addition.amount) || 0
+                }));
+                salary.paymentStructure.deductions = (salary.paymentStructure.deductions || []).map((deduction: any) => ({
+                    ...deduction,
+                    amount: Number(deduction.amount) || 0
+                }));
+            } else {
+                salary.paymentStructure = { additions: [], deductions: [] };
+            }
 
             // Parse and validate each salary object against the schema
-            const parsedSalary = salaryCreateSchema.parse(salary);
+            let parsedSalary;
+            try {
+                parsedSalary = salaryCreateSchema.parse(salary);
+            } catch (error: any) {
+                if (error.name === "ZodError") {
+                    console.error("[SalaryCreate] Zod Validation Error for employee:", salary.employee);
+                    console.error("[SalaryCreate] Errors:", JSON.stringify(error.errors, null, 2));
+                    console.error("[SalaryCreate] Problematic Payload:", JSON.stringify(salary, null, 2));
+                }
+                throw error;
+            }
 
             // Fetch employee for validation
             const employee = await Employee.findById(parsedSalary.employee);
@@ -496,19 +522,36 @@ export class SalaryService {
 
 
 
-        //convert to numbers
-        body.basic = Number(body.basic);
-        body.holidayPay = Number(body.holidayPay);
-        body.advanceAmount = Number(body.advanceAmount);
-        body.finalSalary = Number(body.finalSalary);
-        body.noPay.amount = Number(body.noPay.amount);
-        body.ot.amount = Number(body.ot.amount);
-        body.paymentStructure.additions.forEach((addition: any) => {
-            addition.amount = Number(addition.amount);
-        });
-        body.paymentStructure.deductions.forEach((deduction: any) => {
-            deduction.amount = Number(deduction.amount);
-        });
+        // Safe conversion to numbers with fallback to 0 to prevent NaN validation errors
+        body.basic = Number(body.basic) || 0;
+        body.holidayPay = Number(body.holidayPay) || 0;
+        body.advanceAmount = Number(body.advanceAmount) || 0;
+        body.finalSalary = Number(body.finalSalary) || 0;
+
+        if (body.noPay) {
+            body.noPay.amount = Number(body.noPay.amount) || 0;
+        } else {
+            body.noPay = { amount: 0, reason: "" };
+        }
+
+        if (body.ot) {
+            body.ot.amount = Number(body.ot.amount) || 0;
+        } else {
+            body.ot = { amount: 0, reason: "" };
+        }
+
+        if (body.paymentStructure) {
+            body.paymentStructure.additions = (body.paymentStructure.additions || []).map((addition: any) => ({
+                ...addition,
+                amount: Number(addition.amount) || 0
+            }));
+            body.paymentStructure.deductions = (body.paymentStructure.deductions || []).map((deduction: any) => ({
+                ...deduction,
+                amount: Number(deduction.amount) || 0
+            }));
+        } else {
+            body.paymentStructure = { additions: [], deductions: [] };
+        }
 
         let parsedBody;
         try {

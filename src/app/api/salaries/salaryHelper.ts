@@ -1,9 +1,17 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import {
+    getTimeDifferenceInMinutes as _getTimeDifferenceInMinutes,
+    calculateHolidayPay as _calculateHolidayPay,
+} from "@/app/lib/utils/attendanceUtils";
+import { DailyCalculationService } from "./services/dailyCalculationService";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+export const getTimeDifferenceInMinutes = _getTimeDifferenceInMinutes;
+export const calculateHolidayPay = _calculateHolidayPay;
 
 export const getShiftEnd = (shift: string, inDate: Date): Date => {
     const [hours, minutes] = shift.split(":").map(Number);
@@ -24,20 +32,6 @@ export const getShiftStart = (shift: string, inDate: Date): Date => {
     return shiftStartTime;
 };
 
-export const getTimeDifferenceInMinutes = (
-    shift: string,
-    inOut: Date,
-    timezone: string
-): number => {
-    const [hours, minutes] = shift.split(":").map(Number);
-
-    // Convert UTC date to Company Local Time
-    const localDate = dayjs(inOut).tz(timezone);
-
-    const timeDiff =
-        hours * 60 + minutes - (localDate.hour() * 60 + localDate.minute());
-    return timeDiff;
-};
 
 export const getWorkingDayStatus = (
     day: Date,
@@ -104,73 +98,24 @@ export const calculateOT = (
     },
     basic: number,
     divideBy: number,
-    workingHoursTreshold: number = 9,
+    workingHoursTreshold: number = 8,
     halfDayTreshold: number = 6
 ) => {
-    if (workingHours <= 0) {
-        return {
-            ot: 0,
-            otHours: 0,
-        };
-    }
+    // CENTRALIZED: Use DailyCalculationService for OT calculation
+    const breakdown = DailyCalculationService.calculateOTBreakdown(
+        workingHours,
+        workingDayStatus as "full" | "half" | "off",
+        holiday.categories.mercantile,
+        holiday.categories.public,
+        basic,
+        divideBy,
+        workingHoursTreshold,
+        halfDayTreshold
+    );
 
-    let otHours = 0;
-    if (
-        workingDayStatus === "off" ||
-        holiday.categories.mercantile ||
-        holiday.categories.public
-    ) {
-        otHours = workingHours;
-    } else if (workingDayStatus === "half") {
-        otHours = Math.max(workingHours - halfDayTreshold, 0);
-    } else {
-        otHours = Math.max(workingHours - workingHoursTreshold, 0);
-    }
-    let multiplier = 1.5;
-    if (holiday.categories.mercantile) {
-        multiplier = 2;
-    }
-
-    let ot = 0;
-    if (otHours > 0) {
-        if (holiday.categories.mercantile && otHours > workingHoursTreshold) {
-            ot =
-                (workingHoursTreshold * basic * multiplier) / divideBy +
-                ((otHours - workingHoursTreshold) * basic * 3) / divideBy; // tripleot
-        } else {
-            ot = (otHours * basic * multiplier) / divideBy;
-        }
-    }
     return {
-        ot,
-        otHours,
+        ot: breakdown.totalOTAmount,
+        otHours: breakdown.normalOT + breakdown.doubleOT + breakdown.tripleOT,
     };
 };
 
-export const calculateHolidayPay = (
-    holidayText: string,
-    workingHours: number,
-    workingHoursTreshold: number,
-    basic: number,
-    divideBy: number
-) => {
-    const recordHolidays = new Set(
-        holidayText.split(/[\s,]+/).map((h) => h.trim().toLowerCase())
-    );
-
-    let holidayPayMultiplier = 0;
-    if (recordHolidays.has("mercantile") || recordHolidays.has("off")) {
-        holidayPayMultiplier = 1; // Double pay for working, so bonus is 1x basic rate.
-    } else if (recordHolidays.has("public")) {
-        holidayPayMultiplier = 0.5; // 1.5x pay for working, so bonus is 0.5x basic rate.
-    }
-
-    let holidayPay = 0;
-    if (holidayPayMultiplier > 0) {
-        const basePayForHours =
-            (basic / divideBy) * Math.min(workingHoursTreshold, workingHours);
-        holidayPay = basePayForHours * holidayPayMultiplier;
-    }
-
-    return { holidayPay, holidayPayMultiplier };
-};

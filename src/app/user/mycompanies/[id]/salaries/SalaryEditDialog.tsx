@@ -59,6 +59,8 @@ export const SalaryEditDialog: React.FC<SalaryEditDialogProps> = ({ open, salary
             // Initialize paymentStructure if missing and create a shallow copy
             setFormData({
                 ...salary,
+                holidayPay: salary.holidayPay || 0,
+                advanceAmount: salary.advanceAmount || 0,
                 ot: normalizedOt,
                 noPay: normalizedNoPay,
                 paymentStructure: salary.paymentStructure || { additions: [], deductions: [] }

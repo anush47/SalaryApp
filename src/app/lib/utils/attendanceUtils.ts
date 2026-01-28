@@ -272,3 +272,49 @@ export const calculateEffectiveDuration = (
 
     return totalMinutes;
 };
+
+/**
+ * Calculates the difference in minutes between a shift start time and actual IN time.
+ */
+export const getTimeDifferenceInMinutes = (
+    shift: string,
+    inOut: Date,
+    timezone: string
+): number => {
+    const [hours, minutes] = shift.split(":").map(Number);
+    const localDate = dayjs(inOut).tz(timezone);
+    const timeDiff =
+        hours * 60 + minutes - (localDate.hour() * 60 + localDate.minute());
+    return timeDiff;
+};
+
+/**
+ * Calculates holiday pay bonus based on holiday type and hours worked.
+ */
+export const calculateHolidayPay = (
+    holidayText: string,
+    workingHours: number,
+    workingHoursTreshold: number,
+    basic: number,
+    divideBy: number
+) => {
+    const recordHolidays = new Set(
+        holidayText.split(/[\s,]+/).map((h) => h.trim().toLowerCase())
+    );
+
+    let holidayPayMultiplier = 0;
+    if (recordHolidays.has("mercantile") || recordHolidays.has("off")) {
+        holidayPayMultiplier = 1; // Double pay for working, so bonus is 1x basic rate.
+    } else if (recordHolidays.has("public")) {
+        holidayPayMultiplier = 0.5; // 1.5x pay for working, so bonus is 0.5x basic rate.
+    }
+
+    let holidayPay = 0;
+    if (holidayPayMultiplier > 0) {
+        const basePayForHours =
+            (basic / divideBy) * Math.min(workingHoursTreshold, workingHours);
+        holidayPay = basePayForHours * holidayPayMultiplier;
+    }
+
+    return { holidayPay, holidayPayMultiplier };
+};

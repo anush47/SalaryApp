@@ -2,15 +2,15 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import {
+    calculateOT,
     calculateHolidayPay,
     getTimeDifferenceInMinutes,
-} from "@/app/api/salaries/salaryHelper";
+} from "@/app/lib/utils/attendanceUtils";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 import { calculateSingleLeaveDeduction } from "../../../lib/leaveDeductionCalculation";
-import { calculateOT } from "@/app/lib/utils/attendanceUtils";
 
 interface OTBreakdown {
     normalOT: number; // 1.5x hours

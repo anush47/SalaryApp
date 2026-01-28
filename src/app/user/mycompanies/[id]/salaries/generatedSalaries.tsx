@@ -49,8 +49,17 @@ const GeneratedSalaries: React.FC<GeneratedSalariesProps> = ({
   const [selectedSalary, setSelectedSalary] = useState<Salary | null>(null);
 
   const handleEditSave = (updatedSalary: Salary) => {
+    // Flatten it back to match the state expected by generateSalaryAll/GeneratedSalaries
+    const flattenedSalary = {
+      ...updatedSalary,
+      otReason: updatedSalary.ot?.reason || (updatedSalary as any).otReason || "",
+      ot: typeof updatedSalary.ot === "object" ? updatedSalary.ot.amount : updatedSalary.ot,
+      noPayReason: updatedSalary.noPay?.reason || (updatedSalary as any).noPayReason || "",
+      noPay: typeof updatedSalary.noPay === "object" ? updatedSalary.noPay.amount : updatedSalary.noPay,
+    };
+
     setGeneratedSalaries((prev) =>
-      prev.map((s) => (s._id === updatedSalary._id ? updatedSalary : s))
+      prev.map((s) => (s._id === flattenedSalary._id ? (flattenedSalary as any) : s))
     );
   };
 
