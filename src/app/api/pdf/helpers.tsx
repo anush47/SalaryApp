@@ -9,6 +9,7 @@ import { getEPFDoc } from "./epf";
 import { getETFDoc } from "./etf";
 import { getPaySlipDoc } from "./payslip";
 import { getAttendanceDoc } from "./attendance";
+import Attendance from "@/app/models/Attendance";
 
 export const budgetaryRemovePeriod = "2025-04";
 
@@ -53,6 +54,7 @@ export type CompanySchema = {
     salary: boolean;
     paySlip: boolean;
   };
+  timezone: string;
 };
 
 //paymentSchema
@@ -103,7 +105,7 @@ export const getData = async (
 
   // Fetch company details
   const company = await Company.findById(companyId).select(
-    "name employerNo address requiredDocs"
+    "name employerNo address requiredDocs timezone"
   );
 
   if (!company) {
@@ -131,7 +133,8 @@ export const getData = async (
     ...(salaryIds ? { _id: { $in: salaryIds } } : {}),
     period,
   })
-    .populate("employee", "memberNo name nic")
+    .populate("employee", "memberNo name nic divideBy")
+    .populate("dailyRecords.attendanceRecords")
     .select(needInOut ? "" : "-inOut"); // Exclude the 'inOut' field if needInout is false
 
   // Ensure salaries are fetched correctly
@@ -315,6 +318,59 @@ export const setupData = (salaries: SalarySchema[]) => {
       additions.add("OT (+)");
     }
 
+    // Map dailyRecords to inOut if inOut is not present but dailyRecords are
+    if ((!modifiedSalary.inOut || modifiedSalary.inOut.length === 0) && (salary as any).dailyRecords && (salary as any).dailyRecords.length > 0) {
+      modifiedSalary.inOut = (salary as any).dailyRecords.map((record: any) => {
+        let inTime = "-";
+        let outTime = "-";
+
+        if (record.attendanceRecords && record.attendanceRecords.length > 0) {
+          // Sort timestamps
+          const timestamps = record.attendanceRecords
+            .map((ar: any) => (ar.timestamp ? new Date(ar.timestamp).getTime() : NaN))
+            .filter((t: number) => !isNaN(t))
+            .sort((a: number, b: number) => a - b);
+
+          if (timestamps.length > 0) {
+            inTime = new Date(timestamps[0]).toISOString();
+            if (timestamps.length > 1) {
+              outTime = new Date(timestamps[timestamps.length - 1]).toISOString();
+            }
+          }
+        }
+
+        const otHours = (record.normalOT || 0) + (record.doubleOT || 0) + (record.tripleOT || 0);
+
+        // Correct OT Calculation: (Basic * Hours * Multiplier) / DivideBy
+        const divideBy = (salary.employee as any).divideBy || 240; // Default to 240 if missing (hourly divisor)
+        const basic = salary.basic || 0;
+        const hourlyRate = basic / divideBy;
+
+        const normalOtAmount = (record.normalOT || 0) * 1.5 * hourlyRate;
+        const doubleOtAmount = (record.doubleOT || 0) * 2.0 * hourlyRate;
+        const tripleOtAmount = (record.tripleOT || 0) * 3.0 * hourlyRate;
+
+        const otAmount = normalOtAmount + doubleOtAmount + tripleOtAmount;
+
+        const descriptionParts = [];
+        if (record.holiday) descriptionParts.push(record.holiday);
+        if (record.remark && record.remark !== "Absent/No Record") descriptionParts.push(record.remark);
+        if (record.noPayReason) descriptionParts.push(record.noPayReason);
+
+
+        return {
+          in: inTime,
+          out: outTime,
+          shift: record.shiftName || "-",
+          workingHours: record.workingHours || 0,
+          otHours: otHours,
+          ot: otAmount,
+          noPay: record.noPay || 0,
+          description: descriptionParts.join(" | "),
+        };
+      });
+    }
+
     records.push(modifiedSalary);
   });
 
@@ -341,8 +397,8 @@ export const setupData = (salaries: SalarySchema[]) => {
     columns.push({ dataKey: "takeHome", header: "TAKE HOME" });
   }
 
-  //if inOut is available in salary then add it to columns
-  if (salaries[0].inOut) {
+  //if inOut is available in any record then add it to columns
+  if (records.some((r) => r.inOut)) {
     columns.push({ dataKey: "inOut", header: "IN/OUT" });
   }
 

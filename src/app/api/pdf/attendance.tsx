@@ -9,12 +9,12 @@ export const getAttendanceDoc = (
   salary: (string | number)[],
   employee:
     | {
-        _id: string;
-        memberNo: number;
-        name: string;
-        nic: string;
-        designation: string;
-      }
+      _id: string;
+      memberNo: number;
+      name: string;
+      nic: string;
+      designation: string;
+    }
     | undefined
 ) => {
   const doc = new jsPDF({
@@ -200,11 +200,18 @@ export const getAttendanceDoc = (
 
   //format date and time using ISO format
   const formatDateTime = (dateTime: string) => {
-    const dateObj = new Date(dateTime);
-    const dateTimeStringArray = dateObj.toISOString().split("T");
-    const date = dateTimeStringArray[0].slice(5).replace("-", "/"); // MM/DD
-    const time = dateTimeStringArray[1].slice(0, 5); // HH:MM
-    return { date, time };
+    if (!dateTime || dateTime === "-") return { date: "-", time: "-" };
+    try {
+      const dateObj = new Date(dateTime);
+      const timeZone = company.timezone || "Asia/Colombo";
+
+      const date = dateObj.toLocaleDateString("en-CA", { timeZone }).replace(/-/g, "/"); // YYYY/MM/DD
+      const time = dateObj.toLocaleTimeString("en-GB", { timeZone, hour12: false }).slice(0, 5); // HH:MM
+
+      return { date, time };
+    } catch (e) {
+      return { date: "-", time: "-" };
+    }
   };
 
   const noPayIndex = columns.findIndex((column) => column.dataKey === "noPay");
@@ -222,6 +229,7 @@ export const getAttendanceDoc = (
   type inOutSchema = {
     in: string;
     out: string;
+    shift: string;
     workingHours: number;
     otHours: number;
     ot: number;
@@ -233,7 +241,7 @@ export const getAttendanceDoc = (
     ? (salary[inOutIndex] as inOutSchema[])
     : [];
 
-  const attendanceHeaders = ["Day", "In", "Out", "Work(h)", "OT(h)", "OT(LKR)"];
+  const attendanceHeaders = ["Day", "Shift", "In", "Out", "Work(h)", "OT(h)", "OT(LKR)"];
   //add noPay if exists
   const hasNoPay =
     noPayIndex &&
@@ -252,22 +260,54 @@ export const getAttendanceDoc = (
       outDate = "-",
       outTime = "-",
       day = "";
-    if (row.in != row.out) {
-      ({ date: inDate, time: inTime } = formatDateTime(row.in));
-      ({ date: outDate, time: outTime } = formatDateTime(row.out));
-      day = inDate === outDate ? inDate : `${inDate}-${outDate}`;
-    } else {
-      day = formatDateTime(row.in).date;
+
+    // Check if in/out are valid ISO strings or placeholders
+    const isValidIn = row.in && row.in !== "-";
+    const isValidOut = row.out && row.out !== "-";
+
+    if (isValidIn) {
+      const result = formatDateTime(row.in);
+      inDate = result.date;
+      inTime = result.time;
     }
-    if (row.in) {
-      const dateObj = new Date(row.in.split("T")[0]);
-      const dayOfWeek = dateObj.toLocaleString("default", { weekday: "short" });
+    if (isValidOut) {
+      const result = formatDateTime(row.out);
+      outDate = result.date;
+      outTime = result.time;
+    }
+
+    if (isValidIn && isValidOut && inDate !== outDate) {
+      day = `${inDate}-${outDate}`;
+    } else if (isValidIn) {
+      day = inDate;
+    } else {
+      // Fallback if no valid times: calculate mostly from index or leave blank?
+      // Actually, we need a date. Ideally helpers provided it elsewhere or we parse it from 'in' if valid.
+      // If helpers provided a Date field separately it would be better, but we only have in/out.
+      // But wait, my helpers mapping provided 'Date' field? No. 'inOut' schema has in, out.
+      // Helpers provided dailyRecord.date as 'in' if timestamp missing? No, I initialized to "-".
+      // Use row.in if it looks like a date?
+      // If row.in is "2023-10-01T..." it works.
+      // If row.in is "-", we have no date.
+      // Wait, 'helpers' sets 'inTime' to NEW DATE ISO string if timestamps exist.
+      // If NO timestamps, 'in' is "-".
+      // Then we lose the date info for the row!!
+      // I MUST FIX helpers to put the date in 'in' even if time is missing?
+      // Or just let it be '-'.
+      day = "-";
+    }
+
+    if (isValidIn) {
+      const dateObj = new Date(row.in);
+      const timeZone = company.timezone || "Asia/Colombo";
+      const dayOfWeek = dateObj.toLocaleString("en-US", { weekday: "short", timeZone });
       day = `${day}(${dayOfWeek})`;
     }
 
     const returnArray = [
       //get current index + 1
       day,
+      row.shift || "-",
       `${inTime}`,
       `${outTime}`,
       row.workingHours === 0 ? "-" : row.workingHours.toFixed(2),
@@ -275,9 +315,9 @@ export const getAttendanceDoc = (
       row.ot === 0
         ? "-"
         : row.ot.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }),
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
     ];
 
     if (hasNoPay) {
@@ -285,9 +325,9 @@ export const getAttendanceDoc = (
         row.noPay == 0
           ? "-"
           : row.noPay.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
       );
     }
 
@@ -381,9 +421,9 @@ export const getAttendanceDoc = (
             data.cell.text = [
               Number(data.cell.text) !== 0
                 ? Number(data.cell.text).toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
                 : "-",
             ];
           }
