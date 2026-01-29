@@ -384,6 +384,19 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
     const isPending = lastLog?.status === 'pending';
     const isRejected = lastLog?.status === 'rejected';
 
+    const cooldownInfo = useMemo(() => {
+        if (!lastLog) return { active: false, remaining: 0 };
+        const lastTime = dayjs(lastLog.timestamp);
+        const diffSeconds = currentTime.diff(lastTime, 'second');
+        const cooldownSeconds = 5 * 60;
+        const remaining = cooldownSeconds - diffSeconds;
+        return {
+            active: remaining > 0,
+            remaining: Math.max(0, remaining),
+            formatted: remaining > 60 ? `${Math.ceil(remaining / 60)}m` : `${remaining}s`
+        };
+    }, [lastLog, currentTime]);
+
     // 3. Unified Attendance View Hook
     const { records: dailyRecords, stats: dailyStats, loading: loadingDaily } = useAttendanceAggregation(
         employee?._id,
@@ -739,7 +752,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                 size="large"
                                                 fullWidth
                                                 loading={loading || loadingLogs || locationStatus.fetching}
-                                                disabled={loading || loadingLogs || locationStatus.fetching}
+                                                disabled={loading || loadingLogs || locationStatus.fetching || cooldownInfo.active}
                                                 onClick={() => handleAttendance("in")}
                                                 startIcon={<Place sx={{ fontSize: { xs: 18, sm: 20 } }} />}
                                                 sx={{
@@ -751,7 +764,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                     minWidth: 0
                                                 }}
                                             >
-                                                Check In
+                                                {cooldownInfo.active ? `Wait ${cooldownInfo.formatted}` : 'Check In'}
                                             </LoadingButton>
                                         ) : (
                                             <LoadingButton
@@ -760,7 +773,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                 size="large"
                                                 fullWidth
                                                 loading={loading || loadingLogs || locationStatus.fetching}
-                                                disabled={loading || loadingLogs || locationStatus.fetching}
+                                                disabled={loading || loadingLogs || locationStatus.fetching || cooldownInfo.active}
                                                 onClick={() => handleAttendance("out")}
                                                 startIcon={<Logout sx={{ fontSize: { xs: 20, sm: 24 } }} />}
                                                 sx={{
@@ -772,7 +785,7 @@ const EmployeeAttendance: React.FC<UserProps> = ({ user }) => {
                                                     minWidth: 0
                                                 }}
                                             >
-                                                Check Out
+                                                {cooldownInfo.active ? `Wait ${cooldownInfo.formatted}` : 'Check Out'}
                                             </LoadingButton>
                                         )}
                                     </Stack>

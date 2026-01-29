@@ -106,7 +106,22 @@ export class AttendanceService {
             throw new ForbiddenError("Mobile check-in is disabled for this company.");
         }
 
-        // 2.5 Shift Validation & Resolution
+        // 2.5 Cooldown Check (5 Minutes)
+        if (!isEmployer) {
+            const lastAnyRecord = await Attendance.findOne({ employee: employee._id }).sort({ timestamp: -1 });
+            if (lastAnyRecord) {
+                const now = new Date();
+                const lastTime = new Date(lastAnyRecord.timestamp).getTime();
+                const diffMs = now.getTime() - lastTime;
+
+                if (diffMs < 5 * 60 * 1000) {
+                    const remainingMins = Math.ceil((300000 - diffMs) / 60000);
+                    throw new BadRequestError(`Please wait ${remainingMins} more minute(s) before marking attendance again.`);
+                }
+            }
+        }
+
+        // 2.6 Shift Validation & Resolution
         let resolvedShift: any = null;
         let resolutionMode = inputResolutionMode || "system"; // Default to input or system
 
