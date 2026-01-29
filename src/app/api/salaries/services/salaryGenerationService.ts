@@ -265,20 +265,49 @@ export class SalaryGenerationService {
         } else {
             paymentStructure = company.paymentStructure || { additions: [], deductions: [] };
         }
+        // Resolve payment structure and filter out EPF 8% to prevent double counting or outdated values
+        let affectTotalEarnings = 0;
+        const filteredAdditions = (paymentStructure.additions || []).map((add: any) => ({
+            ...add,
+            amount: parseFloat(add.amount) || 0
+        }));
+        const filteredDeductions = (paymentStructure.deductions || [])
+            .filter((ded: any) => !["EPF 8%", "EPF (8%)", "EPF (EMPLOYEE 8%)"].includes(ded.name.toUpperCase()))
+            .map((ded: any) => ({
+                ...ded,
+                amount: parseFloat(ded.amount) || 0
+            }));
 
-        // Calculate payment structure totals
-        const totalAdditions = (paymentStructure.additions || []).reduce((sum: number, add: any) => {
-            const amount = parseFloat(add.amount) || 0;
-            return sum + amount;
+        const totalAdditions = filteredAdditions.reduce((sum: number, add: any) => {
+            if (add.affectTotalEarnings) affectTotalEarnings += add.amount;
+            return sum + add.amount;
         }, 0);
 
-        const totalDeductions = (paymentStructure.deductions || []).reduce((sum: number, ded: any) => {
-            const amount = parseFloat(ded.amount) || 0;
-            return sum + amount;
+        const totalDeductionsExclEPF = filteredDeductions.reduce((sum: number, ded: any) => {
+            if (ded.affectTotalEarnings) affectTotalEarnings -= ded.amount;
+            return sum + ded.amount;
         }, 0);
+
+        // Calculate EPF 8% based on totalEarnings (basic + holidayPay + affecting components - totalNoPay)
+        const totalEarningsForStatutory = employee.basic + holidayPay + affectTotalEarnings - totalNoPay;
+        const epf8Amount = Math.max(0, totalEarningsForStatutory * 0.08);
+
+        // Add EPF 8% back into deductions for explicit display and storage
+        filteredDeductions.push({
+            name: "EPF 8%",
+            amount: epf8Amount,
+            affectTotalEarnings: false
+        });
+
+        const totalDeductions = totalDeductionsExclEPF + epf8Amount;
 
         // Calculate final salary: basic + holidayPay + additions + OT - deductions - noPay
         const finalSalary = employee.basic + holidayPay + totalAdditions + totalOTAmount - totalDeductions - totalNoPay;
+
+        paymentStructure = {
+            additions: filteredAdditions,
+            deductions: filteredDeductions
+        };
 
         return {
             employee: employeeId,

@@ -250,32 +250,25 @@ export const setupData = (salaries: SalarySchema[]) => {
 
   // Iterate over salaries and build records
   salaries.forEach((salary) => {
-    const basicWithBA = salary.basic;
     const budgetaryAllowance = 3500;
+
+    // Use stored values as source of truth where possible
+    // finalSalary in DB is Net Salary before Advances
+
     let affectTotalEarnings = 0;
-    //loop through additions and deductions
     salary.paymentStructure.additions.forEach((addition) => {
       if (addition.affectTotalEarnings) {
-        affectTotalEarnings +=
-          typeof addition.amount === "number"
-            ? addition.amount
-            : parseFloat(addition.amount);
+        affectTotalEarnings += typeof addition.amount === "number" ? addition.amount : parseFloat(addition.amount as string) || 0;
       }
     });
     salary.paymentStructure.deductions.forEach((deduction) => {
       if (deduction.affectTotalEarnings) {
-        affectTotalEarnings -=
-          typeof deduction.amount === "number"
-            ? deduction.amount
-            : parseFloat(deduction.amount);
+        affectTotalEarnings -= typeof deduction.amount === "number" ? deduction.amount : parseFloat(deduction.amount as string) || 0;
       }
     });
 
-    const totalEarnings =
-      basicWithBA +
-      (salary.holidayPay || 0) -
-      (salary.noPay.amount || 0) +
-      affectTotalEarnings;
+    const totalEarnings = salary.basic + (salary.holidayPay || 0) - (salary.noPay?.amount || 0) + affectTotalEarnings;
+
     const modifiedSalary: { [key: string]: any } = {
       memberNo: salary.employee.memberNo,
       name: salary.employee.name,
@@ -283,67 +276,70 @@ export const setupData = (salaries: SalarySchema[]) => {
       basic: isPeriodBefore(salary.period, budgetaryRemovePeriod)
         ? salary.basic - budgetaryAllowance
         : salary.basic,
-      budgetaryAllowance, // Example static value
-      basicWithBA,
-      holidayPay: salary.holidayPay,
-      noPay: salary.noPay.amount || 0,
-      totalEarnings,
+      budgetaryAllowance,
+      basicWithBA: salary.basic,
+      holidayPay: salary.holidayPay || 0,
+      noPay: salary.noPay?.amount || 0,
+      totalEarnings: totalEarnings,
       epf12: totalEarnings * 0.12,
       etf3: totalEarnings * 0.03,
       epf8: totalEarnings * 0.08,
-      advanceAmount: salary.advanceAmount,
-      finalSalary: salary.finalSalary,
+      advanceAmount: salary.advanceAmount || 0,
+      finalSalary: salary.finalSalary, // This is Net Salary as shown in the UI
+      takeHome: (salary.finalSalary || 0) - (salary.advanceAmount || 0), // Take Home Pay
     };
 
     if (salary.inOut) {
       modifiedSalary.inOut = salary.inOut;
     }
 
-    // Add dynamic additions
-    salary.paymentStructure.additions.forEach(
-      (addition: { name: string; amount: string | number }) => {
-        const nameText = `${addition.name.toUpperCase()} (+)`;
-        additions.add(nameText); // Collect dynamic addition columns
-        modifiedSalary[nameText] = addition.amount || 0;
-      }
-    );
+    // Add dynamic additions (excluding special types handled separately)
+    salary.paymentStructure.additions.forEach((addition) => {
+      const nameText = `${addition.name.toUpperCase()} (+)`;
+      additions.add(nameText);
+      modifiedSalary[nameText] = addition.amount || 0;
+    });
 
-    // Add dynamic deductions
-    salary.paymentStructure.deductions.forEach(
-      (deduction: { name: string; amount: string | number }) => {
-        const excludedDeductions = ["EPF 8%"]; //exclude EPF 8% from deductions because it is already included
-        if (!excludedDeductions.includes(deduction.name.toUpperCase())) {
-          const nameText = `${deduction.name.toUpperCase()} (-)`;
-          deductions.add(nameText); // Collect dynamic deduction columns
-          modifiedSalary[nameText] = deduction.amount || 0;
-        }
+    // Add dynamic deductions (excluding special types handled separately)
+    salary.paymentStructure.deductions.forEach((deduction) => {
+      const excludedDeductions = ["EPF 8%", "EPF (8%)", "EPF (EMPLOYEE 8%)"];
+      if (!excludedDeductions.includes(deduction.name.toUpperCase())) {
+        const nameText = `${deduction.name.toUpperCase()} (-)`;
+        deductions.add(nameText);
+        modifiedSalary[nameText] = deduction.amount || 0;
       }
-    );
+    });
 
     if (salary.ot && salary.ot.amount !== 0) {
       modifiedSalary["OT (+)"] = salary.ot.amount;
       additions.add("OT (+)");
     }
 
-    // Push the modified record into the records array
     records.push(modifiedSalary);
   });
 
   // Add dynamic addition and deduction columns
-  additions.forEach((addition) => {
+  Array.from(additions).sort().forEach((addition) => {
     columns.push({ dataKey: addition, header: addition });
   });
-  deductions.forEach((deduction) => {
+  Array.from(deductions).sort().forEach((deduction) => {
     columns.push({ dataKey: deduction, header: deduction });
   });
 
-  //if atleast one has advance then add advance column
-  if (records.some((record) => record.advanceAmount !== 0)) {
+  // Calculate if we need an advance/takeHome column
+  const hasAdvances = records.some((record) => Number(record.advanceAmount) !== 0);
+
+  // if atleast one has advance then add advance column
+  if (hasAdvances) {
     columns.push({ dataKey: "advanceAmount", header: "ADVANCE (-)" });
   }
 
-  // Finalize columns by adding static columns like "FINAL SALARY"
-  columns.push({ dataKey: "finalSalary", header: "FINAL SALARY" });
+  // Finalize columns by adding static columns like "NET SALARY"
+  columns.push({ dataKey: "finalSalary", header: "NET SALARY" });
+
+  if (hasAdvances) {
+    columns.push({ dataKey: "takeHome", header: "TAKE HOME" });
+  }
 
   //if inOut is available in salary then add it to columns
   if (salaries[0].inOut) {

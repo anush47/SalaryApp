@@ -51,6 +51,9 @@ export const getPaySlipDoc = (
   );
   const nameIndex = columns.findIndex((column) => column.dataKey === "name");
   const nicIndex = columns.findIndex((column) => column.dataKey === "nic");
+  const finalSalaryIndex = columns.findIndex(
+    (column) => column.dataKey === "finalSalary"
+  );
   //companyName
   doc.setFont("Times", "normal");
   doc.setFontSize(20);
@@ -239,7 +242,7 @@ export const getPaySlipDoc = (
     salaryRows.push(["No Pay (-)", salary[noPayIndex]]);
   }
 
-  salaryRows.push(["Total Earnings", salary[totalEarningsIndex]]);
+  salaryRows.push(["Total Earnings (for EPF)", salary[totalEarningsIndex]]);
 
   let totalAdditions = 0;
   // Append additions
@@ -252,26 +255,32 @@ export const getPaySlipDoc = (
     const additionIndex = columns.findIndex(
       (column) => column.dataKey === addition.dataKey
     );
-    salaryRows.push([
-      addition.header
-        .split(" ")
-        .map(
-          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        )
-        .join(" "),
-      salary[additionIndex],
-    ]);
-    totalAdditions += Number(salary[additionIndex]);
+    const amount = Number(salary[additionIndex]) || 0;
+    if (amount !== 0) {
+      salaryRows.push([
+        addition.header
+          .split(" ")
+          .map(
+            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join(" "),
+        amount,
+      ]);
+      totalAdditions += amount;
+    }
   });
-  salaryRows.push(["Total Additions", totalAdditions]);
+  salaryRows.push(["Total Other Additions", totalAdditions]);
   salaryRows.push(["Empty Row", ""]);
   //salaryRows.push(["Deductions Header Row", ""]);
 
   let totalDeductions = 0;
   //push epf8
   const epf8Index = columns.findIndex((column) => column.dataKey === "epf8");
-  salaryRows.push(["EPF 8% (-)", salary[epf8Index]]);
-  totalDeductions += Number(salary[epf8Index]);
+  const epf8Amount = Number(salary[epf8Index]) || 0;
+  if (epf8Amount !== 0) {
+    salaryRows.push(["EPF 8% (-)", epf8Amount]);
+    totalDeductions += epf8Amount;
+  }
 
   // Append deductions except epf8
   const deductions = columns.filter(
@@ -284,16 +293,19 @@ export const getPaySlipDoc = (
     const deductionIndex = columns.findIndex(
       (column) => column.dataKey === deduction.dataKey
     );
-    salaryRows.push([
-      deduction.header
-        .split(" ")
-        .map(
-          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        )
-        .join(" "),
-      salary[deductionIndex] !== undefined ? salary[deductionIndex] : 0,
-    ]);
-    totalDeductions += Number(salary[deductionIndex] || 0);
+    const amount = Number(salary[deductionIndex]) || 0;
+    if (amount !== 0) {
+      salaryRows.push([
+        deduction.header
+          .split(" ")
+          .map(
+            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join(" "),
+        amount,
+      ]);
+      totalDeductions += amount;
+    }
   });
 
   salaryRows.push(["Total Deductions", totalDeductions]);
@@ -301,21 +313,24 @@ export const getPaySlipDoc = (
 
   //ot
   const otIndex = columns.findIndex((column) => column.dataKey === "OT (+)");
-  salaryRows.push(["OT (+)", salary[otIndex]]);
+  if (otIndex !== -1 && salary[otIndex] && Number(salary[otIndex]) !== 0) {
+    salaryRows.push(["OT (+)", salary[otIndex]]);
+  }
+
+  salaryRows.push(["Net Salary", salary[finalSalaryIndex]]);
   //if advance
   const advanceIndex = columns.findIndex(
     (column) => column.dataKey === "advanceAmount"
   );
-  if (salary[advanceIndex]) {
-    salaryRows.push(["Advance (-)", salary[advanceIndex]]);
+  const advanceAmt = advanceIndex !== -1 ? Number(salary[advanceIndex]) : 0;
+  if (advanceAmt !== 0) {
+    salaryRows.push(["Advance (-)", advanceAmt]);
   }
-  //final salary
-  const finalSalaryIndex = columns.findIndex(
-    (column) => column.dataKey === "finalSalary"
-  );
+
+  // Final Take Home Pay
   salaryRows.push([
-    "Final Salary",
-    Number(salary[finalSalaryIndex]) - (Number(salary[advanceIndex]) || 0),
+    "Take Home Pay",
+    Number(salary[finalSalaryIndex]) - advanceAmt,
   ]);
 
   autoTable(doc, {
@@ -345,12 +360,12 @@ export const getPaySlipDoc = (
     didParseCell: function (data) {
       //Bold total and basic
       if (
-        data.row.cells[0].text.join(" ") === "Total Earnings" ||
-        data.row.cells[0].text.join(" ") === "Total Additions" ||
+        data.row.cells[0].text.join(" ") === "Total Earnings (for EPF)" ||
+        data.row.cells[0].text.join(" ") === "Total Other Additions" ||
         data.row.cells[0].text.join(" ") === "Total Deductions"
       ) {
         data.cell.styles.fontStyle = "bold";
-      } else if (data.row.cells[0].text.join(" ") === "Final Salary") {
+      } else if (data.row.cells[0].text.join(" ") === "Net Salary" || data.row.cells[0].text.join(" ") === "Take Home Pay") {
         data.cell.styles.fontStyle = "bold";
         data.cell.styles.fontSize = 16;
         data.cell.styles.lineWidth = 0.6;
